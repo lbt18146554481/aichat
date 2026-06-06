@@ -1,20 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Heart, MessageCircle, Sparkles, Coffee } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "小荷 · 慢慢相遇 — 与 AI 红娘开启你的故事" },
+      { title: "Muse — Describe the one you're looking for" },
       {
         name: "description",
-        content: "不必滑卡片，先与 AI 红娘小荷聊聊。让懂你的人，慢慢出现。",
+        content:
+          "A quiet way to find someone real. Describe the person you imagine; we'll help you find them.",
       },
-      { property: "og:title", content: "小荷 · 慢慢相遇" },
+      { property: "og:title", content: "Muse" },
       {
         property: "og:description",
-        content: "AI 红娘陪你聊天，理解你之后，为你介绍真正合拍的人。",
+        content: "Describe the one you're looking for. We'll help you find them.",
       },
     ],
   }),
@@ -24,84 +24,72 @@ export const Route = createFileRoute("/")({
 function Landing() {
   return (
     <AppShell>
-      <section className="max-w-5xl mx-auto px-6 pt-16 md:pt-24 pb-20">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="text-center max-w-2xl mx-auto"
+      <section className="max-w-3xl mx-auto px-6 pt-24 md:pt-36 pb-24 text-center">
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8 }}
+          className="text-[11px] tracking-[0.32em] uppercase text-gold"
         >
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium">
-            <Sparkles className="w-3.5 h-3.5" /> 由 AI 红娘陪你开始
-          </span>
-          <h1 className="mt-6 text-5xl md:text-6xl font-display font-medium leading-[1.1]">
-            慢一点，<br />
-            <span className="text-gradient-warm">让懂你的人 出现</span>
-          </h1>
-          <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
-            不必急着滑卡片，也不必费心写资料。
-            <br className="hidden md:block" />
-            先和 AI 红娘小荷聊聊，TA 会替你把心事整理好。
-          </p>
+          A quieter way to be found
+        </motion.p>
 
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="mt-10 inline-block"
+        <motion.h1
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.9, delay: 0.15, ease: "easeOut" }}
+          className="mt-8 font-display text-5xl md:text-7xl leading-[1.05] text-foreground"
+        >
+          Describe the one
+          <br />
+          you're <span className="font-display-italic text-gold">looking for</span>.
+        </motion.h1>
+
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.9, delay: 0.5 }}
+          className="mt-8 text-base md:text-lg text-whisper leading-relaxed max-w-xl mx-auto"
+        >
+          Not a checklist. Not a swipe. Just a quiet conversation
+          about the shape of the person you imagine — and the people
+          who already feel a little like them.
+        </motion.p>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.9, delay: 0.85 }}
+          className="mt-14"
+        >
+          <Link
+            to="/describe"
+            className="inline-flex items-center gap-3 border border-gold/70 px-8 py-3.5 text-[12px] tracking-[0.28em] uppercase text-gold hover:bg-gold hover:text-primary-foreground transition-colors duration-500"
           >
-            <Link
-              to="/chat"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-full gradient-warm text-white text-base font-medium shadow-soft"
-            >
-              <MessageCircle className="w-5 h-5" />
-              和小荷聊聊
-            </Link>
-          </motion.div>
+            Begin <span className="caret-blink" />
+          </Link>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.4, duration: 0.6 }}
-          className="mt-24 grid md:grid-cols-3 gap-5"
+          transition={{ duration: 1, delay: 1.2 }}
+          className="mt-32 grid md:grid-cols-3 gap-10 text-left"
         >
           {[
-            {
-              icon: MessageCircle,
-              title: "1. 轻松聊一聊",
-              desc: "小荷会像朋友一样问你的喜好、性格、想要怎样的相遇。",
-              color: "var(--peach)",
-            },
-            {
-              icon: Coffee,
-              title: "2. 生成你的档案",
-              desc: "聊天结束，一份温柔贴切的个人画像自动整理完成。",
-              color: "var(--sunset)",
-            },
-            {
-              icon: Heart,
-              title: "3. 遇见合拍的人",
-              desc: "为你挑选契合度高的 TA，附上「为什么」的推荐理由。",
-              color: "var(--sage)",
-            },
-          ].map((step, i) => (
+            { n: "I.", t: "Describe", d: "Tell us, in your own words, the person you hope to meet." },
+            { n: "II.", t: "Refine", d: "Muse asks a few quiet questions and gathers your description into a portrait." },
+            { n: "III.", t: "Find", d: "Meet the people who feel closest to the one you imagined." },
+          ].map((s, i) => (
             <motion.div
-              key={step.title}
-              initial={{ opacity: 0, y: 24 }}
+              key={s.t}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 + i * 0.1, duration: 0.5 }}
-              className="rounded-3xl bg-card/80 backdrop-blur p-6 border border-border/60 shadow-soft"
+              transition={{ duration: 0.7, delay: 1.3 + i * 0.12 }}
             >
-              <div
-                className="w-12 h-12 rounded-2xl grid place-items-center mb-4"
-                style={{ background: `color-mix(in oklab, ${step.color} 25%, white)` }}
-              >
-                <step.icon className="w-5 h-5" style={{ color: `color-mix(in oklab, ${step.color} 70%, black)` }} />
-              </div>
-              <h3 className="text-xl font-display font-medium">{step.title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                {step.desc}
-              </p>
+              <div className="font-display-italic text-gold text-xl">{s.n}</div>
+              <div className="mt-2 font-display text-2xl text-foreground">{s.t}</div>
+              <p className="mt-2 text-sm text-whisper leading-relaxed">{s.d}</p>
             </motion.div>
           ))}
         </motion.div>

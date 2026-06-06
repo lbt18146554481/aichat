@@ -1,54 +1,51 @@
-import { EMPTY_PROFILE, type ChatMessage, type UserProfile } from "./types";
+import { EMPTY_SEEKER, type Seeker, type Turn } from "./types";
 
-const PROFILE_KEY = "red-threads-profile";
-const CHAT_KEY = "red-threads-chat";
+const SEEKER_KEY = "muse:seeker";
+const CONV_KEY = "muse:conversation";
+const LEGACY_KEYS = ["red-threads-profile", "red-threads-chat"];
 
 const isBrowser = () => typeof window !== "undefined";
 
-export function loadProfile(): UserProfile {
-  if (!isBrowser()) return { ...EMPTY_PROFILE };
+function clearLegacy() {
+  if (!isBrowser()) return;
+  for (const k of LEGACY_KEYS) localStorage.removeItem(k);
+}
+
+export function loadSeeker(): Seeker {
+  if (!isBrowser()) return { ...EMPTY_SEEKER };
+  clearLegacy();
   try {
-    const raw = localStorage.getItem(PROFILE_KEY);
-    if (!raw) return { ...EMPTY_PROFILE };
-    return { ...EMPTY_PROFILE, ...JSON.parse(raw) };
+    const raw = localStorage.getItem(SEEKER_KEY);
+    if (!raw) return { ...EMPTY_SEEKER };
+    return { ...EMPTY_SEEKER, ...JSON.parse(raw) };
   } catch {
-    return { ...EMPTY_PROFILE };
+    return { ...EMPTY_SEEKER };
   }
 }
 
-export function saveProfile(profile: UserProfile) {
+export function saveSeeker(s: Seeker) {
   if (!isBrowser()) return;
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  localStorage.setItem(SEEKER_KEY, JSON.stringify(s));
 }
 
-export function loadChat(): ChatMessage[] {
+export function loadConversation(): Turn[] {
   if (!isBrowser()) return [];
   try {
-    const raw = localStorage.getItem(CHAT_KEY);
+    const raw = localStorage.getItem(CONV_KEY);
     if (!raw) return [];
-    return JSON.parse(raw) as ChatMessage[];
+    return JSON.parse(raw) as Turn[];
   } catch {
     return [];
   }
 }
 
-export function saveChat(messages: ChatMessage[]) {
+export function saveConversation(turns: Turn[]) {
   if (!isBrowser()) return;
-  localStorage.setItem(CHAT_KEY, JSON.stringify(messages));
+  localStorage.setItem(CONV_KEY, JSON.stringify(turns));
 }
 
 export function resetAll() {
   if (!isBrowser()) return;
-  localStorage.removeItem(PROFILE_KEY);
-  localStorage.removeItem(CHAT_KEY);
-}
-
-export function isProfileComplete(p: UserProfile): boolean {
-  return Boolean(
-    p.nickname &&
-      p.age &&
-      p.city &&
-      p.interests.length > 0 &&
-      p.personalityTags.length > 0,
-  );
+  localStorage.removeItem(SEEKER_KEY);
+  localStorage.removeItem(CONV_KEY);
 }

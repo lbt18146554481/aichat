@@ -1,51 +1,30 @@
-export interface UserProfile {
-  nickname: string;
-  age: number | null;
-  city: string;
-  gender: string;
-  lookingFor: string;
-  interests: string[];
-  personalityTags: string[];
-  bio: string;
-  preferences: {
-    ageRange: [number, number];
-    cities: string[];
-    mustHaveTags: string[];
-  };
+export interface Seeker {
+  rawDescription: string;
+  followUps: { q: string; a: string }[];
+  portrait: string;
+  signals: string[];
 }
 
-export interface ChatMessage {
+export interface Turn {
   id: string;
-  role: "user" | "assistant";
+  role: "you" | "muse";
   text: string;
-  timestamp: number;
+  t: number;
 }
 
-export interface Candidate {
+export interface Person {
   id: string;
   name: string;
   age: number;
   city: string;
-  gender: string;
-  avatarSeed: string;
-  interests: string[];
-  personalityTags: string[];
-  bio: string;
   occupation: string;
+  portrait: string;
+  signals: string[];
 }
 
-export const EMPTY_PROFILE: UserProfile = {
-  nickname: "",
-  age: null,
-  city: "",
-  gender: "",
-  lookingFor: "",
-  interests: [],
-  personalityTags: [],
-  bio: "",
-  preferences: {
-    ageRange: [22, 40],
-    cities: [],
-    mustHaveTags: [],
-  },
+export const EMPTY_SEEKER: Seeker = {
+  rawDescription: "",
+  followUps: [],
+  portrait: "",
+  signals: [],
 };
