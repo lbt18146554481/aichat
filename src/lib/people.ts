@@ -1,6 +1,5 @@
 import type { Person } from "./types";
 
-// A hand-written pool of imagined people. Prose, not data sheets.
 export const PEOPLE: Person[] = [
   {
     id: "iris",
@@ -67,7 +66,7 @@ export const PEOPLE: Person[] = [
     name: "Søren",
     age: 32,
     city: "Copenhagen",
-    occupation: "Cyclist & bike-shop owner",
+    occupation: "Bike-shop owner",
     portrait:
       "Rides at dawn. Believes a good repair is a small love letter to whoever rides next. Reads Tranströmer between customers.",
     signals: ["outdoors", "morning", "reading", "quiet"],
@@ -129,5 +128,5 @@ export function getPersonById(id: string): Person | undefined {
 }
 
 export function avatarUrl(seed: string): string {
-  return `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(seed)}&backgroundColor=1a1a1a&radius=0`;
+  return `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(seed)}&backgroundColor=FFC9D2,FFE5B4,A8D5A0,FFFBF5&radius=50`;
 }

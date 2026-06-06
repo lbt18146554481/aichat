@@ -4,34 +4,22 @@ export interface FollowUp {
   q: string;
 }
 
-// Pool of gentle, evocative follow-up questions.
-// The conversation engine picks 3 in order; each one nudges the seeker
-// toward a more specific imagined portrait of the person they want to meet.
 export const FOLLOW_UPS: FollowUp[] = [
-  {
-    q: "What would a slow Sunday with them look like?",
-  },
-  {
-    q: "What's a small thing about them that would make you smile, even on a hard day?",
-  },
-  {
-    q: "What's something you'd want them to be unafraid of?",
-  },
+  { q: "What would a slow Sunday with them feel like?" },
+  { q: "What's a small thing about them that would make you smile, even on a hard day?" },
+  { q: "What's something you'd want them to be unafraid of?" },
 ];
 
 export const OPENING = {
   intro:
-    "Tell me about the person you hope to meet. No checklist — just the shape of them, in your own words.",
+    "Hi — I'm Bloom 🌷  Tell me about the person you hope to meet. No checklist, no specs — just the shape of them, in your own words.",
   placeholder:
-    "Someone who notices things. Quietly funny. Loves walking nowhere in particular...",
+    "Someone who notices small things. Quietly funny. Loves walking nowhere in particular...",
 };
 
 export const CLOSING =
-  "Thank you. Give me a moment — I'm gathering them into a portrait.";
+  "Lovely. Give me a moment — I'm gathering your words into a portrait.";
 
-// Lightweight keyword extraction: pulls evocative tokens from the seeker's
-// answers to use as "signals" for matching. Not a real NLP — intentionally
-// simple, deterministic, and English-only.
 const SIGNAL_VOCAB: Record<string, string[]> = {
   reading: ["read", "books", "novel", "library", "bookstore"],
   music: ["music", "vinyl", "concert", "song", "guitar", "piano"],

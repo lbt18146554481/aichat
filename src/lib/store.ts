@@ -1,8 +1,13 @@
 import { EMPTY_SEEKER, type Seeker, type Turn } from "./types";
 
-const SEEKER_KEY = "muse:seeker";
-const CONV_KEY = "muse:conversation";
-const LEGACY_KEYS = ["red-threads-profile", "red-threads-chat"];
+const SEEKER_KEY = "bloom:seeker";
+const CONV_KEY = "bloom:conversation";
+const LEGACY_KEYS = [
+  "red-threads-profile",
+  "red-threads-chat",
+  "muse:seeker",
+  "muse:conversation",
+];
 
 const isBrowser = () => typeof window !== "undefined";
 
