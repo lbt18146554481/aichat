@@ -3,9 +3,9 @@ import { AppLayout } from "@/components/app-layout";
 import { ChatSurface } from "@/components/chat-surface";
 
 export const Route = createFileRoute("/c/$chatId")({
-  head: ({ params }) => ({
+  head: () => ({
     meta: [
-      { title: `Chat — Bloom` },
+      { title: "Chat — Bloom" },
       { name: "description", content: "A Bloom conversation." },
     ],
   }),

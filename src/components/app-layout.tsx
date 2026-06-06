@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { Menu, X } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { ChatSidebar } from "@/components/chat-sidebar";
 import { clearLegacyKeys } from "@/lib/chats";
@@ -67,5 +67,3 @@ export function AppLayout({ children }: { children?: ReactNode }) {
   );
 }
 
-// Avoid unused import errors
-void X;
