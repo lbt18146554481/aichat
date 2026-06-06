@@ -1,126 +1,128 @@
 
-# Bloom — 第三版重设计计划
+# 第四版重设计 — 精致科技风 + Agent 团队
 
-完全替换 Muse 的暗色克制风格。新方向：**春日般明亮的、希望感的全屏对话首页**。
+完全替换 Bloom 的春日粉色方向。新方向：**简约、克制、中性的科技公司视觉**（参考 Linear / Vercel / Stripe），首页保留全屏对话，但侧栏新增 Agent 团队面板。
 
 ---
 
 ## 品牌
 
-- **名称**：**Bloom**
-- **Tagline**：*Tell us who you'd bloom with.*
-- **副标题**：*Describe the person you hope to meet. We'll help you find them.*
-- **语气**：温暖、轻盈、有希望感，但不卖萌。
+- **名称**：保留 **Bloom**（如需换名再告知）
+- **Tagline**：*Your AI team for finding the one.*
+- **语气**：克制、可信、不浮夸、不甜腻。男女通用。
 
 ---
 
-## 配色（Spring Bloom · 浅底活泼）
+## 配色（中性科技风 · 浅底）
 
-写入 `src/styles.css` 的 `oklch` token：
+写入 `src/styles.css`：
 
 | Token | 用途 | 颜色 |
 |---|---|---|
-| `--background` | 主背景 | 象牙白 `#FFFBF5` |
-| `--foreground` | 正文 | 深玫瑰棕 `#3a1f24`（高对比，但不黑） |
-| `--primary` | 主按钮/强调 | 鲜活珊瑚 `#FF7A8A` |
+| `--background` | 主背景 | 近白 `#FAFAFA` |
+| `--foreground` | 正文 | 近黑 `#0A0A0A` |
+| `--card` | 卡片面 | 纯白 `#FFFFFF` |
+| `--primary` | 强调/按钮 | 深墨 `#111111` |
 | `--primary-foreground` | 主按钮文字 | 白 |
-| `--secondary` | 次要面/气泡 | 樱花粉 `#FFC9D2` |
-| `--accent` | 点缀 | 嫩绿 `#A8D5A0` |
-| `--muted` | 弱化背景 | 极浅奶粉 `#FFF1F3` |
-| `--muted-foreground` | 弱化文字 | 暖灰 `#8c6d72` |
-| `--ring` | 焦点环 | 珊瑚 `#FF7A8A` |
+| `--secondary` | 次要面 | 浅灰 `#F4F4F5` |
+| `--muted` | 弱化背景 | `#F4F4F5` |
+| `--muted-foreground` | 弱化文字 | 中灰 `#71717A` |
+| `--accent` | 唯一点缀色 | 克制蓝 `#2563EB`（仅用于状态、链接、Agent 工作指示） |
+| `--border` | 描边 | `#E4E4E7` |
+| `--ring` | 焦点环 | `#2563EB` |
 
 视觉氛围：
-- 大背景柔和粉/桃/绿的散射光斑（径向渐变叠加）
-- 圆角回到柔和（`rounded-3xl`、对话气泡 `rounded-2xl`）
-- 阴影是粉色调的弥散柔光，不是黑色
-- 字体：标题 **Fraunces**（衬线、温暖现代），正文 **Inter**
-- 动效：花瓣式的字符 stagger、气泡淡入、按钮微呼吸
-
-**完全移除**：黑底、金线、噪点纹理、Cormorant 字体、Noir & Gold tokens、所有 `--ink/--gold/--whisper/--paper` 命名。
+- **去掉**所有粉色径向渐变背景、`shadow-bloom`、`shadow-petal`、`gradient-coral`、`text-gradient-bloom`、`breathe`、`Flower2` 图标
+- 阴影改为标准中性 `0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06)`
+- 字体：标题与正文统一 **Inter**（去掉 Fraunces；标题靠字重 600 + 紧字距，不靠衬线）
+- 圆角统一 `--radius: 0.75rem`
+- 气泡：用户消息 = 深色实底，Agent 消息 = 白底 + 1px 描边
 
 ---
 
-## 信息架构（首页即对话）
+## 信息架构
 
 | Route | Page | 说明 |
 |---|---|---|
-| `/` | **首页 = 全屏对话** | 上：Bloom 品牌名 + 一句 tagline；下：全屏对话框，进入即可输入 |
-| `/portrait` | Your portrait | AI 整理出的散文段落，可编辑/重生成 |
-| `/people` | People who'd bloom with you | 候选人卡片，无评分 |
-| `/people/$id` | Person | 完整 portrait + Reach out |
+| `/` | **首页 = 左侧 Agent 团队面板 + 右侧全屏对话** | 桌面端两栏，移动端 Agent 面板折叠成顶部抽屉 |
+| `/portrait` | Your portrait | AI 整理的散文段落（沿用，重设样式） |
+| `/people` | People | 候选人卡片（沿用，重设样式） |
+| `/people/$id` | Person | 详情（沿用，重设样式） |
 
-**删除** `src/routes/describe.tsx`——首页本身就是 describe。`/describe` 不再存在。
-**删除** `src/routes/index.tsx` 旧的 Landing。
-导航变为 3 项：**Home（聊天）/ Portrait / People**。
+导航：**Chat / Portrait / People**（保留 3 项，去掉花朵图标，使用 lucide 的 `MessageSquare / User / Users`）。
 
 ---
 
-## 首页布局（全屏对话）
+## Agent 团队（核心新增）
+
+定义 4 个 Agent，作为左侧固定面板。每个 Agent 是一张小卡：圆形头像（首字母 monogram，无情绪化色彩）+ 名字 + 一行职责 + 当前状态点（idle / working / done）。
+
+| Agent | 职责 | 何时激活 |
+|---|---|---|
+| **Portrait** | 把你说的内容整理成一段画像 | 用户完成 3 个 follow-up 后 |
+| **Scout** | 在候选人池中寻找契合的人 | Portrait 完成后 |
+| **Spark** | 为你与候选人之间生成一个自然的破冰开场 | 进入某个候选人详情时 |
+| **Coach** | 给约会与沟通的轻量建议 | 用户在详情页点击 "Get advice" |
+
+**注意**：本期仍为纯前端 mock，Agent 状态机由本地脚本驱动，不接 LLM。Agent 卡片点击会展开一行说明 + "Activated by Bloom"。
+
+---
+
+## 首页布局
 
 ```text
-┌─────────────────────────────────────────────────┐
-│  Bloom              Portrait   People           │ ← 极简顶部
-│  ─────────────────────────────────────────────  │
-│                                                 │
-│                                                 │
-│      Tell us who you'd                          │
-│      bloom with.                                │ ← 大标题
-│                                                 │
-│      [Muse 气泡] Hi — describe the person       │
-│      you hope to meet, in your own words. 🌷    │ ← 首条 Bloom 消息
-│                                                 │
-│      [你的回复区...]                            │
-│                                                 │
-│                                                 │
-│   ┌───────────────────────────────────────┐    │
-│   │ Someone who notices things...         │    │ ← 输入框（自动聚焦）
-│   │                          [Send 珊瑚色] │    │
-│   └───────────────────────────────────────┘    │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  Bloom                              Chat  Portrait  People    │
+├────────────────┬─────────────────────────────────────────────┤
+│ Your AI team   │                                             │
+│                │  Tell us who you'd like to meet.            │
+│ ● Portrait     │                                             │
+│   Idle         │  [Bloom] Hi — describe the person you...    │
+│                │                                             │
+│ ● Scout        │  [You] Someone who notices small things...  │
+│   Idle         │                                             │
+│                │  ...                                        │
+│ ● Spark        │                                             │
+│   Idle         │  ┌─────────────────────────────────────┐   │
+│                │  │ In your own words...           [↑]  │   │
+│ ● Coach        │  └─────────────────────────────────────┘   │
+│   Idle         │                                             │
+└────────────────┴─────────────────────────────────────────────┘
 ```
 
-- **进入即输入**：页面加载后输入框自动聚焦，第一条 Bloom 消息已显示。
-- 没有 "Begin" 按钮、没有三步说明、没有 hero CTA。
-- 对话推进同样是 Hybrid：自由文本 → 3 个轻提问 → 生成 portrait → 出现 "See people" 按钮。
-- 完成对话后顶部出现一个浮动 CTA 条："Your portrait is ready · Read portrait / Meet them →"
+- 桌面：左栏宽 `280px`，右栏对话占满。
+- 移动：Agent 面板收成顶部一行可横滑的 chip + 一个 "Team" 按钮打开抽屉。
+- 对话推进时，相应 Agent 卡片状态点变蓝并显示 "working..."；完成后变绿勾。
 
 ---
 
-## 对话气泡视觉
+## 文件改动
 
-- **Bloom 消息**：左对齐，樱花粉气泡 `bg-secondary`，深玫瑰文字，左侧有一个小花朵图标（用 `lucide-react` 的 `Flower2` 或 `Sparkles` 都可以，确认用 `Flower2` 更切题）
-- **你的消息**：右对齐，珊瑚色气泡 `bg-primary text-primary-foreground`
-- **typing**：三个粉色小圆点跳动 + 一句斜体灰字 "Bloom is listening..."
+**重写**：
+- `src/styles.css` — 全新中性科技 token，删除所有粉色/花朵相关 utility
+- `src/routes/__root.tsx` — 字体只留 Inter，标题/描述去花朵化
+- `src/components/app-shell.tsx` — 顶部导航换图标、去渐变
+- `src/routes/index.tsx` — 改为两栏布局，引入 AgentPanel；气泡样式换中性
+- `src/routes/portrait.tsx` — 重设样式
+- `src/routes/people.tsx` — 卡片改纯白 + 描边
+- `src/routes/people.$id.tsx` — 详情重设，加 "Activate Spark" / "Ask Coach" 入口
 
----
+**新增**：
+- `src/lib/agents.ts` — Agent 定义（id/name/role/icon-letter）+ 状态机类型
+- `src/components/agent-panel.tsx` — 左侧/抽屉式面板
+- `src/components/agent-card.tsx` — 单个 Agent 卡
 
-## 复用 vs 重写
+**保留不动**：
+- `src/lib/conversation.ts` / `portrait.ts` / `people.ts` / `resonance.ts` / `types.ts` / `store.ts`（仅在 store 里增加 `bloom:agents` 状态键）
 
-保留并复用：
-- `src/lib/types.ts`（仅把品牌相关字符串中性化，结构不变）
-- `src/lib/conversation.ts`（FOLLOW_UPS / OPENING / extractSignals / collectSignals）——只更新文案里的品牌词
-- `src/lib/portrait.ts`（散文生成器，不变）
-- `src/lib/people.ts`（12 个英文人物，**保留**）
-- `src/lib/resonance.ts`（共鸣推荐，不变）
-- `src/lib/store.ts`（localStorage 键名从 `muse:*` 迁移到 `bloom:*`，自动清理旧键）
-
-重写：
-- `src/styles.css`（Spring Bloom tokens）
-- `src/components/app-shell.tsx`（明亮版顶部 + 移动端底部 nav）
-- `src/routes/__root.tsx`（标题文案 + 字体改回 Fraunces + Inter）
-- `src/routes/index.tsx`（**全屏对话首页**——由旧 describe 改造而来）
-- `src/routes/portrait.tsx`（明亮版样式，逻辑不变）
-- `src/routes/people.tsx`（明亮卡片）
-- `src/routes/people.$id.tsx`（明亮详情）
-
-删除：
-- `src/routes/describe.tsx`（合并到首页）
+**删除**：
+- 无需删文件；之前的 `src/routes/describe.tsx` 已不存在
+- 顺手清理 styles.css 中：`--blossom / --coral / --leaf / --cream / shadow-bloom / shadow-petal / gradient-coral / text-gradient-bloom / breathe` 等粉色资产
 
 ---
 
 ## 风险与说明
 
-- 旧的 `muse:*` localStorage 数据启动时自动清空并迁移到 `bloom:*`。
-- 仍为纯前端 mock 体验：无后端、无真实 LLM、无登录。
-- 候选人池仍是手写的 12 个英文人物，保持原样。
+- 仍为纯前端 mock，无 LLM、无后端、无登录。
+- Agent 状态由对话阶段触发，本地状态机驱动，刷新后从 localStorage 恢复。
+- 修复运行时错误：`routeTree.gen.ts` 中已无 describe 路由引用，本次重写会让构建重新生成稳定。
