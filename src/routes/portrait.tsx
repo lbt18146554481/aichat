@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
+import { Flower2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { composePortrait } from "@/lib/portrait";
@@ -9,10 +10,10 @@ import { EMPTY_SEEKER, type Seeker } from "@/lib/types";
 export const Route = createFileRoute("/portrait")({
   head: () => ({
     meta: [
-      { title: "Portrait — Muse" },
+      { title: "Your portrait — Bloom" },
       {
         name: "description",
-        content: "The portrait Muse gathered from your words.",
+        content: "The portrait Bloom gathered from your words.",
       },
     ],
   }),
@@ -53,40 +54,39 @@ function PortraitPage() {
 
   return (
     <AppShell>
-      <section className="max-w-3xl mx-auto px-6 py-16">
+      <section className="max-w-3xl mx-auto px-6 py-12 md:py-16">
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
+          transition={{ duration: 0.6 }}
         >
-          <p className="text-[11px] tracking-[0.32em] uppercase text-gold">
-            Your portrait
-          </p>
-          <h1 className="mt-4 font-display text-5xl md:text-6xl text-foreground leading-[1.05]">
-            The shape of <span className="font-display-italic text-gold">them</span>.
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground text-xs font-medium">
+            <Flower2 className="w-3.5 h-3.5 text-primary" /> Your portrait
+          </div>
+          <h1 className="mt-5 font-display text-5xl md:text-6xl text-foreground leading-[1.05]">
+            The shape of{" "}
+            <span className="font-display-italic text-gradient-bloom">them</span>.
           </h1>
         </motion.div>
-
-        <div className="mt-12 gold-rule" />
 
         {!hasPortrait ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="mt-12 text-center"
+            transition={{ duration: 0.7, delay: 0.15 }}
+            className="mt-14 rounded-3xl bg-card/80 backdrop-blur border border-border p-10 text-center shadow-petal"
           >
-            <p className="font-display-italic text-2xl text-whisper">
+            <p className="font-display italic text-2xl text-muted-foreground">
               No portrait yet.
             </p>
-            <p className="mt-3 text-sm text-whisper">
-              Begin with a conversation. A few quiet words is enough.
+            <p className="mt-3 text-sm text-muted-foreground max-w-md mx-auto">
+              Start a conversation on the home page. A few quiet words is enough.
             </p>
             <Link
-              to="/describe"
-              className="mt-8 inline-flex border border-gold/70 px-6 py-3 text-[11px] tracking-[0.22em] uppercase text-gold hover:bg-gold hover:text-primary-foreground transition-colors"
+              to="/"
+              className="mt-8 inline-flex px-6 py-3 rounded-full gradient-coral text-white text-sm font-medium shadow-petal hover:scale-105 transition-transform"
             >
-              Begin
+              Start chatting
             </Link>
           </motion.div>
         ) : (
@@ -94,33 +94,33 @@ function PortraitPage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.9, delay: 0.2 }}
-              className="mt-12"
+              transition={{ duration: 0.7, delay: 0.15 }}
+              className="mt-10 rounded-3xl bg-card/85 backdrop-blur border border-border p-7 md:p-10 shadow-petal"
             >
               {editing ? (
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   rows={10}
-                  className="w-full bg-transparent border border-border focus:border-gold/60 px-5 py-4 font-display text-xl md:text-2xl text-foreground outline-none leading-relaxed"
+                  className="w-full bg-muted/60 rounded-2xl px-5 py-4 font-display text-xl md:text-2xl text-foreground outline-none focus:ring-2 focus:ring-primary/40 leading-relaxed"
                 />
               ) : (
-                <p className="font-display text-2xl md:text-3xl text-foreground leading-[1.45] whitespace-pre-wrap">
+                <p className="font-display text-2xl md:text-3xl text-foreground leading-[1.5] whitespace-pre-wrap">
                   {seeker.portrait}
                 </p>
               )}
             </motion.div>
 
             {seeker.signals.length > 0 && (
-              <div className="mt-12">
-                <div className="text-[10px] tracking-[0.32em] uppercase text-whisper mb-4">
+              <div className="mt-8">
+                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground mb-3">
                   Signals
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {seeker.signals.map((s) => (
                     <span
                       key={s}
-                      className="border border-gold/40 text-gold-soft text-[11px] tracking-[0.18em] uppercase px-3 py-1"
+                      className="px-3 py-1 rounded-full bg-accent/40 text-accent-foreground text-xs font-medium"
                     >
                       {s}
                     </span>
@@ -129,13 +129,13 @@ function PortraitPage() {
               </div>
             )}
 
-            <div className="mt-14 flex flex-wrap gap-3 items-center justify-between">
-              <div className="flex gap-3">
+            <div className="mt-12 flex flex-wrap gap-3 items-center justify-between">
+              <div className="flex flex-wrap gap-2">
                 {editing ? (
                   <>
                     <button
                       onClick={handleSave}
-                      className="border border-gold/70 bg-gold text-primary-foreground px-5 py-2.5 text-[11px] tracking-[0.22em] uppercase"
+                      className="px-5 py-2.5 rounded-full gradient-coral text-white text-sm font-medium shadow-petal"
                     >
                       Save
                     </button>
@@ -144,7 +144,7 @@ function PortraitPage() {
                         setDraft(seeker.portrait);
                         setEditing(false);
                       }}
-                      className="border border-border px-5 py-2.5 text-[11px] tracking-[0.22em] uppercase text-whisper"
+                      className="px-5 py-2.5 rounded-full bg-card border border-border text-sm font-medium text-foreground hover:bg-muted"
                     >
                       Cancel
                     </button>
@@ -153,22 +153,22 @@ function PortraitPage() {
                   <>
                     <button
                       onClick={() => setEditing(true)}
-                      className="border border-border px-5 py-2.5 text-[11px] tracking-[0.22em] uppercase text-whisper hover:text-foreground"
+                      className="px-5 py-2.5 rounded-full bg-card border border-border text-sm font-medium text-foreground hover:bg-muted"
                     >
                       Refine
                     </button>
                     <button
                       onClick={handleRegenerate}
-                      className="border border-border px-5 py-2.5 text-[11px] tracking-[0.22em] uppercase text-whisper hover:text-foreground"
+                      className="px-5 py-2.5 rounded-full bg-card border border-border text-sm font-medium text-foreground hover:bg-muted inline-flex items-center gap-1.5"
                     >
-                      Regenerate
+                      <RefreshCw className="w-3.5 h-3.5" /> Regenerate
                     </button>
                   </>
                 )}
               </div>
               <Link
                 to="/people"
-                className="border border-gold/70 px-6 py-2.5 text-[11px] tracking-[0.22em] uppercase text-gold hover:bg-gold hover:text-primary-foreground transition-colors"
+                className="px-6 py-2.5 rounded-full gradient-coral text-white text-sm font-medium shadow-petal"
               >
                 Meet them →
               </Link>

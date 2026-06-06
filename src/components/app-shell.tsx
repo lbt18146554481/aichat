@@ -1,30 +1,30 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { Flower2, MessageCircle, Sparkles, Users } from "lucide-react";
 import type { ReactNode } from "react";
 
 const navItems = [
-  { to: "/", label: "Home" },
-  { to: "/describe", label: "Describe" },
-  { to: "/portrait", label: "Portrait" },
-  { to: "/people", label: "People" },
+  { to: "/", label: "Chat", icon: MessageCircle },
+  { to: "/portrait", label: "Portrait", icon: Sparkles },
+  { to: "/people", label: "People", icon: Users },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
-    <div className="min-h-screen flex flex-col relative">
-      <header className="sticky top-0 z-30 backdrop-blur-md bg-background/70 border-b border-border/60">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-baseline gap-2 group">
-            <span className="font-display text-2xl tracking-tight text-foreground">
-              Muse
+    <div className="min-h-screen flex flex-col">
+      <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/70 border-b border-border/60">
+        <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <span className="grid place-items-center w-9 h-9 rounded-2xl gradient-coral text-white shadow-petal breathe">
+              <Flower2 className="w-4 h-4" />
             </span>
-            <span className="font-display-italic text-sm text-whisper hidden sm:inline">
-              — for the one you imagine
+            <span className="font-display text-2xl tracking-tight text-foreground">
+              Bloom
             </span>
           </Link>
-          <nav className="hidden md:flex items-center gap-7">
-            {navItems.map(({ to, label }) => {
+          <nav className="hidden md:flex items-center gap-1">
+            {navItems.map(({ to, label, icon: Icon }) => {
               const active =
                 to === "/" ? pathname === "/" : pathname.startsWith(to);
               return (
@@ -32,26 +32,26 @@ export function AppShell({ children }: { children: ReactNode }) {
                   key={to}
                   to={to}
                   className={[
-                    "text-[13px] tracking-[0.12em] uppercase transition-colors",
+                    "px-4 py-2 rounded-full text-sm flex items-center gap-2 transition-all",
                     active
-                      ? "text-gold"
-                      : "text-whisper hover:text-foreground",
+                      ? "bg-primary text-primary-foreground shadow-petal"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
                   ].join(" ")}
                 >
+                  <Icon className="w-4 h-4" />
                   {label}
                 </Link>
               );
             })}
           </nav>
         </div>
-        <div className="gold-rule" />
       </header>
 
-      <main className="flex-1 relative z-10">{children}</main>
+      <main className="flex-1 relative">{children}</main>
 
-      <nav className="md:hidden sticky bottom-0 z-30 backdrop-blur-md bg-background/85 border-t border-border/60">
-        <div className="max-w-md mx-auto px-2 grid grid-cols-4">
-          {navItems.map(({ to, label }) => {
+      <nav className="md:hidden sticky bottom-0 z-30 backdrop-blur-xl bg-background/85 border-t border-border/60">
+        <div className="max-w-md mx-auto px-2 grid grid-cols-3">
+          {navItems.map(({ to, label, icon: Icon }) => {
             const active =
               to === "/" ? pathname === "/" : pathname.startsWith(to);
             return (
@@ -59,20 +59,17 @@ export function AppShell({ children }: { children: ReactNode }) {
                 key={to}
                 to={to}
                 className={[
-                  "py-3 text-[11px] tracking-[0.18em] uppercase text-center",
-                  active ? "text-gold" : "text-whisper",
+                  "flex flex-col items-center justify-center gap-1 py-3 text-xs",
+                  active ? "text-primary" : "text-muted-foreground",
                 ].join(" ")}
               >
+                <Icon className="w-5 h-5" />
                 {label}
               </Link>
             );
           })}
         </div>
       </nav>
-
-      <footer className="border-t border-border/40 mt-12 py-8 text-center text-[11px] tracking-[0.2em] uppercase text-whisper">
-        Muse — a quiet way to be found
-      </footer>
     </div>
   );
 }
