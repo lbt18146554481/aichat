@@ -1,10 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Flower2, MessageCircle, Sparkles, Users } from "lucide-react";
+import { MessageSquare, User, Users } from "lucide-react";
 import type { ReactNode } from "react";
 
 const navItems = [
-  { to: "/", label: "Chat", icon: MessageCircle },
-  { to: "/portrait", label: "Portrait", icon: Sparkles },
+  { to: "/", label: "Chat", icon: MessageSquare },
+  { to: "/portrait", label: "Portrait", icon: User },
   { to: "/people", label: "People", icon: Users },
 ] as const;
 
@@ -13,13 +13,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/70 border-b border-border/60">
-        <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <span className="grid place-items-center w-9 h-9 rounded-2xl gradient-coral text-white shadow-petal breathe">
-              <Flower2 className="w-4 h-4" />
+      <header className="sticky top-0 z-30 bg-background/85 backdrop-blur border-b border-border">
+        <div className="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <span className="grid place-items-center w-7 h-7 rounded-md bg-foreground text-background text-xs font-semibold">
+              B
             </span>
-            <span className="font-display text-2xl tracking-tight text-foreground">
+            <span className="text-base font-semibold tracking-tight text-foreground">
               Bloom
             </span>
           </Link>
@@ -32,9 +32,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   key={to}
                   to={to}
                   className={[
-                    "px-4 py-2 rounded-full text-sm flex items-center gap-2 transition-all",
+                    "px-3 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-colors",
                     active
-                      ? "bg-primary text-primary-foreground shadow-petal"
+                      ? "bg-secondary text-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
                   ].join(" ")}
                 >
@@ -49,7 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <main className="flex-1 relative">{children}</main>
 
-      <nav className="md:hidden sticky bottom-0 z-30 backdrop-blur-xl bg-background/85 border-t border-border/60">
+      <nav className="md:hidden sticky bottom-0 z-30 bg-background/95 backdrop-blur border-t border-border">
         <div className="max-w-md mx-auto px-2 grid grid-cols-3">
           {navItems.map(({ to, label, icon: Icon }) => {
             const active =
@@ -60,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 to={to}
                 className={[
                   "flex flex-col items-center justify-center gap-1 py-3 text-xs",
-                  active ? "text-primary" : "text-muted-foreground",
+                  active ? "text-foreground" : "text-muted-foreground",
                 ].join(" ")}
               >
                 <Icon className="w-5 h-5" />

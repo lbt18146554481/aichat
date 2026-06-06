@@ -12,13 +12,13 @@ export const FOLLOW_UPS: FollowUp[] = [
 
 export const OPENING = {
   intro:
-    "Hi — I'm Bloom 🌷  Tell me about the person you hope to meet. No checklist, no specs — just the shape of them, in your own words.",
+    "Hi — I'm Bloom. Tell me about the person you hope to meet. No checklist, no specs — just the shape of them, in your own words.",
   placeholder:
     "Someone who notices small things. Quietly funny. Loves walking nowhere in particular...",
 };
 
 export const CLOSING =
-  "Lovely. Give me a moment — I'm gathering your words into a portrait.";
+  "Thanks. Give me a moment — Portrait is gathering your words.";
 
 const SIGNAL_VOCAB: Record<string, string[]> = {
   reading: ["read", "books", "novel", "library", "bookstore"],
