@@ -9,16 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as PortraitRouteImport } from './routes/portrait'
 import { Route as PeopleRouteImport } from './routes/people'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PeopleIdRouteImport } from './routes/people.$id'
+import { Route as CChatIdRouteImport } from './routes/c.$chatId'
 
-const PortraitRoute = PortraitRouteImport.update({
-  id: '/portrait',
-  path: '/portrait',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PeopleRoute = PeopleRouteImport.update({
   id: '/people',
   path: '/people',
@@ -34,49 +29,47 @@ const PeopleIdRoute = PeopleIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => PeopleRoute,
 } as any)
+const CChatIdRoute = CChatIdRouteImport.update({
+  id: '/c/$chatId',
+  path: '/c/$chatId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/people': typeof PeopleRouteWithChildren
-  '/portrait': typeof PortraitRoute
+  '/c/$chatId': typeof CChatIdRoute
   '/people/$id': typeof PeopleIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/people': typeof PeopleRouteWithChildren
-  '/portrait': typeof PortraitRoute
+  '/c/$chatId': typeof CChatIdRoute
   '/people/$id': typeof PeopleIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/people': typeof PeopleRouteWithChildren
-  '/portrait': typeof PortraitRoute
+  '/c/$chatId': typeof CChatIdRoute
   '/people/$id': typeof PeopleIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/people' | '/portrait' | '/people/$id'
+  fullPaths: '/' | '/people' | '/c/$chatId' | '/people/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/people' | '/portrait' | '/people/$id'
-  id: '__root__' | '/' | '/people' | '/portrait' | '/people/$id'
+  to: '/' | '/people' | '/c/$chatId' | '/people/$id'
+  id: '__root__' | '/' | '/people' | '/c/$chatId' | '/people/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PeopleRoute: typeof PeopleRouteWithChildren
-  PortraitRoute: typeof PortraitRoute
+  CChatIdRoute: typeof CChatIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/portrait': {
-      id: '/portrait'
-      path: '/portrait'
-      fullPath: '/portrait'
-      preLoaderRoute: typeof PortraitRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/people': {
       id: '/people'
       path: '/people'
@@ -98,6 +91,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PeopleIdRouteImport
       parentRoute: typeof PeopleRoute
     }
+    '/c/$chatId': {
+      id: '/c/$chatId'
+      path: '/c/$chatId'
+      fullPath: '/c/$chatId'
+      preLoaderRoute: typeof CChatIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -115,7 +115,7 @@ const PeopleRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PeopleRoute: PeopleRouteWithChildren,
-  PortraitRoute: PortraitRoute,
+  CChatIdRoute: CChatIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

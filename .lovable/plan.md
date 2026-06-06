@@ -1,128 +1,110 @@
 
-# 第四版重设计 — 精致科技风 + Agent 团队
+# 第五版重设计 — ChatGPT 风的 AI 红娘
 
-完全替换 Bloom 的春日粉色方向。新方向：**简约、克制、中性的科技公司视觉**（参考 Linear / Vercel / Stripe），首页保留全屏对话，但侧栏新增 Agent 团队面板。
-
----
-
-## 品牌
-
-- **名称**：保留 **Bloom**（如需换名再告知）
-- **Tagline**：*Your AI team for finding the one.*
-- **语气**：克制、可信、不浮夸、不甜腻。男女通用。
+把现在的双栏 Agent 面板、品牌色块、装饰全部砍掉。直接对标 ChatGPT / Gemini 的形态：**左侧对话历史 + 中间主对话 + 输入框下方的 agent tag 行**。核心目的只有一个：帮用户找到另一半。
 
 ---
 
-## 配色（中性科技风 · 浅底）
+## 视觉方向
 
-写入 `src/styles.css`：
-
-| Token | 用途 | 颜色 |
-|---|---|---|
-| `--background` | 主背景 | 近白 `#FAFAFA` |
-| `--foreground` | 正文 | 近黑 `#0A0A0A` |
-| `--card` | 卡片面 | 纯白 `#FFFFFF` |
-| `--primary` | 强调/按钮 | 深墨 `#111111` |
-| `--primary-foreground` | 主按钮文字 | 白 |
-| `--secondary` | 次要面 | 浅灰 `#F4F4F5` |
-| `--muted` | 弱化背景 | `#F4F4F5` |
-| `--muted-foreground` | 弱化文字 | 中灰 `#71717A` |
-| `--accent` | 唯一点缀色 | 克制蓝 `#2563EB`（仅用于状态、链接、Agent 工作指示） |
-| `--border` | 描边 | `#E4E4E7` |
-| `--ring` | 焦点环 | `#2563EB` |
-
-视觉氛围：
-- **去掉**所有粉色径向渐变背景、`shadow-bloom`、`shadow-petal`、`gradient-coral`、`text-gradient-bloom`、`breathe`、`Flower2` 图标
-- 阴影改为标准中性 `0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06)`
-- 字体：标题与正文统一 **Inter**（去掉 Fraunces；标题靠字重 600 + 紧字距，不靠衬线）
-- 圆角统一 `--radius: 0.75rem`
-- 气泡：用户消息 = 深色实底，Agent 消息 = 白底 + 1px 描边
+完全 ChatGPT/Gemini 极简风：
+- 大量留白，灰阶为主，几乎没有强色彩
+- 唯一强调色：近黑 `#0D0D0D`（按钮与发送键）
+- 背景：纯白 `#FFFFFF`；侧栏：极浅灰 `#F7F7F8`
+- 边框：`#E5E5E5`；次要文字：`#6B6B6B`
+- 字体：Inter，单一字号体系，标题靠字重不靠字号膨胀
+- 圆角中等：`0.5rem` 卡片、`1rem` 输入框、`9999px` chip
+- 无渐变、无阴影炫技、无动画装饰
 
 ---
 
 ## 信息架构
 
-| Route | Page | 说明 |
-|---|---|---|
-| `/` | **首页 = 左侧 Agent 团队面板 + 右侧全屏对话** | 桌面端两栏，移动端 Agent 面板折叠成顶部抽屉 |
-| `/portrait` | Your portrait | AI 整理的散文段落（沿用，重设样式） |
-| `/people` | People | 候选人卡片（沿用，重设样式） |
-| `/people/$id` | Person | 详情（沿用，重设样式） |
+| Route | 说明 |
+|---|---|
+| `/` | 主对话页（空态居中欢迎屏；有消息则正常滚动） |
+| `/c/$chatId` | 单个会话页（同一组件，按 ID 加载消息） |
+| `/people` | 红娘累计找到的候选人列表 |
+| `/people/$id` | 单个候选人详情 |
 
-导航：**Chat / Portrait / People**（保留 3 项，去掉花朵图标，使用 lucide 的 `MessageSquare / User / Users`）。
+**删除** `/portrait` 路由（画像作为对话产物，直接出现在聊天里，不再单独成页）。
 
----
-
-## Agent 团队（核心新增）
-
-定义 4 个 Agent，作为左侧固定面板。每个 Agent 是一张小卡：圆形头像（首字母 monogram，无情绪化色彩）+ 名字 + 一行职责 + 当前状态点（idle / working / done）。
-
-| Agent | 职责 | 何时激活 |
-|---|---|---|
-| **Portrait** | 把你说的内容整理成一段画像 | 用户完成 3 个 follow-up 后 |
-| **Scout** | 在候选人池中寻找契合的人 | Portrait 完成后 |
-| **Spark** | 为你与候选人之间生成一个自然的破冰开场 | 进入某个候选人详情时 |
-| **Coach** | 给约会与沟通的轻量建议 | 用户在详情页点击 "Get advice" |
-
-**注意**：本期仍为纯前端 mock，Agent 状态机由本地脚本驱动，不接 LLM。Agent 卡片点击会展开一行说明 + "Activated by Bloom"。
+顶部导航砍掉。所有导航靠左侧栏。
 
 ---
 
-## 首页布局
+## 页面布局（桌面）
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│  Bloom                              Chat  Portrait  People    │
-├────────────────┬─────────────────────────────────────────────┤
-│ Your AI team   │                                             │
-│                │  Tell us who you'd like to meet.            │
-│ ● Portrait     │                                             │
-│   Idle         │  [Bloom] Hi — describe the person you...    │
-│                │                                             │
-│ ● Scout        │  [You] Someone who notices small things...  │
-│   Idle         │                                             │
-│                │  ...                                        │
-│ ● Spark        │                                             │
-│   Idle         │  ┌─────────────────────────────────────┐   │
-│                │  │ In your own words...           [↑]  │   │
-│ ● Coach        │  └─────────────────────────────────────┘   │
-│   Idle         │                                             │
-└────────────────┴─────────────────────────────────────────────┘
+┌──────────────────┬─────────────────────────────────────────┐
+│  + New chat      │                                         │
+│  ─────────────── │           Find your person              │
+│                  │     What kind of partner are you        │
+│  Today           │            looking for?                 │
+│   · Quiet, kind  │                                         │
+│   · Loves books  │   [建议 chip] [建议 chip] [建议 chip]    │
+│                  │                                         │
+│  Yesterday       │                                         │
+│   · Someone who… │   ┌─────────────────────────────────┐  │
+│                  │   │ Describe them...           [↑]  │  │
+│  ─────────────── │   └─────────────────────────────────┘  │
+│  ⚙  Settings     │   [+ Add agent]  People found (3) →    │
+│  👤 You          │                                         │
+└──────────────────┴─────────────────────────────────────────┘
 ```
 
-- 桌面：左栏宽 `280px`，右栏对话占满。
-- 移动：Agent 面板收成顶部一行可横滑的 chip + 一个 "Team" 按钮打开抽屉。
-- 对话推进时，相应 Agent 卡片状态点变蓝并显示 "working..."；完成后变绿勾。
+**移动端**：侧栏默认收起，顶部一个汉堡按钮打开抽屉。主体全屏。
 
 ---
 
-## 文件改动
+## 核心交互
+
+1. **空态欢迎屏**：中央一句话 "Find your person." + 一行副标题 + 3 个建议 chip（点击直接填入输入框，例如 "Describe my ideal Sunday partner"、"Help me put words to a feeling"、"What kind of person fits a quiet life"）
+2. **对话**：用户描述 → AI 红娘提 1～3 个轻问题 → 整理一段画像（直接显示在聊天里，作为一条 AI 消息）→ 自动追加一条带候选人卡片的消息（卡片可点击进 `/people/$id`）
+3. **多会话**：每条对话独立存储；侧栏按日期分组列出；点击切换 = 路由跳转到 `/c/$chatId`；"New chat" 创建新对话并跳转
+4. **Agent tag 行**：输入框正下方一行，初始只有 `+ Add agent` 按钮 + 一个右侧的 `People found (N)` 链接。点击 `+ Add agent` 弹个轻量弹窗让用户自己输入 agent 名称和一句描述，保存在本地。用户加的 agent 显示为 chip，可勾选/取消，被勾选时该 agent 的"风格"会在 mock 层附加到 AI 回复（例如附加一句签名）。**我不预置任何 agent**
+
+---
+
+## 数据与存储（纯前端 mock）
+
+localStorage 键：
+- `bloom:chats` — `{ id, title, updatedAt, messages: UIMessage[] }[]`
+- `bloom:agents` — 用户自定义的 agent 数组 `{ id, name, description, enabled }[]`
+- `bloom:people` — 红娘已找到的候选人累计列表（用于 `/people` 页与输入框下方计数）
+
+会话标题：取第一条用户消息前 30 字。
+
+仍无后端、无真实 LLM；候选人池继续用现有 `src/lib/people.ts`（12 人），匹配走 `resonance.ts`。
+
+---
+
+## 文件变更
 
 **重写**：
-- `src/styles.css` — 全新中性科技 token，删除所有粉色/花朵相关 utility
-- `src/routes/__root.tsx` — 字体只留 Inter，标题/描述去花朵化
-- `src/components/app-shell.tsx` — 顶部导航换图标、去渐变
-- `src/routes/index.tsx` — 改为两栏布局，引入 AgentPanel；气泡样式换中性
-- `src/routes/portrait.tsx` — 重设样式
-- `src/routes/people.tsx` — 卡片改纯白 + 描边
-- `src/routes/people.$id.tsx` — 详情重设，加 "Activate Spark" / "Ask Coach" 入口
+- `src/styles.css` — 砍到只剩中性灰阶 token
+- `src/routes/__root.tsx` — 文案换成 "Find your person"
+- `src/routes/index.tsx` — 改为空态欢迎屏 + 转跳到 `/c/$chatId` 逻辑
+- `src/routes/people.tsx` / `src/routes/people.$id.tsx` — 极简化重设
+- `src/lib/store.ts` — 改成多会话存储 + agent 自定义存储
 
 **新增**：
-- `src/lib/agents.ts` — Agent 定义（id/name/role/icon-letter）+ 状态机类型
-- `src/components/agent-panel.tsx` — 左侧/抽屉式面板
-- `src/components/agent-card.tsx` — 单个 Agent 卡
-
-**保留不动**：
-- `src/lib/conversation.ts` / `portrait.ts` / `people.ts` / `resonance.ts` / `types.ts` / `store.ts`（仅在 store 里增加 `bloom:agents` 状态键）
+- `src/routes/c.$chatId.tsx` — 主对话页
+- `src/components/chat-sidebar.tsx` — 左侧会话历史栏
+- `src/components/chat-surface.tsx` — 主对话组件（空态/消息流/输入框/tag 行复用）
+- `src/components/agent-tag-row.tsx` — 输入框下方的 tag 行 + 新建 agent 弹窗
+- `src/lib/chats.ts` — 会话 CRUD
+- `src/lib/custom-agents.ts` — 用户自定义 agent CRUD
 
 **删除**：
-- 无需删文件；之前的 `src/routes/describe.tsx` 已不存在
-- 顺手清理 styles.css 中：`--blossom / --coral / --leaf / --cream / shadow-bloom / shadow-petal / gradient-coral / text-gradient-bloom / breathe` 等粉色资产
+- `src/components/app-shell.tsx`（顶部导航不再用，新结构由侧栏 + 主区直接组合）
+- `src/components/agent-panel.tsx`、`src/lib/agents.ts`（旧的 4 个预设 agent 全砍）
+- `src/routes/portrait.tsx`（合并到聊天内消息）
 
 ---
 
 ## 风险与说明
 
-- 仍为纯前端 mock，无 LLM、无后端、无登录。
-- Agent 状态由对话阶段触发，本地状态机驱动，刷新后从 localStorage 恢复。
-- 修复运行时错误：`routeTree.gen.ts` 中已无 describe 路由引用，本次重写会让构建重新生成稳定。
+- 多会话与自定义 agent 都是 localStorage，关浏览器不丢，但跨设备不同步
+- 仍然没有真实 LLM；AI 回复由本地脚本驱动，但呈现形态完全模仿真实对话
+- 候选人作为聊天里的内嵌卡片，是这次产品意义上最大的变化（之前是分离页面）
