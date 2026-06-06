@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PortraitRouteImport } from './routes/portrait'
 import { Route as PeopleRouteImport } from './routes/people'
-import { Route as DescribeRouteImport } from './routes/describe'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PeopleIdRouteImport } from './routes/people.$id'
 
@@ -23,11 +22,6 @@ const PortraitRoute = PortraitRouteImport.update({
 const PeopleRoute = PeopleRouteImport.update({
   id: '/people',
   path: '/people',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DescribeRoute = DescribeRouteImport.update({
-  id: '/describe',
-  path: '/describe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -43,14 +37,12 @@ const PeopleIdRoute = PeopleIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/describe': typeof DescribeRoute
   '/people': typeof PeopleRouteWithChildren
   '/portrait': typeof PortraitRoute
   '/people/$id': typeof PeopleIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/describe': typeof DescribeRoute
   '/people': typeof PeopleRouteWithChildren
   '/portrait': typeof PortraitRoute
   '/people/$id': typeof PeopleIdRoute
@@ -58,22 +50,20 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/describe': typeof DescribeRoute
   '/people': typeof PeopleRouteWithChildren
   '/portrait': typeof PortraitRoute
   '/people/$id': typeof PeopleIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/describe' | '/people' | '/portrait' | '/people/$id'
+  fullPaths: '/' | '/people' | '/portrait' | '/people/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/describe' | '/people' | '/portrait' | '/people/$id'
-  id: '__root__' | '/' | '/describe' | '/people' | '/portrait' | '/people/$id'
+  to: '/' | '/people' | '/portrait' | '/people/$id'
+  id: '__root__' | '/' | '/people' | '/portrait' | '/people/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DescribeRoute: typeof DescribeRoute
   PeopleRoute: typeof PeopleRouteWithChildren
   PortraitRoute: typeof PortraitRoute
 }
@@ -92,13 +82,6 @@ declare module '@tanstack/react-router' {
       path: '/people'
       fullPath: '/people'
       preLoaderRoute: typeof PeopleRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/describe': {
-      id: '/describe'
-      path: '/describe'
-      fullPath: '/describe'
-      preLoaderRoute: typeof DescribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -131,10 +114,19 @@ const PeopleRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DescribeRoute: DescribeRoute,
   PeopleRoute: PeopleRouteWithChildren,
   PortraitRoute: PortraitRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
