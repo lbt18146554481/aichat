@@ -128,5 +128,5 @@ export function getPersonById(id: string): Person | undefined {
 }
 
 export function avatarUrl(seed: string): string {
-  return `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(seed)}&backgroundColor=FFC9D2,FFE5B4,A8D5A0,FFFBF5&radius=50`;
+  return `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(seed)}&backgroundColor=F4F4F5,E5E5E5,EFEFEF,FAFAFA&radius=50`;
 }
