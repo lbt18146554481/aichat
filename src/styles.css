@@ -34,14 +34,18 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  --color-sidebar: var(--sidebar);
 }
 
 :root {
-  --radius: 0.75rem;
+  --radius: 0.5rem;
 
-  /* Neutral, refined tech palette */
-  --background: oklch(0.985 0 0);              /* #FAFAFA */
-  --foreground: oklch(0.18 0 0);               /* near black */
+  /* ChatGPT-style neutral */
+  --background: oklch(1 0 0);                    /* #FFFFFF */
+  --foreground: oklch(0.18 0 0);                 /* near black */
+
+  --sidebar: oklch(0.97 0 0);                    /* #F7F7F8 */
 
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.18 0 0);
@@ -49,58 +53,47 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.18 0 0);
 
-  --primary: oklch(0.22 0 0);                  /* #111 */
-  --primary-foreground: oklch(0.99 0 0);
+  --primary: oklch(0.18 0 0);                    /* #0D0D0D */
+  --primary-foreground: oklch(1 0 0);
 
-  --secondary: oklch(0.965 0 0);               /* #F4F4F5 */
+  --secondary: oklch(0.97 0 0);                  /* #F7F7F8 */
   --secondary-foreground: oklch(0.25 0 0);
 
   --muted: oklch(0.965 0 0);
-  --muted-foreground: oklch(0.55 0 0);         /* #71717A */
+  --muted-foreground: oklch(0.5 0 0);             /* #6B6B6B */
 
-  --accent: oklch(0.58 0.2 260);               /* #2563EB measured blue */
-  --accent-foreground: oklch(0.99 0 0);
+  --accent: oklch(0.95 0 0);
+  --accent-foreground: oklch(0.2 0 0);
 
   --destructive: oklch(0.6 0.22 25);
   --destructive-foreground: oklch(0.99 0 0);
 
-  --border: oklch(0.92 0 0);                   /* #E4E4E7 */
+  --border: oklch(0.92 0 0);                     /* #E5E5E5 */
   --input: oklch(0.94 0 0);
-  --ring: oklch(0.58 0.2 260);
+  --ring: oklch(0.18 0 0);
 }
 
 @layer base {
   * {
     border-color: var(--color-border);
   }
+  html, body, #root {
+    height: 100%;
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
-    min-height: 100vh;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
   h1, h2, h3, h4 {
-    font-family: var(--font-display);
+    font-family: var(--font-sans);
     letter-spacing: -0.02em;
     font-weight: 600;
   }
   ::selection {
-    background: color-mix(in oklab, var(--accent) 30%, transparent);
+    background: color-mix(in oklab, var(--foreground) 18%, transparent);
     color: var(--foreground);
-  }
-}
-
-@layer utilities {
-  .shadow-soft {
-    box-shadow:
-      0 1px 2px rgba(0, 0, 0, 0.04),
-      0 1px 3px rgba(0, 0, 0, 0.06);
-  }
-  .shadow-pop {
-    box-shadow:
-      0 4px 12px rgba(0, 0, 0, 0.05),
-      0 1px 3px rgba(0, 0, 0, 0.06);
   }
 }

@@ -9,16 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as PortraitRouteImport } from './routes/portrait'
 import { Route as PeopleRouteImport } from './routes/people'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PeopleIdRouteImport } from './routes/people.$id'
 
-const PortraitRoute = PortraitRouteImport.update({
-  id: '/portrait',
-  path: '/portrait',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PeopleRoute = PeopleRouteImport.update({
   id: '/people',
   path: '/people',
@@ -38,45 +32,34 @@ const PeopleIdRoute = PeopleIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/people': typeof PeopleRouteWithChildren
-  '/portrait': typeof PortraitRoute
   '/people/$id': typeof PeopleIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/people': typeof PeopleRouteWithChildren
-  '/portrait': typeof PortraitRoute
   '/people/$id': typeof PeopleIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/people': typeof PeopleRouteWithChildren
-  '/portrait': typeof PortraitRoute
   '/people/$id': typeof PeopleIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/people' | '/portrait' | '/people/$id'
+  fullPaths: '/' | '/people' | '/people/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/people' | '/portrait' | '/people/$id'
-  id: '__root__' | '/' | '/people' | '/portrait' | '/people/$id'
+  to: '/' | '/people' | '/people/$id'
+  id: '__root__' | '/' | '/people' | '/people/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PeopleRoute: typeof PeopleRouteWithChildren
-  PortraitRoute: typeof PortraitRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/portrait': {
-      id: '/portrait'
-      path: '/portrait'
-      fullPath: '/portrait'
-      preLoaderRoute: typeof PortraitRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/people': {
       id: '/people'
       path: '/people'
@@ -115,8 +98,17 @@ const PeopleRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PeopleRoute: PeopleRouteWithChildren,
-  PortraitRoute: PortraitRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
