@@ -130,7 +130,7 @@ function PersonPage() {
             They notice
           </div>
           <div className="flex flex-wrap gap-2">
-            {person.signals.map((s) => (
+            {person.signals.map((s: string) => (
               <span
                 key={s}
                 className="border border-border text-whisper text-[11px] tracking-[0.18em] uppercase px-3 py-1"
