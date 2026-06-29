@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { initI18n } from "../lib/i18n";
+import { initI18n, applyPersistedLang } from "../lib/i18n";
 
 initI18n();
 
