@@ -1,86 +1,103 @@
-## 先想清楚：用户到底在解决什么问题
+# 回归本质：从"列表"到"引荐"
 
-用户来这里不是"搜索一次"，而是要**找到那一个人**。这是一个需要反复斟酌、缩小范围、最终走向"我想认识这一个"的过程。
+## 一、问题的本质
 
-当前流程的真实问题（我观察到的，不是迎合）：
+用户找伴侣的真实困境**从来不是"看不到足够多的人"**，而是：
+1. 不知道自己真正想要什么（自我认知模糊）
+2. 看再多照片也判断不出是否合适（信息维度错位）
+3. 决策疲劳——刷得越多越麻木（Tinder 的根本失败）
 
-1. **结果出现后是"死的"**。Agent 给完 6 个人，就沉默了。用户面对一堵卡片墙，不知道下一步该做什么——是再描述？是点开看？是收藏？流程在最关键的节点断了。
-2. **右侧 Canvas 和左侧对话脱节**。点选一个人是右侧的事，反馈也是右侧的按钮；左侧 Agent 完全不参与"你正在看谁、你怎么想"。Agent 退化成了一次性搜索框。
-3. **细化没有抓手**。用户想"再年轻一点"、"换个城市"，但当前界面没有任何提示告诉他们可以这么说，也没有展示"当前生效的条件"——所以用户不敢迭代，只能重开一轮。
-4. **没有终点**。即使用户保存了几个，产品也没有引导他"从这几个里挑一个真正想认识的"。Saved 抽屉是一个静态列表，不是决策工具。
+所以产品的本质不是"帮你筛选数据库"，而是**"一个懂你的人，认真给你引荐他认识的人"**。
+这就是为什么红娘/猎头/朋友介绍至今依然有效——**一次只郑重介绍一个人，并讲清楚为什么是 TA**。
 
-## 解决方案的本质
+## 二、产品形态：单人引荐 + 反馈循环
 
-把单次搜索改造成一段**有节奏的筛选对话**：
+彻底放弃列表、网格、卡片堆、Shortlist、对比视图。
 
 ```text
-描述  →  Agent 给一批  →  Agent 主动追问 / 用户细化  →  范围收窄
-                                   ↓
-                          聚焦到 1–3 个候选
-                                   ↓
-                       Agent 帮用户做最后的决定
+┌─────────────────────────┬──────────────────────────────┐
+│                         │                              │
+│   对话区（左）          │   "正在引荐的这一个人"（右） │
+│                         │                              │
+│   - 用户描述需求        │   - 一张照片 + 名字 + 年龄   │
+│   - Agent 提问澄清      │   - Agent 的引荐语（散文）   │
+│   - Agent 解释推荐理由  │     "我之所以想到 Sarah，   │
+│   - 用户给反馈          │      是因为你提到..."        │
+│   - Agent 调整理解      │   - 3-4 个具体细节而非标签  │
+│                         │   - 底部三个动作：           │
+│                         │     · 想多了解一点           │
+│                         │     · 换一个吧               │
+│                         │     · 告诉我哪里不对         │
+│                         │                              │
+└─────────────────────────┴──────────────────────────────┘
 ```
 
-Agent 在每个节点都要**说下一句话**，让用户永远知道现在可以做什么。
+**关键设计原则：**
 
-## 接下来的交互流程（4 个明确阶段）
+1. **一次只有一个人**。右侧永远只展示当前引荐对象。没有"下一个""上一个"，没有进度条，没有数量。这强迫用户和 Agent 都认真对待每一次引荐。
 
-**阶段 1 · 描述 (Describe)**
-保持现状：空状态 + 示例 chips + 输入框。不动。
+2. **引荐语是核心交付物，不是标签**。不显示"Reading, Quiet, Ambitious"这种 tag。而是 Agent 用 2-3 句话写出："Sarah 周末喜欢一个人去美术馆，但她也愿意为对的人改变计划——你提到想要既独立又愿意走近彼此的人，我觉得这点很像。"
 
-**阶段 2 · 浏览 (Browse)** — 重点改造
-- Agent 给出结果后，**紧接着主动追问一句**，例如：
-  - "Want me to narrow this down? Try: *younger*, *closer to where you live*, or *more into the outdoors*."
-- 左侧聊天底部出现**"Active filters"小条**：把 Agent 解析到的 signals（年龄段、城市、兴趣关键词）作为可点 chip 显示，点 × 即移除并自动重跑。
-- 右侧 shortlist tile 增加**轻量 hover 操作**："Tell me more" / "Not for me"，点击后会以**用户语气**写入左侧对话（"Tell me more about Maya"），让 Agent 用一段话回应这个人的特别之处——而不是简单切换选中态。
+3. **反馈是一等公民，不是滑动**。用户不"划掉"一个人，而是**告诉 Agent 哪里不对**：
+   - "太安静了，我想要更外向的"
+   - "她做什么工作的？"
+   - "感觉不错，再给我看一个类似的"
+   
+   Agent 在对话里**显式确认它学到了什么**："明白，你想要更主动表达情绪的人。我重新想想。"——这是 Agent 产品和 Tinder 的根本区别：**它会变聪明**。
 
-**阶段 3 · 聚焦 (Focus)** — 新增
-- 当用户对某个人点了"Tell me more"或保存，Agent 在左侧生成一段简短的"为什么这个人对你来说有意思"的解读（基于 signals 重合），并追问"Want to see more like them, or keep looking around?"
-- 右侧详情区在底部显示三个对等行动：**Save**、**Pass**、**Find more like them**。后者会自动构造一个"more people who share X, Y with [name]"的查询，闭环回阶段 2。
+4. **没有"匹配度百分比"**。猎头不会说"这个候选人 87% 匹配"。Agent 用人话解释。
 
-**阶段 4 · 决定 (Decide)** — 新增
-- 当 `savedIds.length >= 2` 时，Header 的 Saved 按钮旁出现一个轻量提示："Ready to choose?"
-- 打开 Saved 抽屉时，顶部多一行 Agent 文案："You've saved N people. Want me to help you compare them?"
-- 点 Compare → 右侧 Canvas 切换为**对比视图**：保存的人并排展示 essence / what they love / what they're looking for，下方 Agent 用一段话指出他们彼此的差异（"Maya is more about quiet evenings; Jun is more about shared projects."），帮用户做出"我想先认识谁"的决定。
-- 每个人下方一个明显的 **"Reach out"** 按钮（MVP 阶段只是占位 toast：'In the real product, this would open a conversation.'）——这是产品的终点，必须存在。
+## 三、用户流程（三幕，极简）
 
-## 视觉与文案原则（继承上一版，不重新发明）
+### 第一幕：对话澄清（无右侧画面）
+Agent 开场不是"Describe your ideal partner"这种空泛问题，而是具体的：
+> "在我开始介绍人之前，先告诉我——你最近一次对某人心动是什么时候？是什么打动了你？"
 
-- 中性灰、克制基调、mono 行动行不变。
-- Agent 追问也用 mono `›` 前缀，但允许 1–2 句自然语言，不再只是 "6 matches"。
-- "Active filters" chip 复用 border + secondary 底色，点击态加 1px 实色边框。
-- 对比视图最多 4 列（超出滚动），不引入图表/动画。
+通过 2-3 轮具体的对话建立初始理解。**不要表单化**。
 
-## 需要改动的文件
+### 第二幕：引荐（右侧出现第一个人）
+Agent 在对话里说："我想到了一个人——Sarah。" 右侧滑入一张人物卡。
+对话区继续："让我告诉你为什么是她……"（流式输出引荐语）
 
-- `src/lib/agent.ts`
-  - 新增 assistant part：`{kind:'followup', key:'narrow_hint'}`、`{kind:'insight', personId, sharedKeys}`、`{kind:'compare_invite'}`
-  - `runQuery` 后自动追加 `followup` part
-  - 新增 `actTellMore(personId)`：写入用户消息 + 生成 insight part
-  - 新增 `actFindSimilar(personId)`：基于该人的 signals 触发新一轮 query
-  - 暴露 `activeSignals` 用于左侧 chips
-- `src/components/chat.tsx`
-  - 在 Composer 上方新增 `<ActiveFilters />` 行
-  - 渲染新的 assistant part 类型
-- `src/components/shortlist-tile.tsx`
-  - hover 显示 "Tell me more" / "Not for me"
-- `src/components/candidate-detail.tsx`
-  - 底部三按钮：Save / Pass / Find more like them
-- `src/components/saved-drawer.tsx`
-  - 顶部 Agent 引导句；≥2 人时显示 Compare 按钮
-- 新增 `src/components/compare-view.tsx`：对比视图，含 Reach out 占位
-- `src/lib/conversation.ts`：导出 signal → 可读 label 的映射，供 chips 使用
-- `src/locales/en/common.json` + `src/locales/zh-CN/common.json`：新增上述所有文案 key
+### 第三幕：反馈迭代
+用户在对话区自由回应。Agent 根据反馈：
+- 调整对该人的介绍角度（"你担心距离？她其实下个月要搬到你的城市"）
+- 或换一个人（右侧人物淡出，新人淡入，对话区解释"基于你说的，我重新想了想，这次是 Maya……"）
 
-## 不做的事
+**理解的累积可视化**：对话区顶部有一行小字 "What I've learned about you"，可点开看 Agent 当前对用户的画像（用户可以直接编辑/否决某一条）。这是反馈循环的"记忆"具象化。
 
-- 不引入 LLM、不接后端、不改数据模型。
-- 不增加新路由——所有阶段都在同一个 Workspace 内推进。
-- 不做匹配百分比、不做"红娘"式拟人化文案。
+## 四、为什么这个设计是对的
 
-## 验收
+| 维度 | Tinder 模式 | 本方案 |
+|---|---|---|
+| 用户决策成本 | 每秒 1 次，麻木 | 每次都需思考，认真 |
+| Agent 价值 | 排序算法（黑盒） | 显式推理 + 可对话调整 |
+| 用户表达 | 喜欢/不喜欢 二元 | 自然语言反馈 |
+| 关系发展 | 数量游戏 | 质量优先 |
+| 产品差异化 | 无（所有 dating app 都一样）| 唯一会"理解和成长"的引荐人 |
 
-- 一次新会话从描述到决定不需要离开页面，且每一步用户都能看到 Agent 的下一句引导。
-- 用户能通过点 chip 的 × 直接收窄结果，不需要重新打字。
-- 保存 ≥2 人后能进入对比视图，并在每个人下方看到 Reach out 入口。
-- SSR / hydration 一致：所有新文案走 i18n，初始 `en`，不调用 `Date.now()` / `Math.random()` 渲染期间。
+## 五、技术实现要点（保持极简）
+
+- **删除**：`canvas-pane`, `shortlist-tile`, `compare-view`, `candidate-detail`（独立详情）, `saved-drawer`, Active Filters 标签栏
+- **保留并重写**：`chat.tsx`（左侧对话）、`people.ts`（候选池，但不再以 tag 匹配为主）
+- **新增**：
+  - `IntroductionPane`（右侧单人引荐区，含淡入淡出过渡）
+  - `UnderstandingPanel`（对话区顶部可展开的"学到的事"）
+  - `introduction.ts`：为每个候选人**预写多角度引荐语模板**，Agent 根据当前 understanding 选择角度填充。比如 Sarah 有"独立性角度""温柔角度""事业角度"三种引荐语，Agent 根据用户最新反馈选用最合适的一种。
+- **状态机**：`clarifying` → `introducing(personId, angle)` → `awaiting_feedback` → 回到 `introducing`（同人换角度）或新人
+- **反馈解析**：保留前端纯逻辑——用关键词归类用户反馈（更年轻/更外向/换一个/想了解 X），更新 `understanding` 对象，驱动下一次引荐
+- **国际化**：保持 en / zh-CN
+
+## 六、不做什么（明确边界）
+
+- 不做列表、网格、Shortlist、对比、Saved drawer
+- 不做匹配度数字、不做 tag chip 群
+- 不做多人卡片堆叠浏览
+- 不做"今日推荐 5 人"这种 batch
+- 不做滑动手势
+
+## 七、交付后用户可感知的差异
+
+打开产品 → 看到一个人在和我对话 → 我说我想要什么样的人 → TA 认真想了一下 → 给我介绍一个具体的人，告诉我为什么 → 我说"她有点太安静" → TA 说"明白了，那我换个思路" → 又介绍一个 → 我慢慢觉得，**这个 Agent 比我自己还懂我想要什么**。
+
+这才是 AI Agent 帮人找到爱情的本质。

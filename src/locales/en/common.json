@@ -1,76 +1,33 @@
 {
   "app": {
     "name": "Kindred",
-    "tagline": "An AI agent for finding the person you're looking for."
+    "tagline": "An AI agent who introduces you to one person at a time."
   },
   "header": {
-    "saved": "Saved",
-    "reset": "New search",
-    "ready_hint": "Ready to choose?"
+    "reset": "Start over",
+    "subtitle": "AI Agent · One introduction at a time"
   },
   "chat": {
-    "empty_title": "Describe the person you're looking for.",
-    "empty_hint": "Be specific or vague — the agent works with either. It searches profiles, narrows down, and shows a few candidates per turn.",
-    "examples_label": "Try",
-    "examples": [
-      "Someone quiet who reads on rainy afternoons",
-      "A funny architect who walks everywhere",
-      "Outdoorsy, kind, wakes up early"
-    ],
-    "placeholder_first": "Describe who you're looking for…",
-    "placeholder_followup": "Refine your search, or ask for more",
-    "disclaimer": "All profiles are mock data. Nothing leaves your browser.",
-    "active_filters": "Active filters"
+    "placeholder_first": "Tell me about who you're looking for…",
+    "placeholder_followup": "Reply, or tell me what to change",
+    "disclaimer": "Mock profiles. Nothing leaves your browser.",
+    "starting": "Thinking…"
   },
-  "agent": {
-    "searching": "Searching profiles…",
-    "refining": "Refining query…",
-    "results_one": "Found 1 profile that fits.",
-    "results_other": "Found {{count}} profiles that fit.",
-    "narrow_hint": "Want to narrow this down? Try saying \"younger\", \"closer to me\", or \"more into the outdoors\" — or click a filter below to remove it.",
-    "no_more": "No more matches in the index. Try changing direction — a different trait, mood, or city.",
-    "ack_saved": "Saved.",
-    "ack_passed": "Noted. Won't show them again.",
-    "ack_dismissed": "Noted. Won't show them again.",
-    "insight_with_shared": "{{name}} shares your sense of {{traits}}.",
-    "insight_no_shared": "{{name}} doesn't match a specific trait you mentioned — but the agent thought you should see them.",
-    "after_focus": "Want to see more people like them, or keep looking around?",
-    "compare_invite": "You've saved {{count}}. Want me to help you compare them side by side?",
-    "compare_open": "Compare side by side",
-    "context_label": "Inferred traits"
+  "understanding": {
+    "title": "What I've learned about you",
+    "empty": "Tell me a bit about who you're looking for, and I'll keep track here. You can remove anything I got wrong.",
+    "wants": "Wants",
+    "avoids": "Avoids",
+    "notes": "From your words",
+    "remove": "remove"
   },
-  "card": {
-    "save": "Save",
-    "dismiss": "Pass",
-    "tell_more": "Tell me more",
-    "find_similar": "Find more like them",
-    "view": "View profile"
-  },
-  "saved": {
-    "title": "Saved profiles",
-    "empty": "Nothing saved yet. Save a profile from a search result and it'll appear here.",
-    "remove": "Remove",
-    "close": "Close",
-    "compare": "Compare",
-    "compare_hint": "You've saved {{count}}. Open them side by side to decide who to reach out to first."
-  },
-  "compare": {
-    "title": "Compare saved",
-    "back": "Back to shortlist",
-    "empty": "Save at least two people to compare.",
-    "differences": "Differences",
-    "agent_note": "Use the differences to pick who you want to reach out to first. Reaching out is the last small step.",
-    "reach_out": "Reach out",
-    "reach_out_toast": "In the real product, this would open a conversation with {{name}}."
-  },
-  "profile": {
-    "back": "Back to search",
-    "traits": "Traits"
-  },
-  "canvas": {
-    "title": "Shortlist",
-    "empty_title": "Your shortlist will appear here.",
-    "empty_hint": "Describe someone in the chat. The agent searches the index and surfaces candidates on this canvas."
+  "intro": {
+    "empty_title": "I'll introduce one person here.",
+    "empty_hint": "Not a list — one person at a time, with a reason. Tell me what you're looking for on the left, and I'll think.",
+    "angle_label": "Why I thought of",
+    "tell_more": "Another angle",
+    "another_person": "Someone else",
+    "feedback": "Something's off"
   },
   "lang": {
     "label": "Language",
@@ -79,8 +36,8 @@
   },
   "notfound": {
     "title": "Not found",
-    "body": "That profile isn't in the index.",
-    "home": "Back to search"
+    "body": "That page isn't here.",
+    "home": "Back"
   },
   "signal": {
     "reading": "reading",
