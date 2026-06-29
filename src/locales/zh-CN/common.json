@@ -4,11 +4,15 @@
     "tagline": "三个 Agent。三种相遇的方式。"
   },
   "home": {
-    "headline": "三种让有意义的人走进你生活的方式。",
-    "subline": "Kindred 是三个相互独立的 AI Agent，每一个对应一种真正能走向婚姻的相遇路径。选你现在所处的那个状态。",
-    "agent_label": "Agent",
-    "enter": "进入",
-    "footer_note": "模拟资料。没有任何信息离开你的浏览器。"
+    "greeting": "今晚，你想怎样遇见一个人？",
+    "placeholder": "用你自己的话说说——想认识什么样的人，或者想和人一起做点什么……",
+    "send": "发送",
+    "agents_footnote": "三位 Agent 在后台为你工作",
+    "chip": {
+      "intro": "介绍一个人",
+      "together": "一起做点什么",
+      "talk": "聊聊重要的事"
+    }
   },
   "agents": {
     "matchmaker": {

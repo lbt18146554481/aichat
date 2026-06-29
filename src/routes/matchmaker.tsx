@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { Lang } from "@/lib/i18n";
 import { Workspace, type AgentMsg } from "@/components/workspace";
 import { IntroCanvas } from "@/components/canvas/intro-canvas";
+import { consumeSeed } from "@/lib/seed";
 import {
   EMPTY,
   actAnotherAngle,
@@ -35,8 +36,15 @@ function MatchmakerPage() {
   const [thinking, setThinking] = useState(false);
 
   useEffect(() => {
-    const loaded = load();
-    setState(loaded.messages.length === 0 ? start(lang) : loaded);
+    const seed = consumeSeed("matchmaker");
+    if (seed) {
+      reset();
+      const seeded = userTurn(start(lang), seed, lang);
+      setState(seeded);
+    } else {
+      const loaded = load();
+      setState(loaded.messages.length === 0 ? start(lang) : loaded);
+    }
     setHydrated(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

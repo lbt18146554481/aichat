@@ -4,11 +4,15 @@
     "tagline": "Three agents. Three ways to meet someone."
   },
   "home": {
-    "headline": "Three ways someone meaningful might come into your life.",
-    "subline": "Kindred is three separate AI agents, each built around one real way people end up with the person they marry. Pick where you are right now.",
-    "agent_label": "Agent",
-    "enter": "Enter",
-    "footer_note": "Mock profiles. Nothing leaves your browser."
+    "greeting": "Tonight, how do you want to meet someone?",
+    "placeholder": "Say it in your own words — who you'd like to meet, or what you'd love to do with someone…",
+    "send": "Send",
+    "agents_footnote": "Three agents working in the background",
+    "chip": {
+      "intro": "Introduce someone",
+      "together": "Do something together",
+      "talk": "Talk about what matters"
+    }
   },
   "agents": {
     "matchmaker": {
