@@ -69,7 +69,7 @@ function ProfilePage() {
               {t("profile.traits")}
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {person.signals.map((s) => (
+              {person.signals.map((s: string) => (
                 <span
                   key={s}
                   className="px-2.5 py-1 rounded-md bg-secondary text-foreground text-xs font-mono border border-border"
