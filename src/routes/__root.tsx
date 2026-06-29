@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { initI18n } from "../lib/i18n";
+import { initI18n, applyPersistedLang } from "../lib/i18n";
 
 initI18n();
 
@@ -124,6 +124,9 @@ function RootComponent() {
   const [lang, setLang] = useState<string>(i18n.resolvedLanguage ?? "en");
 
   useEffect(() => {
+    // Apply the user's persisted language after mount so SSR and the
+    // client's first paint agree on English.
+    applyPersistedLang();
     const handler = (l: string) => setLang(l);
     i18n.on("languageChanged", handler);
     return () => {
