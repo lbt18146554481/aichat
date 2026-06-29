@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
@@ -9,9 +8,10 @@ interface Props {
   savedIds: string[];
   onClose: () => void;
   onRemove: (id: string) => void;
+  onSelect?: (id: string) => void;
 }
 
-export function SavedDrawer({ open, savedIds, onClose, onRemove }: Props) {
+export function SavedDrawer({ open, savedIds, onClose, onRemove, onSelect }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
 
@@ -63,14 +63,13 @@ export function SavedDrawer({ open, savedIds, onClose, onRemove }: Props) {
                       className="w-9 h-9 rounded-full border border-border bg-secondary shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                      <Link
-                        to="/profile/$id"
-                        params={{ id: p.id }}
-                        onClick={onClose}
-                        className="text-sm font-semibold text-foreground hover:underline underline-offset-4"
+                      <button
+                        type="button"
+                        onClick={() => onSelect?.(id)}
+                        className="text-sm font-semibold text-foreground hover:underline underline-offset-4 text-left"
                       >
                         {L.name}
-                      </Link>
+                      </button>
                       <div className="text-[11.5px] text-muted-foreground font-mono">
                         {p.age} · {L.city} · {L.occupation}
                       </div>

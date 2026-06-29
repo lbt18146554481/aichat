@@ -1,14 +1,12 @@
 // Tool-style search agent (pure front-end mock, no LLM call).
 //
-// The agent has three observable states the UI cares about:
-//   idle      → waiting for input
-//   searching → showing a single-line loading row
-//   results   → assistant turn finished, candidate cards rendered
+// The agent maintains a workspace:
+//   - chat transcript on the left (user msgs + agent action lines)
+//   - canvas state on the right (shortlist + selected candidate)
 //
-// Each user turn pipes through `runQuery`, which returns the assistant turn
-// the UI should append. There is no persona, no first-person voice — the
-// agent speaks in third-person action lines ("Searching profiles…",
-// "Found 2 profiles matching your description.").
+// Each user turn calls `runQuery`, which replaces the current shortlist
+// with the new ranked results and auto-selects the top one. Cards are
+// rendered from `shortlistIds`, NOT from message parts.
 
 import { extractSignals } from "./conversation";
 import { rankProfiles } from "./resonance";
@@ -17,39 +15,39 @@ export type Role = "user" | "assistant";
 
 export type AssistantPart =
   | { kind: "status"; key: "results_one" | "results_other" | "no_more"; count?: number }
-  | { kind: "cards"; personIds: string[] }
   | { kind: "ack"; key: "ack_saved" | "ack_dismissed" };
 
 export interface Message {
   id: string;
   role: Role;
   t: number;
-  // User messages carry plain text; assistant messages carry structured parts.
   text?: string;
   parts?: AssistantPart[];
 }
 
 export interface AgentState {
   messages: Message[];
-  signals: string[];           // accumulated traits across the conversation
-  shownIds: string[];          // every profile id already surfaced
-  savedIds: string[];          // user-saved
-  dismissedIds: string[];      // user-dismissed (never re-surface)
+  signals: string[];
+  shortlistIds: string[];      // current right-canvas results
+  shownIds: string[];          // history (excluded from re-ranking)
+  savedIds: string[];
+  dismissedIds: string[];
+  selectedId: string | null;   // who's expanded in canvas detail
 }
 
 export const EMPTY_STATE: AgentState = {
   messages: [],
   signals: [],
+  shortlistIds: [],
   shownIds: [],
   savedIds: [],
   dismissedIds: [],
+  selectedId: null,
 };
 
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10);
 }
-
-// ---- Core actions --------------------------------------------------------
 
 export function userTurn(state: AgentState, text: string): AgentState {
   const trimmed = text.trim();
@@ -59,12 +57,9 @@ export function userTurn(state: AgentState, text: string): AgentState {
   return { ...state, messages: [...state.messages, message], signals: nextSignals };
 }
 
-// Produce the assistant's response for the latest user turn.
-// Caller is responsible for awaiting a UI delay between the user turn and
-// this call (so the "Searching profiles…" indicator is visible).
 export function runQuery(state: AgentState): { state: AgentState; assistant: Message } {
   const matches = rankProfiles(state.signals, {
-    limit: 3,
+    limit: 6,
     exclude: [...state.shownIds, ...state.dismissedIds],
   });
 
@@ -77,23 +72,27 @@ export function runQuery(state: AgentState): { state: AgentState; assistant: Mes
       key: matches.length === 1 ? "results_one" : "results_other",
       count: matches.length,
     });
-    parts.push({ kind: "cards", personIds: matches.map((m) => m.person.id) });
   }
 
   const assistant: Message = { id: uid(), role: "assistant", t: Date.now(), parts };
+  const newIds = matches.map((m) => m.person.id);
 
   return {
     state: {
       ...state,
-      shownIds: [...state.shownIds, ...matches.map((m) => m.person.id)],
+      shortlistIds: newIds.length > 0 ? newIds : state.shortlistIds,
+      shownIds: [...state.shownIds, ...newIds],
+      selectedId: newIds[0] ?? state.selectedId,
       messages: [...state.messages, assistant],
     },
     assistant,
   };
 }
 
-// Save / dismiss don't produce a new search turn on their own — they just
-// append a short acknowledgement to the transcript and update the index.
+export function actSelect(state: AgentState, id: string): AgentState {
+  return { ...state, selectedId: id };
+}
+
 export function actSave(state: AgentState, personId: string): AgentState {
   if (state.savedIds.includes(personId)) return state;
   const ack: Message = {
@@ -117,10 +116,16 @@ export function actDismiss(state: AgentState, personId: string): AgentState {
     t: Date.now(),
     parts: [{ kind: "ack", key: "ack_dismissed" }],
   };
+  const remainingShortlist = state.shortlistIds.filter((id) => id !== personId);
   return {
     ...state,
     dismissedIds: [...state.dismissedIds, personId],
     savedIds: state.savedIds.filter((id) => id !== personId),
+    shortlistIds: remainingShortlist,
+    selectedId:
+      state.selectedId === personId
+        ? remainingShortlist[0] ?? null
+        : state.selectedId,
     messages: [...state.messages, ack],
   };
 }
@@ -131,8 +136,14 @@ export function actUnsave(state: AgentState, personId: string): AgentState {
 
 // ---- Persistence ---------------------------------------------------------
 
-const KEY = "kindred:state";
-const LEGACY_KEYS = ["iris:conversation", "bloom:state", "muse:state", "kindred:state.v0"];
+const KEY = "kindred:state.v1";
+const LEGACY_KEYS = [
+  "iris:conversation",
+  "bloom:state",
+  "muse:state",
+  "kindred:state",
+  "kindred:state.v0",
+];
 
 export function loadState(): AgentState {
   if (typeof window === "undefined") return EMPTY_STATE;
