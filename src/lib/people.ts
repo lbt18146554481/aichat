@@ -10,8 +10,6 @@ import { ACTIVITIES, REFLECTIONS } from "./people-extras";
 
 type PersonCore = Omit<Person, "activities" | "reflections">;
 const CORE: PersonCore[] = [
-
-export const PEOPLE: Person[] = [
   {
     id: "isa",
     name: "Isa",
@@ -337,6 +335,12 @@ export const PEOPLE: Person[] = [
     ],
   },
 ];
+
+export const PEOPLE: Person[] = CORE.map((p) => ({
+  ...p,
+  activities: ACTIVITIES[p.id] ?? [],
+  reflections: REFLECTIONS[p.id] ?? [],
+}));
 
 export function getPersonById(id: string): Person | undefined {
   return PEOPLE.find((p) => p.id === id);
