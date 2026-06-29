@@ -1,11 +1,38 @@
 {
   "app": {
     "name": "Kindred",
-    "tagline": "An AI agent who introduces you to one person at a time."
+    "tagline": "Three agents. Three ways to meet someone."
+  },
+  "home": {
+    "headline": "Three ways someone meaningful might come into your life.",
+    "subline": "Kindred is three separate AI agents, each built around one real way people end up with the person they marry. Pick where you are right now.",
+    "agent_label": "Agent",
+    "enter": "Enter",
+    "footer_note": "Mock profiles. Nothing leaves your browser."
+  },
+  "agents": {
+    "matchmaker": {
+      "name": "Matchmaker",
+      "tagline": "Describe who you're looking for.",
+      "desc": "Tell the agent what kind of person makes a room feel different for you. It introduces one person at a time, with a reason."
+    },
+    "sidebyside": {
+      "name": "Side by Side",
+      "tagline": "Meet over something you both already do.",
+      "desc": "Tell the agent what you do — tennis, runs, climbing, a bookstore Saturday. Once a week, it proposes one real meet. Both have to say yes; either says no and the other never knows."
+    },
+    "compass": {
+      "name": "Compass",
+      "tagline": "Find someone who thinks like you do.",
+      "desc": "One open-ended life question at a time. Answer in your own words. The agent shows you, side by side, someone whose answer resonates — anonymously, until you ask."
+    }
+  },
+  "nav": {
+    "home": "Back to home"
   },
   "header": {
     "reset": "Start over",
-    "subtitle": "AI Agent · One introduction at a time",
+    "subtitle": "AI Agent",
     "letters": "Letters"
   },
   "chat": {
@@ -14,49 +41,87 @@
     "disclaimer": "Mock profiles. Nothing leaves your browser.",
     "starting": "Thinking…"
   },
+  "intro": {
+    "empty_title": "I'll introduce one person here.",
+    "empty_hint": "Not a list — one person at a time, with a reason. Tell me what you're looking for on the left.",
+    "angle_label": "Why I thought of",
+    "tell_more": "Another angle",
+    "another_person": "Someone else"
+  },
+  "meet": {
+    "label": "Proposed meet",
+    "title": "A real meet — if you both want it.",
+    "subtitle": "You see name and photo only after they accept too. Either passes, the other never knows.",
+    "form_label": "Set up",
+    "form_title": "What do you actually do?",
+    "form_subtitle": "I look for someone whose real weekly rhythm overlaps with yours.",
+    "form_what": "What",
+    "form_level": "Level",
+    "form_day": "Day",
+    "form_window": "Time",
+    "form_area": "Neighborhood",
+    "form_area_placeholder": "where you usually do it",
+    "form_submit": "Look for someone",
+    "watching_title": "I'm watching the pool.",
+    "watching_hint": "I'll propose at most one meet a week, and only when it's a real fit. No proposal today — I'll come back.",
+    "composer_placeholder": "Tell me to look again, or to adjust your activity",
+    "when": "When",
+    "where": "Where",
+    "accept": "Accept",
+    "decline": "Not this one",
+    "awaiting_them": "Waiting on them…",
+    "anon_name": "Someone",
+    "confirmed_note": "On the day, you'll see each other's name & photo at the venue. Nothing more, nothing less. Just go play."
+  },
+  "compass": {
+    "question_label": "Today's question",
+    "answer_left": "Answer in your own words on the left.",
+    "searching": "Reading the others who answered this…",
+    "empty_hint": "I'll ask one open question at a time.",
+    "both_answered": "You both answered",
+    "you_wrote": "You wrote",
+    "they_wrote": "Someone wrote",
+    "reveal": "I want to know who wrote this",
+    "next_question": "Next question",
+    "skip": "Skip",
+    "anon_note": "Name and photo are hidden on purpose. Read the answer first.",
+    "exhausted": "We've gone through this round. Come back tomorrow — new questions."
+  },
+  "activity": {
+    "kind": {
+      "tennis": "Tennis",
+      "run": "Running",
+      "climb": "Climbing",
+      "cook": "Cooking",
+      "exhibition": "Exhibitions",
+      "bookstore": "Bookstores"
+    },
+    "level": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced"
+    },
+    "day": {
+      "mon": "Monday", "tue": "Tuesday", "wed": "Wednesday",
+      "thu": "Thursday", "fri": "Friday", "sat": "Saturday", "sun": "Sunday"
+    },
+    "day_short": {
+      "mon": "Mon", "tue": "Tue", "wed": "Wed",
+      "thu": "Thu", "fri": "Fri", "sat": "Sat", "sun": "Sun"
+    },
+    "window": {
+      "morning": "Morning",
+      "midday": "Midday",
+      "evening": "Evening"
+    }
+  },
   "understanding": {
     "title": "What I've learned about you",
-    "empty": "Tell me a bit about who you're looking for, and I'll keep track here. You can remove anything I got wrong.",
+    "empty": "Tell me a bit about who you're looking for, and I'll keep track here.",
     "wants": "Wants",
     "avoids": "Avoids",
     "notes": "From your words",
     "remove": "remove"
-  },
-  "intro": {
-    "empty_title": "I'll introduce one person here.",
-    "empty_hint": "Not a list — one person at a time, with a reason. Tell me what you're looking for on the left, and I'll think.",
-    "angle_label": "Why I thought of",
-    "tell_more": "Another angle",
-    "another_person": "Someone else",
-    "feedback": "Something's off",
-    "write_letter": "Write a letter",
-    "open_thread": "Open letters",
-    "letters_left": "{{n}} letter left today"
-  },
-  "letter": {
-    "to": "To",
-    "you": "You",
-    "composer_subtitle": "One careful letter. No read receipts.",
-    "placeholder": "Write to {{name}}. One specific thing — what made you stop on their page.",
-    "send": "Send letter",
-    "over_limit": "a little long, but okay",
-    "remaining_today": "{{n}} left today",
-    "agent_notes": "Agent's notes",
-    "err_quota": "You've used today's letter. One per day — so it stays meaningful.",
-    "err_inflight": "You have three letters waiting. Wait for a reply before sending another.",
-    "err_already": "You've already written. Give them space to answer.",
-    "write_reply": "Write back",
-    "waiting": "Waiting on their reply. No need to refresh — I'll tell you.",
-    "toward_unlock": "letters toward real-time chat",
-    "realtime_hint": "You can chat freely now. Suggest meeting when it feels right."
-  },
-  "inbox": {
-    "title": "Letters",
-    "empty": "No letters yet. When you write to someone, the thread lives here.",
-    "threads": "threads",
-    "you_wrote": "You wrote:",
-    "chat_unlocked": "chat unlocked",
-    "archived": "archived"
   },
   "lang": {
     "label": "Language",
@@ -69,25 +134,12 @@
     "home": "Back"
   },
   "signal": {
-    "reading": "reading",
-    "music": "music",
-    "film": "film",
-    "art": "art",
-    "writing": "writing",
-    "travel": "travel",
-    "outdoors": "the outdoors",
-    "cooking": "cooking",
-    "coffee": "coffee",
-    "quiet": "quiet evenings",
-    "curious": "curiosity",
-    "funny": "humor",
-    "kind": "kindness",
-    "brave": "honesty",
-    "ambitious": "ambition",
-    "city": "city life",
-    "animals": "animals",
-    "rain": "rainy days",
-    "morning": "early mornings",
+    "reading": "reading", "music": "music", "film": "film", "art": "art",
+    "writing": "writing", "travel": "travel", "outdoors": "the outdoors",
+    "cooking": "cooking", "coffee": "coffee", "quiet": "quiet evenings",
+    "curious": "curiosity", "funny": "humor", "kind": "kindness",
+    "brave": "honesty", "ambitious": "ambition", "city": "city life",
+    "animals": "animals", "rain": "rainy days", "morning": "early mornings",
     "night": "late nights"
   }
 }

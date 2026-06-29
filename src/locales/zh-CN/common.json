@@ -1,62 +1,119 @@
 {
   "app": {
     "name": "Kindred",
-    "tagline": "一次只郑重介绍一个人的 AI Agent。"
+    "tagline": "三个 Agent。三种相遇的方式。"
+  },
+  "home": {
+    "headline": "三种让有意义的人走进你生活的方式。",
+    "subline": "Kindred 是三个相互独立的 AI Agent，每一个对应一种真正能走向婚姻的相遇路径。选你现在所处的那个状态。",
+    "agent_label": "Agent",
+    "enter": "进入",
+    "footer_note": "模拟资料。没有任何信息离开你的浏览器。"
+  },
+  "agents": {
+    "matchmaker": {
+      "name": "Matchmaker",
+      "tagline": "描述你想找的人。",
+      "desc": "告诉 Agent 什么样的人会让一个房间变得不一样。它每次只引荐一个人，并告诉你为什么是 TA。"
+    },
+    "sidebyside": {
+      "name": "Side by Side",
+      "tagline": "在你们都在做的事里相遇。",
+      "desc": "告诉 Agent 你常做什么——网球、跑步、攀岩、周六的书店。每周一次，它会提议一次真实的见面。双方同意才成立，任一方拒绝，对方永远不会知道。"
+    },
+    "compass": {
+      "name": "Compass",
+      "tagline": "找到一个思考方式和你相近的人。",
+      "desc": "一次一个开放的人生问题。你用自己的话回答。Agent 会把另一个回答与你共鸣的人，把两段答案并排给你看——先匿名，直到你想知道。"
+    }
+  },
+  "nav": {
+    "home": "返回首页"
   },
   "header": {
     "reset": "重新开始",
-    "subtitle": "AI Agent · 一次只介绍一个人",
+    "subtitle": "AI Agent",
     "letters": "信件"
   },
   "chat": {
-    "placeholder_first": "告诉我，你想找一个什么样的人……",
-    "placeholder_followup": "回复，或者告诉我应该调整什么",
-    "disclaimer": "档案均为示例数据，仅保存在你的浏览器中。",
-    "starting": "在想……"
-  },
-  "understanding": {
-    "title": "我对你的理解",
-    "empty": "先告诉我你想找的人，我会把要点记在这里。如果我理解错了，可以随时移除。",
-    "wants": "想要",
-    "avoids": "想避免",
-    "notes": "你说过的话",
-    "remove": "移除"
+    "placeholder_first": "说说你想找一个什么样的人……",
+    "placeholder_followup": "回复，或者告诉我要调整什么",
+    "disclaimer": "模拟资料。没有任何信息离开你的浏览器。",
+    "starting": "思考中……"
   },
   "intro": {
-    "empty_title": "我会在这里介绍一个人。",
-    "empty_hint": "不是列表——一次只一个，并告诉你为什么。先在左边告诉我你想找什么样的人。",
-    "angle_label": "为什么是 TA",
-    "tell_more": "换个角度说",
-    "another_person": "换一个人",
-    "feedback": "哪里不对",
-    "write_letter": "写一封信",
-    "open_thread": "查看来往",
-    "letters_left": "今天还剩 {{n}} 封"
+    "empty_title": "我会在这里引荐一个人。",
+    "empty_hint": "不是列表——一次一个人，带着理由。在左边告诉我你想找的人。",
+    "angle_label": "我为什么想到",
+    "tell_more": "换一个角度",
+    "another_person": "换一个人"
   },
-  "letter": {
-    "to": "致",
-    "you": "你",
-    "composer_subtitle": "一封认真的信。没有已读回执。",
-    "placeholder": "写给 {{name}}。说一件具体的小事——是什么让你在 TA 那一页停了下来。",
-    "send": "寄出",
-    "over_limit": "稍微有点长，但可以",
-    "remaining_today": "今天还剩 {{n}} 封",
-    "agent_notes": "Agent 的注脚",
-    "err_quota": "今天的信已经用了。每天一封，才显得郑重。",
-    "err_inflight": "你已经有三封信在等回复。先等等，再寄。",
-    "err_already": "你已经写过了。给 TA 一点回复的余地。",
-    "write_reply": "写回信",
-    "waiting": "等 TA 回信中。不用刷新——回了我会告诉你。",
-    "toward_unlock": "封信后解锁实时对话",
-    "realtime_hint": "现在你们可以自由聊天了。觉得合适，就约见面吧。"
+  "meet": {
+    "label": "一次见面提议",
+    "title": "一次真实的见面——如果你们都愿意。",
+    "subtitle": "只有 TA 也同意之后，你才会看到对方的名字和照片。任一方拒绝，对方都不会知道。",
+    "form_label": "设置",
+    "form_title": "你平时真的在做什么？",
+    "form_subtitle": "我会找一个真实的周节奏和你重叠的人。",
+    "form_what": "做什么",
+    "form_level": "水平",
+    "form_day": "哪天",
+    "form_window": "时段",
+    "form_area": "片区",
+    "form_area_placeholder": "你平时去的地方",
+    "form_submit": "帮我找一个",
+    "watching_title": "我在看池子里的人。",
+    "watching_hint": "每周最多一次，而且只有真正合适才会提。今天没有——下次有人我再说。",
+    "composer_placeholder": "让我再看看，或调整一下你的活动",
+    "when": "时间",
+    "where": "地点",
+    "accept": "接受",
+    "decline": "这次不",
+    "awaiting_them": "在等 TA 的回应……",
+    "anon_name": "某人",
+    "confirmed_note": "见面当天你们会在场地看到对方的名字和照片。仅此而已。去打球就好。"
   },
-  "inbox": {
-    "title": "信件",
-    "empty": "还没有往来的信。寄出第一封后，会留在这里。",
-    "threads": "条",
-    "you_wrote": "你写道：",
-    "chat_unlocked": "实时已解锁",
-    "archived": "已归档"
+  "compass": {
+    "question_label": "今天的问题",
+    "answer_left": "在左边用你自己的话回答。",
+    "searching": "我在看其他人对这道题的回答……",
+    "empty_hint": "我会一次只问一个开放的问题。",
+    "both_answered": "你们对同一个问题的回答",
+    "you_wrote": "你写的",
+    "they_wrote": "某人写的",
+    "reveal": "我想知道是谁写的",
+    "next_question": "下一题",
+    "skip": "跳过",
+    "anon_note": "名字和照片是故意隐藏的。先读答案。",
+    "exhausted": "这一轮的问题问完了。明天再来——会有新的问题。"
+  },
+  "activity": {
+    "kind": {
+      "tennis": "网球", "run": "跑步", "climb": "攀岩",
+      "cook": "做饭", "exhibition": "看展", "bookstore": "逛书店"
+    },
+    "level": {
+      "beginner": "新手", "intermediate": "中级", "advanced": "进阶"
+    },
+    "day": {
+      "mon": "周一", "tue": "周二", "wed": "周三",
+      "thu": "周四", "fri": "周五", "sat": "周六", "sun": "周日"
+    },
+    "day_short": {
+      "mon": "一", "tue": "二", "wed": "三",
+      "thu": "四", "fri": "五", "sat": "六", "sun": "日"
+    },
+    "window": {
+      "morning": "早上", "midday": "中午", "evening": "傍晚"
+    }
+  },
+  "understanding": {
+    "title": "我对你了解到的",
+    "empty": "随便聊几句，我会在这里记下来。",
+    "wants": "想要",
+    "avoids": "避免",
+    "notes": "你的原话",
+    "remove": "移除"
   },
   "lang": {
     "label": "语言",
@@ -64,30 +121,16 @@
     "zh-CN": "中文"
   },
   "notfound": {
-    "title": "未找到",
-    "body": "这个页面不存在。",
+    "title": "页面未找到",
+    "body": "这里没有这一页。",
     "home": "返回"
   },
   "signal": {
-    "reading": "读书",
-    "music": "音乐",
-    "film": "电影",
-    "art": "艺术",
-    "writing": "写作",
-    "travel": "旅行",
-    "outdoors": "户外",
-    "cooking": "做饭",
-    "coffee": "咖啡",
-    "quiet": "安静的夜晚",
-    "curious": "好奇心",
-    "funny": "幽默",
-    "kind": "温柔",
-    "brave": "坦诚",
-    "ambitious": "上进",
-    "city": "城市生活",
-    "animals": "小动物",
-    "rain": "下雨天",
-    "morning": "清晨",
-    "night": "深夜"
+    "reading": "读书", "music": "音乐", "film": "电影", "art": "艺术",
+    "writing": "写作", "travel": "旅行", "outdoors": "户外",
+    "cooking": "做饭", "coffee": "咖啡", "quiet": "安静的夜晚",
+    "curious": "好奇心", "funny": "幽默", "kind": "善良",
+    "brave": "诚实", "ambitious": "有野心", "city": "城市生活",
+    "animals": "动物", "rain": "下雨天", "morning": "清晨", "night": "深夜"
   }
 }
