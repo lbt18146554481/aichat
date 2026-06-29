@@ -1,107 +1,99 @@
+# 重做方案：从"红娘"到"搜索智能体"
 
-# 第六版：回归产品本质
+## 一、定位重置
 
-## 一、先想清楚「我们到底在做什么」
+**产品本质**：一个 AI Agent，用户用自然语言描述想要的人，Agent 在档案库里检索、推理、给出候选；没有名字、不拟人、不卖人设。
 
-**产品一句话**：一个 AI 红娘，听你描述你想要的人，然后从它的候选人池里帮你挑出可能合适的人，并陪你一步步认识他们。
+**词汇黑名单（全站搜索并清除）**：红娘、matchmaker、Iris、Bloom、Muse、"为你介绍"、"我手上有的人"等任何拟人化措辞。
 
-**Agent 的角色**：私人红娘（不是 ChatGPT、不是搜索引擎、不是教练）。
-- 语气：温和、专业、像一个真的在帮你张罗的人，会主动推进，不会被动等指令。
-- 主动性：每一轮都明确给出「下一步」——要么追问、要么给画像、要么递人、要么问你对某个人的感觉。
-- 边界：只聊「找伴侣」这件事，不做泛聊天助手，不做自定义 agent。
+**新文案口径**（中性、工具感）：
+- 不说"我帮你介绍 X"，说"Found 1 profile matching your description"
+- 不说"想多了解 / 不是我的菜"，说"Save" / "Dismiss"
+- Agent 自称一律用 "the assistant" 或直接用第三人称动作（"Searching…", "Refining query…"）
 
-**用户的核心任务**：描述「我想要的人」，然后看红娘端上来的人。
-- 不需要填表，不需要选标签，不需要管 agent 是怎么找的。
-- 整个产品只有一条主线：**描述 → 红娘理解 → 红娘介绍人 → 你反馈 → 红娘调整再介绍**。
+## 二、产品名候选
 
-## 二、砍掉之前所有偏离本质的东西
+为避免再返工，产品名先用工作名 **Kindred**（中性、国际化、非花名），实施时如果你想换我随时改字符串。
 
-砍掉：
-- 用户自定义 agent（agent-tag-row、custom-agents、+ Add agent 按钮）——红娘只有一个，就是它本身。
-- 多会话历史侧栏（chat-sidebar、`/c/$chatId`、`bloom:chats`）——找伴侣不是多线程任务，一个持续的「和我的红娘的关系」就够了。
-- ChatGPT 那套空态欢迎屏+建议 chip——不是工具产品，是关系产品。
-- 「Bloom」这种发音含糊的品牌词在 UI 里反复出现——红娘需要一个名字，就叫她 **Iris**（取「彩虹女神 / 信使」的意思，中性、好记、不甜腻）。
+## 三、首版功能范围
 
-保留并复用：
-- `src/lib/people.ts` 的 12 人候选池——这是产品的「真材实料」，没有人池红娘就是空壳。
-- `src/lib/resonance.ts` 的信号匹配 + `src/lib/conversation.ts` 的信号词典——作为 mock 匹配的底层。
-- `src/lib/portrait.ts` 的画像生成——作为红娘「我听懂了」的产出物。
-- shadcn UI + Inter 字体 + 中性灰阶 token。
+| 页面 | 内容 |
+| --- | --- |
+| `/` 主界面 | 全屏对话 + 输入框；空状态展示一行提示和 3 个示例 query chip |
+| 内嵌候选卡 | Assistant 回复里直接渲染 ProfileCard（头像 / 姓名 / 年龄 / 城市 / 一句话摘要 / Save / Dismiss / View） |
+| `/profile/$id` | 完整档案详情页，"Back to search" 返回对话 |
+| 顶部右侧 | 语言切换器（EN / 中文，更多预留），Saved 计数入口 |
+| Saved 抽屉 | 显示用户 Save 过的档案，可移除 |
 
-## 三、新的信息架构（极简）
+**不做**：登录、多会话历史、Agent 团队面板、付费、点对点聊天。
 
-只有两个页面：
+## 四、Agent 行为（纯前端 mock，无 LLM）
 
-| Route | 作用 |
-|---|---|
-| `/` | 和红娘 Iris 的对话页（**整个产品的主场**） |
-| `/people/$id` | 某个候选人的详情页（从对话里的卡片点进来） |
+状态机三阶段，措辞全部工具化：
 
-删除 `/people`（列表页）、`/c/$chatId`（多会话）、所有 sidebar。**没有顶部导航，没有侧边栏。** 整个屏幕就是对话。
+```text
+idle ── user query ──▶ searching (打字指示 "Searching profiles…")
+                          │
+                          ▼
+                     results (返回 1-3 张候选卡 + "Refine your search" 提示)
+                          │
+              ┌───────────┴───────────┐
+       user refines              user dismisses/saves
+              │                         │
+              └──────────► searching ◀──┘
+```
 
-## 四、主流程（三幕剧）
+匹配逻辑沿用现有 `extractSignals` + `findResonant`：从用户输入提取标签 → 累积上下文 → 对档案库打分 → 返回 top N 未展示过的。
 
-**第一幕 · 见面**（首次打开 `/`）
-- 屏幕中央：一张小小的 Iris 头像（生成图，柔和插画风，中性气质），下面一行字：
-  > "我是 Iris，你的红娘。在我帮你介绍人之前，先告诉我——你希望遇到一个什么样的人？"
-- 一个大输入框，没有任何建议 chip、没有 tag 行、没有按钮装饰。就这一个问题。
+## 五、国际化（i18n）
 
-**第二幕 · 听懂你**（2~3 轮追问）
-- 用户描述完，Iris 不会立刻给人，而是先轻轻追问 1~2 个具体的小问题（复用 `FOLLOW_UPS`，但改成红娘口吻的中英混合，更像人）：
-  > "懂了。再问你一个小事——周日下午你们俩在一起，最理想的画面是什么？"
-- 追问够了，Iris 给一段**画像总结**作为一条 AI 消息（复用 `composePortrait`），并明确说："我大概知道你想要的人长什么样了。让我去看看我手上有没有合适的——"
+- 库：`react-i18next` + `i18next-browser-languagedetector`
+- 默认语言：浏览器语言（`navigator.language`），fallback `en`
+- 首版语种：`en`、`zh-CN`；翻译文件 `src/locales/{en,zh-CN}/common.json`
+- 所有 UI 文案、Agent 系统话术（"Searching…", "Found N profiles", "No more matches, try refining your query"）全部走 `t()`
+- Mock 档案库的 `name / city / occupation / portrait` 各加一个 `_zh` 字段，按当前语言渲染
+- 语言切换器持久化到 `localStorage.lang`
 
-**第三幕 · 介绍人**（核心价值时刻）
-- Iris 一次只郑重介绍 **一个人**（不是一次推 4 张卡），用红娘语气：
-  > "我想先介绍你认识 **Maya**。她 29 岁，在波士顿做独立书店店员。我之所以想到她——你说想要一个'安静但会突然让你笑出来'的人，Maya 就是那种人。"
-- 卡片包含：头像、名字、年龄/城市/职业、Iris 给出的**「为什么想到她」的一句话**（基于命中的 signals 生成）、一个「了解更多」按钮跳 `/people/$id`，和两个反馈按钮：**「想多了解」** / **「不是我的菜」**。
-- 用户反馈后，Iris 根据反馈再介绍下一个，依次过完匹配池里的人（最多 4 个）。每介绍完一个都带一句承接（"那我换个方向"/"那我顺着这个感觉再找一个"）。
-- 介绍完所有合适的人后，Iris 说："这是我目前手上最合你心意的几个。要不要再聊聊，让我更懂你一点？"——回到第二幕节奏。
+## 六、视觉
 
-## 五、视觉
+延续上一版的中性极简方向（白底、深灰文字、单一强调色），但去掉一切"温暖治愈"暗示：
 
-延续中性极简，但**去工具化**：
-- 整体仍是 ChatGPT 式的纯白 + 黑字 + 灰边，但**居中、窄栏**（max-width 640px），不撑满。让人觉得这是一封信、一次谈话，不是一个工作台。
-- Iris 头像 + 名字始终在顶部小小地居中（让用户记住「我在和谁说话」）。
-- AI 消息无气泡、左对齐；用户消息浅灰气泡、右对齐；候选人卡片单独一种风格（白底、淡边、头像左 + 文字右 + 底部两个反馈按钮），看起来明显比聊天气泡「重」，强调这是产品的核心交付物。
-- 字体保留 Inter，所有装饰动画全删，只保留消息淡入和打字省略号。
+- 字体：Inter（UI）+ JetBrains Mono（Agent 状态行小字，强调工具感）
+- 强调色：`oklch(0.55 0.15 250)` 冷蓝
+- 候选卡：白底 + 1px border，无渐变无阴影；hover 时 border 变深
+- Agent 消息：无气泡、左对齐纯文本；用户消息：浅灰圆角气泡右对齐
+- 加载态：单行 monospace 文字 `▍ Searching profiles…` 光标闪烁，不用三点跳动
 
-## 六、数据 & 存储
+## 七、需要删/改/新增的文件
 
-仍然纯前端 mock，只用 localStorage：
-- `iris:conversation` — 单条对话的 `messages[]`、当前 stage、已收集 signals、已介绍过的 personId 列表、每个被介绍人的用户反馈。
-- `iris:liked` — 用户按过「想多了解」的 personId 列表（未来可做"我的关注"，本期不实现页面）。
+**删除**
+- `src/components/iris-chat.tsx`、`iris-header.tsx`、`candidate-card.tsx`
+- `src/lib/iris.ts`、`src/lib/portrait.ts`（散文画像不再需要）
+- `src/assets/iris-avatar.png`
 
-候选池继续 `src/lib/people.ts`，匹配继续 `findResonant`。每介绍完一个人，从池中扣掉。
+**新增**
+- `src/lib/i18n.ts` — i18next 初始化
+- `src/locales/en/common.json`、`src/locales/zh-CN/common.json`
+- `src/lib/agent.ts` — 工具化状态机（取代 `iris.ts`）
+- `src/components/chat.tsx`、`profile-card.tsx`、`app-header.tsx`、`lang-switcher.tsx`、`saved-drawer.tsx`
 
-## 七、文件变更
+**改写**
+- `src/lib/people.ts` — 每条档案补 `_zh` 双语字段
+- `src/routes/index.tsx` — 渲染新 `Chat`
+- `src/routes/people.$id.tsx` → `src/routes/profile.$id.tsx`，文案改为中性
+- `src/routes/__root.tsx` — `<html lang>` 跟随当前 i18n，title 改为产品名
+- `src/styles.css` — 清理旧温暖色 token，换冷蓝强调色
 
-**新增**：
-- `src/components/iris-chat.tsx` — 整个对话页主组件（替代当前 chat-surface）。
-- `src/components/iris-header.tsx` — 顶部 Iris 头像 + 名字小条。
-- `src/components/candidate-card.tsx` — 红娘介绍人的卡片（含反馈按钮）。
-- `src/lib/iris.ts` — 红娘对话状态机：stage = `meeting` → `listening` → `introducing` → `awaiting_feedback` → 循环。包含「为什么想到她」的句子生成器（基于命中 signals 选模板）。
-- `src/assets/iris-avatar.png` — Iris 头像（imagegen 生成，柔和中性插画）。
+**保留**
+- `src/lib/conversation.ts`、`src/lib/resonance.ts`、`src/lib/types.ts`（信号提取与匹配逻辑仍然有用）
+- `localStorage` key 全部迁移到 `kindred:*`，启动时清理旧 `iris:* / bloom:* / muse:*`
 
-**重写**：
-- `src/routes/index.tsx` — 渲染 IrisChat，删除原来的 redirect 到 `/c/$chatId` 的逻辑。
-- `src/routes/__root.tsx` — title/description 改成 "Iris — 你的红娘"，移除 Bloom 文案。
-- `src/routes/people.$id.tsx` — 极简详情页，顶部一个"回到 Iris"链接，删除任何 sidebar。
+## 八、验收清单
 
-**删除**：
-- `src/components/app-layout.tsx`、`src/components/chat-sidebar.tsx`、`src/components/chat-surface.tsx`、`src/components/agent-tag-row.tsx`
-- `src/lib/chats.ts`、`src/lib/custom-agents.ts`
-- `src/routes/c.$chatId.tsx`、`src/routes/people.tsx`
-- `bloom:*` 的 localStorage 全部弃用（新键名 `iris:*`）。
+1. 全站 grep 不到「红娘 / matchmaker / Iris / Bloom / Muse」
+2. 浏览器语言为中文时首屏中文，为英文时首屏英文；右上角切换即时生效
+3. 第一次输入 → 出现 monospace 加载行 → 返回 1-3 张候选卡
+4. Save / Dismiss 后下一条 query 不再重复出现该档案
+5. 详情页可直接通过 URL 访问并按当前语言渲染
 
-## 八、技术细节
-
-- `iris.ts` 暴露一个 reducer 风格的 `advance(state, userInput)`，所有「红娘下一步说什么 / 介绍谁 / 何时介绍」逻辑集中在这里，方便后续接真 LLM 时整个替换。
-- "为什么想到她"句子：写 ~10 个模板，按命中的 signal 套用（如命中 `quiet` + `reading` → "你说想要一个安静的、能陪你一起看书不说话的人——她就是。"）。
-- 候选池只有 12 人，所以匹配池排空后，Iris 用一句话承认："我手上目前就这些人。要不要再描述得不一样一点，我重新去看看？"——重置 stage 到 `listening`。
-
-## 九、风险
-
-- 12 人池子很快会被走完——这一版能撑 1~2 轮完整体验，作为 demo 够用；要做真产品必须接真后端候选池。
-- 红娘人格目前靠模板，离真 LLM 红娘还有距离——这一版主要把**产品骨架和角色**立住，让你和我都能看清楚"对，就该是这样"。
-- 中英混合文案的语气需要你再过一遍——我可以全中文或全英文，告诉我你倾向哪种。
+确认后我进入 build 模式按此执行。
