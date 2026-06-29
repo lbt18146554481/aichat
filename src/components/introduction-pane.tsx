@@ -96,26 +96,84 @@ export function IntroductionPane({
         </p>
 
         {/* Actions */}
-        <div className="mt-8 flex flex-wrap gap-1.5">
+        <LetterActions
+          state={state}
+          letters={letters}
+          onWriteLetter={onWriteLetter}
+          onOpenThread={onOpenThread}
+          onAnotherAngle={onAnotherAngle}
+          onAnotherPerson={onAnotherPerson}
+          onFeedback={onFeedback}
+        />
+      </div>
+    </div>
+  );
+}
+
+function LetterActions({
+  state, letters, onWriteLetter, onOpenThread,
+  onAnotherAngle, onAnotherPerson, onFeedback,
+}: {
+  state: AgentState;
+  letters: LetterStore;
+  onWriteLetter: (id: string) => void;
+  onOpenThread: (id: string) => void;
+  onAnotherAngle: () => void;
+  onAnotherPerson: () => void;
+  onFeedback: () => void;
+}) {
+  const { t } = useTranslation();
+  const id = state.currentPersonId!;
+  const thread = threadOf(letters, id);
+  const remaining = remainingToday(letters);
+  const send = canSendNow(letters, id);
+  const hasThread = !!thread && thread.status !== "archived";
+
+  return (
+    <div className="mt-8 space-y-3">
+      <div className="flex flex-wrap gap-2 items-center">
+        {hasThread ? (
           <button
-            onClick={onAnotherAngle}
-            className="px-3 py-1.5 rounded-md border border-border bg-card text-[12.5px] text-foreground hover:bg-secondary hover:border-foreground/35 transition-colors"
+            onClick={() => onOpenThread(id)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md bg-foreground text-background text-[12.5px] hover:opacity-90 transition-opacity"
           >
-            {t("intro.tell_more")}
+            <Mail className="w-3.5 h-3.5" />
+            {t("intro.open_thread")}
           </button>
+        ) : (
           <button
-            onClick={onAnotherPerson}
-            className="px-3 py-1.5 rounded-md border border-border bg-card text-[12.5px] text-foreground hover:bg-secondary hover:border-foreground/35 transition-colors"
+            onClick={() => onWriteLetter(id)}
+            disabled={!send.ok}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md bg-foreground text-background text-[12.5px] hover:opacity-90 disabled:opacity-25 disabled:cursor-not-allowed transition-opacity"
           >
-            {t("intro.another_person")}
+            <Mail className="w-3.5 h-3.5" />
+            {t("intro.write_letter")}
           </button>
-          <button
-            onClick={onFeedback}
-            className="px-3 py-1.5 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {t("intro.feedback")} →
-          </button>
-        </div>
+        )}
+        <span className="text-[10.5px] font-mono text-muted-foreground uppercase tracking-wide">
+          {t("intro.letters_left", { n: remaining })}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          onClick={onAnotherAngle}
+          className="px-3 py-1.5 rounded-md border border-border bg-card text-[12px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        >
+          {t("intro.tell_more")}
+        </button>
+        <button
+          onClick={onAnotherPerson}
+          className="px-3 py-1.5 rounded-md border border-border bg-card text-[12px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        >
+          {t("intro.another_person")}
+        </button>
+        <button
+          onClick={onFeedback}
+          className="px-3 py-1.5 rounded-md text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {t("intro.feedback")} →
+        </button>
       </div>
     </div>
   );
