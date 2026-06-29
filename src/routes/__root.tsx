@@ -124,6 +124,9 @@ function RootComponent() {
   const [lang, setLang] = useState<string>(i18n.resolvedLanguage ?? "en");
 
   useEffect(() => {
+    // Apply the user's persisted language after mount so SSR and the
+    // client's first paint agree on English.
+    applyPersistedLang();
     const handler = (l: string) => setLang(l);
     i18n.on("languageChanged", handler);
     return () => {
