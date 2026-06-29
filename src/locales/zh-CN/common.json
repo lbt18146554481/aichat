@@ -1,76 +1,33 @@
 {
   "app": {
     "name": "Kindred",
-    "tagline": "用 AI Agent 帮你找到那个人。"
+    "tagline": "一次只郑重介绍一个人的 AI Agent。"
   },
   "header": {
-    "saved": "已收藏",
-    "reset": "重新搜索",
-    "ready_hint": "准备好选了吗？"
+    "reset": "重新开始",
+    "subtitle": "AI Agent · 一次只介绍一个人"
   },
   "chat": {
-    "empty_title": "描述你想找的那个人。",
-    "empty_hint": "可以具体，也可以模糊——Agent 会自行检索档案库，逐步收敛，每轮给出几位候选。",
-    "examples_label": "试试",
-    "examples": [
-      "一个安静的人，下雨的午后会读书",
-      "一位幽默的建筑师，喜欢走路",
-      "户外型，温柔，早起"
-    ],
-    "placeholder_first": "描述你想找的人……",
-    "placeholder_followup": "继续描述，或者让 Agent 调整方向",
-    "disclaimer": "档案均为示例数据，所有内容仅保存在你的浏览器中。",
-    "active_filters": "当前条件"
+    "placeholder_first": "告诉我，你想找一个什么样的人……",
+    "placeholder_followup": "回复，或者告诉我应该调整什么",
+    "disclaimer": "档案均为示例数据，仅保存在你的浏览器中。",
+    "starting": "在想……"
   },
-  "agent": {
-    "searching": "正在检索档案…",
-    "refining": "调整查询…",
-    "results_one": "找到 1 位符合描述的候选。",
-    "results_other": "找到 {{count}} 位符合描述的候选。",
-    "narrow_hint": "想要更收窄一些吗？可以说「再年轻一点」、「离我更近」、「更喜欢户外」——也可以点下面的条件 × 把它移除。",
-    "no_more": "索引中没有更多匹配了。试着换个方向——换一个特质、氛围或城市。",
-    "ack_saved": "已收藏。",
-    "ack_passed": "好的，不再推荐。",
-    "ack_dismissed": "好的，不再推荐。",
-    "insight_with_shared": "{{name}} 和你都在意 {{traits}}。",
-    "insight_no_shared": "{{name}} 没有精确命中你提到的某个特质——但 Agent 觉得你值得看一眼。",
-    "after_focus": "想看更多和 TA 相似的人，还是继续浏览？",
-    "compare_invite": "你已经收藏了 {{count}} 位。要不要让我把他们并排对比一下？",
-    "compare_open": "并排对比",
-    "context_label": "推断到的特质"
+  "understanding": {
+    "title": "我对你的理解",
+    "empty": "先告诉我你想找的人，我会把要点记在这里。如果我理解错了，可以随时移除。",
+    "wants": "想要",
+    "avoids": "想避免",
+    "notes": "你说过的话",
+    "remove": "移除"
   },
-  "card": {
-    "save": "收藏",
-    "dismiss": "略过",
-    "tell_more": "多了解一下",
-    "find_similar": "看更多类似的人",
-    "view": "查看档案"
-  },
-  "saved": {
-    "title": "已收藏",
-    "empty": "还没有收藏。从搜索结果中收藏档案，会出现在这里。",
-    "remove": "移除",
-    "close": "关闭",
-    "compare": "对比",
-    "compare_hint": "你已经收藏了 {{count}} 位。把他们并排打开，决定先联系谁。"
-  },
-  "compare": {
-    "title": "对比收藏",
-    "back": "返回候选名单",
-    "empty": "至少收藏两位才能对比。",
-    "differences": "差异",
-    "agent_note": "通过差异选出你最想先联系的那位。联系，是最后一小步。",
-    "reach_out": "联系 TA",
-    "reach_out_toast": "在正式产品中，这里会打开与 {{name}} 的对话。"
-  },
-  "profile": {
-    "back": "返回搜索",
-    "traits": "特质"
-  },
-  "canvas": {
-    "title": "候选名单",
-    "empty_title": "你的候选名单会出现在这里。",
-    "empty_hint": "在对话框中描述你想找的人，Agent 会检索档案库，把候选人呈现在这个画布上。"
+  "intro": {
+    "empty_title": "我会在这里介绍一个人。",
+    "empty_hint": "不是列表——一次只一个，并告诉你为什么。先在左边告诉我你想找什么样的人。",
+    "angle_label": "为什么是 TA",
+    "tell_more": "换个角度说",
+    "another_person": "换一个人",
+    "feedback": "哪里不对"
   },
   "lang": {
     "label": "语言",
@@ -79,8 +36,8 @@
   },
   "notfound": {
     "title": "未找到",
-    "body": "档案库中没有这个人。",
-    "home": "返回搜索"
+    "body": "这个页面不存在。",
+    "home": "返回"
   },
   "signal": {
     "reading": "读书",
