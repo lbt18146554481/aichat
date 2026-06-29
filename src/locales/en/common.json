@@ -1,0 +1,58 @@
+{
+  "app": {
+    "name": "Kindred",
+    "tagline": "An AI agent for finding the person you're looking for."
+  },
+  "header": {
+    "saved": "Saved",
+    "reset": "New search"
+  },
+  "chat": {
+    "empty_title": "Describe the person you're looking for.",
+    "empty_hint": "Be specific or vague — the agent works with either. It will search profiles, narrow down, and surface a few candidates per turn.",
+    "examples_label": "Try",
+    "examples": [
+      "Someone quiet who reads on rainy afternoons",
+      "A funny architect who walks everywhere",
+      "Outdoorsy, kind, wakes up early"
+    ],
+    "placeholder_first": "Describe who you're looking for…",
+    "placeholder_followup": "Refine your search, or ask for more",
+    "disclaimer": "All profiles are mock data. Nothing leaves your browser."
+  },
+  "agent": {
+    "searching": "Searching profiles…",
+    "refining": "Refining query…",
+    "results_one": "Found 1 profile matching your description.",
+    "results_other": "Found {{count}} profiles matching your description.",
+    "no_more": "No more matches in the index. Try refining your query — different traits, a different mood, a different city.",
+    "ack_saved": "Saved.",
+    "ack_dismissed": "Dismissed. Won't surface again.",
+    "context_label": "Inferred traits"
+  },
+  "card": {
+    "save": "Save",
+    "dismiss": "Dismiss",
+    "view": "View profile"
+  },
+  "saved": {
+    "title": "Saved profiles",
+    "empty": "Nothing saved yet. Save a profile from a search result and it'll appear here.",
+    "remove": "Remove",
+    "close": "Close"
+  },
+  "profile": {
+    "back": "Back to search",
+    "traits": "Traits"
+  },
+  "lang": {
+    "label": "Language",
+    "en": "English",
+    "zh-CN": "中文"
+  },
+  "notfound": {
+    "title": "Not found",
+    "body": "That profile isn't in the index.",
+    "home": "Back to search"
+  }
+}

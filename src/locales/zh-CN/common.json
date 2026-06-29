@@ -1,0 +1,58 @@
+{
+  "app": {
+    "name": "Kindred",
+    "tagline": "用 AI Agent 帮你找到那个人。"
+  },
+  "header": {
+    "saved": "已收藏",
+    "reset": "重新搜索"
+  },
+  "chat": {
+    "empty_title": "描述你想找的那个人。",
+    "empty_hint": "可以具体，也可以模糊——Agent 会自行检索档案库，逐步收敛，每轮给出几位候选。",
+    "examples_label": "试试",
+    "examples": [
+      "一个安静的人，下雨的午后会读书",
+      "一位幽默的建筑师，喜欢走路",
+      "户外型，温柔，早起"
+    ],
+    "placeholder_first": "描述你想找的人……",
+    "placeholder_followup": "继续描述，或者让 Agent 调整方向",
+    "disclaimer": "档案均为示例数据，所有内容仅保存在你的浏览器中。"
+  },
+  "agent": {
+    "searching": "正在检索档案…",
+    "refining": "调整查询…",
+    "results_one": "找到 1 位符合描述的候选。",
+    "results_other": "找到 {{count}} 位符合描述的候选。",
+    "no_more": "索引中没有更多匹配了。试着调整描述——换个特质、换个氛围、换个城市。",
+    "ack_saved": "已收藏。",
+    "ack_dismissed": "已忽略，不再出现。",
+    "context_label": "推断到的特质"
+  },
+  "card": {
+    "save": "收藏",
+    "dismiss": "忽略",
+    "view": "查看档案"
+  },
+  "saved": {
+    "title": "已收藏",
+    "empty": "还没有收藏。从搜索结果中收藏档案，会出现在这里。",
+    "remove": "移除",
+    "close": "关闭"
+  },
+  "profile": {
+    "back": "返回搜索",
+    "traits": "特质"
+  },
+  "lang": {
+    "label": "语言",
+    "en": "English",
+    "zh-CN": "中文"
+  },
+  "notfound": {
+    "title": "未找到",
+    "body": "档案库中没有这个人。",
+    "home": "返回搜索"
+  }
+}
