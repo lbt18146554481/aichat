@@ -36,8 +36,14 @@ function CompassPage() {
   const [thinking, setThinking] = useState(false);
 
   useEffect(() => {
-    const loaded = load();
-    setState(loaded.messages.length === 0 ? start(lang) : loaded);
+    const seed = consumeSeed("compass");
+    if (seed) {
+      reset();
+      setState(userTurn(start(lang), seed, lang));
+    } else {
+      const loaded = load();
+      setState(loaded.messages.length === 0 ? start(lang) : loaded);
+    }
     setHydrated(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
