@@ -5,7 +5,8 @@
   },
   "header": {
     "reset": "Start over",
-    "subtitle": "AI Agent · One introduction at a time"
+    "subtitle": "AI Agent · One introduction at a time",
+    "letters": "Letters"
   },
   "chat": {
     "placeholder_first": "Tell me about who you're looking for…",
@@ -27,7 +28,35 @@
     "angle_label": "Why I thought of",
     "tell_more": "Another angle",
     "another_person": "Someone else",
-    "feedback": "Something's off"
+    "feedback": "Something's off",
+    "write_letter": "Write a letter",
+    "open_thread": "Open letters",
+    "letters_left": "{{n}} letter left today"
+  },
+  "letter": {
+    "to": "To",
+    "you": "You",
+    "composer_subtitle": "One careful letter. No read receipts.",
+    "placeholder": "Write to {{name}}. One specific thing — what made you stop on their page.",
+    "send": "Send letter",
+    "over_limit": "a little long, but okay",
+    "remaining_today": "{{n}} left today",
+    "agent_notes": "Agent's notes",
+    "err_quota": "You've used today's letter. One per day — so it stays meaningful.",
+    "err_inflight": "You have three letters waiting. Wait for a reply before sending another.",
+    "err_already": "You've already written. Give them space to answer.",
+    "write_reply": "Write back",
+    "waiting": "Waiting on their reply. No need to refresh — I'll tell you.",
+    "toward_unlock": "letters toward real-time chat",
+    "realtime_hint": "You can chat freely now. Suggest meeting when it feels right."
+  },
+  "inbox": {
+    "title": "Letters",
+    "empty": "No letters yet. When you write to someone, the thread lives here.",
+    "threads": "threads",
+    "you_wrote": "You wrote:",
+    "chat_unlocked": "chat unlocked",
+    "archived": "archived"
   },
   "lang": {
     "label": "Language",

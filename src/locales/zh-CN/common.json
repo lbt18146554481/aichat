@@ -5,7 +5,8 @@
   },
   "header": {
     "reset": "重新开始",
-    "subtitle": "AI Agent · 一次只介绍一个人"
+    "subtitle": "AI Agent · 一次只介绍一个人",
+    "letters": "信件"
   },
   "chat": {
     "placeholder_first": "告诉我，你想找一个什么样的人……",
@@ -27,7 +28,35 @@
     "angle_label": "为什么是 TA",
     "tell_more": "换个角度说",
     "another_person": "换一个人",
-    "feedback": "哪里不对"
+    "feedback": "哪里不对",
+    "write_letter": "写一封信",
+    "open_thread": "查看来往",
+    "letters_left": "今天还剩 {{n}} 封"
+  },
+  "letter": {
+    "to": "致",
+    "you": "你",
+    "composer_subtitle": "一封认真的信。没有已读回执。",
+    "placeholder": "写给 {{name}}。说一件具体的小事——是什么让你在 TA 那一页停了下来。",
+    "send": "寄出",
+    "over_limit": "稍微有点长，但可以",
+    "remaining_today": "今天还剩 {{n}} 封",
+    "agent_notes": "Agent 的注脚",
+    "err_quota": "今天的信已经用了。每天一封，才显得郑重。",
+    "err_inflight": "你已经有三封信在等回复。先等等，再寄。",
+    "err_already": "你已经写过了。给 TA 一点回复的余地。",
+    "write_reply": "写回信",
+    "waiting": "等 TA 回信中。不用刷新——回了我会告诉你。",
+    "toward_unlock": "封信后解锁实时对话",
+    "realtime_hint": "现在你们可以自由聊天了。觉得合适，就约见面吧。"
+  },
+  "inbox": {
+    "title": "信件",
+    "empty": "还没有往来的信。寄出第一封后，会留在这里。",
+    "threads": "条",
+    "you_wrote": "你写道：",
+    "chat_unlocked": "实时已解锁",
+    "archived": "已归档"
   },
   "lang": {
     "label": "语言",
