@@ -212,12 +212,13 @@ export function userTurn(state: CompassState, text: string, lang: "en" | "zh-CN"
   next = { ...next, understanding: digest(next.understanding, t).next };
 
   if (next.phase === "asking" && next.currentQuestionId) {
+    const qid = next.currentQuestionId;
     next = {
       ...next,
-      mine: [...next.mine, { questionId: next.currentQuestionId, answer: t, t: Date.now() }],
+      mine: [...next.mine, { questionId: qid, answer: t, t: Date.now() }],
       phase: "searching",
     };
-    const pair = findResonance(next.currentQuestionId, t, next);
+    const pair = findResonance(qid, t, next);
     if (!pair) {
       next = pushA(next, lang === "zh-CN" ? L.no_resonance.zh : L.no_resonance.en);
       return askNext(next, lang);
