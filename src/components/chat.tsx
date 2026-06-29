@@ -144,6 +144,13 @@ export function Chat() {
     />
   );
 
+  // Defer the entire i18n-bound UI until after mount so SSR HTML and the
+  // client's first paint always match (avoids hydration mismatches from
+  // persisted language).
+  if (!hydrated) {
+    return <div className="h-screen bg-background" />;
+  }
+
   return (
     <div className="h-screen flex flex-col bg-background">
       <AppHeader
