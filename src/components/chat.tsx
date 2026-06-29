@@ -4,11 +4,18 @@ import { useTranslation } from "react-i18next";
 import { AppHeader } from "./app-header";
 import { CanvasPane } from "./canvas-pane";
 import { SavedDrawer } from "./saved-drawer";
+import { getPersonById, localized } from "@/lib/people";
+import type { Lang } from "@/lib/i18n";
 import {
   EMPTY_STATE,
+  activeSignals,
   actDismiss,
+  actFindSimilar,
+  actRemoveSignal,
   actSave,
   actSelect,
+  actSetCompareMode,
+  actTellMore,
   actUnsave,
   loadState,
   resetState,
@@ -21,7 +28,8 @@ import {
 } from "@/lib/agent";
 
 export function Chat() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const [state, setState] = useState<AgentState>(EMPTY_STATE);
   const [hydrated, setHydrated] = useState(false);
   const [input, setInput] = useState("");
@@ -60,10 +68,9 @@ export function Chat() {
     setState(afterUser);
     setSearching(true);
     window.setTimeout(() => {
-      const { state: afterQuery } = runQuery(afterUser);
-      setState(afterQuery);
+      setState(runQuery(afterUser));
       setSearching(false);
-    }, 700);
+    }, 600);
   }
 
   function handleReset() {
@@ -72,11 +79,54 @@ export function Chat() {
     setInput("");
   }
 
+  function handleTellMore(id: string) {
+    const p = getPersonById(id);
+    if (!p) return;
+    const name = localized(p, lang).name;
+    setState((s) => actTellMore(s, id, name));
+  }
+
+  function handleFindSimilar(id: string) {
+    const p = getPersonById(id);
+    if (!p || searching) return;
+    const name = localized(p, lang).name;
+    // Push the user-mirrored message first, then animate the searching state
+    // so the canvas refresh feels like a real query.
+    const withUser = userTurn(state, `Show me more people like ${name}.`);
+    // Replace the auto-generated user text with the localized version we want
+    // (userTurn already added one — keep it; this mirrors the click intent).
+    setState(withUser);
+    setSearching(true);
+    window.setTimeout(() => {
+      const { state: next } = actFindSimilar(state, id, name);
+      setState(next);
+      setSearching(false);
+    }, 600);
+  }
+
+  function handleRemoveSignal(sig: string) {
+    if (searching) return;
+    setSearching(true);
+    window.setTimeout(() => {
+      setState((s) => actRemoveSignal(s, sig));
+      setSearching(false);
+    }, 300);
+  }
+
+  function openCompare() {
+    setState((s) => actSetCompareMode(s, true));
+    setSavedOpen(false);
+    setCanvasOpen(true);
+  }
+
   const isEmpty = state.messages.length === 0;
   const examples = useMemo(
     () => t("chat.examples", { returnObjects: true }) as string[],
     [t],
   );
+
+  const chips = activeSignals(state);
+  const showReadyHint = state.savedIds.length >= 2 && !state.compareMode;
 
   const canvas = (
     <CanvasPane
@@ -84,9 +134,13 @@ export function Chat() {
       selectedId={state.selectedId}
       savedIds={state.savedIds}
       dismissedIds={state.dismissedIds}
+      compareMode={state.compareMode}
       onSelect={(id) => setState((s) => actSelect(s, id))}
       onSave={(id) => setState((s) => actSave(s, id))}
       onDismiss={(id) => setState((s) => actDismiss(s, id))}
+      onTellMore={handleTellMore}
+      onFindSimilar={handleFindSimilar}
+      onExitCompare={() => setState((s) => actSetCompareMode(s, false))}
     />
   );
 
@@ -96,6 +150,7 @@ export function Chat() {
         savedCount={state.savedIds.length}
         onOpenSaved={() => setSavedOpen(true)}
         onReset={state.messages.length > 0 ? handleReset : undefined}
+        showReadyHint={showReadyHint}
       />
 
       <div className="flex-1 grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] min-h-0">
@@ -104,11 +159,7 @@ export function Chat() {
           <div ref={scrollRef} className="flex-1 overflow-y-auto">
             <div className="max-w-xl mx-auto px-5 py-7">
               {isEmpty ? (
-                <EmptyState
-                  examples={examples}
-                  onPick={submit}
-                  onOpenCanvas={() => setCanvasOpen(true)}
-                />
+                <EmptyState examples={examples} onPick={submit} />
               ) : (
                 <ul className="space-y-4">
                   {state.messages.map((m) => (
@@ -116,7 +167,11 @@ export function Chat() {
                       {m.role === "user" ? (
                         <UserBubble text={m.text ?? ""} />
                       ) : (
-                        <AssistantTurn message={m} />
+                        <AssistantTurn
+                          message={m}
+                          onCompare={openCompare}
+                          onFindSimilarFromInsight={handleFindSimilar}
+                        />
                       )}
                     </li>
                   ))}
@@ -147,7 +202,14 @@ export function Chat() {
           )}
 
           <div className="border-t border-border bg-background">
-            <div className="max-w-xl mx-auto px-5 py-3.5">
+            <div className="max-w-xl mx-auto px-5 py-3">
+              {chips.length > 0 && (
+                <ActiveFilters
+                  signals={chips}
+                  onRemove={handleRemoveSignal}
+                  label={t("chat.active_filters")}
+                />
+              )}
               <Composer
                 ref={inputRef}
                 value={input}
@@ -187,7 +249,7 @@ export function Chat() {
         >
           <div className="h-11 px-4 flex items-center justify-between border-b border-border shrink-0">
             <span className="text-[11px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
-              {t("canvas.title")}
+              {state.compareMode ? t("compare.title") : t("canvas.title")}
             </span>
             <button
               onClick={() => setCanvasOpen(false)}
@@ -206,6 +268,7 @@ export function Chat() {
         savedIds={state.savedIds}
         onClose={() => setSavedOpen(false)}
         onRemove={(id) => setState((s) => actUnsave(s, id))}
+        onCompare={openCompare}
         onSelect={(id) => {
           setState((s) => actSelect(s, id));
           setSavedOpen(false);
@@ -222,7 +285,6 @@ function EmptyState({
 }: {
   examples: string[];
   onPick: (text: string) => void;
-  onOpenCanvas: () => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -253,6 +315,38 @@ function EmptyState({
   );
 }
 
+function ActiveFilters({
+  signals,
+  onRemove,
+  label,
+}: {
+  signals: string[];
+  onRemove: (s: string) => void;
+  label: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="mb-2.5">
+      <div className="text-[9.5px] uppercase tracking-[0.16em] text-muted-foreground font-mono mb-1.5">
+        {label}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {signals.map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => onRemove(s)}
+            className="group inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-border bg-secondary text-foreground text-[11px] font-mono hover:border-foreground/50 transition-colors"
+          >
+            {t(`signal.${s}`, { defaultValue: s })}
+            <X className="w-2.5 h-2.5 text-muted-foreground group-hover:text-foreground" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function UserBubble({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
@@ -263,19 +357,42 @@ function UserBubble({ text }: { text: string }) {
   );
 }
 
-function AssistantTurn({ message }: { message: Message }) {
+function AssistantTurn({
+  message,
+  onCompare,
+  onFindSimilarFromInsight,
+}: {
+  message: Message;
+  onCompare: () => void;
+  onFindSimilarFromInsight: (id: string) => void;
+}) {
   const parts = message.parts ?? [];
   return (
     <div className="space-y-1.5">
       {parts.map((part, i) => (
-        <AssistantPartView key={i} part={part} />
+        <AssistantPartView
+          key={i}
+          part={part}
+          onCompare={onCompare}
+          onFindSimilarFromInsight={onFindSimilarFromInsight}
+        />
       ))}
     </div>
   );
 }
 
-function AssistantPartView({ part }: { part: AssistantPart }) {
-  const { t } = useTranslation();
+function AssistantPartView({
+  part,
+  onCompare,
+  onFindSimilarFromInsight,
+}: {
+  part: AssistantPart;
+  onCompare: () => void;
+  onFindSimilarFromInsight: (id: string) => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+
   if (part.kind === "status") {
     const label =
       part.key === "results_one"
@@ -288,6 +405,54 @@ function AssistantPartView({ part }: { part: AssistantPart }) {
         <span className="text-foreground/60 mr-1">›</span>
         {label}
       </p>
+    );
+  }
+  if (part.kind === "followup") {
+    return (
+      <p className="text-[12.5px] text-muted-foreground leading-relaxed pl-3">
+        {t(`agent.${part.key}`)}
+      </p>
+    );
+  }
+  if (part.kind === "insight") {
+    const p = getPersonById(part.personId);
+    if (!p) return null;
+    const name = localized(p, lang).name;
+    const traits = part.sharedSignals
+      .map((s) => t(`signal.${s}`, { defaultValue: s }))
+      .join(", ");
+    const text = part.sharedSignals.length > 0
+      ? t("agent.insight_with_shared", { name, traits })
+      : t("agent.insight_no_shared", { name });
+    return (
+      <div className="flex items-start gap-2">
+        <p className="text-[13.5px] text-foreground leading-relaxed flex-1">
+          <span className="text-foreground/60 mr-1 font-mono">›</span>
+          {text}
+        </p>
+        <button
+          onClick={() => onFindSimilarFromInsight(part.personId)}
+          className="shrink-0 mt-0.5 px-2 py-0.5 rounded-md border border-border text-[11px] font-mono text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        >
+          {t("card.find_similar")}
+        </button>
+      </div>
+    );
+  }
+  if (part.kind === "compare_invite") {
+    return (
+      <div className="flex items-start gap-2 mt-1 p-2.5 rounded-md border border-foreground/40 bg-secondary/60">
+        <p className="text-[13px] text-foreground leading-relaxed flex-1">
+          <span className="text-foreground/60 mr-1 font-mono">›</span>
+          {t("agent.compare_invite", { count: part.count })}
+        </p>
+        <button
+          onClick={onCompare}
+          className="shrink-0 px-2.5 py-1 rounded-md bg-foreground text-background text-[11.5px] font-medium hover:opacity-90 transition-opacity"
+        >
+          {t("agent.compare_open")}
+        </button>
+      </div>
     );
   }
   if (part.kind === "ack") {
