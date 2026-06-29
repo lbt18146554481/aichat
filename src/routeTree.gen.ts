@@ -9,74 +9,48 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as PeopleRouteImport } from './routes/people'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PeopleIdRouteImport } from './routes/people.$id'
-import { Route as CChatIdRouteImport } from './routes/c.$chatId'
 
-const PeopleRoute = PeopleRouteImport.update({
-  id: '/people',
-  path: '/people',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PeopleIdRoute = PeopleIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => PeopleRoute,
-} as any)
-const CChatIdRoute = CChatIdRouteImport.update({
-  id: '/c/$chatId',
-  path: '/c/$chatId',
+  id: '/people/$id',
+  path: '/people/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/people': typeof PeopleRouteWithChildren
-  '/c/$chatId': typeof CChatIdRoute
   '/people/$id': typeof PeopleIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/people': typeof PeopleRouteWithChildren
-  '/c/$chatId': typeof CChatIdRoute
   '/people/$id': typeof PeopleIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/people': typeof PeopleRouteWithChildren
-  '/c/$chatId': typeof CChatIdRoute
   '/people/$id': typeof PeopleIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/people' | '/c/$chatId' | '/people/$id'
+  fullPaths: '/' | '/people/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/people' | '/c/$chatId' | '/people/$id'
-  id: '__root__' | '/' | '/people' | '/c/$chatId' | '/people/$id'
+  to: '/' | '/people/$id'
+  id: '__root__' | '/' | '/people/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  PeopleRoute: typeof PeopleRouteWithChildren
-  CChatIdRoute: typeof CChatIdRoute
+  PeopleIdRoute: typeof PeopleIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/people': {
-      id: '/people'
-      path: '/people'
-      fullPath: '/people'
-      preLoaderRoute: typeof PeopleRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -86,36 +60,17 @@ declare module '@tanstack/react-router' {
     }
     '/people/$id': {
       id: '/people/$id'
-      path: '/$id'
+      path: '/people/$id'
       fullPath: '/people/$id'
       preLoaderRoute: typeof PeopleIdRouteImport
-      parentRoute: typeof PeopleRoute
-    }
-    '/c/$chatId': {
-      id: '/c/$chatId'
-      path: '/c/$chatId'
-      fullPath: '/c/$chatId'
-      preLoaderRoute: typeof CChatIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
 
-interface PeopleRouteChildren {
-  PeopleIdRoute: typeof PeopleIdRoute
-}
-
-const PeopleRouteChildren: PeopleRouteChildren = {
-  PeopleIdRoute: PeopleIdRoute,
-}
-
-const PeopleRouteWithChildren =
-  PeopleRoute._addFileChildren(PeopleRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  PeopleRoute: PeopleRouteWithChildren,
-  CChatIdRoute: CChatIdRoute,
+  PeopleIdRoute: PeopleIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
