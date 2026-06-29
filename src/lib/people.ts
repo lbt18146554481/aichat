@@ -1,8 +1,15 @@
 import type { Person } from "./types";
+import { ACTIVITIES, REFLECTIONS } from "./people-extras";
 
-// The pool the Agent introduces from. Each person has multiple "angles" —
-// different ways the Agent can introduce them depending on what the user
-// has said they care about. The Agent never shows a list.
+// The pool. Each Person carries everything all three Agents need:
+//   - angles      → used by Matchmaker
+//   - activities  → used by Side by Side
+//   - reflections → used by Compass
+// Activities & reflections are merged in from people-extras.ts to keep
+// this file readable.
+
+type PersonCore = Omit<Person, "activities" | "reflections">;
+const CORE: PersonCore[] = [
 
 export const PEOPLE: Person[] = [
   {
