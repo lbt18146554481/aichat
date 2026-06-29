@@ -45,6 +45,11 @@
     "back": "返回搜索",
     "traits": "特质"
   },
+  "canvas": {
+    "title": "候选名单",
+    "empty_title": "你的候选名单会出现在这里。",
+    "empty_hint": "在对话框中描述你想找的人，Agent 会检索档案库，把候选人呈现在这个画布上。"
+  },
   "lang": {
     "label": "语言",
     "en": "English",

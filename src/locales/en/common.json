@@ -45,6 +45,11 @@
     "back": "Back to search",
     "traits": "Traits"
   },
+  "canvas": {
+    "title": "Shortlist",
+    "empty_title": "Your shortlist will appear here.",
+    "empty_hint": "Describe someone in the chat. The agent searches the index and surfaces candidates on this canvas."
+  },
   "lang": {
     "label": "Language",
     "en": "English",
