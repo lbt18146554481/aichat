@@ -1,4 +1,4 @@
-import { Check, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
@@ -9,7 +9,7 @@ interface Props {
   saved?: boolean;
   dismissed?: boolean;
   onSelect: () => void;
-  onSave: () => void;
+  onTellMore: () => void;
   onDismiss: () => void;
 }
 
@@ -19,7 +19,7 @@ export function ShortlistTile({
   saved,
   dismissed,
   onSelect,
-  onSave,
+  onTellMore,
   onDismiss,
 }: Props) {
   const { i18n, t } = useTranslation();
@@ -29,17 +29,19 @@ export function ShortlistTile({
   const L = localized(person, lang);
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={selected}
-      className={`group text-left rounded-lg border bg-card transition-colors p-3 flex flex-col gap-2.5 ${
+    <div
+      className={`group relative rounded-lg border bg-card transition-colors p-3 flex flex-col gap-2.5 ${
         selected
           ? "border-foreground bg-secondary/60"
           : "border-border hover:border-foreground/30"
       } ${dismissed ? "opacity-40" : ""}`}
     >
-      <div className="flex items-center gap-2.5 min-w-0">
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
+        className="text-left flex items-center gap-2.5 min-w-0"
+      >
         <img
           src={avatarUrl(person.id)}
           alt=""
@@ -48,62 +50,41 @@ export function ShortlistTile({
         <div className="min-w-0 flex-1">
           <div className="text-[13.5px] font-semibold text-foreground truncate">
             {L.name}
+            {saved && <span className="ml-1 text-foreground/60">✓</span>}
           </div>
           <div className="text-[10.5px] text-muted-foreground font-mono truncate">
             {person.age} · {L.city}
           </div>
         </div>
-        {saved && (
-          <Check className="w-3.5 h-3.5 text-foreground shrink-0" aria-hidden />
-        )}
-      </div>
+      </button>
       <p className="text-[12px] text-foreground/75 leading-snug line-clamp-2">
         {L.portrait}
       </p>
       <div className="flex items-center gap-1.5 pt-0.5">
-        <span
-          role="button"
-          tabIndex={0}
+        <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
-            if (!saved && !dismissed) onSave();
+            if (!dismissed) onTellMore();
           }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              e.stopPropagation();
-              if (!saved && !dismissed) onSave();
-            }
-          }}
-          aria-disabled={saved || dismissed}
-          className={`flex-1 text-center px-2 py-1 rounded-md text-[11px] font-medium transition-colors ${
-            saved || dismissed
-              ? "bg-secondary text-muted-foreground cursor-default"
-              : "bg-foreground text-background hover:opacity-90 cursor-pointer"
-          }`}
+          disabled={dismissed}
+          className="flex-1 text-center px-2 py-1 rounded-md text-[11px] font-medium border border-border bg-background text-foreground hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
-          {saved ? `✓ ${t("card.save")}` : t("card.save")}
-        </span>
-        <span
-          role="button"
-          tabIndex={0}
+          {t("card.tell_more")}
+        </button>
+        <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             if (!dismissed) onDismiss();
           }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              e.stopPropagation();
-              if (!dismissed) onDismiss();
-            }
-          }}
+          disabled={dismissed}
           aria-label={t("card.dismiss")}
-          className="px-1.5 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+          className="px-1.5 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           <X className="w-3 h-3" />
-        </span>
+        </button>
       </div>
-    </button>
+    </div>
   );
 }

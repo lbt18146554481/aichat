@@ -9,11 +9,20 @@ interface Props {
   onClose: () => void;
   onRemove: (id: string) => void;
   onSelect?: (id: string) => void;
+  onCompare?: () => void;
 }
 
-export function SavedDrawer({ open, savedIds, onClose, onRemove, onSelect }: Props) {
+export function SavedDrawer({
+  open,
+  savedIds,
+  onClose,
+  onRemove,
+  onSelect,
+  onCompare,
+}: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const canCompare = savedIds.length >= 2;
 
   return (
     <div
@@ -31,7 +40,7 @@ export function SavedDrawer({ open, savedIds, onClose, onRemove, onSelect }: Pro
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="h-14 px-5 flex items-center justify-between border-b border-border">
+        <div className="h-14 px-5 flex items-center justify-between border-b border-border shrink-0">
           <h2 className="text-sm font-semibold tracking-tight">{t("saved.title")}</h2>
           <button
             onClick={onClose}
@@ -41,6 +50,22 @@ export function SavedDrawer({ open, savedIds, onClose, onRemove, onSelect }: Pro
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {canCompare && (
+          <div className="px-5 py-3 border-b border-border bg-secondary/40 shrink-0">
+            <p className="text-[12px] text-muted-foreground font-mono leading-relaxed mb-2">
+              <span className="text-foreground/60 mr-1">›</span>
+              {t("saved.compare_hint", { count: savedIds.length })}
+            </p>
+            <button
+              onClick={onCompare}
+              className="w-full px-3 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
+            >
+              {t("saved.compare")}
+            </button>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto p-5">
           {savedIds.length === 0 ? (
             <p className="text-sm text-muted-foreground leading-relaxed">
