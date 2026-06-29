@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { Lang } from "@/lib/i18n";
 import { Workspace, type AgentMsg } from "@/components/workspace";
 import { ResonanceCanvas } from "@/components/canvas/resonance-canvas";
+import { consumeSeed } from "@/lib/seed";
 import {
   EMPTY,
   load,
