@@ -39,8 +39,25 @@ function SideBySidePage() {
   const [thinking, setThinking] = useState(false);
 
   useEffect(() => {
-    const loaded = load();
-    setState(loaded.messages.length === 0 ? start(lang) : loaded);
+    const seed = consumeSeed("sidebyside");
+    if (seed) {
+      reset();
+      const base = start(lang);
+      const ackEn = "Got it. Side by Side works around something you actually do every week. Pick your activity on the right and I'll start watching for a real overlap.";
+      const ackZh = "明白。Side by Side 围绕你每周本来就在做的事来安排。先在右边告诉我你常做什么，我就开始留意真正能对上的人。";
+      const now = Date.now();
+      setState({
+        ...base,
+        messages: [
+          ...base.messages,
+          { id: uid(), role: "user", t: now, text: seed },
+          { id: uid(), role: "assistant", t: now + 1, text: lang === "zh-CN" ? ackZh : ackEn },
+        ],
+      });
+    } else {
+      const loaded = load();
+      setState(loaded.messages.length === 0 ? start(lang) : loaded);
+    }
     setHydrated(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
