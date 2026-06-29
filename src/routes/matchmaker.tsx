@@ -36,8 +36,15 @@ function MatchmakerPage() {
   const [thinking, setThinking] = useState(false);
 
   useEffect(() => {
-    const loaded = load();
-    setState(loaded.messages.length === 0 ? start(lang) : loaded);
+    const seed = consumeSeed("matchmaker");
+    if (seed) {
+      reset();
+      const seeded = userTurn(start(lang), seed, lang);
+      setState(seeded);
+    } else {
+      const loaded = load();
+      setState(loaded.messages.length === 0 ? start(lang) : loaded);
+    }
     setHydrated(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
