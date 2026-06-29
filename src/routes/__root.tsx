@@ -7,10 +7,14 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { initI18n } from "../lib/i18n";
+
+initI18n();
 
 function NotFoundComponent() {
   return (
@@ -44,9 +48,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold text-foreground">Something went wrong.</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Try again, or head home and start fresh.
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground font-mono">{error.message}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
@@ -74,17 +76,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Iris — 你的红娘" },
+      { title: "Kindred — an AI agent for finding the person you're looking for" },
       {
         name: "description",
         content:
-          "一个 AI 红娘：听你描述你想要的人，再从她手上的人里，一个一个郑重地介绍给你。",
+          "Kindred is a search agent: describe the person you're looking for, and it retrieves matching profiles, narrows down, and surfaces candidates.",
       },
-      { name: "author", content: "Iris" },
-      { property: "og:title", content: "Iris — 你的红娘" },
+      { property: "og:title", content: "Kindred" },
       {
         property: "og:description",
-        content: "一个 AI 红娘，慢慢地、一个一个把人介绍给你。",
+        content: "An AI agent for finding the person you're looking for.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -93,7 +94,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap",
       },
     ],
   }),
@@ -119,6 +120,22 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const { i18n } = useTranslation();
+  const [lang, setLang] = useState<string>(i18n.resolvedLanguage ?? "en");
+
+  useEffect(() => {
+    const handler = (l: string) => setLang(l);
+    i18n.on("languageChanged", handler);
+    return () => {
+      i18n.off("languageChanged", handler);
+    };
+  }, [i18n]);
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = lang;
+    }
+  }, [lang]);
 
   return (
     <QueryClientProvider client={queryClient}>
