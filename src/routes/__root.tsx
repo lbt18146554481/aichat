@@ -12,9 +12,15 @@ import { useTranslation } from "react-i18next";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { initI18n, applyPersistedLang } from "../lib/i18n";
+import i18n, { initI18n, applyPersistedLang } from "../lib/i18n";
 
 initI18n();
+// Hard-lock the first render to English on every entry so SSR HTML and the
+// client's first paint always match. Persisted language is applied later via
+// useEffect (see RootComponent), which runs after hydration.
+if (i18n.language !== "en") {
+  void i18n.changeLanguage("en");
+}
 
 function NotFoundComponent() {
   return (
