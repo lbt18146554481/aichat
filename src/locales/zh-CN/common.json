@@ -5,7 +5,8 @@
   },
   "header": {
     "saved": "已收藏",
-    "reset": "重新搜索"
+    "reset": "重新搜索",
+    "ready_hint": "准备好选了吗？"
   },
   "chat": {
     "empty_title": "描述你想找的那个人。",
@@ -18,28 +19,49 @@
     ],
     "placeholder_first": "描述你想找的人……",
     "placeholder_followup": "继续描述，或者让 Agent 调整方向",
-    "disclaimer": "档案均为示例数据，所有内容仅保存在你的浏览器中。"
+    "disclaimer": "档案均为示例数据，所有内容仅保存在你的浏览器中。",
+    "active_filters": "当前条件"
   },
   "agent": {
     "searching": "正在检索档案…",
     "refining": "调整查询…",
     "results_one": "找到 1 位符合描述的候选。",
     "results_other": "找到 {{count}} 位符合描述的候选。",
-    "no_more": "索引中没有更多匹配了。试着调整描述——换个特质、换个氛围、换个城市。",
+    "narrow_hint": "想要更收窄一些吗？可以说「再年轻一点」、「离我更近」、「更喜欢户外」——也可以点下面的条件 × 把它移除。",
+    "no_more": "索引中没有更多匹配了。试着换个方向——换一个特质、氛围或城市。",
     "ack_saved": "已收藏。",
-    "ack_dismissed": "已忽略，不再出现。",
+    "ack_passed": "好的，不再推荐。",
+    "ack_dismissed": "好的，不再推荐。",
+    "insight_with_shared": "{{name}} 和你都在意 {{traits}}。",
+    "insight_no_shared": "{{name}} 没有精确命中你提到的某个特质——但 Agent 觉得你值得看一眼。",
+    "after_focus": "想看更多和 TA 相似的人，还是继续浏览？",
+    "compare_invite": "你已经收藏了 {{count}} 位。要不要让我把他们并排对比一下？",
+    "compare_open": "并排对比",
     "context_label": "推断到的特质"
   },
   "card": {
     "save": "收藏",
-    "dismiss": "忽略",
+    "dismiss": "略过",
+    "tell_more": "多了解一下",
+    "find_similar": "看更多类似的人",
     "view": "查看档案"
   },
   "saved": {
     "title": "已收藏",
     "empty": "还没有收藏。从搜索结果中收藏档案，会出现在这里。",
     "remove": "移除",
-    "close": "关闭"
+    "close": "关闭",
+    "compare": "对比",
+    "compare_hint": "你已经收藏了 {{count}} 位。把他们并排打开，决定先联系谁。"
+  },
+  "compare": {
+    "title": "对比收藏",
+    "back": "返回候选名单",
+    "empty": "至少收藏两位才能对比。",
+    "differences": "差异",
+    "agent_note": "通过差异选出你最想先联系的那位。联系，是最后一小步。",
+    "reach_out": "联系 TA",
+    "reach_out_toast": "在正式产品中，这里会打开与 {{name}} 的对话。"
   },
   "profile": {
     "back": "返回搜索",
@@ -59,5 +81,27 @@
     "title": "未找到",
     "body": "档案库中没有这个人。",
     "home": "返回搜索"
+  },
+  "signal": {
+    "reading": "读书",
+    "music": "音乐",
+    "film": "电影",
+    "art": "艺术",
+    "writing": "写作",
+    "travel": "旅行",
+    "outdoors": "户外",
+    "cooking": "做饭",
+    "coffee": "咖啡",
+    "quiet": "安静的夜晚",
+    "curious": "好奇心",
+    "funny": "幽默",
+    "kind": "温柔",
+    "brave": "坦诚",
+    "ambitious": "上进",
+    "city": "城市生活",
+    "animals": "小动物",
+    "rain": "下雨天",
+    "morning": "清晨",
+    "night": "深夜"
   }
 }
