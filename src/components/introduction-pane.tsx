@@ -19,9 +19,12 @@ interface Props {
 
 export function IntroductionPane({
   state,
+  letters,
   onAnotherAngle,
   onAnotherPerson,
   onFeedback,
+  onWriteLetter,
+  onOpenThread,
   compact = false,
 }: Props) {
   const { t, i18n } = useTranslation();
