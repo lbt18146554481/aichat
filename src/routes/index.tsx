@@ -1,30 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AppLayout } from "@/components/app-layout";
-import { ChatSurface } from "@/components/chat-surface";
+import { IrisChat } from "@/components/iris-chat";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Bloom — Find your person" },
+      { title: "Iris — 你的红娘" },
       {
         name: "description",
         content:
-          "An AI chat that listens, drafts your portrait, and helps you find someone who resonates.",
+          "Iris 是一个 AI 红娘：听你描述你想要的人，再从她手上的人里，一个一个郑重介绍给你。",
       },
-      { property: "og:title", content: "Bloom — Find your person" },
+      { property: "og:title", content: "Iris — 你的红娘" },
       {
         property: "og:description",
-        content: "AI-powered, gentle, and entirely yours.",
+        content: "一个 AI 红娘，慢慢地、一个一个把人介绍给你。",
       },
     ],
   }),
-  component: HomePage,
+  component: () => <IrisChat />,
 });
-
-function HomePage() {
-  return (
-    <AppLayout>
-      <ChatSurface />
-    </AppLayout>
-  );
-}

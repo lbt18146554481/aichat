@@ -74,17 +74,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Bloom — Your AI team for finding the one" },
+      { title: "Iris — 你的红娘" },
       {
         name: "description",
         content:
-          "A small team of AI agents that listens, drafts your portrait, and finds people who resonate.",
+          "一个 AI 红娘：听你描述你想要的人，再从她手上的人里，一个一个郑重地介绍给你。",
       },
-      { name: "author", content: "Bloom" },
-      { property: "og:title", content: "Bloom" },
+      { name: "author", content: "Iris" },
+      { property: "og:title", content: "Iris — 你的红娘" },
       {
         property: "og:description",
-        content: "Your AI team for finding the one.",
+        content: "一个 AI 红娘，慢慢地、一个一个把人介绍给你。",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

@@ -1,110 +1,107 @@
 
-# 第五版重设计 — ChatGPT 风的 AI 红娘
+# 第六版：回归产品本质
 
-把现在的双栏 Agent 面板、品牌色块、装饰全部砍掉。直接对标 ChatGPT / Gemini 的形态：**左侧对话历史 + 中间主对话 + 输入框下方的 agent tag 行**。核心目的只有一个：帮用户找到另一半。
+## 一、先想清楚「我们到底在做什么」
 
----
+**产品一句话**：一个 AI 红娘，听你描述你想要的人，然后从它的候选人池里帮你挑出可能合适的人，并陪你一步步认识他们。
 
-## 视觉方向
+**Agent 的角色**：私人红娘（不是 ChatGPT、不是搜索引擎、不是教练）。
+- 语气：温和、专业、像一个真的在帮你张罗的人，会主动推进，不会被动等指令。
+- 主动性：每一轮都明确给出「下一步」——要么追问、要么给画像、要么递人、要么问你对某个人的感觉。
+- 边界：只聊「找伴侣」这件事，不做泛聊天助手，不做自定义 agent。
 
-完全 ChatGPT/Gemini 极简风：
-- 大量留白，灰阶为主，几乎没有强色彩
-- 唯一强调色：近黑 `#0D0D0D`（按钮与发送键）
-- 背景：纯白 `#FFFFFF`；侧栏：极浅灰 `#F7F7F8`
-- 边框：`#E5E5E5`；次要文字：`#6B6B6B`
-- 字体：Inter，单一字号体系，标题靠字重不靠字号膨胀
-- 圆角中等：`0.5rem` 卡片、`1rem` 输入框、`9999px` chip
-- 无渐变、无阴影炫技、无动画装饰
+**用户的核心任务**：描述「我想要的人」，然后看红娘端上来的人。
+- 不需要填表，不需要选标签，不需要管 agent 是怎么找的。
+- 整个产品只有一条主线：**描述 → 红娘理解 → 红娘介绍人 → 你反馈 → 红娘调整再介绍**。
 
----
+## 二、砍掉之前所有偏离本质的东西
 
-## 信息架构
+砍掉：
+- 用户自定义 agent（agent-tag-row、custom-agents、+ Add agent 按钮）——红娘只有一个，就是它本身。
+- 多会话历史侧栏（chat-sidebar、`/c/$chatId`、`bloom:chats`）——找伴侣不是多线程任务，一个持续的「和我的红娘的关系」就够了。
+- ChatGPT 那套空态欢迎屏+建议 chip——不是工具产品，是关系产品。
+- 「Bloom」这种发音含糊的品牌词在 UI 里反复出现——红娘需要一个名字，就叫她 **Iris**（取「彩虹女神 / 信使」的意思，中性、好记、不甜腻）。
 
-| Route | 说明 |
+保留并复用：
+- `src/lib/people.ts` 的 12 人候选池——这是产品的「真材实料」，没有人池红娘就是空壳。
+- `src/lib/resonance.ts` 的信号匹配 + `src/lib/conversation.ts` 的信号词典——作为 mock 匹配的底层。
+- `src/lib/portrait.ts` 的画像生成——作为红娘「我听懂了」的产出物。
+- shadcn UI + Inter 字体 + 中性灰阶 token。
+
+## 三、新的信息架构（极简）
+
+只有两个页面：
+
+| Route | 作用 |
 |---|---|
-| `/` | 主对话页（空态居中欢迎屏；有消息则正常滚动） |
-| `/c/$chatId` | 单个会话页（同一组件，按 ID 加载消息） |
-| `/people` | 红娘累计找到的候选人列表 |
-| `/people/$id` | 单个候选人详情 |
+| `/` | 和红娘 Iris 的对话页（**整个产品的主场**） |
+| `/people/$id` | 某个候选人的详情页（从对话里的卡片点进来） |
 
-**删除** `/portrait` 路由（画像作为对话产物，直接出现在聊天里，不再单独成页）。
+删除 `/people`（列表页）、`/c/$chatId`（多会话）、所有 sidebar。**没有顶部导航，没有侧边栏。** 整个屏幕就是对话。
 
-顶部导航砍掉。所有导航靠左侧栏。
+## 四、主流程（三幕剧）
 
----
+**第一幕 · 见面**（首次打开 `/`）
+- 屏幕中央：一张小小的 Iris 头像（生成图，柔和插画风，中性气质），下面一行字：
+  > "我是 Iris，你的红娘。在我帮你介绍人之前，先告诉我——你希望遇到一个什么样的人？"
+- 一个大输入框，没有任何建议 chip、没有 tag 行、没有按钮装饰。就这一个问题。
 
-## 页面布局（桌面）
+**第二幕 · 听懂你**（2~3 轮追问）
+- 用户描述完，Iris 不会立刻给人，而是先轻轻追问 1~2 个具体的小问题（复用 `FOLLOW_UPS`，但改成红娘口吻的中英混合，更像人）：
+  > "懂了。再问你一个小事——周日下午你们俩在一起，最理想的画面是什么？"
+- 追问够了，Iris 给一段**画像总结**作为一条 AI 消息（复用 `composePortrait`），并明确说："我大概知道你想要的人长什么样了。让我去看看我手上有没有合适的——"
 
-```text
-┌──────────────────┬─────────────────────────────────────────┐
-│  + New chat      │                                         │
-│  ─────────────── │           Find your person              │
-│                  │     What kind of partner are you        │
-│  Today           │            looking for?                 │
-│   · Quiet, kind  │                                         │
-│   · Loves books  │   [建议 chip] [建议 chip] [建议 chip]    │
-│                  │                                         │
-│  Yesterday       │                                         │
-│   · Someone who… │   ┌─────────────────────────────────┐  │
-│                  │   │ Describe them...           [↑]  │  │
-│  ─────────────── │   └─────────────────────────────────┘  │
-│  ⚙  Settings     │   [+ Add agent]  People found (3) →    │
-│  👤 You          │                                         │
-└──────────────────┴─────────────────────────────────────────┘
-```
+**第三幕 · 介绍人**（核心价值时刻）
+- Iris 一次只郑重介绍 **一个人**（不是一次推 4 张卡），用红娘语气：
+  > "我想先介绍你认识 **Maya**。她 29 岁，在波士顿做独立书店店员。我之所以想到她——你说想要一个'安静但会突然让你笑出来'的人，Maya 就是那种人。"
+- 卡片包含：头像、名字、年龄/城市/职业、Iris 给出的**「为什么想到她」的一句话**（基于命中的 signals 生成）、一个「了解更多」按钮跳 `/people/$id`，和两个反馈按钮：**「想多了解」** / **「不是我的菜」**。
+- 用户反馈后，Iris 根据反馈再介绍下一个，依次过完匹配池里的人（最多 4 个）。每介绍完一个都带一句承接（"那我换个方向"/"那我顺着这个感觉再找一个"）。
+- 介绍完所有合适的人后，Iris 说："这是我目前手上最合你心意的几个。要不要再聊聊，让我更懂你一点？"——回到第二幕节奏。
 
-**移动端**：侧栏默认收起，顶部一个汉堡按钮打开抽屉。主体全屏。
+## 五、视觉
 
----
+延续中性极简，但**去工具化**：
+- 整体仍是 ChatGPT 式的纯白 + 黑字 + 灰边，但**居中、窄栏**（max-width 640px），不撑满。让人觉得这是一封信、一次谈话，不是一个工作台。
+- Iris 头像 + 名字始终在顶部小小地居中（让用户记住「我在和谁说话」）。
+- AI 消息无气泡、左对齐；用户消息浅灰气泡、右对齐；候选人卡片单独一种风格（白底、淡边、头像左 + 文字右 + 底部两个反馈按钮），看起来明显比聊天气泡「重」，强调这是产品的核心交付物。
+- 字体保留 Inter，所有装饰动画全删，只保留消息淡入和打字省略号。
 
-## 核心交互
+## 六、数据 & 存储
 
-1. **空态欢迎屏**：中央一句话 "Find your person." + 一行副标题 + 3 个建议 chip（点击直接填入输入框，例如 "Describe my ideal Sunday partner"、"Help me put words to a feeling"、"What kind of person fits a quiet life"）
-2. **对话**：用户描述 → AI 红娘提 1～3 个轻问题 → 整理一段画像（直接显示在聊天里，作为一条 AI 消息）→ 自动追加一条带候选人卡片的消息（卡片可点击进 `/people/$id`）
-3. **多会话**：每条对话独立存储；侧栏按日期分组列出；点击切换 = 路由跳转到 `/c/$chatId`；"New chat" 创建新对话并跳转
-4. **Agent tag 行**：输入框正下方一行，初始只有 `+ Add agent` 按钮 + 一个右侧的 `People found (N)` 链接。点击 `+ Add agent` 弹个轻量弹窗让用户自己输入 agent 名称和一句描述，保存在本地。用户加的 agent 显示为 chip，可勾选/取消，被勾选时该 agent 的"风格"会在 mock 层附加到 AI 回复（例如附加一句签名）。**我不预置任何 agent**
+仍然纯前端 mock，只用 localStorage：
+- `iris:conversation` — 单条对话的 `messages[]`、当前 stage、已收集 signals、已介绍过的 personId 列表、每个被介绍人的用户反馈。
+- `iris:liked` — 用户按过「想多了解」的 personId 列表（未来可做"我的关注"，本期不实现页面）。
 
----
+候选池继续 `src/lib/people.ts`，匹配继续 `findResonant`。每介绍完一个人，从池中扣掉。
 
-## 数据与存储（纯前端 mock）
-
-localStorage 键：
-- `bloom:chats` — `{ id, title, updatedAt, messages: UIMessage[] }[]`
-- `bloom:agents` — 用户自定义的 agent 数组 `{ id, name, description, enabled }[]`
-- `bloom:people` — 红娘已找到的候选人累计列表（用于 `/people` 页与输入框下方计数）
-
-会话标题：取第一条用户消息前 30 字。
-
-仍无后端、无真实 LLM；候选人池继续用现有 `src/lib/people.ts`（12 人），匹配走 `resonance.ts`。
-
----
-
-## 文件变更
-
-**重写**：
-- `src/styles.css` — 砍到只剩中性灰阶 token
-- `src/routes/__root.tsx` — 文案换成 "Find your person"
-- `src/routes/index.tsx` — 改为空态欢迎屏 + 转跳到 `/c/$chatId` 逻辑
-- `src/routes/people.tsx` / `src/routes/people.$id.tsx` — 极简化重设
-- `src/lib/store.ts` — 改成多会话存储 + agent 自定义存储
+## 七、文件变更
 
 **新增**：
-- `src/routes/c.$chatId.tsx` — 主对话页
-- `src/components/chat-sidebar.tsx` — 左侧会话历史栏
-- `src/components/chat-surface.tsx` — 主对话组件（空态/消息流/输入框/tag 行复用）
-- `src/components/agent-tag-row.tsx` — 输入框下方的 tag 行 + 新建 agent 弹窗
-- `src/lib/chats.ts` — 会话 CRUD
-- `src/lib/custom-agents.ts` — 用户自定义 agent CRUD
+- `src/components/iris-chat.tsx` — 整个对话页主组件（替代当前 chat-surface）。
+- `src/components/iris-header.tsx` — 顶部 Iris 头像 + 名字小条。
+- `src/components/candidate-card.tsx` — 红娘介绍人的卡片（含反馈按钮）。
+- `src/lib/iris.ts` — 红娘对话状态机：stage = `meeting` → `listening` → `introducing` → `awaiting_feedback` → 循环。包含「为什么想到她」的句子生成器（基于命中 signals 选模板）。
+- `src/assets/iris-avatar.png` — Iris 头像（imagegen 生成，柔和中性插画）。
+
+**重写**：
+- `src/routes/index.tsx` — 渲染 IrisChat，删除原来的 redirect 到 `/c/$chatId` 的逻辑。
+- `src/routes/__root.tsx` — title/description 改成 "Iris — 你的红娘"，移除 Bloom 文案。
+- `src/routes/people.$id.tsx` — 极简详情页，顶部一个"回到 Iris"链接，删除任何 sidebar。
 
 **删除**：
-- `src/components/app-shell.tsx`（顶部导航不再用，新结构由侧栏 + 主区直接组合）
-- `src/components/agent-panel.tsx`、`src/lib/agents.ts`（旧的 4 个预设 agent 全砍）
-- `src/routes/portrait.tsx`（合并到聊天内消息）
+- `src/components/app-layout.tsx`、`src/components/chat-sidebar.tsx`、`src/components/chat-surface.tsx`、`src/components/agent-tag-row.tsx`
+- `src/lib/chats.ts`、`src/lib/custom-agents.ts`
+- `src/routes/c.$chatId.tsx`、`src/routes/people.tsx`
+- `bloom:*` 的 localStorage 全部弃用（新键名 `iris:*`）。
 
----
+## 八、技术细节
 
-## 风险与说明
+- `iris.ts` 暴露一个 reducer 风格的 `advance(state, userInput)`，所有「红娘下一步说什么 / 介绍谁 / 何时介绍」逻辑集中在这里，方便后续接真 LLM 时整个替换。
+- "为什么想到她"句子：写 ~10 个模板，按命中的 signal 套用（如命中 `quiet` + `reading` → "你说想要一个安静的、能陪你一起看书不说话的人——她就是。"）。
+- 候选池只有 12 人，所以匹配池排空后，Iris 用一句话承认："我手上目前就这些人。要不要再描述得不一样一点，我重新去看看？"——重置 stage 到 `listening`。
 
-- 多会话与自定义 agent 都是 localStorage，关浏览器不丢，但跨设备不同步
-- 仍然没有真实 LLM；AI 回复由本地脚本驱动，但呈现形态完全模仿真实对话
-- 候选人作为聊天里的内嵌卡片，是这次产品意义上最大的变化（之前是分离页面）
+## 九、风险
+
+- 12 人池子很快会被走完——这一版能撑 1~2 轮完整体验，作为 demo 够用；要做真产品必须接真后端候选池。
+- 红娘人格目前靠模板，离真 LLM 红娘还有距离——这一版主要把**产品骨架和角色**立住，让你和我都能看清楚"对，就该是这样"。
+- 中英混合文案的语气需要你再过一遍——我可以全中文或全英文，告诉我你倾向哪种。
