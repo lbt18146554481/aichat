@@ -1,13 +1,19 @@
 import { useTranslation } from "react-i18next";
+import { Mail } from "lucide-react";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import type { AgentState } from "@/lib/agent";
+import type { LetterStore } from "@/lib/letters";
+import { canSendNow, remainingToday, threadOf } from "@/lib/letters";
 
 interface Props {
   state: AgentState;
+  letters: LetterStore;
   onAnotherAngle: () => void;
   onAnotherPerson: () => void;
   onFeedback: () => void;
+  onWriteLetter: (personId: string) => void;
+  onOpenThread: (personId: string) => void;
   compact?: boolean;
 }
 
