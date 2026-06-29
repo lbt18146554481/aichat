@@ -1,99 +1,100 @@
-# 重做方案：从"红娘"到"搜索智能体"
+## 认清本质
 
-## 一、定位重置
+这是什么产品？**一个帮用户在候选人数据库中找到理想伴侣的 AI Agent。**
 
-**产品本质**：一个 AI Agent，用户用自然语言描述想要的人，Agent 在档案库里检索、推理、给出候选；没有名字、不拟人、不卖人设。
+不是聊天玩具，不是红娘人设，不是花哨的设计实验。用户的核心 Job-to-be-Done 只有一件事：
+> "用自然语言描述我想要的人 → Agent 理解 → Agent 从数据库筛出最匹配的人 → 我能查看、保存、迭代。"
 
-**词汇黑名单（全站搜索并清除）**：红娘、matchmaker、Iris、Bloom、Muse、"为你介绍"、"我手上有的人"等任何拟人化措辞。
+所有不服务这条主线的元素都要删掉。
 
-**新文案口径**（中性、工具感）：
-- 不说"我帮你介绍 X"，说"Found 1 profile matching your description"
-- 不说"想多了解 / 不是我的菜"，说"Save" / "Dismiss"
-- Agent 自称一律用 "the assistant" 或直接用第三人称动作（"Searching…", "Refining query…"）
+## 此前问题的根因
 
-## 二、产品名候选
+1. **过度中文化**：默认语言、示例、文案都偏向中文语境，丢了国际化产品该有的克制英文 voice。
+2. **Agent 感缺失**：之前做成了"对话框 + 卡片"，没有让用户看到 Agent 在"思考、搜索、筛选、解释"的工作过程——这正是 AI Agent 产品区别于普通搜索的核心价值。
+3. **设计不够克制**：装饰、动画、文案噪音过多，遮蔽了产品主线。
 
-为避免再返工，产品名先用工作名 **Kindred**（中性、国际化、非花名），实施时如果你想换我随时改字符串。
+## 重新定位
 
-## 三、首版功能范围
+**产品名**：`Kindred`（保留，中性、国际化、含义贴切——"同类、知己"）
+**Tagline**：`Find someone who fits.`
+**默认语言**：English。中文为可选切换，不再做翻译腔的本地化营销。
+**目标用户感知**：像在用 Linear / Raycast / Perplexity——专业工具，不是相亲 App。
 
-| 页面 | 内容 |
-| --- | --- |
-| `/` 主界面 | 全屏对话 + 输入框；空状态展示一行提示和 3 个示例 query chip |
-| 内嵌候选卡 | Assistant 回复里直接渲染 ProfileCard（头像 / 姓名 / 年龄 / 城市 / 一句话摘要 / Save / Dismiss / View） |
-| `/profile/$id` | 完整档案详情页，"Back to search" 返回对话 |
-| 顶部右侧 | 语言切换器（EN / 中文，更多预留），Saved 计数入口 |
-| Saved 抽屉 | 显示用户 Save 过的档案，可移除 |
+## 视觉方向（极简，不再反复换风格）
 
-**不做**：登录、多会话历史、Agent 团队面板、付费、点对点聊天。
+- 纯白背景 `#FFFFFF` / 深灰前景 `#0A0A0A`，单一中性灰阶
+- 唯一强调色：克制的靛蓝 `oklch(0.55 0.18 260)`，仅用于 Agent 状态点、主按钮、链接
+- 字体：`Inter` 全局 + `JetBrains Mono` 用于 Agent 动作行（强化"工具感"）
+- 无渐变、无大圆角、无装饰插画、无 emoji
+- 间距大方、字号克制（base 15px），所有交互元素遵循同一 8px 网格
 
-## 四、Agent 行为（纯前端 mock，无 LLM）
+## 核心界面（只有两屏）
 
-状态机三阶段，措辞全部工具化：
+### 1. `/` — Agent 工作台（单页主体验）
 
 ```text
-idle ── user query ──▶ searching (打字指示 "Searching profiles…")
-                          │
-                          ▼
-                     results (返回 1-3 张候选卡 + "Refine your search" 提示)
-                          │
-              ┌───────────┴───────────┐
-       user refines              user dismisses/saves
-              │                         │
-              └──────────► searching ◀──┘
+┌────────────────────────────────────────────────────┐
+│  Kindred                            Saved · EN/中  │
+├────────────────────────────────────────────────────┤
+│                                                    │
+│  Describe who you're looking for.                  │
+│  ─────────────────────────────────                 │
+│                                                    │
+│  [ Agent transcript: 用户消息 + Agent 行动/结果 ]   │
+│                                                    │
+│   › thinking…                                      │
+│   › parsed criteria: age 26–32, reader, Berlin     │
+│   › searching 1,284 profiles                       │
+│   › 6 matches found                                │
+│   ┌──────────────┐ ┌──────────────┐                │
+│   │ Profile card │ │ Profile card │  …             │
+│   └──────────────┘ └──────────────┘                │
+│                                                    │
+├────────────────────────────────────────────────────┤
+│  [  Tell the agent more…                      ⏎  ] │
+└────────────────────────────────────────────────────┘
 ```
 
-匹配逻辑沿用现有 `extractSignals` + `findResonant`：从用户输入提取标签 → 累积上下文 → 对档案库打分 → 返回 top N 未展示过的。
+**关键设计决策：**
+- **Agent transcript** 使用 AI Elements (`Conversation` / `Message` / `MessageResponse` / `Tool`)，符合官方 chat-ui 规范。
+- 用户消息：右对齐 + `primary` 背景气泡。Agent 消息：无背景，纯文本。
+- **Agent 行动行**（mono 字体、`›` 前缀、muted 颜色）作为 `Tool` 组件内联渲染——让用户清楚看到 Agent 在做什么（解析、搜索、排序），这是产品的灵魂。
+- 候选人卡片直接作为 Agent 消息的一部分内联出现（不弹窗、不跳页）。每张卡极简：头像、名字+年龄+城市、一行 essence、Save / Pass 两个文字按钮。
+- 空状态：标题 + 3–4 个英文示例 chip（"a calm reader in their late 20s"、"someone who builds things on weekends"…），点击即填入输入框。
+- 输入框始终自动聚焦；发送后保持聚焦。
 
-## 五、国际化（i18n）
+### 2. `/profile/$id` — 候选人详情
 
-- 库：`react-i18next` + `i18next-browser-languagedetector`
-- 默认语言：浏览器语言（`navigator.language`），fallback `en`
-- 首版语种：`en`、`zh-CN`；翻译文件 `src/locales/{en,zh-CN}/common.json`
-- 所有 UI 文案、Agent 系统话术（"Searching…", "Found N profiles", "No more matches, try refining your query"）全部走 `t()`
-- Mock 档案库的 `name / city / occupation / portrait` 各加一个 `_zh` 字段，按当前语言渲染
-- 语言切换器持久化到 `localStorage.lang`
+简单到极致：左侧人像，右侧分段文字（essence / what they love / what they're looking for），底部 Save / Back。无地图、无标签云、无进度条。
 
-## 六、视觉
+**Saved 抽屉**从 Header 右侧滑出，列表式查看已收藏。
 
-延续上一版的中性极简方向（白底、深灰文字、单一强调色），但去掉一切"温暖治愈"暗示：
+## 删除的东西
 
-- 字体：Inter（UI）+ JetBrains Mono（Agent 状态行小字，强调工具感）
-- 强调色：`oklch(0.55 0.15 250)` 冷蓝
-- 候选卡：白底 + 1px border，无渐变无阴影；hover 时 border 变深
-- Agent 消息：无气泡、左对齐纯文本；用户消息：浅灰圆角气泡右对齐
-- 加载态：单行 monospace 文字 `▍ Searching profiles…` 光标闪烁，不用三点跳动
+- 所有"红娘 / matchmaker / Iris / Muse / Bloom / 小荷"残留命名
+- 候选人卡片上的"匹配度 %"
+- 多 session / 历史侧栏（一次对话即一次搜索，刷新可重置）
+- 自定义 Agent tag 行（功能噪音）
+- 中文为默认 + 翻译腔文案
+- Framer Motion 的装饰性动画（仅保留消息淡入与卡片渐显两处）
 
-## 七、需要删/改/新增的文件
+## 技术要点
 
-**删除**
-- `src/components/iris-chat.tsx`、`iris-header.tsx`、`candidate-card.tsx`
-- `src/lib/iris.ts`、`src/lib/portrait.ts`（散文画像不再需要）
-- `src/assets/iris-avatar.png`
+- 使用 AI Elements 组件：`bun x ai-elements@latest add conversation message prompt-input tool shimmer`
+- `src/lib/agent.ts`：保留并简化为脚本化 agent，输出结构化 `actions[]`（`parse | search | rank | present`），每个 action 在 UI 中以 `Tool` 渲染（默认折叠）
+- `src/lib/people.ts`：候选人改为以英文为 primary，`zh` 字段降级为可选
+- `src/lib/i18n.ts`：默认 `en`，去掉自动 detector（避免中文 OS 用户被强制中文，也修复当前 SSR hydration mismatch）
+- 修复 hydration 错误的根因：i18n detector 在 SSR 与客户端语言不一致 → 固定服务端/客户端初始语言为 `en`，挂载后再让用户切换
+- 路由保持：`/`、`/profile/$id`，删除其他遗留
+- 提交前自检 chat-ui-composition：assistant 消息无背景、submit 按钮在 footer、logo 不用 Sparkles
 
-**新增**
-- `src/lib/i18n.ts` — i18next 初始化
-- `src/locales/en/common.json`、`src/locales/zh-CN/common.json`
-- `src/lib/agent.ts` — 工具化状态机（取代 `iris.ts`）
-- `src/components/chat.tsx`、`profile-card.tsx`、`app-header.tsx`、`lang-switcher.tsx`、`saved-drawer.tsx`
+## 交付范围
 
-**改写**
-- `src/lib/people.ts` — 每条档案补 `_zh` 双语字段
-- `src/routes/index.tsx` — 渲染新 `Chat`
-- `src/routes/people.$id.tsx` → `src/routes/profile.$id.tsx`，文案改为中性
-- `src/routes/__root.tsx` — `<html lang>` 跟随当前 i18n，title 改为产品名
-- `src/styles.css` — 清理旧温暖色 token，换冷蓝强调色
+1. 拆除残留组件与文案
+2. 安装并接入 AI Elements
+3. 重写 `Chat` 工作台（含 Agent action 行的 Tool 渲染）
+4. 重写 `ProfileCard` 与 `/profile/$id`
+5. 修复 i18n hydration bug（默认 en，手动切换）
+6. 视觉 token 收敛到单一灰阶 + 一种强调色
 
-**保留**
-- `src/lib/conversation.ts`、`src/lib/resonance.ts`、`src/lib/types.ts`（信号提取与匹配逻辑仍然有用）
-- `localStorage` key 全部迁移到 `kindred:*`，启动时清理旧 `iris:* / bloom:* / muse:*`
-
-## 八、验收清单
-
-1. 全站 grep 不到「红娘 / matchmaker / Iris / Bloom / Muse」
-2. 浏览器语言为中文时首屏中文，为英文时首屏英文；右上角切换即时生效
-3. 第一次输入 → 出现 monospace 加载行 → 返回 1-3 张候选卡
-4. Save / Dismiss 后下一条 query 不再重复出现该档案
-5. 详情页可直接通过 URL 访问并按当前语言渲染
-
-确认后我进入 build 模式按此执行。
+完成后页面看上去像一个**严肃的 AI 工具**，而不是一个相亲小程序。
