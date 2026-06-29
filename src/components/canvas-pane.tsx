@@ -1,15 +1,20 @@
 import { useTranslation } from "react-i18next";
 import { ShortlistTile } from "./shortlist-tile";
 import { CandidateDetail } from "./candidate-detail";
+import { CompareView } from "./compare-view";
 
 interface Props {
   shortlistIds: string[];
   selectedId: string | null;
   savedIds: string[];
   dismissedIds: string[];
+  compareMode: boolean;
   onSelect: (id: string) => void;
   onSave: (id: string) => void;
   onDismiss: (id: string) => void;
+  onTellMore: (id: string) => void;
+  onFindSimilar: (id: string) => void;
+  onExitCompare: () => void;
 }
 
 export function CanvasPane({
@@ -17,11 +22,35 @@ export function CanvasPane({
   selectedId,
   savedIds,
   dismissedIds,
+  compareMode,
   onSelect,
   onSave,
   onDismiss,
+  onTellMore,
+  onFindSimilar,
+  onExitCompare,
 }: Props) {
   const { t } = useTranslation();
+
+  if (compareMode) {
+    return (
+      <div className="h-full flex flex-col bg-secondary/30">
+        <div className="h-11 px-5 flex items-center justify-between border-b border-border bg-background/60 backdrop-blur shrink-0">
+          <div className="text-[11px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
+            {t("compare.title")}
+          </div>
+          <button
+            onClick={onExitCompare}
+            className="text-[11px] font-mono text-muted-foreground hover:text-foreground"
+          >
+            ← {t("compare.back")}
+          </button>
+        </div>
+        <CompareView savedIds={savedIds} />
+      </div>
+    );
+  }
+
   const empty = shortlistIds.length === 0;
 
   return (
@@ -49,7 +78,7 @@ export function CanvasPane({
                   saved={savedIds.includes(id)}
                   dismissed={dismissedIds.includes(id)}
                   onSelect={() => onSelect(id)}
-                  onSave={() => onSave(id)}
+                  onTellMore={() => onTellMore(id)}
                   onDismiss={() => onDismiss(id)}
                 />
               ))}
@@ -62,6 +91,7 @@ export function CanvasPane({
                 dismissed={dismissedIds.includes(selectedId)}
                 onSave={() => onSave(selectedId)}
                 onDismiss={() => onDismiss(selectedId)}
+                onFindSimilar={() => onFindSimilar(selectedId)}
               />
             )}
           </div>

@@ -5,11 +5,12 @@
   },
   "header": {
     "saved": "Saved",
-    "reset": "New search"
+    "reset": "New search",
+    "ready_hint": "Ready to choose?"
   },
   "chat": {
     "empty_title": "Describe the person you're looking for.",
-    "empty_hint": "Be specific or vague — the agent works with either. It will search profiles, narrow down, and surface a few candidates per turn.",
+    "empty_hint": "Be specific or vague — the agent works with either. It searches profiles, narrows down, and shows a few candidates per turn.",
     "examples_label": "Try",
     "examples": [
       "Someone quiet who reads on rainy afternoons",
@@ -18,28 +19,49 @@
     ],
     "placeholder_first": "Describe who you're looking for…",
     "placeholder_followup": "Refine your search, or ask for more",
-    "disclaimer": "All profiles are mock data. Nothing leaves your browser."
+    "disclaimer": "All profiles are mock data. Nothing leaves your browser.",
+    "active_filters": "Active filters"
   },
   "agent": {
     "searching": "Searching profiles…",
     "refining": "Refining query…",
-    "results_one": "Found 1 profile matching your description.",
-    "results_other": "Found {{count}} profiles matching your description.",
-    "no_more": "No more matches in the index. Try refining your query — different traits, a different mood, a different city.",
+    "results_one": "Found 1 profile that fits.",
+    "results_other": "Found {{count}} profiles that fit.",
+    "narrow_hint": "Want to narrow this down? Try saying \"younger\", \"closer to me\", or \"more into the outdoors\" — or click a filter below to remove it.",
+    "no_more": "No more matches in the index. Try changing direction — a different trait, mood, or city.",
     "ack_saved": "Saved.",
-    "ack_dismissed": "Dismissed. Won't surface again.",
+    "ack_passed": "Noted. Won't show them again.",
+    "ack_dismissed": "Noted. Won't show them again.",
+    "insight_with_shared": "{{name}} shares your sense of {{traits}}.",
+    "insight_no_shared": "{{name}} doesn't match a specific trait you mentioned — but the agent thought you should see them.",
+    "after_focus": "Want to see more people like them, or keep looking around?",
+    "compare_invite": "You've saved {{count}}. Want me to help you compare them side by side?",
+    "compare_open": "Compare side by side",
     "context_label": "Inferred traits"
   },
   "card": {
     "save": "Save",
-    "dismiss": "Dismiss",
+    "dismiss": "Pass",
+    "tell_more": "Tell me more",
+    "find_similar": "Find more like them",
     "view": "View profile"
   },
   "saved": {
     "title": "Saved profiles",
     "empty": "Nothing saved yet. Save a profile from a search result and it'll appear here.",
     "remove": "Remove",
-    "close": "Close"
+    "close": "Close",
+    "compare": "Compare",
+    "compare_hint": "You've saved {{count}}. Open them side by side to decide who to reach out to first."
+  },
+  "compare": {
+    "title": "Compare saved",
+    "back": "Back to shortlist",
+    "empty": "Save at least two people to compare.",
+    "differences": "Differences",
+    "agent_note": "Use the differences to pick who you want to reach out to first. Reaching out is the last small step.",
+    "reach_out": "Reach out",
+    "reach_out_toast": "In the real product, this would open a conversation with {{name}}."
   },
   "profile": {
     "back": "Back to search",
@@ -59,5 +81,27 @@
     "title": "Not found",
     "body": "That profile isn't in the index.",
     "home": "Back to search"
+  },
+  "signal": {
+    "reading": "reading",
+    "music": "music",
+    "film": "film",
+    "art": "art",
+    "writing": "writing",
+    "travel": "travel",
+    "outdoors": "the outdoors",
+    "cooking": "cooking",
+    "coffee": "coffee",
+    "quiet": "quiet evenings",
+    "curious": "curiosity",
+    "funny": "humor",
+    "kind": "kindness",
+    "brave": "honesty",
+    "ambitious": "ambition",
+    "city": "city life",
+    "animals": "animals",
+    "rain": "rainy days",
+    "morning": "early mornings",
+    "night": "late nights"
   }
 }

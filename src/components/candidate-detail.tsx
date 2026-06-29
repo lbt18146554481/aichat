@@ -8,6 +8,7 @@ interface Props {
   dismissed?: boolean;
   onSave: () => void;
   onDismiss: () => void;
+  onFindSimilar: () => void;
 }
 
 export function CandidateDetail({
@@ -16,13 +17,13 @@ export function CandidateDetail({
   dismissed,
   onSave,
   onDismiss,
+  onFindSimilar,
 }: Props) {
   const { t, i18n } = useTranslation();
   const person = getPersonById(personId);
   if (!person) return null;
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const L = localized(person, lang);
-  const handled = saved || dismissed;
 
   return (
     <article className="rounded-lg border border-border bg-card p-5">
@@ -59,24 +60,31 @@ export function CandidateDetail({
               key={s}
               className="px-2 py-0.5 rounded-md bg-secondary text-foreground text-[11px] font-mono border border-border"
             >
-              {s}
+              {t(`signal.${s}`, { defaultValue: s })}
             </span>
           ))}
         </div>
       </div>
 
-      <div className="mt-5 flex gap-2">
+      <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-2">
         <button
-          disabled={handled}
+          disabled={saved || dismissed}
           onClick={onSave}
-          className="flex-1 px-3 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+          className="px-3 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
         >
           {saved ? `✓ ${t("card.save")}` : t("card.save")}
         </button>
         <button
-          disabled={handled}
+          disabled={dismissed}
+          onClick={onFindSimilar}
+          className="px-3 py-2 rounded-md border border-border text-[13px] text-foreground hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          {t("card.find_similar")}
+        </button>
+        <button
+          disabled={dismissed}
           onClick={onDismiss}
-          className="px-4 py-2 rounded-md border border-border text-[13px] text-foreground hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-2 rounded-md border border-border text-[13px] text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {t("card.dismiss")}
         </button>

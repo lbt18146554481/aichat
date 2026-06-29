@@ -7,14 +7,20 @@ interface Props {
   savedCount: number;
   onOpenSaved: () => void;
   onReset?: () => void;
+  showReadyHint?: boolean;
 }
 
-export function AppHeader({ savedCount, onOpenSaved, onReset }: Props) {
+export function AppHeader({
+  savedCount,
+  onOpenSaved,
+  onReset,
+  showReadyHint,
+}: Props) {
   const { t } = useTranslation();
 
   return (
     <header className="w-full border-b border-border bg-background/85 backdrop-blur sticky top-0 z-30">
-      <div className="max-w-3xl mx-auto px-5 h-14 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-5 h-14 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 group">
           <div className="w-6 h-6 rounded-md bg-foreground text-background grid place-items-center font-mono text-[11px] font-bold">
             K
@@ -33,9 +39,18 @@ export function AppHeader({ savedCount, onOpenSaved, onReset }: Props) {
               {t("header.reset")}
             </button>
           )}
+          {showReadyHint && (
+            <span className="hidden md:inline text-[11px] font-mono text-muted-foreground">
+              {t("header.ready_hint")}
+            </span>
+          )}
           <button
             onClick={onOpenSaved}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-card text-xs text-foreground hover:bg-secondary transition-colors"
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs transition-colors ${
+              showReadyHint
+                ? "border-foreground bg-foreground text-background hover:opacity-90"
+                : "border-border bg-card text-foreground hover:bg-secondary"
+            }`}
             aria-label={t("header.saved")}
           >
             <Bookmark className="w-3.5 h-3.5" />
