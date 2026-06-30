@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "@tanstack/react-router";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import {
@@ -6,17 +8,28 @@ import {
   reflectionQuestionText,
   type MatchmakerState,
 } from "@/lib/agents/matchmaker";
+import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 
 interface Props {
   state: MatchmakerState;
   onAnotherAngle: () => void;
   onAnotherPerson: () => void;
+  onPass: () => void;
 }
 
-export function IntroCanvas({ state, onAnotherAngle, onAnotherPerson }: Props) {
+export function IntroCanvas({ state, onAnotherAngle, onAnotherPerson, onPass }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const person = state.currentPersonId ? getPersonById(state.currentPersonId) : null;
+  const [conn, setConn] = useState<Connection | null>(
+    person ? get(person.id) : null,
+  );
+
+  useEffect(() => {
+    setConn(person ? get(person.id) : null);
+    const unsub = subscribe(() => setConn(person ? get(person.id) : null));
+    return () => { unsub(); };
+  }, [person?.id]);
 
   if (!person) {
     return (
@@ -40,6 +53,10 @@ export function IntroCanvas({ state, onAnotherAngle, onAnotherPerson }: Props) {
   const reflection = pickReflectionFor(person, state.understanding, lang);
   const reflectionQ = reflection ? reflectionQuestionText(reflection, lang) : "";
   const reflectionA = reflection ? (lang === "zh-CN" ? reflection.answer_zh : reflection.answer) : "";
+
+  function handleHello() {
+    sayHello(person!.id);
+  }
 
   return (
     <div className="h-full px-8 py-10">
@@ -92,24 +109,69 @@ export function IntroCanvas({ state, onAnotherAngle, onAnotherPerson }: Props) {
               </p>
             )}
             <p className="text-[14px] leading-[1.65] text-foreground/90">
-              “{reflectionA}”
+              "{reflectionA}"
             </p>
           </div>
         )}
 
-        <div className="mt-8 flex flex-wrap gap-2">
+        {/* Secondary: explore this person further */}
+        <div className="mt-7 flex flex-wrap gap-2">
           <button
             onClick={onAnotherAngle}
-            className="px-3.5 py-2 rounded-md border border-border bg-card text-[12.5px] text-foreground hover:border-foreground/40 transition-colors"
+            className="px-3 py-1.5 rounded-md text-[12px] text-muted-foreground hover:text-foreground transition-colors"
           >
             {t("intro.tell_more")}
           </button>
           <button
             onClick={onAnotherPerson}
-            className="px-3.5 py-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
+            className="px-3 py-1.5 rounded-md text-[12px] text-muted-foreground hover:text-foreground transition-colors"
           >
             {t("intro.another_person")}
           </button>
+        </div>
+
+        {/* Primary closed-loop action */}
+        <div className="mt-5 pt-5 border-t border-border">
+          {!conn && (
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={handleHello}
+                className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
+              >
+                {t("connection.say_hello")}
+              </button>
+              <button
+                onClick={onPass}
+                className="px-3 py-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {t("connection.pass")}
+              </button>
+              <p className="basis-full text-[11.5px] text-muted-foreground leading-snug">
+                {t("connection.hello_hint")}
+              </p>
+            </div>
+          )}
+
+          {conn?.status === "waiting" && (
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-[12.5px] text-muted-foreground">
+                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse" />
+                {t("connection.waiting")}
+              </div>
+            </div>
+          )}
+
+          {conn?.status === "connected" && (
+            <div className="flex items-center gap-3">
+              <Link
+                to="/connections"
+                className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
+              >
+                {t("connection.open_conversation")}
+              </Link>
+              <span className="text-[12px] text-muted-foreground">{t("connection.connected_note")}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
