@@ -72,20 +72,6 @@
     "anon_name": "某人",
     "confirmed_note": "见面当天你们会在场地看到对方的名字和照片。仅此而已。去打球就好。"
   },
-  "compass": {
-    "question_label": "今天的问题",
-    "answer_left": "在左边用你自己的话回答。",
-    "searching": "我在看其他人对这道题的回答……",
-    "empty_hint": "我会一次只问一个开放的问题。",
-    "both_answered": "你们对同一个问题的回答",
-    "you_wrote": "你写的",
-    "they_wrote": "某人写的",
-    "reveal": "我想知道是谁写的",
-    "next_question": "下一题",
-    "skip": "跳过",
-    "anon_note": "名字和照片是故意隐藏的。先读答案。",
-    "exhausted": "这一轮的问题问完了。明天再来——会有新的问题。"
-  },
   "activity": {
     "kind": {
       "tennis": "网球", "run": "跑步", "climb": "攀岩",
