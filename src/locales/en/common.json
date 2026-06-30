@@ -72,20 +72,7 @@
     "anon_name": "Someone",
     "confirmed_note": "On the day, you'll see each other's name & photo at the venue. Nothing more, nothing less. Just go play."
   },
-  "compass": {
-    "question_label": "Today's question",
-    "answer_left": "Answer in your own words on the left.",
-    "searching": "Reading the others who answered this…",
-    "empty_hint": "I'll ask one open question at a time.",
-    "both_answered": "You both answered",
-    "you_wrote": "You wrote",
-    "they_wrote": "Someone wrote",
-    "reveal": "I want to know who wrote this",
-    "next_question": "Next question",
-    "skip": "Skip",
-    "anon_note": "Name and photo are hidden on purpose. Read the answer first.",
-    "exhausted": "We've gone through this round. Come back tomorrow — new questions."
-  },
+  "activity_placeholder_removed": null,
   "activity": {
     "kind": {
       "tennis": "Tennis",
