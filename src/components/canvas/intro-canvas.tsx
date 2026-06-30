@@ -81,6 +81,22 @@ export function IntroCanvas({ state, onAnotherAngle, onAnotherPerson }: Props) {
           {loc.portrait}
         </p>
 
+        {reflection && reflectionA && (
+          <div className="mt-7">
+            <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
+              {t("intro.in_their_words")}
+            </div>
+            {reflectionQ && (
+              <p className="text-[12px] text-muted-foreground italic leading-snug mb-1.5">
+                {reflectionQ}
+              </p>
+            )}
+            <p className="text-[14px] leading-[1.65] text-foreground/90">
+              “{reflectionA}”
+            </p>
+          </div>
+        )}
+
         <div className="mt-8 flex flex-wrap gap-2">
           <button
             onClick={onAnotherAngle}
