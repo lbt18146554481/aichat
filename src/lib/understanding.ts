@@ -1,30 +1,23 @@
-// Shared "what the system has learned about you" store.
+// Shared "what the system has learned about WHO YOU'RE LOOKING FOR" store.
+// This is intent / taste / preference — NOT identity. Identity is owned by
+// the user-edited Profile (src/lib/profile.ts).
 //
-// Both Agents (Matchmaker / Side by Side) read and write here. In addition
-// to positive/negative signals + verbatim notes, this now stores the user's
-// own Moments — their answers to a small set of moment prompts that get
-// quoted back to them inside other people's "say hello" cards.
+// The Matchmaker Agent writes here from chat. Each new inference shows up
+// as a removable chip in the understanding panel, so the user can always
+// audit and revise.
 
 import { extractSignals } from "./conversation";
-
-export interface UserMoment {
-  promptId: string;
-  answer: string;     // user's own words; stored as-is
-  t: number;          // when answered
-}
 
 export interface UserUnderstanding {
   positive: string[];
   negative: string[];
   notes: string[];
-  userMoments: UserMoment[];
 }
 
 export const EMPTY_UNDERSTANDING: UserUnderstanding = {
   positive: [],
   negative: [],
   notes: [],
-  userMoments: [],
 };
 
 const KEY = "kindred:understanding.v1";
@@ -34,7 +27,8 @@ export function loadUnderstanding(): UserUnderstanding {
   try {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return EMPTY_UNDERSTANDING;
-    return { ...EMPTY_UNDERSTANDING, ...(JSON.parse(raw) as Partial<UserUnderstanding>) };
+    const parsed = JSON.parse(raw) as Partial<UserUnderstanding>;
+    return { ...EMPTY_UNDERSTANDING, ...parsed };
   } catch {
     return EMPTY_UNDERSTANDING;
   }
@@ -52,14 +46,6 @@ export function resetUnderstanding(): UserUnderstanding {
   return EMPTY_UNDERSTANDING;
 }
 
-export function addUserMoment(u: UserUnderstanding, promptId: string, answer: string): UserUnderstanding {
-  const trimmed = answer.trim();
-  if (!trimmed) return u;
-  const existing = u.userMoments.filter((m) => m.promptId !== promptId);
-  return { ...u, userMoments: [...existing, { promptId, answer: trimmed, t: Date.now() }] };
-}
-
-// Update from a free-text user message. Returns { next, newPositives, newNegatives }.
 export function digest(u: UserUnderstanding, text: string): {
   next: UserUnderstanding;
   newPositives: string[];

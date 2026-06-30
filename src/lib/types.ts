@@ -15,9 +15,7 @@ export interface Activity {
   level: "beginner" | "intermediate" | "advanced";
   area: string;          // a neighborhood / district label
   area_zh: string;
-  // Day + rough time-of-window. The matcher looks for intersection.
   slots: Array<{ day: Weekday; window: "morning" | "midday" | "evening" }>;
-  // Where they usually do it (a venue/park name). Doubles as a meeting spot.
   venue: string;
   venue_zh: string;
 }
@@ -25,8 +23,6 @@ export interface Activity {
 export type ActivityKind = "tennis" | "run" | "climb" | "cook" | "exhibition" | "bookstore";
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
-// Legacy: per-person free-text answer to a Compass open-ended question.
-// Kept for the affinity scoring inside Matchmaker (token-similarity bias).
 export interface Reflection {
   questionId: string;
   answer: string;
@@ -35,14 +31,24 @@ export interface Reflection {
 
 // A Moment is the atomic unit of how a person becomes interesting to
 // another person inside the product: prompt + this person's own concrete
-// answer. Inspired by Hinge Prompts + Aron's mid-tier closeness questions.
-// Used for: the Matchmaker right pane (3 of a person's moments), and as
-// the quotable unit inside the "say hello" gesture.
+// answer. Used for the Matchmaker right pane and as the quotable unit
+// inside the "say hello" gesture.
 export interface Moment {
   id: string;
-  promptId: string;        // → MOMENT_PROMPTS
+  promptId: string;
   answer: string;
   answer_zh: string;
+}
+
+// One work — a single book / film / album / exhibition / food the person
+// considers important to them right now, with one sentence of why.
+// Shared-taste signal in addition to Moments.
+export interface OneWorkRef {
+  kind: "book" | "film" | "music" | "exhibition" | "food" | "other";
+  title: string;
+  title_zh?: string;
+  why: string;
+  why_zh: string;
 }
 
 export interface Person {
@@ -54,11 +60,12 @@ export interface Person {
   city_zh: string;
   occupation: string;
   occupation_zh: string;
-  portrait: string;        // fallback / one-line subtitle
+  portrait: string;
   portrait_zh: string;
   signals: string[];
-  angles: Angle[];         // legacy — no longer rendered, kept for scoring
-  activities: Activity[];  // Side by Side
-  reflections: Reflection[]; // text-affinity scoring bias
-  moments: Moment[];       // Matchmaker right pane + Say hello quoting
+  angles: Angle[];
+  activities: Activity[];
+  reflections: Reflection[];
+  moments: Moment[];
+  oneWork?: OneWorkRef;
 }
