@@ -11,7 +11,8 @@
     "chip": {
       "intro": "Introduce someone",
       "together": "Do something together"
-    }
+    },
+    "connections": "Connections"
   },
   "agents": {
     "matchmaker": {
@@ -31,7 +32,8 @@
   "header": {
     "reset": "Start over",
     "subtitle": "AI Agent",
-    "letters": "Letters"
+    "letters": "Letters",
+    "connections": "Connections"
   },
   "chat": {
     "placeholder_first": "Tell me about who you're looking for…",
@@ -46,6 +48,20 @@
     "in_their_words": "In their own words",
     "tell_more": "Another angle",
     "another_person": "Someone else"
+  },
+  "connection": {
+    "title": "Connections",
+    "say_hello": "Say hello",
+    "pass": "Pass",
+    "hello_hint": "If they say hello back, you'll be able to talk directly. If they don't, they'll never know you saw them.",
+    "waiting": "Said hello — waiting on them.",
+    "open_conversation": "Open conversation",
+    "connected_note": "You can talk freely now.",
+    "section_connected": "Connected",
+    "section_waiting": "Waiting",
+    "empty": "No one yet. Say hello to someone from the Matchmaker and they'll show up here.",
+    "pick_one": "Pick a conversation on the left.",
+    "composer_placeholder": "Write something…"
   },
   "meet": {
     "label": "Proposed meet",
@@ -72,21 +88,12 @@
     "anon_name": "Someone",
     "confirmed_note": "On the day, you'll see each other's name & photo at the venue. Nothing more, nothing less. Just go play."
   },
-  
   "activity": {
     "kind": {
-      "tennis": "Tennis",
-      "run": "Running",
-      "climb": "Climbing",
-      "cook": "Cooking",
-      "exhibition": "Exhibitions",
-      "bookstore": "Bookstores"
+      "tennis": "Tennis", "run": "Running", "climb": "Climbing",
+      "cook": "Cooking", "exhibition": "Exhibitions", "bookstore": "Bookstores"
     },
-    "level": {
-      "beginner": "Beginner",
-      "intermediate": "Intermediate",
-      "advanced": "Advanced"
-    },
+    "level": { "beginner": "Beginner", "intermediate": "Intermediate", "advanced": "Advanced" },
     "day": {
       "mon": "Monday", "tue": "Tuesday", "wed": "Wednesday",
       "thu": "Thursday", "fri": "Friday", "sat": "Saturday", "sun": "Sunday"
@@ -95,11 +102,7 @@
       "mon": "Mon", "tue": "Tue", "wed": "Wed",
       "thu": "Thu", "fri": "Fri", "sat": "Sat", "sun": "Sun"
     },
-    "window": {
-      "morning": "Morning",
-      "midday": "Midday",
-      "evening": "Evening"
-    }
+    "window": { "morning": "Morning", "midday": "Midday", "evening": "Evening" }
   },
   "understanding": {
     "title": "What I've learned about you",
@@ -109,16 +112,8 @@
     "notes": "From your words",
     "remove": "remove"
   },
-  "lang": {
-    "label": "Language",
-    "en": "English",
-    "zh-CN": "中文"
-  },
-  "notfound": {
-    "title": "Not found",
-    "body": "That page isn't here.",
-    "home": "Back"
-  },
+  "lang": { "label": "Language", "en": "English", "zh-CN": "中文" },
+  "notfound": { "title": "Not found", "body": "That page isn't here.", "home": "Back" },
   "signal": {
     "reading": "reading", "music": "music", "film": "film", "art": "art",
     "writing": "writing", "travel": "travel", "outdoors": "the outdoors",
