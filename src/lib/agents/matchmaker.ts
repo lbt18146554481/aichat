@@ -5,7 +5,8 @@
 // what's learned here also improves Compass/Side-by-Side scoring.
 
 import { getPersonById, PEOPLE } from "../people";
-import type { Angle, Person } from "../types";
+import { getQuestionById } from "../questions";
+import type { Angle, Person, Reflection } from "../types";
 import {
   digest,
   loadUnderstanding,
@@ -76,10 +77,78 @@ function parseIntent(text: string): Intent {
 
 // ---- Scoring -------------------------------------------------------------
 
+// Cheap text-similarity heuristic, used to align a person's free-text
+// reflection with the user's own words. Token Jaccard on a stopword-trimmed
+// bag — good enough to bias picks; not a real embedding.
+const STOP = new Set([
+  "the","a","an","and","or","but","of","to","in","on","at","for","with","is","am","are","was","were","be","been","being",
+  "i","you","he","she","it","we","they","my","your","his","her","its","our","their","me","him","us","them",
+  "this","that","these","those","do","does","did","done","have","has","had","not","no","yes","so","if","than","then","as","by","from","up","down","out","into","about","just","like","when","where","why","how","what","which","who",
+  "我","你","他","她","它","我们","你们","他们","的","了","和","或","也","在","是","就","都","会","要","不","没","有","得","着","与","及","但",
+]);
+function tokens(text: string): Set<string> {
+  return new Set(
+    text.toLowerCase()
+      .replace(/[—.,;:!?'"()\[\]{}…/\\]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 1 && !STOP.has(w)),
+  );
+}
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let shared = 0;
+  a.forEach((w) => { if (b.has(w)) shared++; });
+  return shared / (a.size + b.size - shared);
+}
+
+// A person's representative reflection — the one whose text resonates most
+// with the user's own notes. Used by IntroCanvas to show "their own words".
+export function pickReflectionFor(
+  person: Person,
+  u: UserUnderstanding,
+  lang: "en" | "zh-CN" = "en",
+): Reflection | null {
+  if (person.reflections.length === 0) return null;
+  const userText = u.notes.join(" ");
+  if (!userText.trim()) return person.reflections[0];
+  const ut = tokens(userText);
+  let best: Reflection | null = null;
+  let bestScore = -1;
+  for (const r of person.reflections) {
+    const text = lang === "zh-CN" ? r.answer_zh : r.answer;
+    const score = jaccard(ut, tokens(text));
+    if (score > bestScore) { bestScore = score; best = r; }
+  }
+  return best ?? person.reflections[0];
+}
+
+export function reflectionQuestionText(r: Reflection, lang: "en" | "zh-CN"): string {
+  const q = getQuestionById(r.questionId);
+  if (!q) return "";
+  return lang === "zh-CN" ? q.text_zh : q.text;
+}
+
+function reflectionAffinity(p: Person, u: UserUnderstanding): number {
+  if (p.reflections.length === 0) return 0;
+  const userText = u.notes.join(" ");
+  if (!userText.trim()) return 0;
+  const ut = tokens(userText);
+  let best = 0;
+  for (const r of p.reflections) {
+    const s = jaccard(ut, tokens(r.answer)) + jaccard(ut, tokens(r.answer_zh));
+    if (s > best) best = s;
+  }
+  return best;
+}
+
 function scorePerson(p: Person, u: UserUnderstanding, passedIds: string[], shownIds: string[]): number {
   if (passedIds.includes(p.id)) return -Infinity;
   let s = p.signals.filter((sig) => u.positive.includes(sig)).length * 2;
   s -= p.signals.filter((sig) => u.negative.includes(sig)).length * 3;
+  // Values / worldview signal: a reflection whose words resonate with what
+  // the user has been saying nudges the ranking. Capped so a single noisy
+  // sentence can't outweigh explicit positives.
+  s += Math.min(reflectionAffinity(p, u) * 4, 2);
   if (shownIds.includes(p.id)) s -= 5;
   return s;
 }
