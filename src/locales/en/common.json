@@ -1,17 +1,16 @@
 {
   "app": {
     "name": "Kindred",
-    "tagline": "Three agents. Three ways to meet someone."
+    "tagline": "Two agents. Two ways to meet someone."
   },
   "home": {
     "greeting": "Tonight, how do you want to meet someone?",
     "placeholder": "Say it in your own words — who you'd like to meet, or what you'd love to do with someone…",
     "send": "Send",
-    "agents_footnote": "Three agents working in the background",
+    "agents_footnote": "Two agents working in the background",
     "chip": {
       "intro": "Introduce someone",
-      "together": "Do something together",
-      "talk": "Talk about what matters"
+      "together": "Do something together"
     }
   },
   "agents": {
@@ -24,11 +23,6 @@
       "name": "Side by Side",
       "tagline": "Meet over something you both already do.",
       "desc": "Tell the agent what you do — tennis, runs, climbing, a bookstore Saturday. Once a week, it proposes one real meet. Both have to say yes; either says no and the other never knows."
-    },
-    "compass": {
-      "name": "Compass",
-      "tagline": "Find someone who thinks like you do.",
-      "desc": "One open-ended life question at a time. Answer in your own words. The agent shows you, side by side, someone whose answer resonates — anonymously, until you ask."
     }
   },
   "nav": {
@@ -49,6 +43,7 @@
     "empty_title": "I'll introduce one person here.",
     "empty_hint": "Not a list — one person at a time, with a reason. Tell me what you're looking for on the left.",
     "angle_label": "Why I thought of",
+    "in_their_words": "In their own words",
     "tell_more": "Another angle",
     "another_person": "Someone else"
   },
@@ -77,20 +72,7 @@
     "anon_name": "Someone",
     "confirmed_note": "On the day, you'll see each other's name & photo at the venue. Nothing more, nothing less. Just go play."
   },
-  "compass": {
-    "question_label": "Today's question",
-    "answer_left": "Answer in your own words on the left.",
-    "searching": "Reading the others who answered this…",
-    "empty_hint": "I'll ask one open question at a time.",
-    "both_answered": "You both answered",
-    "you_wrote": "You wrote",
-    "they_wrote": "Someone wrote",
-    "reveal": "I want to know who wrote this",
-    "next_question": "Next question",
-    "skip": "Skip",
-    "anon_note": "Name and photo are hidden on purpose. Read the answer first.",
-    "exhausted": "We've gone through this round. Come back tomorrow — new questions."
-  },
+  
   "activity": {
     "kind": {
       "tennis": "Tennis",

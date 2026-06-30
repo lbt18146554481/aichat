@@ -1,66 +1,52 @@
-## 借鉴的范式
+## 目标
 
-Gemini、Manus、ChatGPT GPTs、Claude Projects 的共同结构：
+把产品收敛为两个 Agent——**Matchmaker**（描述→引荐）和 **Side by Side**（爱好→见面）。Compass 的价值观/人生观数据不丢，作为 Matchmaker 的一个内部匹配信号继续发挥作用。
 
-```text
-                  品牌 / 一句问候
-        ┌─────────────────────────────────┐
-        │  对话输入框（主操作）            │
-        └─────────────────────────────────┘
-          [Agent A]  [Agent B]  [Agent C]
-```
+## 改动范围
 
-**输入框永远是主角，Agent 是输入框下方可被选中的"模式/专家"**。用户的认知顺序是：先打字，再（可选）指定专家；而不是先选应用、再开始用。这就是用户真正想要的——一个"会说话的入口"，而不是一个"功能宫格"。
+### 1. 删除 Compass 相关文件
+- `src/routes/compass.tsx`
+- `src/lib/agents/compass.ts`
+- `src/components/canvas/resonance-canvas.tsx`
+- `src/lib/questions.ts`（不再被任何 Agent 直接使用，但 `people.reflections` 仍引用 questionId，所以保留为只读的标签字典；见下）
 
-## 首页设计
+> 备注：`questions.ts` 是否完全删除取决于 Matchmaker 是否需要在引荐理由里展示「TA 对『...』这个问题的回答是……」。我建议**保留**该文件作为问题文本字典（只读），不再作为 Agent 的驱动数据。
 
-```text
-                          Kindred
+### 2. 首页改为两个 chip
+`src/components/home.tsx`：CHIPS 数组去掉 compass 项，保留 matchmaker 与 sidebyside。
 
-              今晚，你想怎样遇见一个人？
+### 3. 意图路由简化
+`src/lib/route-intent.ts`：
+- 删除 `TALK` 关键词表与对应分支
+- `AgentId` 收敛为 `"matchmaker" | "sidebyside"`（在 `src/lib/seed.ts` 同步）
+- 默认 fallback 仍为 `matchmaker`
 
-   ┌───────────────────────────────────────────────────┐
-   │  说说你想认识什么样的人，或者想一起做点什么……      │
-   │                                                   │
-   │                                            [ ↵ ]  │
-   └───────────────────────────────────────────────────┘
+### 4. Matchmaker 吸收价值观信号
+`src/lib/agents/matchmaker.ts`：
+- 候选人评分时，若 `understanding.positive` / `notes` 与候选人的 `reflections.answer` 有关键词重叠（复用原 Compass 的 `similarity` 思路，迁移到一个共享的 `src/lib/text-similarity.ts`），加分。
+- 引荐画像（右侧 canvas）在合适位置展示候选人**最具代表性的一段 reflection**（取与用户描述相似度最高的一条），作为「TA 自己写下的一段话」。这一段是引荐说服力的来源，不是独立的共鸣环节。
+- 不引入「匿名共鸣」「同题对答」「揭示身份」这些 Compass 专属的交互。
 
-      ◐ 介绍人      ◐ 一起做点什么      ◐ 聊聊重要的事
-       Matchmaker     Side by Side          Compass
-```
+`src/components/canvas/intro-canvas.tsx`：在现有引荐画像中新增一个安静的小区块「TA 自己说」（label 化），展示 1 段 reflection 原文。
 
-### 三层职责
+### 5. 文案与导航清理
+- `src/locales/{en,zh-CN}/common.json`：删除 `home.chip.talk`、`agents.compass.*`、`home.agents_footnote` 中提到的三 Agent 描述改成两 Agent。
+- `src/routeTree.gen.ts`：自动重新生成（不手工改）。
+- 任何指向 `/compass` 的 `<Link>` 全部移除。
 
-1. **问候（一行）**：极简，不解释产品。
-2. **输入框（视觉中心）**：单一主操作。回车/点发送即提交。
-3. **三个 Agent chip（输入框正下方）**：
-   - **未选中**：用户直接输入提交时，由轻量启发式（关键词）路由到最合适的 Agent。
-   - **选中（点一下高亮）**：强制把这次输入定向到该 Agent。再点一次取消选中，回到自动路由。
-   - chip 是"模式选择器"而不是"应用入口"——这是关键差别。它不在被点击时跳页，只改变接下来这条消息送给谁。
-
-### 提交后行为
-
-提交后跳转到对应 Agent 工作台（左对话、右画面布局保持不变），并把首页输入的这句话作为**第一条用户消息**直接渲染在对话流里，触发 Agent 首轮回应。用户体感是"对话从首页延续到了工作台"，没有"打开新应用"的断点。
-
-### 为什么不再做三张大卡片
-
-三卡片首页的根本错误：**它要求用户先理解三个 Agent 的差别，才能开始使用**。Agent 产品的承诺正是反过来——用户用自己的话讲，系统理解并分派。Gemini/Manus 把 Agent 降级为输入框下的"专家 chip"，正是因为他们想清楚了：**输入框 = 用户的意图，Agent = 系统的分工，两者不应平级**。
-
-### 顺手修复
-
-当前首页存在 hydration 报错（SSR 用英文、客户端切中文导致文案不一致）。新首页一次性在根路由层定语言，消除该报错。
-
-## 改动范围（技术）
-
-- `src/components/home.tsx`：重写为"问候 + 输入框 + 三个 Agent chip"的单屏布局，组件本地维护 `selectedAgent: 'matchmaker' | 'sidebyside' | 'compass' | null` 与 `text` 两个状态。
-- 新增 `src/lib/route-intent.ts`：`routeIntent(text) → AgentId`，含中英关键词表，仅在用户未手动选 chip 时使用。
-- `src/lib/understanding.ts`：新增 `seedFirstMessage(agent, text)`，把首页这句话塞入对应 Agent 工作台的初始消息。
-- 三个 Agent 路由组件：挂载时若存在 seed，作为首条用户气泡渲染并触发 Agent 首轮回应；否则保持现有空状态。
-- `src/locales/{en,zh-CN}/common.json`：新增 `home.greeting`、`home.placeholder`、`home.send`、`home.chip.intro/together/talk`；删除旧的 `home.agent_label/enter/footer_note` 等卡片文案。
-- `src/routes/__root.tsx`：把首屏语言判定收敛到一处，消除 hydration mismatch。
+### 6. 数据兼容
+- `src/lib/people.ts` 中 `reflections` 字段保留，结构不变（被 Matchmaker 复用）。
+- `localStorage` 中的旧 key `kindred:compass.v1` 不再读写，留着自然过期，不做迁移代码。
 
 ## 不做的事
+- 不动 Side by Side 任何逻辑与 UI。
+- 不动 Matchmaker 的对话流框架与左对话/右画面骨架，只在评分与画像渲染处增加 reflection 信号。
+- 不引入新的依赖。
+- 不改 i18n 框架，只增删 key。
 
-- 不引入命令面板 / 登录 / 历史会话。
-- 不在首页展示候选人卡片或活动信息——首页只承担"开始说话"这一件事。
-- 不动三个 Agent 工作台内部的左对话/右画面结构。
+## 验收
+- 首页只剩两个 chip，文案与路由对齐。
+- 输入「想聊聊人生」之类的话不再路由到 Compass，而是落到 Matchmaker。
+- 进入 Matchmaker 后，引荐画像里能看到候选人的一段 reflection 原文。
+- 无运行时报错、无失效路由、无未使用 import。
+- `/compass` 直接 404（由根路由的 `notFoundComponent` 处理）。

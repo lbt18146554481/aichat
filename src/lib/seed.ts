@@ -6,7 +6,7 @@
 // the user's first message — so from the user's view, the conversation
 // that began on the homepage continues seamlessly inside the agent.
 
-export type AgentId = "matchmaker" | "sidebyside" | "compass";
+export type AgentId = "matchmaker" | "sidebyside";
 
 const KEY_PREFIX = "kindred:seed:v1:";
 
