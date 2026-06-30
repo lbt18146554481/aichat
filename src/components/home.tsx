@@ -64,7 +64,19 @@ export function Home() {
             <div className="w-6 h-6 rounded-md bg-foreground text-background grid place-items-center font-mono text-[11px] font-bold">K</div>
             <span className="text-[14px] font-semibold tracking-tight text-foreground">Kindred</span>
           </div>
-          <LangSwitcher />
+          <div className="flex items-center gap-3">
+            {connCount > 0 && (
+              <Link
+                to="/connections"
+                className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-foreground/80 hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                <MessageCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
+                <span>{t("home.connections")}</span>
+                {unseen && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-foreground" />}
+              </Link>
+            )}
+            <LangSwitcher />
+          </div>
         </div>
       </header>
 
