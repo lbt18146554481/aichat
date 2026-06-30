@@ -1,19 +1,28 @@
-import { Link, useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, RotateCcw } from "lucide-react";
+import { ArrowLeft, MessageCircle, RotateCcw } from "lucide-react";
 import { LangSwitcher } from "./lang-switcher";
+import { hasUnseen, list, subscribe } from "@/lib/connections";
 
 interface Props {
-  /** Translation key for the agent's name (e.g. "agents.matchmaker.name"). */
   agentNameKey: string;
-  /** Translation key for the short subtitle. */
   agentSubtitleKey: string;
-  /** Show a reset button. */
   onReset?: () => void;
 }
 
 export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Props) {
   const { t } = useTranslation();
+  const [connCount, setConnCount] = useState(0);
+  const [unseen, setUnseen] = useState(false);
+
+  useEffect(() => {
+    const update = () => { setConnCount(list().length); setUnseen(hasUnseen()); };
+    update();
+    const unsub = subscribe(update);
+    return () => { unsub(); };
+  }, []);
+
   return (
     <header className="w-full border-b border-border bg-background/90 backdrop-blur sticky top-0 z-30">
       <div className="max-w-7xl mx-auto px-5 h-14 flex items-center justify-between gap-3">
@@ -37,6 +46,16 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {connCount > 0 && (
+            <Link
+              to="/connections"
+              className="relative inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              <span>{t("header.connections")}</span>
+              {unseen && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-foreground" />}
+            </Link>
+          )}
           {onReset && (
             <button
               onClick={onReset}
