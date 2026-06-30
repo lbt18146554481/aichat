@@ -1,17 +1,16 @@
 {
   "app": {
     "name": "Kindred",
-    "tagline": "三个 Agent。三种相遇的方式。"
+    "tagline": "两个 Agent。两种相遇的方式。"
   },
   "home": {
     "greeting": "今晚，你想怎样遇见一个人？",
     "placeholder": "用你自己的话说说——想认识什么样的人，或者想和人一起做点什么……",
     "send": "发送",
-    "agents_footnote": "三位 Agent 在后台为你工作",
+    "agents_footnote": "两位 Agent 在后台为你工作",
     "chip": {
       "intro": "介绍一个人",
-      "together": "一起做点什么",
-      "talk": "聊聊重要的事"
+      "together": "一起做点什么"
     }
   },
   "agents": {
@@ -24,11 +23,6 @@
       "name": "Side by Side",
       "tagline": "在你们都在做的事里相遇。",
       "desc": "告诉 Agent 你常做什么——网球、跑步、攀岩、周六的书店。每周一次，它会提议一次真实的见面。双方同意才成立，任一方拒绝，对方永远不会知道。"
-    },
-    "compass": {
-      "name": "Compass",
-      "tagline": "找到一个思考方式和你相近的人。",
-      "desc": "一次一个开放的人生问题。你用自己的话回答。Agent 会把另一个回答与你共鸣的人，把两段答案并排给你看——先匿名，直到你想知道。"
     }
   },
   "nav": {
@@ -49,6 +43,7 @@
     "empty_title": "我会在这里引荐一个人。",
     "empty_hint": "不是列表——一次一个人，带着理由。在左边告诉我你想找的人。",
     "angle_label": "我为什么想到",
+    "in_their_words": "TA 自己说",
     "tell_more": "换一个角度",
     "another_person": "换一个人"
   },
