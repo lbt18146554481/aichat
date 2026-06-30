@@ -91,6 +91,7 @@ function MatchmakerPage() {
           state={state}
           onAnotherAngle={() => trigger(actAnotherAngle)}
           onAnotherPerson={() => trigger(actAnotherPerson)}
+          onPass={() => trigger(actAnotherPerson)}
         />
       }
     />

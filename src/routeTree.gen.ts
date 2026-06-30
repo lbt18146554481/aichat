@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SideBySideRouteImport } from './routes/side-by-side'
 import { Route as MatchmakerRouteImport } from './routes/matchmaker'
+import { Route as ConnectionsRouteImport } from './routes/connections'
 import { Route as IndexRouteImport } from './routes/index'
 
 const SideBySideRoute = SideBySideRouteImport.update({
@@ -23,6 +24,11 @@ const MatchmakerRoute = MatchmakerRouteImport.update({
   path: '/matchmaker',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConnectionsRoute = ConnectionsRouteImport.update({
+  id: '/connections',
+  path: '/connections',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -31,30 +37,34 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/side-by-side': typeof SideBySideRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/side-by-side': typeof SideBySideRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/side-by-side': typeof SideBySideRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/matchmaker' | '/side-by-side'
+  fullPaths: '/' | '/connections' | '/matchmaker' | '/side-by-side'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/matchmaker' | '/side-by-side'
-  id: '__root__' | '/' | '/matchmaker' | '/side-by-side'
+  to: '/' | '/connections' | '/matchmaker' | '/side-by-side'
+  id: '__root__' | '/' | '/connections' | '/matchmaker' | '/side-by-side'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConnectionsRoute: typeof ConnectionsRoute
   MatchmakerRoute: typeof MatchmakerRoute
   SideBySideRoute: typeof SideBySideRoute
 }
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MatchmakerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/connections': {
+      id: '/connections'
+      path: '/connections'
+      fullPath: '/connections'
+      preLoaderRoute: typeof ConnectionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConnectionsRoute: ConnectionsRoute,
   MatchmakerRoute: MatchmakerRoute,
   SideBySideRoute: SideBySideRoute,
 }

@@ -11,7 +11,8 @@
     "chip": {
       "intro": "介绍一个人",
       "together": "一起做点什么"
-    }
+    },
+    "connections": "我的联系"
   },
   "agents": {
     "matchmaker": {
@@ -25,13 +26,12 @@
       "desc": "告诉 Agent 你常做什么——网球、跑步、攀岩、周六的书店。每周一次，它会提议一次真实的见面。双方同意才成立，任一方拒绝，对方永远不会知道。"
     }
   },
-  "nav": {
-    "home": "返回首页"
-  },
+  "nav": { "home": "返回首页" },
   "header": {
     "reset": "重新开始",
     "subtitle": "AI Agent",
-    "letters": "信件"
+    "letters": "信件",
+    "connections": "我的联系"
   },
   "chat": {
     "placeholder_first": "说说你想找一个什么样的人……",
@@ -46,6 +46,20 @@
     "in_their_words": "TA 自己说",
     "tell_more": "换一个角度",
     "another_person": "换一个人"
+  },
+  "connection": {
+    "title": "我的联系",
+    "say_hello": "打个招呼",
+    "pass": "跳过",
+    "hello_hint": "如果 TA 也回应打招呼，你们就可以直接对话。如果 TA 没有，TA 永远不会知道你看过 TA。",
+    "waiting": "已替你打过招呼，等 TA 回应。",
+    "open_conversation": "进入对话",
+    "connected_note": "现在你们可以自由聊了。",
+    "section_connected": "已连接",
+    "section_waiting": "等待中",
+    "empty": "还没有。在 Matchmaker 里对某个人打个招呼，TA 就会出现在这里。",
+    "pick_one": "在左侧挑一段对话。",
+    "composer_placeholder": "写点什么……"
   },
   "meet": {
     "label": "一次见面提议",
@@ -77,9 +91,7 @@
       "tennis": "网球", "run": "跑步", "climb": "攀岩",
       "cook": "做饭", "exhibition": "看展", "bookstore": "逛书店"
     },
-    "level": {
-      "beginner": "新手", "intermediate": "中级", "advanced": "进阶"
-    },
+    "level": { "beginner": "新手", "intermediate": "中级", "advanced": "进阶" },
     "day": {
       "mon": "周一", "tue": "周二", "wed": "周三",
       "thu": "周四", "fri": "周五", "sat": "周六", "sun": "周日"
@@ -88,28 +100,15 @@
       "mon": "一", "tue": "二", "wed": "三",
       "thu": "四", "fri": "五", "sat": "六", "sun": "日"
     },
-    "window": {
-      "morning": "早上", "midday": "中午", "evening": "傍晚"
-    }
+    "window": { "morning": "早上", "midday": "中午", "evening": "傍晚" }
   },
   "understanding": {
     "title": "我对你了解到的",
     "empty": "随便聊几句，我会在这里记下来。",
-    "wants": "想要",
-    "avoids": "避免",
-    "notes": "你的原话",
-    "remove": "移除"
+    "wants": "想要", "avoids": "避免", "notes": "你的原话", "remove": "移除"
   },
-  "lang": {
-    "label": "语言",
-    "en": "English",
-    "zh-CN": "中文"
-  },
-  "notfound": {
-    "title": "页面未找到",
-    "body": "这里没有这一页。",
-    "home": "返回"
-  },
+  "lang": { "label": "语言", "en": "English", "zh-CN": "中文" },
+  "notfound": { "title": "页面未找到", "body": "这里没有这一页。", "home": "返回" },
   "signal": {
     "reading": "读书", "music": "音乐", "film": "电影", "art": "艺术",
     "writing": "写作", "travel": "旅行", "outdoors": "户外",

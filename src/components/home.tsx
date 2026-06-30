@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowUp, UserSearch, Users } from "lucide-react";
+import { ArrowUp, MessageCircle, UserSearch, Users } from "lucide-react";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { routeIntent } from "@/lib/route-intent";
 import { setSeed, type AgentId } from "@/lib/seed";
+import { hasUnseen, list, rehydrate, subscribe } from "@/lib/connections";
 
 interface Chip {
   id: AgentId;
@@ -27,9 +28,18 @@ export function Home() {
   const [text, setText] = useState("");
   const [selected, setSelected] = useState<AgentId | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [connCount, setConnCount] = useState(0);
+  const [unseen, setUnseen] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { if (mounted) taRef.current?.focus(); }, [mounted]);
+  useEffect(() => {
+    rehydrate();
+    const update = () => { setConnCount(list().length); setUnseen(hasUnseen()); };
+    update();
+    const unsub = subscribe(update);
+    return () => { unsub(); };
+  }, []);
 
   function submit() {
     const body = text.trim();
@@ -54,7 +64,19 @@ export function Home() {
             <div className="w-6 h-6 rounded-md bg-foreground text-background grid place-items-center font-mono text-[11px] font-bold">K</div>
             <span className="text-[14px] font-semibold tracking-tight text-foreground">Kindred</span>
           </div>
-          <LangSwitcher />
+          <div className="flex items-center gap-3">
+            {connCount > 0 && (
+              <Link
+                to="/connections"
+                className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-foreground/80 hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                <MessageCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
+                <span>{t("home.connections")}</span>
+                {unseen && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-foreground" />}
+              </Link>
+            )}
+            <LangSwitcher />
+          </div>
         </div>
       </header>
 
