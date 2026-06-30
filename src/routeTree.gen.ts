@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SideBySideRouteImport } from './routes/side-by-side'
 import { Route as MatchmakerRouteImport } from './routes/matchmaker'
-import { Route as CompassRouteImport } from './routes/compass'
 import { Route as IndexRouteImport } from './routes/index'
 
 const SideBySideRoute = SideBySideRouteImport.update({
@@ -24,11 +23,6 @@ const MatchmakerRoute = MatchmakerRouteImport.update({
   path: '/matchmaker',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CompassRoute = CompassRouteImport.update({
-  id: '/compass',
-  path: '/compass',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -37,34 +31,30 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/compass': typeof CompassRoute
   '/matchmaker': typeof MatchmakerRoute
   '/side-by-side': typeof SideBySideRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/compass': typeof CompassRoute
   '/matchmaker': typeof MatchmakerRoute
   '/side-by-side': typeof SideBySideRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/compass': typeof CompassRoute
   '/matchmaker': typeof MatchmakerRoute
   '/side-by-side': typeof SideBySideRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/compass' | '/matchmaker' | '/side-by-side'
+  fullPaths: '/' | '/matchmaker' | '/side-by-side'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/compass' | '/matchmaker' | '/side-by-side'
-  id: '__root__' | '/' | '/compass' | '/matchmaker' | '/side-by-side'
+  to: '/' | '/matchmaker' | '/side-by-side'
+  id: '__root__' | '/' | '/matchmaker' | '/side-by-side'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  CompassRoute: typeof CompassRoute
   MatchmakerRoute: typeof MatchmakerRoute
   SideBySideRoute: typeof SideBySideRoute
 }
@@ -85,13 +75,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MatchmakerRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/compass': {
-      id: '/compass'
-      path: '/compass'
-      fullPath: '/compass'
-      preLoaderRoute: typeof CompassRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -104,7 +87,6 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  CompassRoute: CompassRoute,
   MatchmakerRoute: MatchmakerRoute,
   SideBySideRoute: SideBySideRoute,
 }

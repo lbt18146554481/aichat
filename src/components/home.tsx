@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowUp, UserSearch, Users, Compass as CompassIcon } from "lucide-react";
+import { ArrowUp, UserSearch, Users } from "lucide-react";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { routeIntent } from "@/lib/route-intent";
 import { setSeed, type AgentId } from "@/lib/seed";
 
 interface Chip {
   id: AgentId;
-  to: "/matchmaker" | "/side-by-side" | "/compass";
+  to: "/matchmaker" | "/side-by-side";
   labelKey: string;
   nameKey: string;
   Icon: typeof UserSearch;
@@ -17,7 +17,6 @@ interface Chip {
 const CHIPS: Chip[] = [
   { id: "matchmaker", to: "/matchmaker",   labelKey: "home.chip.intro",    nameKey: "agents.matchmaker.name", Icon: UserSearch },
   { id: "sidebyside", to: "/side-by-side", labelKey: "home.chip.together", nameKey: "agents.sidebyside.name", Icon: Users },
-  { id: "compass",    to: "/compass",      labelKey: "home.chip.talk",     nameKey: "agents.compass.name",    Icon: CompassIcon },
 ];
 
 export function Home() {
@@ -37,7 +36,7 @@ export function Home() {
     if (!body) return;
     const target: AgentId = selected ?? routeIntent(body);
     setSeed(target, body);
-    const to = target === "matchmaker" ? "/matchmaker" : target === "sidebyside" ? "/side-by-side" : "/compass";
+    const to = target === "matchmaker" ? "/matchmaker" : "/side-by-side";
     void navigate({ to });
   }
 

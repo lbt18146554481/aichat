@@ -1,8 +1,9 @@
 // Lightweight intent routing for the homepage.
 //
-// Map free text the user typed at the entry point to one of the three
+// Map free text the user typed at the entry point to one of the two
 // Agents. Used only when the user did NOT manually select a chip.
-// Conservative keyword rules; default = matchmaker (the most general).
+// Conservative keyword rules; default = matchmaker (the more general one,
+// since "describe who you want" is the catch-all path).
 
 import type { AgentId } from "./seed";
 
@@ -15,20 +16,6 @@ const TOGETHER = [
   "做饭", "看展", "书店", "演出", "演唱会", "运动", "见面", "约",
 ];
 
-const TALK = [
-  "think", "thinks", "thinking", "believe", "values", "value", "meaning",
-  "purpose", "life", "soul", "deep", "talk about", "philosophy", "honest",
-  "question", "answer", "reflect",
-  "想法", "价值观", "意义", "灵魂", "聊聊", "聊一聊", "深聊", "人生",
-  "想清楚", "真诚", "诚实", "答案", "问题",
-];
-
-const INTRO = [
-  "introduce", "introduction", "meet someone", "kind of person", "looking for",
-  "single", "find someone", "match", "recommend", "suggest",
-  "介绍", "认识", "推荐", "想找", "找一个", "找个", "类型", "什么样的人",
-];
-
 function hits(text: string, list: string[]): number {
   const lower = text.toLowerCase();
   let n = 0;
@@ -39,15 +26,5 @@ function hits(text: string, list: string[]): number {
 export function routeIntent(text: string): AgentId {
   const t = text.trim();
   if (!t) return "matchmaker";
-
-  const a = hits(t, TOGETHER);
-  const b = hits(t, TALK);
-  const c = hits(t, INTRO);
-
-  // Tie-break order favors the more specific signals; intro is the catch-all.
-  const max = Math.max(a, b, c);
-  if (max === 0) return "matchmaker";
-  if (a === max) return "sidebyside";
-  if (b === max) return "compass";
-  return "matchmaker";
+  return hits(t, TOGETHER) > 0 ? "sidebyside" : "matchmaker";
 }
