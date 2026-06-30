@@ -1,7 +1,11 @@
 import { useTranslation } from "react-i18next";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
-import type { MatchmakerState } from "@/lib/agents/matchmaker";
+import {
+  pickReflectionFor,
+  reflectionQuestionText,
+  type MatchmakerState,
+} from "@/lib/agents/matchmaker";
 
 interface Props {
   state: MatchmakerState;
@@ -33,6 +37,9 @@ export function IntroCanvas({ state, onAnotherAngle, onAnotherPerson }: Props) {
   const angle = person.angles.find((a) => a.id === state.currentAngleId) ?? person.angles[0];
   const loc = localized(person, lang);
   const angleText = lang === "zh-CN" ? angle.text_zh : angle.text;
+  const reflection = pickReflectionFor(person, state.understanding, lang);
+  const reflectionQ = reflection ? reflectionQuestionText(reflection, lang) : "";
+  const reflectionA = reflection ? (lang === "zh-CN" ? reflection.answer_zh : reflection.answer) : "";
 
   return (
     <div className="h-full px-8 py-10">
