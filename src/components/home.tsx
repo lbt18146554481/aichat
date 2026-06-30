@@ -28,9 +28,18 @@ export function Home() {
   const [text, setText] = useState("");
   const [selected, setSelected] = useState<AgentId | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [connCount, setConnCount] = useState(0);
+  const [unseen, setUnseen] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { if (mounted) taRef.current?.focus(); }, [mounted]);
+  useEffect(() => {
+    rehydrate();
+    const update = () => { setConnCount(list().length); setUnseen(hasUnseen()); };
+    update();
+    const unsub = subscribe(update);
+    return () => { unsub(); };
+  }, []);
 
   function submit() {
     const body = text.trim();
