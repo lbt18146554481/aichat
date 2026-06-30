@@ -3,32 +3,32 @@ import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
-import {
-  pickReflectionFor,
-  reflectionQuestionText,
-  type MatchmakerState,
-} from "@/lib/agents/matchmaker";
+import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
+import type { MatchmakerState } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
+import { HelloComposer } from "@/components/hello-composer";
 
 interface Props {
   state: MatchmakerState;
-  onAnotherAngle: () => void;
   onAnotherPerson: () => void;
   onPass: () => void;
 }
 
-export function IntroCanvas({ state, onAnotherAngle, onAnotherPerson, onPass }: Props) {
+export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const person = state.currentPersonId ? getPersonById(state.currentPersonId) : null;
   const [conn, setConn] = useState<Connection | null>(
     person ? get(person.id) : null,
   );
+  const [composing, setComposing] = useState(false);
 
   useEffect(() => {
     setConn(person ? get(person.id) : null);
+    setComposing(false);
     const unsub = subscribe(() => setConn(person ? get(person.id) : null));
     return () => { unsub(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id]);
 
   if (!person) {
@@ -47,20 +47,19 @@ export function IntroCanvas({ state, onAnotherAngle, onAnotherPerson, onPass }: 
     );
   }
 
-  const angle = person.angles.find((a) => a.id === state.currentAngleId) ?? person.angles[0];
   const loc = localized(person, lang);
-  const angleText = lang === "zh-CN" ? angle.text_zh : angle.text;
-  const reflection = pickReflectionFor(person, state.understanding, lang);
-  const reflectionQ = reflection ? reflectionQuestionText(reflection, lang) : "";
-  const reflectionA = reflection ? (lang === "zh-CN" ? reflection.answer_zh : reflection.answer) : "";
+  const moments = person.moments;
+  const userHasMoments = state.understanding.userMoments.length > 0;
 
-  function handleHello() {
-    sayHello(person!.id);
+  function handleHello(quotedMomentId: string, reply: string) {
+    sayHello(person!.id, { quotedMomentId, reply });
+    setComposing(false);
   }
 
   return (
     <div className="h-full px-8 py-10">
       <div className="mx-auto max-w-md">
+        {/* Header */}
         <div className="flex items-start gap-4">
           <img
             src={avatarUrl(person.id)}
@@ -82,61 +81,51 @@ export function IntroCanvas({ state, onAnotherAngle, onAnotherPerson, onPass }: 
           </div>
         </div>
 
-        <div className="mt-7">
-          <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
-            {t("intro.angle_label")} {loc.name}
+        {/* Moments */}
+        <div className="mt-7 space-y-4">
+          <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
+            {t("moment.about_them", { name: loc.name })}
           </div>
-          <p
-            key={`${person.id}:${angle.id}`}
-            className="text-[15px] leading-[1.7] text-foreground animate-in fade-in duration-500"
-          >
-            {angleText}
-          </p>
+          {moments.length === 0 && (
+            <p className="text-[13px] text-muted-foreground italic">{loc.portrait}</p>
+          )}
+          {moments.map((m) => {
+            const prompt = getMomentPromptById(m.promptId);
+            return (
+              <article key={m.id} className="border-l-2 border-border pl-3">
+                {prompt && (
+                  <div className="text-[11px] text-muted-foreground italic leading-snug mb-1">
+                    {localizedMomentPrompt(prompt, lang)}
+                  </div>
+                )}
+                <p className="text-[14.5px] leading-[1.65] text-foreground">
+                  {lang === "zh-CN" ? m.answer_zh : m.answer}
+                </p>
+              </article>
+            );
+          })}
         </div>
 
-        <p className="mt-5 text-[12px] text-muted-foreground leading-relaxed border-l border-border pl-3">
-          {loc.portrait}
-        </p>
-
-        {reflection && reflectionA && (
-          <div className="mt-7">
-            <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
-              {t("intro.in_their_words")}
-            </div>
-            {reflectionQ && (
-              <p className="text-[12px] text-muted-foreground italic leading-snug mb-1.5">
-                {reflectionQ}
-              </p>
-            )}
-            <p className="text-[14px] leading-[1.65] text-foreground/90">
-              "{reflectionA}"
-            </p>
+        {/* Secondary */}
+        {!composing && !conn && (
+          <div className="mt-7 flex flex-wrap gap-2">
+            <button
+              onClick={onAnotherPerson}
+              className="px-3 py-1.5 rounded-md text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t("intro.another_person")}
+            </button>
           </div>
         )}
 
-        {/* Secondary: explore this person further */}
-        <div className="mt-7 flex flex-wrap gap-2">
-          <button
-            onClick={onAnotherAngle}
-            className="px-3 py-1.5 rounded-md text-[12px] text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {t("intro.tell_more")}
-          </button>
-          <button
-            onClick={onAnotherPerson}
-            className="px-3 py-1.5 rounded-md text-[12px] text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {t("intro.another_person")}
-          </button>
-        </div>
-
         {/* Primary closed-loop action */}
         <div className="mt-5 pt-5 border-t border-border">
-          {!conn && (
+          {!conn && !composing && (
             <div className="flex flex-wrap items-center gap-3">
               <button
-                onClick={handleHello}
-                className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
+                onClick={() => setComposing(true)}
+                disabled={moments.length === 0}
+                className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
               >
                 {t("connection.say_hello")}
               </button>
@@ -152,12 +141,29 @@ export function IntroCanvas({ state, onAnotherAngle, onAnotherPerson, onPass }: 
             </div>
           )}
 
+          {!conn && composing && (
+            <>
+              {!userHasMoments && (
+                <p className="mb-3 text-[12px] text-muted-foreground leading-snug border-l-2 border-border pl-3">
+                  {t("moment.need_user_moments")}
+                </p>
+              )}
+              <HelloComposer
+                moments={moments}
+                lang={lang}
+                onSubmit={handleHello}
+                onCancel={() => setComposing(false)}
+              />
+            </>
+          )}
+
           {conn?.status === "waiting" && (
-            <div>
+            <div className="space-y-3">
               <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-[12.5px] text-muted-foreground">
                 <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse" />
                 {t("connection.waiting")}
               </div>
+              <YourHelloRecap conn={conn} person={person} lang={lang} />
             </div>
           )}
 
@@ -174,6 +180,35 @@ export function IntroCanvas({ state, onAnotherAngle, onAnotherPerson, onPass }: 
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function YourHelloRecap({
+  conn, person, lang,
+}: { conn: Connection; person: ReturnType<typeof getPersonById>; lang: Lang }) {
+  const { t } = useTranslation();
+  if (!person) return null;
+  const m = person.moments.find((mm) => mm.id === conn.fromMe.quotedMomentId);
+  if (!m) return null;
+  const prompt = getMomentPromptById(m.promptId);
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-2.5">
+      <div className="text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground mb-1.5">
+        {t("moment.you_quoted")}
+      </div>
+      {prompt && (
+        <div className="text-[11px] italic text-muted-foreground mb-0.5">
+          {localizedMomentPrompt(prompt, lang)}
+        </div>
+      )}
+      <p className="text-[13px] text-foreground leading-snug">
+        {lang === "zh-CN" ? m.answer_zh : m.answer}
+      </p>
+      <div className="mt-2 pt-2 border-t border-border text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground mb-1">
+        {t("moment.you_wrote")}
+      </div>
+      <p className="text-[13px] text-foreground leading-snug">"{conn.fromMe.reply}"</p>
     </div>
   );
 }

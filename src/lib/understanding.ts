@@ -1,22 +1,30 @@
 // Shared "what the system has learned about you" store.
 //
-// All three Agents (Matchmaker / Side by Side / Compass) read and write to
-// the same UserUnderstanding. A trait Matchmaker learns from a description
-// makes Compass's resonance scoring better, etc. The agents themselves
-// don't talk to each other — they share *data*, not flow.
+// Both Agents (Matchmaker / Side by Side) read and write here. In addition
+// to positive/negative signals + verbatim notes, this now stores the user's
+// own Moments — their answers to a small set of moment prompts that get
+// quoted back to them inside other people's "say hello" cards.
 
 import { extractSignals } from "./conversation";
 
+export interface UserMoment {
+  promptId: string;
+  answer: string;     // user's own words; stored as-is
+  t: number;          // when answered
+}
+
 export interface UserUnderstanding {
-  positive: string[];   // signal keys the user wants
-  negative: string[];   // signal keys the user has pushed back on
-  notes: string[];      // short verbatim fragments from the user
+  positive: string[];
+  negative: string[];
+  notes: string[];
+  userMoments: UserMoment[];
 }
 
 export const EMPTY_UNDERSTANDING: UserUnderstanding = {
   positive: [],
   negative: [],
   notes: [],
+  userMoments: [],
 };
 
 const KEY = "kindred:understanding.v1";
@@ -44,7 +52,14 @@ export function resetUnderstanding(): UserUnderstanding {
   return EMPTY_UNDERSTANDING;
 }
 
-// Update from a user message. Returns { next, newPositives, newNegatives }.
+export function addUserMoment(u: UserUnderstanding, promptId: string, answer: string): UserUnderstanding {
+  const trimmed = answer.trim();
+  if (!trimmed) return u;
+  const existing = u.userMoments.filter((m) => m.promptId !== promptId);
+  return { ...u, userMoments: [...existing, { promptId, answer: trimmed, t: Date.now() }] };
+}
+
+// Update from a free-text user message. Returns { next, newPositives, newNegatives }.
 export function digest(u: UserUnderstanding, text: string): {
   next: UserUnderstanding;
   newPositives: string[];
@@ -64,7 +79,7 @@ export function digest(u: UserUnderstanding, text: string): {
   const fragment = text.trim().length > 80 ? text.trim().slice(0, 78) + "…" : text.trim();
   const notes = [...u.notes, fragment].slice(-6);
 
-  return { next: { positive, negative, notes }, newPositives, newNegatives };
+  return { next: { ...u, positive, negative, notes }, newPositives, newNegatives };
 }
 
 function inferNegatives(text: string): string[] {

@@ -1,15 +1,14 @@
 // Connections — the minimum closed loop after Matchmaker shows someone.
 //
-// States: "waiting" (you said hello, they haven't yet)
-//         "connected" (both said hello — chat is open)
-// "introduced" is the implicit default: a person you've seen but haven't
-// acted on isn't stored here at all.
-//
-// All persistence is local. The "other side" is simulated: after you say
-// hello, ~65% of the time the person says hello back within 5–15s; the
-// rest never respond (silent — never shown as a rejection).
+// Saying hello is NOT a one-tap action: the user has to quote one of the
+// other person's Moments and write a one-line response. That payload IS
+// the hello. If the other person says hello back (simulated locally, 65%
+// within 5–15s), they likewise "quote one of YOUR userMoments + reply" —
+// so when the thread opens, both sides have already seen and responded to
+// something concrete from each other.
 
 import { getPersonById } from "./people";
+import { loadUnderstanding } from "./understanding";
 
 export type ConnStatus = "waiting" | "connected";
 
@@ -20,16 +19,28 @@ export interface ChatMsg {
   text: string;
 }
 
+export interface HelloFromMe {
+  quotedMomentId: string;   // → person.moments[id]
+  reply: string;
+}
+
+export interface HelloFromThem {
+  quotedUserMomentPromptId: string;  // → user.userMoments[promptId]
+  reply: string;
+}
+
 export interface Connection {
   personId: string;
   status: ConnStatus;
   helloAt: number;
   connectedAt?: number;
-  lastSeenAt?: number; // last time the user opened the thread
+  lastSeenAt?: number;
+  fromMe: HelloFromMe;
+  fromThem?: HelloFromThem;
   messages: ChatMsg[];
 }
 
-const KEY = "kindred:connections.v1";
+const KEY = "kindred:connections.v2";
 const LISTENERS = new Set<() => void>();
 
 function emit() { LISTENERS.forEach((fn) => fn()); }
@@ -50,7 +61,7 @@ function write(state: Record<string, Connection>) {
 
 export function subscribe(fn: () => void): () => void {
   LISTENERS.add(fn);
-  return () => LISTENERS.delete(fn);
+  return () => { LISTENERS.delete(fn); };
 }
 
 export function list(): Connection[] {
@@ -61,13 +72,14 @@ export function get(personId: string): Connection | null {
   return read()[personId] ?? null;
 }
 
-export function sayHello(personId: string): Connection {
+export function sayHello(personId: string, fromMe: HelloFromMe): Connection {
   const state = read();
   if (state[personId]) return state[personId];
   const conn: Connection = {
     personId,
     status: "waiting",
     helloAt: Date.now(),
+    fromMe,
     messages: [],
   };
   state[personId] = conn;
@@ -76,7 +88,23 @@ export function sayHello(personId: string): Connection {
   return conn;
 }
 
-// Local-only simulation of the other side. 65% accept within 5–15s.
+// ---- Simulated other side -----------------------------------------------
+
+const REPLY_TEMPLATES_EN = [
+  "That landed. I think about this too — more than I'd admit.",
+  "Yes — that's exactly the part I'd have picked.",
+  "I read this twice. The second time was better.",
+  "This is the answer I'd want to talk about over a long dinner.",
+  "I have a version of this. Less elegant, but the same shape.",
+];
+const REPLY_TEMPLATES_ZH = [
+  "这句我看了两遍。第二遍更好。",
+  "我也是这样——多到我不太愿意承认。",
+  "这正是我会想聊的那种回答，得有顿长晚饭才说得完。",
+  "我有一个我自己的版本。没这么好看，但是一样的形状。",
+  "嗯——你挑的那一段，也是我会挑的那一段。",
+];
+
 function scheduleReply(personId: string) {
   if (typeof window === "undefined") return;
   const accepts = Math.random() < 0.65;
@@ -86,16 +114,22 @@ function scheduleReply(personId: string) {
     const state = read();
     const conn = state[personId];
     if (!conn || conn.status !== "waiting") return;
+
+    // Pick one of the user's own moments for the other side to "quote".
+    const u = loadUnderstanding();
+    if (u.userMoments.length === 0) {
+      // No user moments saved — can't honor the symmetry contract. Hold
+      // the connection in waiting forever; do NOT silently auto-connect.
+      return;
+    }
+    const zh = typeof navigator !== "undefined" && navigator.language.startsWith("zh");
+    const pick = u.userMoments[Math.floor(Math.random() * u.userMoments.length)];
+    const replies = zh ? REPLY_TEMPLATES_ZH : REPLY_TEMPLATES_EN;
+    const reply = replies[Math.floor(Math.random() * replies.length)];
+
     conn.status = "connected";
     conn.connectedAt = Date.now();
-    // seed a first line from "them" so the thread isn't empty
-    const person = getPersonById(personId);
-    const firstLine = person
-      ? (typeof navigator !== "undefined" && navigator.language.startsWith("zh"))
-        ? `嘿，很高兴认识你。`
-        : `Hey — nice to meet you.`
-      : "Hi.";
-    conn.messages.push({ id: uid(), from: "them", t: Date.now(), text: firstLine });
+    conn.fromThem = { quotedUserMomentPromptId: pick.promptId, reply };
     write(state);
   }, delay);
 }
@@ -108,8 +142,7 @@ export function send(personId: string, text: string) {
   if (!conn || conn.status !== "connected") return;
   conn.messages.push({ id: uid(), from: "me", t: Date.now(), text: t });
   write(state);
-  // Light local echo so the thread feels alive — not Agent-mediated, just
-  // a placeholder for a real other person.
+  // Lightweight local echo so the thread feels alive.
   const delay = 4000 + Math.floor(Math.random() * 8000);
   window.setTimeout(() => {
     const s = read();
@@ -117,7 +150,7 @@ export function send(personId: string, text: string) {
     if (!c) return;
     const reply = (typeof navigator !== "undefined" && navigator.language.startsWith("zh"))
       ? "嗯，我也这么觉得。"
-      : "Yeah, I feel that too.";
+      : "Yeah — I feel that too.";
     c.messages.push({ id: uid(), from: "them", t: Date.now(), text: reply });
     write(s);
   }, delay);
@@ -131,7 +164,6 @@ export function markSeen(personId: string) {
   write(state);
 }
 
-// Are there any unseen new connections or unread messages?
 export function hasUnseen(): boolean {
   return list().some((c) => {
     if (c.status === "waiting") return false;
@@ -141,16 +173,13 @@ export function hasUnseen(): boolean {
   });
 }
 
-// Resume any pending simulated replies after a page reload. Connections
-// still in "waiting" get their reply timer reissued so the demo flow
-// completes even if the user refreshes.
 export function rehydrate() {
   if (typeof window === "undefined") return;
   const state = read();
   for (const conn of Object.values(state)) {
     if (conn.status === "waiting") {
       const elapsed = Date.now() - conn.helloAt;
-      if (elapsed > 60_000) continue; // give up after a minute on reload
+      if (elapsed > 60_000) continue;
       scheduleReply(conn.personId);
     }
   }

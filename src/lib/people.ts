@@ -1,14 +1,10 @@
 import type { Person } from "./types";
-import { ACTIVITIES, REFLECTIONS } from "./people-extras";
+import { ACTIVITIES, MOMENTS, REFLECTIONS } from "./people-extras";
 
-// The pool. Each Person carries everything all three Agents need:
-//   - angles      → used by Matchmaker
-//   - activities  → used by Side by Side
-//   - reflections → used by Compass
-// Activities & reflections are merged in from people-extras.ts to keep
-// this file readable.
+// The pool. activities / reflections / moments are merged in from
+// people-extras.ts to keep this file readable.
 
-type PersonCore = Omit<Person, "activities" | "reflections">;
+type PersonCore = Omit<Person, "activities" | "reflections" | "moments">;
 const CORE: PersonCore[] = [
   {
     id: "isa",
@@ -340,6 +336,7 @@ export const PEOPLE: Person[] = CORE.map((p) => ({
   ...p,
   activities: ACTIVITIES[p.id] ?? [],
   reflections: REFLECTIONS[p.id] ?? [],
+  moments: MOMENTS[p.id] ?? [],
 }));
 
 export function getPersonById(id: string): Person | undefined {
