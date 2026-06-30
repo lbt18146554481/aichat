@@ -7,7 +7,6 @@ import { IntroCanvas } from "@/components/canvas/intro-canvas";
 import { consumeSeed } from "@/lib/seed";
 import {
   EMPTY,
-  actAnotherAngle,
   actAnotherPerson,
   load,
   reset,
