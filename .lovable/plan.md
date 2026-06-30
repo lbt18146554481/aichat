@@ -1,141 +1,151 @@
 
-## 先独立想清楚：吸引到底来自哪里
+## 先独立把问题想清楚
 
-你提的问题其实是这个产品最难的一关——**在没有颜值滤镜的前提下，凭什么让一个人对另一个人产生兴趣？** 我把现有研究和经典设计里站得住的结论先列出来，再决定怎么落到产品上。不是引用堆砌，是每一条都对应一个具体的产品决策。
+你提的不是 UI 问题，是产品的**信息架构**问题。现在的设计有一个被我之前忽略掉的根本错误：
 
-**1. Aron 的"36 个问题"实验（1997, *The Experimental Generation of Interpersonal Closeness*）**
-两个陌生人在 45 分钟内通过逐层加深的自我表露 + 4 分钟对视，产生了显著高于对照组的亲密感。后来 NYT 的 "To Fall in Love With Anyone, Do This" 把它推到大众视野。
-→ **结论**：吸引不是来自"展示自己有多好"，而是来自**互相的、对称的、有梯度的自我表露**。
+**"关于我"和"我在找谁"是两类完全不同的信息，被我塞进了同一个 Agent 对话里。**
 
-**2. Reis & Shaver 的"亲密过程模型"（Intimacy Process Model, 1988）**
-亲密 = 自我表露 + 对方"被看见、被理解、被在乎"的回应。光说自己没用，关键是另一方的**响应性 (responsiveness)**。
-→ **结论**：产品里要让"读到对方"和"对方读到你"这件事被看见，而不是只看到对方写了什么。
+这两类信息的性质、可信度要求、修改频率、对幻觉的容忍度都完全不同：
 
-**3. Helen Fisher 的吸引力神经科学（*Why We Love*, 2004）**
-浪漫吸引和"具体性"高度相关——大脑对一个**具体的、独特的、不可替换的人**才会启动 dopamine 系统；对"一类人"不会。Tinder 的失败之处就在于它把人压缩成可替换的标签。
-→ **结论**：产品呈现的不能是"标签化的人"，必须是**只属于这个人的细节**。
+| 维度 | 关于我（identity） | 我在找谁（intent / taste） |
+|---|---|---|
+| 谁是真相来源 | **只有用户本人** | 用户的偏好 + 系统的归纳 |
+| 出错的代价 | 极高——别人会基于此对你产生印象 | 低——下一轮对话可修正 |
+| 修改频率 | 极低，年级别 | 经常，每次找人都可能微调 |
+| 是否需要被他人看到 | 是，逐字展示 | 否，只用于内部打分 |
+| 是否适合 LLM 归纳 | **不适合**——任何归纳都是失真 | 适合——本来就是模糊语义 |
 
-**4. Susan Cain *Quiet* + Sherry Turkle *Reclaiming Conversation***
-内向者、深度交流的人在颜值/即时回应的赛道上系统性失败，但他们恰恰是长期关系满意度更高的群体。
-→ **结论**：产品要给"不擅长第一眼吸引"的人一条公平的赛道——靠思考的密度、回答的质感取胜。
+→ 用 Agent 聊天收集"关于我"是错的。理由不是"技术幻觉"这个表面，而是：
+1. **identity 信息必须由用户逐字确认**，归纳即失真。
+2. 用户**没法回头审视/修改**自己在对话里说过的话。
+3. **覆盖率没保障**——用户不知道还没说什么、漏了什么维度。
+4. **冷启动断裂**——新用户进来第一件事就是被问"你是谁"，而最好的产品（Hinge）证明这件事用**结构化选择 + 自由作答**比纯聊天高效得多、留存率高得多。
 
-**5. Hinge 产品复盘（"Designed to be deleted"）+ OkCupid Christian Rudder *Dataclysm***
-OkCupid 数据显示：决定两人是否最终成对的，不是颜值评分，而是**回答的"非主流程度" (statistical idiosyncrasy)**——越独特、越"敢说"的回答，越能精准吸引到对的人。Hinge 的 Prompts（"我最不寻常的技能是…"）就是这个发现的产品化。
-→ **结论**：吸引力 = **独特性 × 真诚度**，不是"全面优秀"。
+→ 用 Agent 聊天收集"我在找谁"是**对的**。这本来就是模糊偏好的提取场景。
 
-**6. 行为信号 > 自我描述**
-心理学一致结论：**别人怎么评价你 / 你怎么对待别人**比"你怎么描述自己"可信得多（"自我描述偏差"是相亲资料失真的主因）。
-→ **结论**：产品里要混入"非自我陈述"的信号——比如这个人对一本书、一场比赛、一个具体瞬间的反应。
+## 经典设计的验证
 
----
+- **Hinge** 的核心创新就是这个分离：Profile 是结构化的 Prompts（从池中选 3 条 + 自己作答）+ Vitals + 照片；匹配端是另一回事。Hinge 的"deletion rate"（关系建立后注销账号）是 Tinder 的数倍，prompts 形态本身就是被验证的产品形态。
+- **OkCupid** 早期的 Match Questions 也是结构化的，加了一个"对你来说有多重要"的权重维度——这是把价值观可比较化的关键设计，但**展示给别人看的不是这些题，而是用户自己写的 essay**。展示侧仍然是自由文本。
+- **Aron 36 问** 是研究工具，不是产品；产品化的对应物就是 prompt 池。
+- **Christian Rudder (Dataclysm)** 的核心数据结论：转化的不是"全面"，是"独特 × 真诚"。所以池子要大、提示要钩出具体性，但**写什么必须用户自己写**。
 
-## 由此推出的产品判断（不是 UI，是原则）
+## 由此推出的产品结构
 
-把上面 6 条压缩成 3 条产品原则，下面所有改动都从这里推出来：
+**两个完全分开的表面**，共用底层数据：
 
-> **A. 用"具体瞬间"代替"自我标签"**——展示一个人在某个真实场景里说了什么、做了什么，而不是 TA 怎么概括自己。
->
-> **B. 引入"对称的自我表露梯度"**——每个人先回答几个有深度、有梯度的问题；你只能看到对方对**你也回答过**的问题的答案。不付出表露，就看不到对方的表露。
->
-> **C. 把"被看见"做成一个可见的动作**——不是点赞，是"我读到了你这一句"，并附上自己的一句回应。这一个动作就是 say hello 的内容。
-
----
-
-## 落到当前产品的最小改动
-
-现在 Matchmaker 已经给出 portrait + 一个 angle + 一句 "in their words"。问题在于这套呈现仍然是**单方面的、被动消费的**——用户在"评估对方"，而不是在"被对方看见"。Say hello 是个空动作，没承载任何吸引力信号。
-
-下面是改动，每一条都对应上面的原则。**不增加新 Agent、不增加新页面、不破坏现有两阶段闭环**。
-
-### 改动 1：把 Person 数据模型从"标签 + portrait"换成"瞬间 (Moments)"
-
-`src/lib/types.ts` 里 `Person` 增加 `moments: Moment[]`，砍掉/弱化 `portrait`（保留作 fallback）。
-
-```ts
-interface Moment {
-  id: string;
-  prompt: string;        // "上次让你忘记时间的事 / 你最近改变过的一个看法 / ..."
-  prompt_zh: string;
-  answer: string;        // 这个人自己的、具体的回答（不是标签）
-  answer_zh: string;
-  signals: string[];     // 用于匹配，但不展示
-}
+```text
+┌─────────────────────────────────────────────────────┐
+│  Profile  ——  "你是谁"                              │
+│   结构化、可审、可改、由你逐字写、别人会看到的就是它 │
+│   · Vitals（年龄/城市/职业）                         │
+│   · Moments（从池子里选 3–5 条 prompt，自己作答）    │
+│   · 一件"对你重要的作品"（书/影/乐/展，1 条 + 一句话）│
+│   · Anchors（3–5 条带权重的价值取向题，OkCupid 式）  │
+│   入口：右上头像 → Profile，独立路由 /profile        │
+└─────────────────────────────────────────────────────┘
+                       ↓ 作为信号源喂给
+┌─────────────────────────────────────────────────────┐
+│  Matchmaker Agent  ——  "你在找谁"                   │
+│   对话式，因为偏好是模糊的、需要协商                │
+│   Agent 只读 Profile（不改），只写 Understanding     │
+│   找到人 → 右侧画面显示对方的 Profile 卡            │
+│   say hello 引用对方的 Moment + 写一句回应          │
+└─────────────────────────────────────────────────────┘
 ```
 
-prompt 池来自经典素材：Aron 36 问的中段（不是最深的那几个，那些留给 connected 之后）、Hinge Prompts 里被验证转化率最高的几条、加上一些专门暴露"思考方式"的开放题（"最近一次你为什么改变了对某件事的看法"）。
+**关键边界**：Matchmaker Agent **绝对不写入** Profile。Agent 写入的只有 `userMoments` 这种"我在找谁"侧的语义，并且每条新归纳都必须**用 chip 显示在 understanding 面板里、用户可一键删除**——这套机制现在已经有了，保留。
 
-### 改动 2：IntroCanvas 改成"对方的三个瞬间"，不再是 angle + portrait
+## Profile 的信息元素（最终版）
 
-右侧画面变成：
-- 顶部：姓名 / 年龄 / 城市 / 职业（保留）
-- 主体：**3 个 Moment 卡片**，每张是「问题 + 这个人的回答」
-- 不再有 "another angle" 按钮——angle 这个抽象层删掉，因为 Moments 本身就是多个具体侧面
+每一项都有取舍依据，不堆砌：
 
-这一条对应原则 A（具体瞬间）和原则 5（独特性 × 真诚度）。Hinge 的产品数据已经验证这种形态比标签化资料的回信率高 3 倍以上。
+1. **Vitals**（必填，2 分钟）
+   姓名 / 年龄 / 所在城市 / 职业一句话。这些是事实，结构化即可。
 
-### 改动 3：Say hello 不再是一键，而是"挑一个 moment + 写一句回应"
+2. **Moments**（必填 ≥3，建议 5，每条 ≤140 字）
+   从约 24 条 prompt 中挑选，自己作答。prompt 池分三档：
+   - 行为类（"上次让你忘记时间的事"，"最近三个月你最常去的地方"）
+   - 转变类（"最近一次你为什么改变了对某件事的看法"）—— Rudder 数据证明这类回答信息密度最高
+   - 偏好类（"你愿意和一个陌生人聊到忘记看时间的话题"）
+   每个 prompt 旁有**一句很短的示范**（不是模板答案，是"答这种问题时往哪个方向想"的提示），降低空白页焦虑。
 
-这是整个方案的关键。当前 Say hello 是空动作，违背原则 C 和 Reis 的"响应性"模型。
+3. **One Work**（必填 1）
+   "一件这两年对你重要的书/电影/音乐/展览/比赛/食物"——任何形式都行，**加一句话为什么**。
+   这一个字段独立出来是因为：共同审美是亲密关系里被低估但极强的信号（Helen Fisher 的研究里"共同感官偏好"是长期满意度的稳定预测变量），而且这是 Side by Side 之外另一条"非自我陈述"的吸引力来源。
 
-新流程：
-1. 用户点 Say hello → 弹出一个 inline composer
-2. composer 要求：**选一张对方的 Moment 卡片**作为引用 + **写一句你的回应**（不是夸奖、不是问句，提示语写明："你读到这句时想到了什么 / 你自己的对应经历")
-3. 提交后，对方那一侧看到的是：「TA 读到了你这一段」+ 你的那一句回应 + 你自己的一张 Moment 卡片（系统从你的 Moments 里挑一张与对方那张主题相近的）
+4. **Anchors**（可选，最多 5 条）
+   一组带权重的取向陈述（"我希望另一半也想要孩子" / "我不能接受异地超过半年" / "我希望对方有自己长期投入的事"）。仿 OkCupid Match Questions：每条选 **同意 / 中立 / 不同意 / 不重要**，但**不向他人展示**，只用于 Matchmaker 内部打分和过滤。
+   这一项可选是因为它对匹配有用、对吸引无用，强制填写会拖慢冷启动。
 
-→ 对方做的决定是：**"这个人读懂了我吗 / 我对 TA 回的那张卡感兴趣吗"**，不是"这个人长得怎么样"。这就是 Aron + Reis 模型的产品化。
-→ 双向 opt-in 仍然成立：对方可以 say hello back（同样要引用 + 回应），双方都回应才进入 connected。
+明确**不做**的：
+- ❌ 多张照片轮播——回到 Tinder。可上传一张作为头像，但不作为主要呈现。
+- ❌ 兴趣标签云——已经被 Moments 替代，再加是重复。
+- ❌ 自我描述长文（Bio）——已被 Moments 替代，自由文本框只会变成"努力把自己说得好"的表演场。
+- ❌ MBTI / 星座 / 五大人格测试——伪科学化，且把人压回标签。
 
-### 改动 4：用户自己也要有 Moments——首次进入 Matchmaker 时引导填 3 个
+## 交互流程
 
-当前 understanding 只存"我想要什么样的人"，但根据原则 B 的对称性和原则 6 的"行为信号 > 自我描述"，用户也得**贡献关于自己的具体瞬间**，否则 Say hello 时没东西可引用。
+**冷启动（首次进 App）**：一条单列的、可中途保存的引导流，**不是聊天**，是表单式的卡片串：
 
-实现：
-- 在 Matchmaker 的 clarifying 阶段，Agent 自然地问 3 个 Moment 问题（混在描述对方的对话里，每隔一两轮问一个），把回答存到 understanding 里新增的 `userMoments: Moment[]`
-- 这些回答不是"画像"，是 say hello 时可以被引用的素材
+```text
+Step 1  Vitals          (2 min, 4 个输入框)
+Step 2  Pick 3 prompts  (从池里选，每选一个就地展开作答)
+Step 3  One Work        (单输入 + 一句话)
+Step 4  Anchors (可跳过)
+        → 完成 → 进入首页
+```
 
-### 改动 5：connected 之后，对话窗口里默认带入"你们互相 say hello 时引用的两段 + 各自的那句回应"作为对话起点
+总长 5–8 分钟。每步右上有"稍后完成"，但 Step 1–3 完成前首页 Agent 入口处于 disabled 状态，并显示一句话："Matchmaker 需要先认识你——完成 Profile 才能开始。" 这是必要的硬约束，因为没有 Profile 就没有 Moments 可被引用，整个 say hello 闭环失效。
 
-避免 connected 之后第一句话又卡在 "hi"。直接把两个人**已经互相看见的那件事**摆在对话顶部，对话从那里继续。这一条对应 Hinge 数据："开场质量决定 70% 的后续转化"。
+**日常修改**：右上头像 → `/profile` 独立路由。卡片化展示当前 Profile，每张卡可直接点开编辑。**所见即所得**——这一页看到的就是别人在 Matchmaker 里看到你的样子，顶部有一句话提示："This is exactly how others see you."
 
-### 改动 6：明确不做的
+**Matchmaker 侧的变化**：
+- Agent 第一句话不再是"告诉我关于你自己…"，而是直接基于已有 Profile 切入："I've read your profile. Tell me who you're hoping to meet." 这是把 Agent 用在它该用的地方。
+- Agent 仍然可以在对话里追问偏好，但**不会**问"你喜欢什么书 / 你的爱好是什么"这类已经在 Profile 里有答案的问题。它读 Profile 作为上下文。
+- 现在的 `userMoments` 收集逻辑从 Matchmaker 移除——它本来就属于 Profile。
 
-- ❌ 不加颜值/评分/滑动
-- ❌ 不加"心动列表"、收藏夹这类被动消费视图
-- ❌ 不加 Moments 的点赞数 / 浏览数等公开计数（社会证明会污染真实吸引信号，Rudder 在 *Dataclysm* 里有专门一章讲这个）
-- ❌ 不加"AI 帮你写回应"——回应必须是用户自己的字，否则整个原则 C 失效
-- ❌ Side by Side 这一版不动；它的"一起做某件事"本身就是行为信号，逻辑独立成立
+## 解决了哪些具体问题
 
----
+1. **幻觉**：identity 信息全部由用户逐字输入并可审，Agent 不再有机会把"我喜欢攀岩"误归纳成"她追求户外冒险"。
+2. **可改性**：随时去 `/profile` 改任何一句话，不需要重启对话。
+3. **覆盖完整**：进度条 + 必填项保证基础维度齐全；prompt 池保证表达深度。
+4. **吸引力本质**：Moments + One Work 共同构成的"具体性"高于任何标签或自我描述，呼应上一版的研究结论。
+5. **冷启动一致**：每个用户的 Profile 都有可比的最低厚度，Matchmaker 不会再因为另一边 Profile 为空而推出"这是个谜一样的人"。
+6. **Agent 的边界**：Agent 只做它擅长的——模糊偏好的协商；不做它不擅长的——事实记录。
 
-## 改动清单
+## 实施改动清单（落地时再展开）
 
-**修改**
-- `src/lib/types.ts` — `Person` 增加 `moments: Moment[]`；新增 `Moment` 类型
-- `src/lib/people.ts` + `src/lib/people-extras.ts` — 为现有候选人补 3 个 moments（手写，不是生成；这是数据质量的关键，每个人的 3 个 moment 要能看出"是这个人，不是另一个"）
-- `src/lib/questions.ts` — 增加 Moment prompt 池（约 12 条，分 3 个深度梯度）
-- `src/lib/understanding.ts` — 增加 `userMoments`；增加 `addUserMoment`
-- `src/lib/agents/matchmaker.ts` — clarifying 阶段插入 3 轮 moment 收集（不阻塞主线，每答一个就推进一次匹配）
-- `src/components/canvas/intro-canvas.tsx` — 主体从 angle + portrait 改为 3 张 Moment 卡片；Say hello 触发 composer
-- `src/lib/connections.ts` — `Connection` 增加 `helloPayload: { quotedMomentId, reply }`，双方都存
-- `src/components/canvas/connection-thread.tsx` — 对话窗口顶部显示双方的引用 + 回应作为 anchor
-- 新建 `src/components/hello-composer.tsx` — 引用选择 + 单行回应输入
-- `src/locales/{en,zh-CN}/common.json` — 新增 `moment.*` 文案
+**新增**
+- 路由 `src/routes/profile.tsx` —— 编辑页 + 预览
+- 路由 `src/routes/onboarding.tsx` —— 冷启动 4 步流（替代当前直接进 Matchmaker）
+- `src/lib/profile.ts` —— Profile 类型、localStorage 持久化、completeness 检查
+- `src/lib/prompts.ts` —— 约 24 条 prompt 池（中英双语，分行为/转变/偏好三档，每条带示范方向）
+- `src/components/profile/*` —— PromptPicker / MomentCard / OneWorkCard / AnchorsCard / ProfilePreview
+- 头像入口在 workspace-header 上
+
+**改动**
+- `src/lib/types.ts` —— `Person` 已有 `moments`，新增 `oneWork: { kind, title, why }`，给现有 24 个 mock 候选人补 oneWork 字段
+- `src/lib/agents/matchmaker.ts` —— 移除 moment-collection 阶段；首句改为读 Profile；clarifying 只问"找谁"
+- `src/components/canvas/intro-canvas.tsx` —— 在 3 张 Moment 卡之外再加一张 One Work 卡
+- `src/lib/understanding.ts` —— 移除 `userMoments`（迁移到 Profile）
+- `src/routes/index.tsx` —— 入口处先检查 Profile completeness，未完成则路由到 `/onboarding`
+- `src/locales/{en,zh-CN}/common.json` —— Profile / onboarding / prompts 文案
 
 **不动**
-- Side by Side
-- 路由结构
-- understanding 的 positive/negative/notes 逻辑（仍然用于匹配评分）
+- Side by Side 的活动逻辑
+- Matchmaker 的 say hello / connection 闭环
+- understanding 的 positive/negative chip 机制（用于"找谁"侧）
 
 ## 验收
 
-1. 进 Matchmaker，三轮对话内被自然问到 3 个 Moment 问题，回答后立刻给出引荐。
-2. 右侧画面看到的是 3 张对方的具体回答卡片，每张都"只可能是这个人写的"——把名字盖住也能区分人。
-3. 点 Say hello 必须选一张卡 + 写一句回应才能提交（不能空提交、不能只勾选不写字）。
-4. waiting 状态显示"等 TA 回应你写的那句话"，不再是模糊的"等回应"。
-5. connected 后对话窗口顶部能看到"双方互相看见的那一刻"。
-6. 整个流程**找不到任何**颜值评分、点赞计数、心动列表、AI 代写回应。
+1. 第一次进 App 走的是 4 步表单引导，不是聊天框。
+2. 任何时候去 `/profile` 都能看到并修改自己写的每一句话；预览页的样式 = 别人在 Matchmaker 里看到你的样式。
+3. Matchmaker 第一句话引用了 Profile 内容，不再问"告诉我关于你"。
+4. Matchmaker 对话中归纳出的偏好仍然以 chip 形式出现在 understanding 面板、可一键删除——但**不再**有任何 identity 信息被悄悄写入 Profile。
+5. 候选人右侧画面除了 3 张 Moment 卡，还有 1 张 One Work 卡。
+6. 整套 Profile 表单里**找不到**：照片轮播、兴趣标签、MBTI、长 bio 自由文本框。
 
 ---
 
-如果你认同这个方向，我落地。
-如果你认为 Moment 应该再加一种**非自我陈述**的来源（比如对方对某本书的笔记、对某场比赛的简评——更接近"行为信号"而不是"自我表露"），告诉我，我把它作为 Moment 的第二种类型加进去——但默认我先做"自我表露式 Moment"这一种，因为它的研究支持更扎实，产品复杂度更低。
+如果你认同这个方向我落地。如果你认为 Anchors 这一项现阶段就不该上（怕复杂度），告诉我，我把它推到后续——Vitals + Moments + One Work 三件就足够撑起整个 say hello 闭环。

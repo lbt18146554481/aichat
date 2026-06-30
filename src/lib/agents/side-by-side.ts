@@ -60,7 +60,7 @@ export interface SideState {
 
 export const EMPTY: SideState = {
   phase: "gathering",
-  understanding: { positive: [], negative: [], notes: [], userMoments: [] },
+  understanding: { positive: [], negative: [], notes: [] },
   messages: [],
   user: null,
   proposal: null,

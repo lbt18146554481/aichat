@@ -8,7 +8,7 @@
 // something concrete from each other.
 
 import { getPersonById } from "./people";
-import { loadUnderstanding } from "./understanding";
+import { loadProfile } from "./profile";
 
 export type ConnStatus = "waiting" | "connected";
 
@@ -115,15 +115,16 @@ function scheduleReply(personId: string) {
     const conn = state[personId];
     if (!conn || conn.status !== "waiting") return;
 
-    // Pick one of the user's own moments for the other side to "quote".
-    const u = loadUnderstanding();
-    if (u.userMoments.length === 0) {
+    // Pick one of the user's own profile moments for the other side to "quote".
+    const profile = loadProfile();
+    const userMoments = profile.moments.filter((m) => m.answer.trim().length > 0);
+    if (userMoments.length === 0) {
       // No user moments saved — can't honor the symmetry contract. Hold
       // the connection in waiting forever; do NOT silently auto-connect.
       return;
     }
     const zh = typeof navigator !== "undefined" && navigator.language.startsWith("zh");
-    const pick = u.userMoments[Math.floor(Math.random() * u.userMoments.length)];
+    const pick = userMoments[Math.floor(Math.random() * userMoments.length)];
     const replies = zh ? REPLY_TEMPLATES_ZH : REPLY_TEMPLATES_EN;
     const reply = replies[Math.floor(Math.random() * replies.length)];
 

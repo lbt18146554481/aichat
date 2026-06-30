@@ -1,15 +1,14 @@
 // Matchmaker — describe who you're looking for; the Agent introduces ONE
 // person at a time. The right pane shows that person's Moments (their own
-// concrete answers to a few prompts). To make introductions reciprocal,
-// the Agent also collects up to 3 Moments from the USER during the
-// clarifying phase — these get quoted back when someone says hello to
-// them.
+// concrete answers to a few prompts) plus one work they care about. The
+// USER's own identity (name, moments, one-work) lives in their Profile —
+// the Agent reads it but never mutates it.
 
 import { getPersonById, PEOPLE } from "../people";
-import { getMomentPromptById, MOMENT_PROMPTS, getQuestionById } from "../questions";
+import { getQuestionById } from "../questions";
 import type { Person, Reflection } from "../types";
+import { loadProfile } from "../profile";
 import {
-  addUserMoment,
   digest,
   loadUnderstanding,
   saveUnderstanding,
@@ -34,26 +33,17 @@ export interface MatchmakerState {
   passedIds: string[];
   currentPersonId: string | null;
   clarifyTurns: number;
-  // Moment collection from the USER. If a prompt id sits here, the next
-  // user message is treated as the answer to it rather than as new
-  // description.
-  pendingMomentPromptId: string | null;
-  momentsAsked: string[];
 }
 
 export const EMPTY: MatchmakerState = {
   phase: "clarifying",
-  understanding: { positive: [], negative: [], notes: [], userMoments: [] },
+  understanding: { positive: [], negative: [], notes: [] },
   messages: [],
   shownIds: [],
   passedIds: [],
   currentPersonId: null,
   clarifyTurns: 0,
-  pendingMomentPromptId: null,
-  momentsAsked: [],
 };
-
-const MOMENTS_TARGET = 3;
 
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -164,39 +154,20 @@ function pickNext(state: MatchmakerState, excludeCurrent = false): Person | null
   return ranked[0];
 }
 
-// ---- Moment-prompt selection --------------------------------------------
-
-function pickNextMomentPrompt(state: MatchmakerState): string | null {
-  const answered = new Set(state.understanding.userMoments.map((m) => m.promptId));
-  const asked = new Set(state.momentsAsked);
-  // Prefer prompts neither asked nor answered, in declared order
-  const fresh = MOMENT_PROMPTS.find((p) => !answered.has(p.id) && !asked.has(p.id));
-  if (fresh) return fresh.id;
-  return null;
-}
-
 // ---- Lines ---------------------------------------------------------------
 
 const L = {
-  greet: {
-    en: "Tell me a bit about who you're looking for. Doesn't have to be a list — what kind of person makes a room feel different for you?",
-    zh: "随便聊几句你想找的人。不用列清单——什么样的人会让你觉得'这个房间不一样了'？",
+  greet_with_name: {
+    en: (n: string) => `Hi ${n}. I've read your profile. Tell me a bit about who you're hoping to meet — not a list, what kind of person makes a room feel different for you.`,
+    zh: (n: string) => `你好，${n}。我看过你的资料了。说说你想认识什么样的人——不用列清单，什么样的人会让你觉得"这个房间不一样了"？`,
+  },
+  greet_nameless: {
+    en: "I've read your profile. Tell me a bit about who you're hoping to meet — not a list, what kind of person makes a room feel different for you.",
+    zh: "我看过你的资料了。说说你想认识什么样的人——不用列清单，什么样的人会让你觉得'这个房间不一样了'？",
   },
   clarify_more: {
     en: "Got it. One more — is there a quality you don't want? Something you've had enough of?",
     zh: "明白了。再问一个——有什么特质是你不想要的？已经厌倦的那种？",
-  },
-  moment_first: {
-    en: (q: string) => `Got it. Before I introduce anyone — tell me a bit about you too, so what you write later means something. ${q}`,
-    zh: (q: string) => `明白了。在我引荐之前——也想问问你自己，这样之后你写给别人的字才有分量。${q}`,
-  },
-  moment_more: {
-    en: (q: string) => `Thank you. One more: ${q}`,
-    zh: (q: string) => `谢谢。再问一个：${q}`,
-  },
-  moment_last: {
-    en: (q: string) => `Last one: ${q}`,
-    zh: (q: string) => `最后一个：${q}`,
   },
   introducing: {
     en: (n: string) => `Okay — I have someone in mind. ${n}. Look on the right.`,
@@ -219,30 +190,16 @@ function pushU(s: MatchmakerState, text: string): MatchmakerState {
   return { ...s, messages: [...s.messages, { id: uid(), role: "user", t: Date.now(), text }] };
 }
 
-function askNextMoment(state: MatchmakerState, lang: "en" | "zh-CN"): MatchmakerState {
-  const id = pickNextMomentPrompt(state);
-  if (!id) return introduce(state, lang);
-  const prompt = getMomentPromptById(id)!;
-  const text = lang === "zh-CN" ? prompt.text_zh : prompt.text;
-  const answeredCount = state.understanding.userMoments.length;
-  const remaining = MOMENTS_TARGET - answeredCount;
-  let line: string;
-  if (answeredCount === 0) line = lang === "zh-CN" ? L.moment_first.zh(text) : L.moment_first.en(text);
-  else if (remaining <= 1) line = lang === "zh-CN" ? L.moment_last.zh(text) : L.moment_last.en(text);
-  else line = lang === "zh-CN" ? L.moment_more.zh(text) : L.moment_more.en(text);
-  const next: MatchmakerState = {
-    ...state,
-    pendingMomentPromptId: id,
-    momentsAsked: state.momentsAsked.includes(id) ? state.momentsAsked : [...state.momentsAsked, id],
-  };
-  return pushA(next, line);
-}
-
 // ---- Public --------------------------------------------------------------
 
 export function start(lang: "en" | "zh-CN"): MatchmakerState {
   const u = loadUnderstanding();
-  return pushA({ ...EMPTY, understanding: u }, lang === "zh-CN" ? L.greet.zh : L.greet.en);
+  const profile = loadProfile();
+  const name = profile.name.trim();
+  const line = name
+    ? (lang === "zh-CN" ? L.greet_with_name.zh(name) : L.greet_with_name.en(name))
+    : (lang === "zh-CN" ? L.greet_nameless.zh : L.greet_nameless.en);
+  return pushA({ ...EMPTY, understanding: u }, line);
 }
 
 export function userTurn(state: MatchmakerState, text: string, lang: "en" | "zh-CN"): MatchmakerState {
@@ -250,19 +207,6 @@ export function userTurn(state: MatchmakerState, text: string, lang: "en" | "zh-
   if (!t) return state;
   let next = pushU(state, t);
 
-  // 1) Answering a pending moment prompt — store, then either ask another
-  //    or move on to introducing.
-  if (next.pendingMomentPromptId) {
-    const promptId = next.pendingMomentPromptId;
-    const u = addUserMoment(next.understanding, promptId, t);
-    next = { ...next, understanding: u, pendingMomentPromptId: null };
-    if (u.userMoments.length < MOMENTS_TARGET && pickNextMomentPrompt(next)) {
-      return askNextMoment(next, lang);
-    }
-    return introduce(next, lang);
-  }
-
-  // 2) Otherwise, digest the text as describing-target.
   const { next: u, newPositives, newNegatives } = digest(next.understanding, t);
   next = { ...next, understanding: u };
 
@@ -270,16 +214,10 @@ export function userTurn(state: MatchmakerState, text: string, lang: "en" | "zh-
 
   if (next.phase === "clarifying") {
     next = { ...next, clarifyTurns: next.clarifyTurns + 1 };
-    // If we still don't know what they want at all, push once more
     if (u.positive.length === 0 && next.clarifyTurns < 2) {
       return pushA(next, lang === "zh-CN" ? L.clarify_more.zh : L.clarify_more.en);
     }
-    // If user already has 3+ moments saved (from a prior session), skip
-    // the moment loop and introduce directly.
-    if (u.userMoments.length >= MOMENTS_TARGET || !pickNextMomentPrompt(next)) {
-      return introduce(next, lang);
-    }
-    return askNextMoment(next, lang);
+    return introduce(next, lang);
   }
 
   // Introducing phase
@@ -312,7 +250,7 @@ export function actAnotherPerson(s: MatchmakerState, lang: "en" | "zh-CN") {
 
 // ---- Persistence ---------------------------------------------------------
 
-const KEY = "kindred:matchmaker.v2";
+const KEY = "kindred:matchmaker.v3";
 
 export function load(): MatchmakerState {
   if (typeof window === "undefined") return EMPTY;
@@ -335,3 +273,5 @@ export function reset(): MatchmakerState {
   }
   return EMPTY;
 }
+// keep an unused export reference to avoid stale-import build noise
+export const _personRef = getPersonById;

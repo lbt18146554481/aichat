@@ -6,13 +6,20 @@
   "home": {
     "greeting": "今晚，你想怎样遇见一个人？",
     "placeholder": "用你自己的话说说——想认识什么样的人，或者想和人一起做点什么……",
+    "placeholder_locked": "先把你的资料填完——Agent 得先认识你，才能给你介绍人。",
     "send": "发送",
     "agents_footnote": "两位 Agent 在后台为你工作",
     "chip": {
       "intro": "介绍一个人",
       "together": "一起做点什么"
     },
-    "connections": "我的联系"
+    "connections": "我的联系",
+    "profile": "我",
+    "gate": {
+      "title": "Agent 需要先认识你。",
+      "body": "Kindred 给别人看的是你亲手写下的字，不是我们替你归纳的标签。花五分钟把资料填完，然后再回来。",
+      "cta": "去填资料 · {{done}}/{{total}}"
+    }
   },
   "agents": {
     "matchmaker": {
@@ -31,7 +38,8 @@
     "reset": "重新开始",
     "subtitle": "AI Agent",
     "letters": "信件",
-    "connections": "我的联系"
+    "connections": "我的联系",
+    "profile": "我的资料"
   },
   "chat": {
     "placeholder_first": "说说你想找一个什么样的人……",
@@ -42,7 +50,8 @@
   "intro": {
     "empty_title": "我会在这里引荐一个人。",
     "empty_hint": "不是列表——一次一个人，带着理由。在左边告诉我你想找的人。",
-    "another_person": "换一个人"
+    "another_person": "换一个人",
+    "one_work_label": "TA 在意的一件{{kind}}"
   },
   "moment": {
     "about_them": "关于 {{name}} 的三件小事",
@@ -52,7 +61,7 @@
     "reply_hint": "TA 只会看到你写的这一句和你挑的那一段。还看不到你的名字和照片。如果 TA 没回应，TA 永远不会知道你看过 TA。",
     "send_hello": "发送",
     "cancel": "取消",
-    "need_user_moments": "提醒一下：你还没怎么告诉 Matchmaker 关于你自己的事。如果 TA 回应，TA 那边读不到关于你的内容。在左边回复几句，Agent 会问。",
+    "need_user_moments": "提醒一下：你的资料还很薄。如果 TA 回应，TA 那边没什么关于你的内容可读。去资料页补一两个 Moment。",
     "you_quoted": "你引用了 TA 的这一段",
     "you_wrote": "你写的",
     "anchor_label": "你们已经互相看到的",
@@ -118,6 +127,44 @@
     "title": "我对你了解到的",
     "empty": "随便聊几句，我会在这里记下来。",
     "wants": "想要", "avoids": "避免", "notes": "你的原话", "remove": "移除"
+  },
+  "profile": {
+    "heading_setup": "完善你的资料",
+    "heading_edit": "你的资料",
+    "subhead": "别人看到的就是这一页，原文一字不改。短句、具体、真实——胜过任何漂亮话。Agent 只会读这些，绝不会替你编。",
+    "progress": "第 {{done}} / {{total}} 步",
+    "section": {
+      "vitals": "基本信息",
+      "vitals_hint": "只是事实。被引荐给你的人会看到。",
+      "moments": "至少挑 {{n}} 个，用你自己的话写",
+      "moments_hint": "具体胜过聪明。一句真诚的短句，胜过一段打磨过的话。",
+      "one_work": "最近你在意的一件作品",
+      "one_work_hint": "书、电影、专辑、展览、食物——什么形式都行。一句话写为什么它留下了。"
+    },
+    "f": {
+      "name": "名字",
+      "age": "年龄",
+      "city": "所在城市",
+      "occupation": "你做什么",
+      "work_title": "名字",
+      "work_title_placeholder": "比如：Annie Ernaux《悠悠岁月》",
+      "work_why": "为什么留下了",
+      "work_why_placeholder": "一句话。不是书评。"
+    },
+    "kind": {
+      "book": "书", "film": "电影", "music": "音乐",
+      "exhibition": "展览", "food": "食物", "other": "其他"
+    },
+    "moment": {
+      "placeholder": "点这里开始写……",
+      "remove": "移除"
+    },
+    "done": "完成 — 回首页",
+    "keep_going": "继续填",
+    "done_note": "看上去不错。这里改的任何一句，别人看到的版本会同步更新。",
+    "incomplete_note": "需要基本信息、{{n}} 个 Moment，以及一件你在意的作品。然后 Agent 才能开始介绍人。",
+    "preview_label": "别人看到的你",
+    "preview_hint": "这正是 Matchmaker 引荐给你的人，在右侧画面上会看到的样子。"
   },
   "lang": { "label": "语言", "en": "English", "zh-CN": "中文" },
   "notfound": { "title": "页面未找到", "body": "这里没有这一页。", "home": "返回" },

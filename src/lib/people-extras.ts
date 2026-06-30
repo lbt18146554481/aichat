@@ -1,8 +1,8 @@
 // Side-by-Side activity data, Compass reflections (used for matchmaker
-// affinity scoring), and Moments — keyed by person.id. Merged into the
-// Person objects by people.ts's loader.
+// affinity scoring), Moments, and One Work refs — keyed by person.id.
+// Merged into the Person objects by people.ts's loader.
 
-import type { Activity, Moment, Reflection } from "./types";
+import type { Activity, Moment, OneWorkRef, Reflection } from "./types";
 
 export const ACTIVITIES: Record<string, Activity[]> = {
   isa: [
@@ -117,9 +117,7 @@ export const REFLECTIONS: Record<string, Reflection[]> = {
 };
 
 // Moments — what shows up on the Matchmaker right pane, and what the user
-// quotes from when saying hello. Each is in this person's own voice, on a
-// prompt from MOMENT_PROMPTS in src/lib/questions.ts.
-
+// quotes from when saying hello.
 function m(id: string, promptId: string, answer: string, answer_zh: string): Moment {
   return { id, promptId, answer, answer_zh };
 }
@@ -180,4 +178,48 @@ export const MOMENTS: Record<string, Moment[]> = {
     m("elena-2", "defend", "Dessert is the most honest course. I mean it.", "甜点是最诚实的一道菜。我是认真的。"),
     m("elena-3", "small-thing", "Reading poetry between batches. The bakery doesn't know.", "两炉之间读诗。面包房不知道这件事。"),
   ],
+};
+
+// One Work — a single book / film / album / exhibition / food this person
+// has cared about lately. Shared-taste signal that Moments alone can't
+// carry, and a natural conversation seed.
+export const ONE_WORKS: Record<string, OneWorkRef> = {
+  isa: { kind: "book", title: "The Years — Annie Ernaux",
+    why: "She wrote a whole life in the third person and I still cried at my own.",
+    why_zh: "她用第三人称写完了一整个人生——我却为自己的人生哭了。" },
+  june: { kind: "book", title: "A Pattern Language — Christopher Alexander",
+    why: "It's a book about buildings that taught me how to be with people.",
+    why_zh: "一本讲建筑的书，教会了我怎么和人在一起。" },
+  theo: { kind: "music", title: "Music for Airports — Brian Eno",
+    why: "Music you don't have to listen to is the kind I trust most.",
+    why_zh: "不必专注去听的音乐，是我最信任的那种音乐。" },
+  mira: { kind: "exhibition", title: "Lucie Rie at the V&A",
+    title_zh: "Lucie Rie 在 V&A 的展",
+    why: "Half a century of bowls in one room. You leave wanting to make less and notice more.",
+    why_zh: "半个世纪的碗在同一个房间里。看完想做得更少、看得更多。" },
+  hugo: { kind: "film", title: "Stories We Tell — Sarah Polley",
+    why: "She makes a documentary out of the holes in her own family. I rewatch it like a how-to.",
+    why_zh: "她把自家故事里的空白处拍成了纪录片。我把它当说明书反复看。" },
+  noa: { kind: "book", title: "Being Mortal — Atul Gawande",
+    why: "Changed how I talk to families on hard days. The book I press into colleagues' hands.",
+    why_zh: "改变了我在难的那一天怎么和家属说话。我会塞到同事手里的那本书。" },
+  soren: { kind: "book", title: "Selected Poems — Tomas Tranströmer",
+    why: "Short poems I read between customers. Each one is the right length for one repair.",
+    why_zh: "客人之间读的短诗。每一首正好够修一辆车的时间。" },
+  leo: { kind: "book", title: "Kitchen — Banana Yoshimoto",
+    why: "Small book about grief and a refrigerator. I've sold thirty copies and kept one for myself.",
+    why_zh: "一本关于悲伤和冰箱的小书。卖出去三十本，自己留了一本。" },
+  wren: { kind: "book", title: "Braiding Sweetgrass — Robin Wall Kimmerer",
+    why: "Hope you can act on, not the kind that just feels nice.",
+    why_zh: "能拿来做事的希望，而不是那种听着舒服的。" },
+  kai: { kind: "film", title: "Paterson — Jim Jarmusch",
+    why: "A whole movie about a man writing small poems on a bus route. Felt seen.",
+    why_zh: "一整部电影就是一个男人在公交线路上写小诗。被看见了。" },
+  elena: { kind: "food", title: "Maritozzi at Roscioli, 6am",
+    title_zh: "Roscioli 清晨六点的 Maritozzi",
+    why: "The exact moment the cream goes in. I once walked an hour to be there for it.",
+    why_zh: "奶油挤进去的那一刻。我曾经走一个小时路，就为了赶上。" },
+  amara: { kind: "music", title: "Mama Africa — Miriam Makeba",
+    why: "Music I'd put on at the start of any dinner I host.",
+    why_zh: "请客吃饭一开场我会放的音乐。" },
 };

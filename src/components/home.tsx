@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowUp, MessageCircle, UserSearch, Users } from "lucide-react";
+import { ArrowUp, MessageCircle, UserSearch, Users, UserCircle } from "lucide-react";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { routeIntent } from "@/lib/route-intent";
 import { setSeed, type AgentId } from "@/lib/seed";
 import { hasUnseen, list, rehydrate, subscribe } from "@/lib/connections";
+import { isProfileComplete, loadProfile, profileProgress } from "@/lib/profile";
 
 interface Chip {
   id: AgentId;
@@ -30,20 +31,26 @@ export function Home() {
   const [mounted, setMounted] = useState(false);
   const [connCount, setConnCount] = useState(0);
   const [unseen, setUnseen] = useState(false);
+  const [profileReady, setProfileReady] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 3 });
 
   useEffect(() => { setMounted(true); }, []);
-  useEffect(() => { if (mounted) taRef.current?.focus(); }, [mounted]);
+  useEffect(() => { if (mounted && profileReady) taRef.current?.focus(); }, [mounted, profileReady]);
   useEffect(() => {
     rehydrate();
     const update = () => { setConnCount(list().length); setUnseen(hasUnseen()); };
     update();
     const unsub = subscribe(update);
+    const p = loadProfile();
+    setProfileReady(isProfileComplete(p));
+    setProgress(profileProgress(p));
     return () => { unsub(); };
   }, []);
 
   function submit() {
     const body = text.trim();
     if (!body) return;
+    if (!profileReady) { void navigate({ to: "/profile" }); return; }
     const target: AgentId = selected ?? routeIntent(body);
     setSeed(target, body);
     const to = target === "matchmaker" ? "/matchmaker" : "/side-by-side";
@@ -75,6 +82,14 @@ export function Home() {
                 {unseen && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-foreground" />}
               </Link>
             )}
+            <Link
+              to="/profile"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-foreground/80 hover:text-foreground hover:bg-secondary transition-colors"
+              suppressHydrationWarning
+            >
+              <UserCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
+              <span>{t("home.profile")}</span>
+            </Link>
             <LangSwitcher />
           </div>
         </div>
@@ -89,8 +104,29 @@ export function Home() {
             {t("home.greeting")}
           </h1>
 
+          {/* Profile gate */}
+          {mounted && !profileReady && (
+            <div className="mt-8 rounded-xl border border-foreground/20 bg-secondary/40 px-5 py-4 flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-[13.5px] font-semibold text-foreground">{t("home.gate.title")}</div>
+                <p className="mt-1 text-[12.5px] text-muted-foreground leading-relaxed max-w-md">
+                  {t("home.gate.body")}
+                </p>
+              </div>
+              <Link
+                to="/profile"
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-foreground text-background text-[12.5px] font-medium hover:opacity-90"
+              >
+                {t("home.gate.cta", { done: progress.done, total: progress.total })}
+              </Link>
+            </div>
+          )}
+
           {/* Composer */}
-          <div className="mt-10 rounded-2xl border border-border bg-card shadow-[0_1px_0_rgba(0,0,0,0.02),0_12px_30px_-18px_rgba(0,0,0,0.18)] focus-within:border-foreground/40 transition-colors">
+          <div className={
+            "mt-8 rounded-2xl border border-border bg-card shadow-[0_1px_0_rgba(0,0,0,0.02),0_12px_30px_-18px_rgba(0,0,0,0.18)] focus-within:border-foreground/40 transition-colors " +
+            (profileReady ? "" : "opacity-60")
+          }>
             <div className="px-5 pt-4 pb-2">
               <textarea
                 ref={taRef}
@@ -100,14 +136,14 @@ export function Home() {
                   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
                 }}
                 rows={2}
-                placeholder={mounted ? t("home.placeholder") : ""}
-                className="w-full resize-none bg-transparent outline-none text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground/70"
+                disabled={!profileReady}
+                placeholder={mounted ? (profileReady ? t("home.placeholder") : t("home.placeholder_locked")) : ""}
+                className="w-full resize-none bg-transparent outline-none text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground/70 disabled:cursor-not-allowed"
                 suppressHydrationWarning
               />
             </div>
 
             <div className="px-3 pb-3 pt-1 flex items-center justify-between gap-2">
-              {/* Agent chips */}
               <div className="flex flex-wrap items-center gap-1.5 pl-2">
                 {CHIPS.map((c) => {
                   const active = selected === c.id;
@@ -115,9 +151,10 @@ export function Home() {
                     <button
                       key={c.id}
                       type="button"
+                      disabled={!profileReady}
                       onClick={() => setSelected(active ? null : c.id)}
                       className={[
-                        "group inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] transition-colors",
+                        "group inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] transition-colors disabled:cursor-not-allowed",
                         active
                           ? "border-foreground bg-foreground text-background"
                           : "border-border bg-background text-foreground/80 hover:border-foreground/50 hover:text-foreground",
@@ -135,7 +172,7 @@ export function Home() {
               <button
                 type="button"
                 onClick={submit}
-                disabled={!text.trim()}
+                disabled={!text.trim() || !profileReady}
                 className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-full bg-foreground text-background disabled:opacity-25 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
                 aria-label={t("home.send")}
               >
@@ -144,7 +181,6 @@ export function Home() {
             </div>
           </div>
 
-          {/* Footnote */}
           <p
             className="mt-6 text-center text-[11.5px] text-muted-foreground font-mono uppercase tracking-[0.12em]"
             suppressHydrationWarning

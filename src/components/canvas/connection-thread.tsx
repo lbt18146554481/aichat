@@ -5,7 +5,7 @@ import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import { get, markSeen, send, subscribe, type Connection } from "@/lib/connections";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
-import { loadUnderstanding } from "@/lib/understanding";
+import { loadProfile } from "@/lib/profile";
 
 interface Props { personId: string; }
 
@@ -105,9 +105,9 @@ function HelloAnchor({ conn, person, lang }: {
   const myMoment = person.moments.find((m) => m.id === conn.fromMe.quotedMomentId);
   const myPrompt = myMoment ? getMomentPromptById(myMoment.promptId) : null;
 
-  const u = loadUnderstanding();
+  const profile = loadProfile();
   const userMoment = conn.fromThem
-    ? u.userMoments.find((m) => m.promptId === conn.fromThem!.quotedUserMomentPromptId)
+    ? profile.moments.find((m) => m.promptId === conn.fromThem!.quotedUserMomentPromptId)
     : null;
   const theirPrompt = userMoment ? getMomentPromptById(userMoment.promptId) : null;
 

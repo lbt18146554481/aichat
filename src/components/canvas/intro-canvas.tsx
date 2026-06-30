@@ -7,6 +7,7 @@ import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
 import type { MatchmakerState } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
+import { loadProfile } from "@/lib/profile";
 
 interface Props {
   state: MatchmakerState;
@@ -49,7 +50,9 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
 
   const loc = localized(person, lang);
   const moments = person.moments;
-  const userHasMoments = state.understanding.userMoments.length > 0;
+  const profile = loadProfile();
+  const userHasMoments = profile.moments.filter((m) => m.answer.trim().length > 0).length > 0;
+  const work = person.oneWork;
 
   function handleHello(quotedMomentId: string, reply: string) {
     sayHello(person!.id, { quotedMomentId, reply });
@@ -105,6 +108,21 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
             );
           })}
         </div>
+
+        {/* One Work — a single thing this person cares about */}
+        {work && (
+          <div className="mt-7 rounded-lg border border-border bg-card px-3.5 py-3">
+            <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
+              {t("intro.one_work_label", { kind: t(`profile.kind.${work.kind}`) })}
+            </div>
+            <div className="text-[14px] font-medium text-foreground leading-snug">
+              {lang === "zh-CN" && work.title_zh ? work.title_zh : work.title}
+            </div>
+            <p className="mt-1 text-[12.5px] text-muted-foreground leading-relaxed">
+              {lang === "zh-CN" ? work.why_zh : work.why}
+            </p>
+          </div>
+        )}
 
         {/* Secondary */}
         {!composing && !conn && (

@@ -6,13 +6,20 @@
   "home": {
     "greeting": "Tonight, how do you want to meet someone?",
     "placeholder": "Say it in your own words — who you'd like to meet, or what you'd love to do with someone…",
+    "placeholder_locked": "Set up your profile first — the Agent needs to know you before it can introduce anyone.",
     "send": "Send",
     "agents_footnote": "Two agents working in the background",
     "chip": {
       "intro": "Introduce someone",
       "together": "Do something together"
     },
-    "connections": "Connections"
+    "connections": "Connections",
+    "profile": "You",
+    "gate": {
+      "title": "The Agents need to know you first.",
+      "body": "Kindred shows people the words you write — not labels we infer. Take five minutes to set up your profile, then come back.",
+      "cta": "Set up profile · {{done}}/{{total}}"
+    }
   },
   "agents": {
     "matchmaker": {
@@ -33,7 +40,8 @@
     "reset": "Start over",
     "subtitle": "AI Agent",
     "letters": "Letters",
-    "connections": "Connections"
+    "connections": "Connections",
+    "profile": "Profile"
   },
   "chat": {
     "placeholder_first": "Tell me about who you're looking for…",
@@ -44,7 +52,8 @@
   "intro": {
     "empty_title": "I'll introduce one person here.",
     "empty_hint": "Not a list — one person at a time, with a reason. Tell me what you're looking for on the left.",
-    "another_person": "Someone else"
+    "another_person": "Someone else",
+    "one_work_label": "One {{kind}} that matters to them"
   },
   "moment": {
     "about_them": "Three small things about {{name}}",
@@ -54,7 +63,7 @@
     "reply_hint": "They'll see only this and the one you picked. Not your name yet, not your photo. If they don't reply, they never know you saw them.",
     "send_hello": "Send hello",
     "cancel": "Cancel",
-    "need_user_moments": "Heads up: you haven't told the Matchmaker much about yourself yet. If they say hello back, they won't have anything of yours to read. Reply to the left and the Agent will ask.",
+    "need_user_moments": "Heads up: your profile is thin. If they say hello back, they won't have anything of yours to read. Edit your profile to add a Moment or two.",
     "you_quoted": "You read this from them",
     "you_wrote": "You wrote",
     "anchor_label": "What you've already seen of each other",
@@ -123,6 +132,44 @@
     "avoids": "Avoids",
     "notes": "From your words",
     "remove": "remove"
+  },
+  "profile": {
+    "heading_setup": "Set up your profile",
+    "heading_edit": "Your profile",
+    "subhead": "This is exactly how others see you. Write it in your own words — short, specific, true. The Agents read this, they never invent it.",
+    "progress": "Step {{done}} of {{total}}",
+    "section": {
+      "vitals": "The basics",
+      "vitals_hint": "Just the facts. Anyone you're introduced to will see these.",
+      "moments": "Pick at least {{n}} and answer in your own words",
+      "moments_hint": "Specific beats clever. A short, true sentence beats a polished paragraph.",
+      "one_work": "One thing you've cared about lately",
+      "one_work_hint": "A book, film, album, exhibition, meal — any form. One line on why it stuck."
+    },
+    "f": {
+      "name": "Name",
+      "age": "Age",
+      "city": "City",
+      "occupation": "What you do",
+      "work_title": "Title",
+      "work_title_placeholder": "e.g. The Years — Annie Ernaux",
+      "work_why": "Why it stuck",
+      "work_why_placeholder": "One sentence. Not a review."
+    },
+    "kind": {
+      "book": "Book", "film": "Film", "music": "Music",
+      "exhibition": "Exhibition", "food": "Food", "other": "Other"
+    },
+    "moment": {
+      "placeholder": "Tap to write…",
+      "remove": "Remove"
+    },
+    "done": "Done — back to home",
+    "keep_going": "Keep going",
+    "done_note": "Looks good. Anything you change here is reflected immediately in how others see you.",
+    "incomplete_note": "You need the basics, {{n}} Moments, and one thing you care about. Then the Agents can introduce you.",
+    "preview_label": "How others see you",
+    "preview_hint": "This is exactly what someone the Matchmaker introduces will see on the right pane."
   },
   "lang": { "label": "Language", "en": "English", "zh-CN": "中文" },
   "notfound": { "title": "Not found", "body": "That page isn't here.", "home": "Back" },

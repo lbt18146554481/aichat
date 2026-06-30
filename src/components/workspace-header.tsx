@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, MessageCircle, RotateCcw } from "lucide-react";
+import { ArrowLeft, MessageCircle, RotateCcw, UserCircle } from "lucide-react";
 import { LangSwitcher } from "./lang-switcher";
 import { hasUnseen, list, subscribe } from "@/lib/connections";
 
@@ -56,6 +56,14 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
               {unseen && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-foreground" />}
             </Link>
           )}
+          <Link
+            to="/profile"
+            aria-label={t("header.profile")}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            <UserCircle className="w-3.5 h-3.5" />
+            <span>{t("header.profile")}</span>
+          </Link>
           {onReset && (
             <button
               onClick={onReset}
