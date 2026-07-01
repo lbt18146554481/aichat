@@ -19,7 +19,9 @@
       "title": "The Agents need to know you first.",
       "body": "Kindred shows people the words you write — not labels we infer. Take five minutes to set up your profile, then come back.",
       "cta": "Set up profile · {{done}}/{{total}}"
-    }
+    },
+    "profile_nudge": "So the Agents can introduce you too —",
+    "profile_nudge_cta": "set up profile · {{done}}/{{total}}"
   },
   "agents": {
     "matchmaker": {
