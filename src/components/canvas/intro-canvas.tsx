@@ -69,6 +69,14 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
     setComposing(false);
   }
 
+  function requestSayHello() {
+    if (!isProfileComplete(loadProfile())) {
+      setGateOpen(true);
+      return;
+    }
+    setComposing(true);
+  }
+
   return (
     <div className="h-full px-8 py-10">
       <div className="mx-auto max-w-md">
