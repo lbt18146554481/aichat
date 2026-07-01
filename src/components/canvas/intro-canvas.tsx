@@ -235,7 +235,8 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
             <button
               onClick={() => {
                 setGateOpen(false);
-                void navigate({ to: "/profile", search: { return: "/matchmaker" } });
+                try { window.sessionStorage.setItem("kindred:profile:return", "/matchmaker"); } catch { /* noop */ }
+                void navigate({ to: "/profile" });
               }}
               className="px-4 py-1.5 rounded-md bg-foreground text-background text-[12.5px] font-medium hover:opacity-90 transition-opacity"
             >
