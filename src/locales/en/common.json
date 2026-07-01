@@ -86,6 +86,14 @@
     "pick_one": "Pick a conversation on the left.",
     "composer_placeholder": "Write something…"
   },
+  "hello": {
+    "gate": {
+      "title": "Let them see you, not keywords.",
+      "body": "If they reply, what they'll read is your profile. Take two minutes to fill it in, then come back to say hello.",
+      "cta": "Set it up (≈2 min)",
+      "later": "Later"
+    }
+  },
   "meet": {
     "label": "Proposed meet",
     "title": "A real meet — if you both want it.",
