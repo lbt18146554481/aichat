@@ -19,7 +19,9 @@
       "title": "Agent 需要先认识你。",
       "body": "Kindred 给别人看的是你亲手写下的字，不是我们替你归纳的标签。花五分钟把资料填完，然后再回来。",
       "cta": "去填资料 · {{done}}/{{total}}"
-    }
+    },
+    "profile_nudge": "让 Agent 也能这样介绍你 ——",
+    "profile_nudge_cta": "完善资料 · {{done}}/{{total}}"
   },
   "agents": {
     "matchmaker": {
