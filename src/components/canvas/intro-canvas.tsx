@@ -25,12 +25,14 @@ interface Props {
 
 export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const person = state.currentPersonId ? getPersonById(state.currentPersonId) : null;
   const [conn, setConn] = useState<Connection | null>(
     person ? get(person.id) : null,
   );
   const [composing, setComposing] = useState(false);
+  const [gateOpen, setGateOpen] = useState(false);
 
   useEffect(() => {
     setConn(person ? get(person.id) : null);
