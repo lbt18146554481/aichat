@@ -232,7 +232,15 @@ function ProfilePage() {
             {complete ? t("profile.done_note") : t("profile.incomplete_note", { n: MIN_MOMENTS })}
           </p>
           <button
-            onClick={() => void navigate({ to: "/" })}
+            onClick={() => {
+              let dest: "/" | "/matchmaker" | "/side-by-side" | "/connections" = "/";
+              try {
+                const r = window.sessionStorage.getItem("kindred:profile:return");
+                if (r === "/matchmaker" || r === "/side-by-side" || r === "/connections") dest = r;
+                window.sessionStorage.removeItem("kindred:profile:return");
+              } catch { /* noop */ }
+              void navigate({ to: dest });
+            }}
             disabled={!complete}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
           >
