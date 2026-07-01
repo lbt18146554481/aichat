@@ -35,7 +35,7 @@ export function Home() {
   const [progress, setProgress] = useState({ done: 0, total: 3 });
 
   useEffect(() => { setMounted(true); }, []);
-  useEffect(() => { if (mounted && profileReady) taRef.current?.focus(); }, [mounted, profileReady]);
+  useEffect(() => { if (mounted) taRef.current?.focus(); }, [mounted]);
   useEffect(() => {
     rehydrate();
     const update = () => { setConnCount(list().length); setUnseen(hasUnseen()); };
@@ -50,7 +50,6 @@ export function Home() {
   function submit() {
     const body = text.trim();
     if (!body) return;
-    if (!profileReady) { void navigate({ to: "/profile" }); return; }
     const target: AgentId = selected ?? routeIntent(body);
     setSeed(target, body);
     const to = target === "matchmaker" ? "/matchmaker" : "/side-by-side";
@@ -78,17 +77,16 @@ export function Home() {
                 className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-foreground/80 hover:text-foreground hover:bg-secondary transition-colors"
               >
                 <MessageCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
-                <span>{t("home.connections")}</span>
+                <span suppressHydrationWarning>{mounted ? t("home.connections") : ""}</span>
                 {unseen && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-foreground" />}
               </Link>
             )}
             <Link
               to="/profile"
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-foreground/80 hover:text-foreground hover:bg-secondary transition-colors"
-              suppressHydrationWarning
             >
               <UserCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
-              <span>{t("home.profile")}</span>
+              <span suppressHydrationWarning>{mounted ? t("home.profile") : ""}</span>
             </Link>
             <LangSwitcher />
           </div>
@@ -104,29 +102,8 @@ export function Home() {
             {t("home.greeting")}
           </h1>
 
-          {/* Profile gate */}
-          {mounted && !profileReady && (
-            <div className="mt-8 rounded-xl border border-foreground/20 bg-secondary/40 px-5 py-4 flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <div className="text-[13.5px] font-semibold text-foreground">{t("home.gate.title")}</div>
-                <p className="mt-1 text-[12.5px] text-muted-foreground leading-relaxed max-w-md">
-                  {t("home.gate.body")}
-                </p>
-              </div>
-              <Link
-                to="/profile"
-                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-foreground text-background text-[12.5px] font-medium hover:opacity-90"
-              >
-                {t("home.gate.cta", { done: progress.done, total: progress.total })}
-              </Link>
-            </div>
-          )}
-
-          {/* Composer */}
-          <div className={
-            "mt-8 rounded-2xl border border-border bg-card shadow-[0_1px_0_rgba(0,0,0,0.02),0_12px_30px_-18px_rgba(0,0,0,0.18)] focus-within:border-foreground/40 transition-colors " +
-            (profileReady ? "" : "opacity-60")
-          }>
+          {/* Composer — always usable */}
+          <div className="mt-8 rounded-2xl border border-border bg-card shadow-[0_1px_0_rgba(0,0,0,0.02),0_12px_30px_-18px_rgba(0,0,0,0.18)] focus-within:border-foreground/40 transition-colors">
             <div className="px-5 pt-4 pb-2">
               <textarea
                 ref={taRef}
@@ -136,9 +113,8 @@ export function Home() {
                   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
                 }}
                 rows={2}
-                disabled={!profileReady}
-                placeholder={mounted ? (profileReady ? t("home.placeholder") : t("home.placeholder_locked")) : ""}
-                className="w-full resize-none bg-transparent outline-none text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground/70 disabled:cursor-not-allowed"
+                placeholder={mounted ? t("home.placeholder") : ""}
+                className="w-full resize-none bg-transparent outline-none text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground/70"
                 suppressHydrationWarning
               />
             </div>
@@ -151,10 +127,9 @@ export function Home() {
                     <button
                       key={c.id}
                       type="button"
-                      disabled={!profileReady}
                       onClick={() => setSelected(active ? null : c.id)}
                       className={[
-                        "group inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] transition-colors disabled:cursor-not-allowed",
+                        "group inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] transition-colors",
                         active
                           ? "border-foreground bg-foreground text-background"
                           : "border-border bg-background text-foreground/80 hover:border-foreground/50 hover:text-foreground",
@@ -172,7 +147,7 @@ export function Home() {
               <button
                 type="button"
                 onClick={submit}
-                disabled={!text.trim() || !profileReady}
+                disabled={!text.trim()}
                 className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-full bg-foreground text-background disabled:opacity-25 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
                 aria-label={t("home.send")}
               >
@@ -180,6 +155,19 @@ export function Home() {
               </button>
             </div>
           </div>
+
+          {/* Light nudge — only if profile is incomplete */}
+          {mounted && !profileReady && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-[11.5px] text-muted-foreground">
+              <span>{t("home.profile_nudge")}</span>
+              <Link
+                to="/profile"
+                className="underline decoration-dotted underline-offset-2 hover:text-foreground"
+              >
+                {t("home.profile_nudge_cta", { done: progress.done, total: progress.total })}
+              </Link>
+            </div>
+          )}
 
           <p
             className="mt-6 text-center text-[11.5px] text-muted-foreground font-mono uppercase tracking-[0.12em]"
