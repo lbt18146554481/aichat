@@ -1,13 +1,21 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
 import type { MatchmakerState } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
-import { loadProfile } from "@/lib/profile";
+import { isProfileComplete, loadProfile } from "@/lib/profile";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Props {
   state: MatchmakerState;
@@ -17,12 +25,14 @@ interface Props {
 
 export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const person = state.currentPersonId ? getPersonById(state.currentPersonId) : null;
   const [conn, setConn] = useState<Connection | null>(
     person ? get(person.id) : null,
   );
   const [composing, setComposing] = useState(false);
+  const [gateOpen, setGateOpen] = useState(false);
 
   useEffect(() => {
     setConn(person ? get(person.id) : null);
@@ -57,6 +67,14 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
   function handleHello(quotedMomentId: string, reply: string) {
     sayHello(person!.id, { quotedMomentId, reply });
     setComposing(false);
+  }
+
+  function requestSayHello() {
+    if (!isProfileComplete(loadProfile())) {
+      setGateOpen(true);
+      return;
+    }
+    setComposing(true);
   }
 
   return (
@@ -141,7 +159,7 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
           {!conn && !composing && (
             <div className="flex flex-wrap items-center gap-3">
               <button
-                onClick={() => setComposing(true)}
+                onClick={requestSayHello}
                 disabled={moments.length === 0}
                 className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
               >
@@ -198,6 +216,35 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
           )}
         </div>
       </div>
+
+      <Dialog open={gateOpen} onOpenChange={setGateOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-[15px] font-semibold">{t("hello.gate.title")}</DialogTitle>
+            <DialogDescription className="text-[13px] leading-relaxed">
+              {t("hello.gate.body")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <button
+              onClick={() => setGateOpen(false)}
+              className="px-3 py-1.5 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t("hello.gate.later")}
+            </button>
+            <button
+              onClick={() => {
+                setGateOpen(false);
+                try { window.sessionStorage.setItem("kindred:profile:return", "/matchmaker"); } catch { /* noop */ }
+                void navigate({ to: "/profile" });
+              }}
+              className="px-4 py-1.5 rounded-md bg-foreground text-background text-[12.5px] font-medium hover:opacity-90 transition-opacity"
+            >
+              {t("hello.gate.cta")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

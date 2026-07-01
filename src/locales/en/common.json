@@ -19,7 +19,9 @@
       "title": "The Agents need to know you first.",
       "body": "Kindred shows people the words you write — not labels we infer. Take five minutes to set up your profile, then come back.",
       "cta": "Set up profile · {{done}}/{{total}}"
-    }
+    },
+    "profile_nudge": "So the Agents can introduce you too —",
+    "profile_nudge_cta": "set up profile · {{done}}/{{total}}"
   },
   "agents": {
     "matchmaker": {
@@ -83,6 +85,14 @@
     "empty": "No one yet. Say hello to someone from the Matchmaker and they'll show up here.",
     "pick_one": "Pick a conversation on the left.",
     "composer_placeholder": "Write something…"
+  },
+  "hello": {
+    "gate": {
+      "title": "Let them see you, not keywords.",
+      "body": "If they reply, what they'll read is your profile. Take two minutes to fill it in, then come back to say hello.",
+      "cta": "Set it up (≈2 min)",
+      "later": "Later"
+    }
   },
   "meet": {
     "label": "Proposed meet",
