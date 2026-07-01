@@ -159,7 +159,7 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
           {!conn && !composing && (
             <div className="flex flex-wrap items-center gap-3">
               <button
-                onClick={() => setComposing(true)}
+                onClick={requestSayHello}
                 disabled={moments.length === 0}
                 className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
               >
