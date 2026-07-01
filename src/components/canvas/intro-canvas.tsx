@@ -216,6 +216,34 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
           )}
         </div>
       </div>
+
+      <Dialog open={gateOpen} onOpenChange={setGateOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-[15px] font-semibold">{t("hello.gate.title")}</DialogTitle>
+            <DialogDescription className="text-[13px] leading-relaxed">
+              {t("hello.gate.body")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <button
+              onClick={() => setGateOpen(false)}
+              className="px-3 py-1.5 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t("hello.gate.later")}
+            </button>
+            <button
+              onClick={() => {
+                setGateOpen(false);
+                void navigate({ to: "/profile", search: { return: "/matchmaker" } });
+              }}
+              className="px-4 py-1.5 rounded-md bg-foreground text-background text-[12.5px] font-medium hover:opacity-90 transition-opacity"
+            >
+              {t("hello.gate.cta")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
