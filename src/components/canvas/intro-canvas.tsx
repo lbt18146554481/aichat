@@ -97,8 +97,6 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
 
   const loc = localized(person, lang);
   const moments = person.moments;
-  const profile = loadProfile();
-  const userHasMoments = profile.moments.filter((m) => m.answer.trim().length > 0).length > 0;
   const work = person.oneWork;
 
   function requestSayHello() {
@@ -113,7 +111,7 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
     setComposing(true);
   }
 
-  function handleHello(quotedMomentId: string, reply: string) {
+  function handleHello(quotedMomentId: string | null, reply: string) {
     sayHello(person!.id, { quotedMomentId, reply });
     setComposing(false);
     setDraftPicked(null);
@@ -153,18 +151,21 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
           </div>
         </div>
 
-        {/* Moments */}
+        {/* Moments — clickable while composing to attach an optional quote */}
         <div className="mt-7 space-y-4">
           <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
-            {t("moment.about_them", { name: loc.name })}
+            {composing
+              ? t("moment.compose_hint")
+              : t("moment.about_them", { name: loc.name })}
           </div>
           {moments.length === 0 && (
             <p className="text-[13px] text-muted-foreground italic">{loc.portrait}</p>
           )}
           {moments.map((m) => {
             const prompt = getMomentPromptById(m.promptId);
-            return (
-              <article key={m.id} className="border-l-2 border-border pl-3">
+            const active = composing && draftPicked === m.id;
+            const content = (
+              <>
                 {prompt && (
                   <div className="text-[11px] text-muted-foreground italic leading-snug mb-1">
                     {localizedMomentPrompt(prompt, lang)}
@@ -173,6 +174,26 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
                 <p className="text-[14.5px] leading-[1.65] text-foreground">
                   {lang === "zh-CN" ? m.answer_zh : m.answer}
                 </p>
+              </>
+            );
+            if (composing) {
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setDraftPicked(active ? null : m.id)}
+                  className={[
+                    "block w-full text-left border-l-2 pl-3 transition-colors",
+                    active ? "border-foreground" : "border-border hover:border-foreground/50",
+                  ].join(" ")}
+                >
+                  {content}
+                </button>
+              );
+            }
+            return (
+              <article key={m.id} className="border-l-2 border-border pl-3">
+                {content}
               </article>
             );
           })}
@@ -229,25 +250,18 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
           )}
 
           {!conn && composing && (
-            <>
-              {!userHasMoments && (
-                <p className="mb-3 text-[12px] text-muted-foreground leading-snug border-l-2 border-border pl-3">
-                  {t("moment.need_user_moments")}
-                </p>
-              )}
-              <HelloComposer
-                moments={moments}
-                lang={lang}
-                initialPicked={draftPicked}
-                initialReply={draftReply}
-                onDraftChange={(picked, reply) => {
-                  setDraftPicked(picked);
-                  setDraftReply(reply);
-                }}
-                onSubmit={handleHello}
-                onCancel={handleCancel}
-              />
-            </>
+            <HelloComposer
+              moments={moments}
+              lang={lang}
+              initialPicked={draftPicked}
+              initialReply={draftReply}
+              onDraftChange={(picked, reply) => {
+                setDraftPicked(picked);
+                setDraftReply(reply);
+              }}
+              onSubmit={handleHello}
+              onCancel={handleCancel}
+            />
           )}
 
           {conn?.status === "waiting" && (

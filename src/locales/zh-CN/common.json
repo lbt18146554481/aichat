@@ -68,7 +68,11 @@
     "you_wrote": "你写的",
     "anchor_label": "你们已经互相看到的",
     "you_to_them": "你—给 TA",
-    "them_to_you": "TA—给你"
+    "them_to_you": "TA—给你",
+    "compose_hint": "想聊哪一段？点一下引用（可选）。",
+    "reply_placeholder_open": "想对 TA 说的第一句话……",
+    "reply_placeholder_quoted": "回应这一段……",
+    "remove_quote": "取消引用"
   },
   "connection": {
     "title": "我的联系",

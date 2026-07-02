@@ -70,7 +70,11 @@
     "you_wrote": "You wrote",
     "anchor_label": "What you've already seen of each other",
     "you_to_them": "You — to them",
-    "them_to_you": "Them — to you"
+    "them_to_you": "Them — to you",
+    "compose_hint": "Which one do you want to reply to? Tap one — optional.",
+    "reply_placeholder_open": "The first thing you want to say to them…",
+    "reply_placeholder_quoted": "Reply to this moment…",
+    "remove_quote": "Remove quote"
   },
   "connection": {
     "title": "Connections",
