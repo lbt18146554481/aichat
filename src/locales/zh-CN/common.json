@@ -90,8 +90,9 @@
       "body": "别人看到的是你亲手写下的字。填一点或填满都行——随时保存，随时回来。",
       "cta": "去完善",
       "later": "以后再说",
-      "return_hint": "填完这些，再回去打招呼。",
-      "return_cta": "回去打招呼"
+      "return_hint": "改动会自动保存，随时点左上角回去打招呼。",
+      "back_to_matchmaker": "返回牵线人",
+      "back_to_sidebyside": "返回并肩人"
     }
   },
 
