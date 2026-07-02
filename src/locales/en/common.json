@@ -92,8 +92,9 @@
       "body": "What others read is written in your own words. Fill in a little or a lot — it saves as you type.",
       "cta": "Set it up",
       "later": "Later",
-      "return_hint": "Finish this up, then head back to say hello.",
-      "return_cta": "Back to say hello"
+      "return_hint": "Changes save as you type — hit the back arrow whenever you're ready.",
+      "back_to_matchmaker": "Back to Matchmaker",
+      "back_to_sidebyside": "Back to Side by Side"
     }
   },
 
