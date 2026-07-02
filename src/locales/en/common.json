@@ -92,8 +92,9 @@
       "body": "What others read is written in your own words. Fill in a little or a lot — it saves as you type.",
       "cta": "Set it up",
       "later": "Later",
-      "return_hint": "Finish this up, then head back to say hello.",
-      "return_cta": "Back to say hello"
+      "return_hint": "Changes save as you type — hit the back arrow whenever you're ready.",
+      "back_to_matchmaker": "Back to Matchmaker",
+      "back_to_sidebyside": "Back to Side by Side"
     }
   },
 
@@ -178,11 +179,11 @@
       "remove": "Remove"
     },
     "done": "Done — back to home",
-    "done_generic": "Done",
     "keep_going": "Keep going",
     "done_note": "Looks good. Anything you change here is reflected immediately in how others see you.",
     "incomplete_note": "Whatever you've filled is saved — come back anytime to add more.",
     "autosave_hint": "Saves as you type. Stop anytime, pick up later.",
+    "autosaved_status": "Autosaved · leave anytime",
     "preview_label": "How others see you",
     "preview_hint": "This is exactly what someone the Matchmaker introduces will see on the right pane."
 
