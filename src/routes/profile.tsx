@@ -1,7 +1,7 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
 import { loadProfile, profileProgress } from "@/lib/profile";
 import { LangSwitcher } from "@/components/lang-switcher";
@@ -36,7 +36,7 @@ function ProfilePage() {
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
-  function finish() {
+  function handleBack() {
     let back: string | null = null;
     try {
       back = window.sessionStorage.getItem("kindred:profile:return");
@@ -49,17 +49,29 @@ function ProfilePage() {
 
   if (!hydrated) return <div className="min-h-screen bg-background" />;
 
+  const backLabel =
+    returnTo === "/matchmaker"
+      ? t("hello.gate.back_to_matchmaker")
+      : returnTo === "/side-by-side"
+      ? t("hello.gate.back_to_sidebyside")
+      : "Kindred";
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-background/90 backdrop-blur sticky top-0 z-30">
         <div className="max-w-3xl mx-auto px-5 h-14 flex items-center justify-between gap-3">
-          <Link to="/" className="inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground">
+          <button
+            onClick={handleBack}
+            className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground cursor-pointer"
+          >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="font-mono uppercase tracking-wide">Kindred</span>
-          </Link>
+            <span className={returnTo ? "" : "font-mono uppercase tracking-wide"}>
+              {backLabel}
+            </span>
+          </button>
           <div className="flex items-center gap-3">
-            <span className="text-[11px] font-mono uppercase tracking-wide text-muted-foreground tabular-nums">
-              {t("profile.progress", { done: progress.done, total: progress.total })}
+            <span className="text-[11px] text-muted-foreground">
+              {t("profile.autosaved_status")}
             </span>
             <LangSwitcher />
           </div>
@@ -82,22 +94,12 @@ function ProfilePage() {
           <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed max-w-xl">
             {t("profile.subhead")}
           </p>
-          <p className="mt-2 text-[12px] text-muted-foreground leading-relaxed max-w-xl">
-            {t("profile.autosave_hint")}
+          <p className="mt-2 text-[11px] font-mono uppercase tracking-wide text-muted-foreground tabular-nums">
+            {t("profile.progress", { done: progress.done, total: progress.total })}
           </p>
         </div>
 
         <ProfileForm lang={lang} />
-
-        <section className="pt-4 border-t border-border flex flex-wrap items-center justify-end gap-3">
-          <button
-            onClick={finish}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90"
-          >
-            <Check className="w-3.5 h-3.5" />
-            {returnTo ? t("hello.gate.return_cta") : t("profile.done_generic")}
-          </button>
-        </section>
       </main>
     </div>
   );
