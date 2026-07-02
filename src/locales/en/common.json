@@ -91,12 +91,10 @@
       "title": "Let them see you, not keywords.",
       "body": "What others read is written in your own words. Fill in a little or a lot — it saves as you type.",
       "cta": "Set it up",
-      "later": "Later"
-    },
-    "name_inline_label": "You'll appear as",
-    "name_inline_placeholder": "Just a name is enough",
-    "name_inline_hint": "If they reply, this is what they'll see first. You can add more anytime.",
-    "nudge_while_waiting": "While you wait, let them see more of you · ~2 min"
+      "later": "Later",
+      "return_hint": "Finish this up, then head back to say hello.",
+      "return_cta": "Back to say hello"
+    }
   },
 
   "meet": {

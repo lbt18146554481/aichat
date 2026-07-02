@@ -1,14 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
 import type { MatchmakerState } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
-import { ProfileSheet } from "@/components/profile-sheet";
-import { isProfileComplete, loadProfile, profileProgress } from "@/lib/profile";
+import { hasName, isVitalsComplete, loadProfile } from "@/lib/profile";
 
 interface Props {
   state: MatchmakerState;
@@ -16,24 +15,69 @@ interface Props {
   onPass: () => void;
 }
 
+// Per-person composer draft — survives a jump to /profile and back so the
+// user never loses the reply they were writing.
+interface IntroDraft { composing: boolean; picked: string | null; reply: string }
+const draftKey = (personId: string) => `kindred:intro:draft:${personId}`;
+function loadDraft(personId: string): IntroDraft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(draftKey(personId));
+    return raw ? (JSON.parse(raw) as IntroDraft) : null;
+  } catch { return null; }
+}
+function saveDraft(personId: string, d: IntroDraft) {
+  if (typeof window === "undefined") return;
+  try { window.sessionStorage.setItem(draftKey(personId), JSON.stringify(d)); } catch { /* noop */ }
+}
+function clearDraft(personId: string) {
+  if (typeof window === "undefined") return;
+  try { window.sessionStorage.removeItem(draftKey(personId)); } catch { /* noop */ }
+}
+
 export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const navigate = useNavigate();
   const person = state.currentPersonId ? getPersonById(state.currentPersonId) : null;
   const [conn, setConn] = useState<Connection | null>(
     person ? get(person.id) : null,
   );
   const [composing, setComposing] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [profileVersion, setProfileVersion] = useState(0); // bump to re-read after sheet closes
+  const [draftPicked, setDraftPicked] = useState<string | null>(null);
+  const [draftReply, setDraftReply] = useState("");
+  const restoredRef = useRef<string | null>(null);
 
   useEffect(() => {
     setConn(person ? get(person.id) : null);
-    setComposing(false);
+    // Restore composer draft for this person (if any).
+    if (person) {
+      const d = loadDraft(person.id);
+      if (d) {
+        setComposing(d.composing);
+        setDraftPicked(d.picked);
+        setDraftReply(d.reply);
+      } else {
+        setComposing(false);
+        setDraftPicked(null);
+        setDraftReply("");
+      }
+      restoredRef.current = person.id;
+    }
     const unsub = subscribe(() => setConn(person ? get(person.id) : null));
     return () => { unsub(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id]);
+
+  // Persist draft whenever it changes (only after restore has run).
+  useEffect(() => {
+    if (!person || restoredRef.current !== person.id) return;
+    if (!composing && !draftPicked && !draftReply) {
+      clearDraft(person.id);
+      return;
+    }
+    saveDraft(person.id, { composing, picked: draftPicked, reply: draftReply });
+  }, [person, composing, draftPicked, draftReply]);
 
   if (!person) {
     return (
@@ -55,13 +99,33 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
   const moments = person.moments;
   const profile = loadProfile();
   const userHasMoments = profile.moments.filter((m) => m.answer.trim().length > 0).length > 0;
-  const profileComplete = isProfileComplete(profile);
-  const progress = profileProgress(profile);
   const work = person.oneWork;
+
+  function requestSayHello() {
+    const p = loadProfile();
+    if (!hasName(p) || !isVitalsComplete(p)) {
+      try {
+        window.sessionStorage.setItem("kindred:profile:return", "/matchmaker");
+      } catch { /* noop */ }
+      void navigate({ to: "/profile" });
+      return;
+    }
+    setComposing(true);
+  }
 
   function handleHello(quotedMomentId: string, reply: string) {
     sayHello(person!.id, { quotedMomentId, reply });
     setComposing(false);
+    setDraftPicked(null);
+    setDraftReply("");
+    clearDraft(person!.id);
+  }
+
+  function handleCancel() {
+    setComposing(false);
+    setDraftPicked(null);
+    setDraftReply("");
+    clearDraft(person!.id);
   }
 
   return (
@@ -146,7 +210,7 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
           {!conn && !composing && (
             <div className="flex flex-wrap items-center gap-3">
               <button
-                onClick={() => setComposing(true)}
+                onClick={requestSayHello}
                 disabled={moments.length === 0}
                 className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
               >
@@ -172,11 +236,16 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
                 </p>
               )}
               <HelloComposer
-                key={profileVersion}
                 moments={moments}
                 lang={lang}
+                initialPicked={draftPicked}
+                initialReply={draftReply}
+                onDraftChange={(picked, reply) => {
+                  setDraftPicked(picked);
+                  setDraftReply(reply);
+                }}
                 onSubmit={handleHello}
-                onCancel={() => setComposing(false)}
+                onCancel={handleCancel}
               />
             </>
           )}
@@ -188,19 +257,6 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
                 {t("connection.waiting")}
               </div>
               <YourHelloRecap conn={conn} person={person} lang={lang} />
-              {!profileComplete && (
-                <button
-                  onClick={() => setSheetOpen(true)}
-                  className="w-full text-left px-3 py-2.5 rounded-lg border border-dashed border-border hover:border-foreground/40 hover:bg-secondary/40 transition-colors"
-                >
-                  <div className="text-[12.5px] text-foreground leading-snug">
-                    {t("hello.nudge_while_waiting")}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5 font-mono tabular-nums">
-                    {t("profile.progress", { done: progress.done, total: progress.total })}
-                  </div>
-                </button>
-              )}
             </div>
           )}
 
@@ -217,15 +273,6 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
           )}
         </div>
       </div>
-
-      <ProfileSheet
-        open={sheetOpen}
-        onOpenChange={(o) => {
-          setSheetOpen(o);
-          if (!o) setProfileVersion((v) => v + 1);
-        }}
-        lang={lang}
-      />
     </div>
   );
 }

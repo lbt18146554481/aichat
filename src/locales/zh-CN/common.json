@@ -89,12 +89,10 @@
       "title": "让 TA 看到你，而不是关键词。",
       "body": "别人看到的是你亲手写下的字。填一点或填满都行——随时保存，随时回来。",
       "cta": "去完善",
-      "later": "以后再说"
-    },
-    "name_inline_label": "你会以什么名字出现",
-    "name_inline_placeholder": "只填一个名字就够",
-    "name_inline_hint": "如果 TA 回应，TA 会先看到这个名字。之后你可以随时再补充其他内容。",
-    "nudge_while_waiting": "在等 TA 的时候，让 TA 看到更多的你 · 约 2 分钟"
+      "later": "以后再说",
+      "return_hint": "填完这些，再回去打招呼。",
+      "return_cta": "回去打招呼"
+    }
   },
 
   "meet": {

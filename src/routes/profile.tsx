@@ -23,16 +23,29 @@ function ProfilePage() {
   const navigate = useNavigate();
   const [progress, setProgress] = useState({ done: 0, total: 3 });
   const [hydrated, setHydrated] = useState(false);
+  const [returnTo, setReturnTo] = useState<string | null>(null);
 
   useEffect(() => {
     setProgress(profileProgress(loadProfile()));
+    try {
+      setReturnTo(window.sessionStorage.getItem("kindred:profile:return"));
+    } catch { /* noop */ }
     setHydrated(true);
-    // Refresh progress on focus (form saves on every keystroke; this keeps
-    // the header badge in sync if the user tabs away and back).
     const onFocus = () => setProgress(profileProgress(loadProfile()));
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
+
+  function finish() {
+    let back: string | null = null;
+    try {
+      back = window.sessionStorage.getItem("kindred:profile:return");
+      window.sessionStorage.removeItem("kindred:profile:return");
+    } catch { /* noop */ }
+    if (back === "/matchmaker") void navigate({ to: "/matchmaker" });
+    else if (back === "/side-by-side") void navigate({ to: "/side-by-side" });
+    else void navigate({ to: "/" });
+  }
 
   if (!hydrated) return <div className="min-h-screen bg-background" />;
 
@@ -53,6 +66,14 @@ function ProfilePage() {
         </div>
       </header>
 
+      {returnTo && (
+        <div className="border-b border-border bg-secondary/40">
+          <div className="max-w-3xl mx-auto px-5 py-2 text-[12px] text-muted-foreground">
+            {t("hello.gate.return_hint")}
+          </div>
+        </div>
+      )}
+
       <main className="max-w-3xl mx-auto px-5 py-10 space-y-10">
         <div>
           <h1 className="text-[24px] font-serif italic leading-tight text-foreground">
@@ -70,11 +91,11 @@ function ProfilePage() {
 
         <section className="pt-4 border-t border-border flex flex-wrap items-center justify-end gap-3">
           <button
-            onClick={() => { void navigate({ to: "/" }); }}
+            onClick={finish}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90"
           >
             <Check className="w-3.5 h-3.5" />
-            {t("profile.done_generic")}
+            {returnTo ? t("hello.gate.return_cta") : t("profile.done_generic")}
           </button>
         </section>
       </main>
