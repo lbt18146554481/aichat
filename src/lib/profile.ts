@@ -53,6 +53,10 @@ export function saveProfile(p: Profile) {
   try { window.localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* noop */ }
 }
 
+export function hasName(p: Profile): boolean {
+  return p.name.trim().length > 0;
+}
+
 export function isVitalsComplete(p: Profile): boolean {
   return p.name.trim().length > 0
     && typeof p.age === "number"
@@ -60,6 +64,7 @@ export function isVitalsComplete(p: Profile): boolean {
     && p.city.trim().length > 0
     && p.occupation.trim().length > 0;
 }
+
 
 export function isProfileComplete(p: Profile): boolean {
   return isVitalsComplete(p)
