@@ -38,6 +38,8 @@ export function Home() {
   const [unseen, setUnseen] = useState(false);
   const [profileReady, setProfileReady] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 3 });
+  const [sheetOpen, setSheetOpen] = useState(false);
+
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { if (mounted) taRef.current?.focus(); }, [mounted]);
