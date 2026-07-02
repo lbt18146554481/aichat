@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ArrowUp, MessageCircle, UserSearch, Users, UserCircle } from "lucide-react";
-import type { Lang } from "@/lib/i18n";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { routeIntent } from "@/lib/route-intent";
 import { setSeed, type AgentId } from "@/lib/seed";
@@ -24,8 +23,7 @@ const CHIPS: Chip[] = [
 ];
 
 export function Home() {
-  const { t, i18n } = useTranslation();
-  const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const { t } = useTranslation();
 
   const navigate = useNavigate();
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -37,7 +35,7 @@ export function Home() {
   const [unseen, setUnseen] = useState(false);
   const [profileReady, setProfileReady] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 3 });
-  const [sheetOpen, setSheetOpen] = useState(false);
+
 
 
   useEffect(() => { setMounted(true); }, []);
