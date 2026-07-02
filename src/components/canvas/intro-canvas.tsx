@@ -1,21 +1,14 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
 import type { MatchmakerState } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
-import { isProfileComplete, loadProfile } from "@/lib/profile";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ProfileSheet } from "@/components/profile-sheet";
+import { isProfileComplete, loadProfile, profileProgress } from "@/lib/profile";
 
 interface Props {
   state: MatchmakerState;
@@ -25,14 +18,14 @@ interface Props {
 
 export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
   const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const person = state.currentPersonId ? getPersonById(state.currentPersonId) : null;
   const [conn, setConn] = useState<Connection | null>(
     person ? get(person.id) : null,
   );
   const [composing, setComposing] = useState(false);
-  const [gateOpen, setGateOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [profileVersion, setProfileVersion] = useState(0); // bump to re-read after sheet closes
 
   useEffect(() => {
     setConn(person ? get(person.id) : null);
@@ -62,19 +55,13 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
   const moments = person.moments;
   const profile = loadProfile();
   const userHasMoments = profile.moments.filter((m) => m.answer.trim().length > 0).length > 0;
+  const profileComplete = isProfileComplete(profile);
+  const progress = profileProgress(profile);
   const work = person.oneWork;
 
   function handleHello(quotedMomentId: string, reply: string) {
     sayHello(person!.id, { quotedMomentId, reply });
     setComposing(false);
-  }
-
-  function requestSayHello() {
-    if (!isProfileComplete(loadProfile())) {
-      setGateOpen(true);
-      return;
-    }
-    setComposing(true);
   }
 
   return (
@@ -127,7 +114,7 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
           })}
         </div>
 
-        {/* One Work — a single thing this person cares about */}
+        {/* One Work */}
         {work && (
           <div className="mt-7 rounded-lg border border-border bg-card px-3.5 py-3">
             <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
@@ -159,7 +146,7 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
           {!conn && !composing && (
             <div className="flex flex-wrap items-center gap-3">
               <button
-                onClick={requestSayHello}
+                onClick={() => setComposing(true)}
                 disabled={moments.length === 0}
                 className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
               >
@@ -185,6 +172,7 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
                 </p>
               )}
               <HelloComposer
+                key={profileVersion}
                 moments={moments}
                 lang={lang}
                 onSubmit={handleHello}
@@ -200,6 +188,19 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
                 {t("connection.waiting")}
               </div>
               <YourHelloRecap conn={conn} person={person} lang={lang} />
+              {!profileComplete && (
+                <button
+                  onClick={() => setSheetOpen(true)}
+                  className="w-full text-left px-3 py-2.5 rounded-lg border border-dashed border-border hover:border-foreground/40 hover:bg-secondary/40 transition-colors"
+                >
+                  <div className="text-[12.5px] text-foreground leading-snug">
+                    {t("hello.nudge_while_waiting")}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5 font-mono tabular-nums">
+                    {t("profile.progress", { done: progress.done, total: progress.total })}
+                  </div>
+                </button>
+              )}
             </div>
           )}
 
@@ -217,34 +218,14 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
         </div>
       </div>
 
-      <Dialog open={gateOpen} onOpenChange={setGateOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-[15px] font-semibold">{t("hello.gate.title")}</DialogTitle>
-            <DialogDescription className="text-[13px] leading-relaxed">
-              {t("hello.gate.body")}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-2">
-            <button
-              onClick={() => setGateOpen(false)}
-              className="px-3 py-1.5 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {t("hello.gate.later")}
-            </button>
-            <button
-              onClick={() => {
-                setGateOpen(false);
-                try { window.sessionStorage.setItem("kindred:profile:return", "/matchmaker"); } catch { /* noop */ }
-                void navigate({ to: "/profile" });
-              }}
-              className="px-4 py-1.5 rounded-md bg-foreground text-background text-[12.5px] font-medium hover:opacity-90 transition-opacity"
-            >
-              {t("hello.gate.cta")}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ProfileSheet
+        open={sheetOpen}
+        onOpenChange={(o) => {
+          setSheetOpen(o);
+          if (!o) setProfileVersion((v) => v + 1);
+        }}
+        lang={lang}
+      />
     </div>
   );
 }

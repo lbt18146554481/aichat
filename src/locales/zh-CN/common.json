@@ -87,11 +87,16 @@
   "hello": {
     "gate": {
       "title": "让 TA 看到你，而不是关键词。",
-      "body": "如果 TA 回应，TA 那边看到的是你的资料。花两分钟把它填完，然后回来打招呼。",
-      "cta": "去完善（约 2 分钟）",
+      "body": "别人看到的是你亲手写下的字。填一点或填满都行——随时保存，随时回来。",
+      "cta": "去完善",
       "later": "以后再说"
-    }
+    },
+    "name_inline_label": "你会以什么名字出现",
+    "name_inline_placeholder": "只填一个名字就够",
+    "name_inline_hint": "如果 TA 回应，TA 会先看到这个名字。之后你可以随时再补充其他内容。",
+    "nudge_while_waiting": "在等 TA 的时候，让 TA 看到更多的你 · 约 2 分钟"
   },
+
   "meet": {
     "label": "一次见面提议",
     "title": "一次真实的见面——如果你们都愿意。",
@@ -170,11 +175,14 @@
       "remove": "移除"
     },
     "done": "完成 — 回首页",
+    "done_generic": "完成",
     "keep_going": "继续填",
     "done_note": "看上去不错。这里改的任何一句，别人看到的版本会同步更新。",
-    "incomplete_note": "需要基本信息、{{n}} 个 Moment，以及一件你在意的作品。然后 Agent 才能开始介绍人。",
+    "incomplete_note": "已填的都保留了——任何时候可以回来继续。",
+    "autosave_hint": "边填边存。想停就停，下次继续。",
     "preview_label": "别人看到的你",
     "preview_hint": "这正是 Matchmaker 引荐给你的人，在右侧画面上会看到的样子。"
+
   },
   "lang": { "label": "语言", "en": "English", "zh-CN": "中文" },
   "notfound": { "title": "页面未找到", "body": "这里没有这一页。", "home": "返回" },

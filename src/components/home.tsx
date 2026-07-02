@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ArrowUp, MessageCircle, UserSearch, Users, UserCircle } from "lucide-react";
+import type { Lang } from "@/lib/i18n";
 import { LangSwitcher } from "@/components/lang-switcher";
+import { ProfileSheet } from "@/components/profile-sheet";
 import { routeIntent } from "@/lib/route-intent";
 import { setSeed, type AgentId } from "@/lib/seed";
 import { hasUnseen, list, rehydrate, subscribe } from "@/lib/connections";
 import { isProfileComplete, loadProfile, profileProgress } from "@/lib/profile";
+
 
 interface Chip {
   id: AgentId;
@@ -22,7 +25,9 @@ const CHIPS: Chip[] = [
 ];
 
 export function Home() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+
   const navigate = useNavigate();
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -33,6 +38,8 @@ export function Home() {
   const [unseen, setUnseen] = useState(false);
   const [profileReady, setProfileReady] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 3 });
+  const [sheetOpen, setSheetOpen] = useState(false);
+
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { if (mounted) taRef.current?.focus(); }, [mounted]);
@@ -160,12 +167,13 @@ export function Home() {
           {mounted && !profileReady && (
             <div className="mt-4 flex items-center justify-center gap-2 text-[11.5px] text-muted-foreground">
               <span>{t("home.profile_nudge")}</span>
-              <Link
-                to="/profile"
+              <button
+                type="button"
+                onClick={() => setSheetOpen(true)}
                 className="underline decoration-dotted underline-offset-2 hover:text-foreground"
               >
                 {t("home.profile_nudge_cta", { done: progress.done, total: progress.total })}
-              </Link>
+              </button>
             </div>
           )}
 
@@ -177,6 +185,20 @@ export function Home() {
           </p>
         </div>
       </main>
+
+      <ProfileSheet
+        open={sheetOpen}
+        onOpenChange={(o) => {
+          setSheetOpen(o);
+          if (!o) {
+            const p = loadProfile();
+            setProfileReady(isProfileComplete(p));
+            setProgress(profileProgress(p));
+          }
+        }}
+        lang={lang}
+      />
     </div>
   );
 }
+

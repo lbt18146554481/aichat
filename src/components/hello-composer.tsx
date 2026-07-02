@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
 import type { Moment } from "@/lib/types";
 import type { Lang } from "@/lib/i18n";
+import { hasName, loadProfile, saveProfile } from "@/lib/profile";
 
 interface Props {
   moments: Moment[];
@@ -15,15 +16,45 @@ export function HelloComposer({ moments, lang, onSubmit, onCancel }: Props) {
   const { t } = useTranslation();
   const [picked, setPicked] = useState<string | null>(moments[0]?.id ?? null);
   const [reply, setReply] = useState("");
+  const [name, setName] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return loadProfile().name;
+  });
+  const needName = !hasName({ ...loadProfile(), name });
+
+  function updateName(v: string) {
+    setName(v);
+    // Persist immediately so name survives even if user abandons the send.
+    const p = loadProfile();
+    saveProfile({ ...p, name: v });
+  }
 
   function submit() {
     const v = reply.trim();
     if (!picked || !v) return;
+    if (!name.trim()) return;
     onSubmit(picked, v);
   }
 
   return (
     <div className="space-y-4">
+      {needName && (
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.18em] font-mono text-muted-foreground mb-1.5">
+            {t("hello.name_inline_label")}
+          </div>
+          <input
+            value={name}
+            onChange={(e) => updateName(e.target.value)}
+            placeholder={t("hello.name_inline_placeholder")}
+            className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px] text-foreground placeholder:text-muted-foreground/60"
+          />
+          <p className="mt-1.5 text-[11px] text-muted-foreground leading-snug">
+            {t("hello.name_inline_hint")}
+          </p>
+        </div>
+      )}
+
       <div>
         <div className="text-[10px] uppercase tracking-[0.18em] font-mono text-muted-foreground mb-2">
           {t("moment.pick_one")}
@@ -79,7 +110,7 @@ export function HelloComposer({ moments, lang, onSubmit, onCancel }: Props) {
         <button
           type="button"
           onClick={submit}
-          disabled={!picked || !reply.trim()}
+          disabled={!picked || !reply.trim() || !name.trim()}
           className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium disabled:opacity-30 hover:opacity-90 transition-opacity"
         >
           {t("moment.send_hello")}

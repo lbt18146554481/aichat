@@ -1,44 +1,104 @@
-# 把 Profile 门槛从"首页输入框"移到"Say hello 按钮"
+# 方案 C：最小门槛打招呼 + 渐进式 Profile 沉淀
 
-## 目标
+## 核心决策（不再询问，直接定）
 
-用户进 App 就能用 Agent、能看到候选人；只有在真正要联系对方（Say hello）时，才要求填 Profile。其它一切不动。
+1. **Say hello 的唯一门槛 = 有名字**。其余字段都不阻塞发送。
+2. **Profile 每个字段独立保存，随填随存**，不再要求"三段全填才算完成"。UI 用进度徽章鼓励，不用锁定按钮。
+3. **等待对方回应期**是 Profile 补全的最佳时机，用一条不打扰的邀请引导。
+4. **首页 nudge 保留**作为主动入口；`/profile` 独立路由保留作深链接。
+5. **抽屉**只在用户"主动愿意补"的场景出现，从不阻塞主流程。
 
-## 改动范围（只动这些）
+## 改动
 
-### 1. `src/components/home.tsx`
-- 移除输入框、chip、发送按钮的 `disabled={!profileReady}` 与 `opacity-60` 锁定态。
-- 移除 `submit()` 里"未填 Profile 就跳 /profile"的分支，恢复正常路由到 Agent。
-- 移除 `placeholder_locked` 分支，只保留正常 placeholder。
-- 把当前那块大的 Profile Gate 卡片，换成一条**轻提示**（顶部一行小字 + "去完善"链接），文案例如："让 Matchmaker 也能这样介绍你 · 2 分钟"。已完成则不显示。
-- 顺手修复"我/You"中英混排导致的 hydration mismatch：把顶部 header 里 Connections / Profile 两个链接的文字用 `suppressHydrationWarning` 包 span 或在 mounted 前不渲染文字（与现有 pattern 一致）。
+### 1. `src/lib/profile.ts` — 语义调整
 
-### 2. `src/components/canvas/intro-canvas.tsx`（Say hello 按钮所在的地方）
-- 点击 "Say hello" 时先检查 `isProfileComplete(loadProfile())`：
-  - 未完成 → 弹一个轻量对话框（用现有 shadcn `Dialog`），标题一句："让 ta 看到你，而不是关键词"，正文一句"填 3 件事，约 2 分钟"，一个主按钮"去完善"跳 `/profile`，一个次按钮"以后再说"关闭。
-  - 已完成 → 走原有的 HelloComposer 流程。
-- Side by Side 侧如果也有触达对方的动作按钮，用同样的检查（若无则不动）。
+- 新增 `hasName(p): boolean` = `p.name.trim().length > 0`。这是 Say hello 的门槛。
+- 保留 `isVitalsComplete` / `isProfileComplete` / `profileProgress`——但仅供进度徽章、Preview 卡显示用，不再是任何按钮的启用条件。
+- 保留 `MIN_MOMENTS = 3` 作"完整"提示，但**不作强制**。
+- `saveProfile` 逻辑不变（已经是随时全量保存）；确认 `/profile` 页面每字段 onChange 都触发 saveProfile（现在的 `useEffect(() => saveProfile(profile), [profile])` 已经满足"随填随存"）。
+- Profile 页 Done 按钮**去掉 `disabled={!complete}`**，改成任何时候都可以点，文案统一为"完成"；退出即保存已有内容。
 
-### 3. `src/routes/profile.tsx`
-- 完成 Profile 后，如果 URL 带 `?return=/matchmaker` 之类的回跳参数，填完自动 `navigate` 回去。没有则留在 `/profile`。
-- 触发点（intro-canvas 的弹窗）传 `return` 参数过去。
+### 2. `src/components/hello-composer.tsx` — 内嵌 name 补齐
 
-### 4. 文案（`src/locales/{en,zh-CN}/common.json`）
-- 新增 `home.profile_nudge`（轻提示条文案）。
-- 新增 `hello.gate.title` / `hello.gate.body` / `hello.gate.cta` / `hello.gate.later`。
-- 移除 / 保留不用的 `home.gate.*` 与 `home.placeholder_locked`（保留也无害，先不删）。
+- 组件顶部加一个只在 `!hasName(loadProfile())` 时显示的一行 input：
+  - Label: `t("hello.name_inline_label")` → "你会以什么名字出现"
+  - Input：受控 state，`onChange` 立即 `saveProfile({ ...loadProfile(), name })`
+  - 未填名字时，Send 按钮的 `disabled` 追加 `!name.trim()`
+  - 已填过名字时这一行完全不渲染
+- Send 逻辑不变。
 
-## 不动的东西
+### 3. `src/components/canvas/intro-canvas.tsx` — 门槛降级 + 引入抽屉
 
-- 两个 Agent（Matchmaker、Side by Side）的架构、对话逻辑、understanding 面板
-- Profile 页本身的表单、题池、字段
-- `src/lib/profile.ts` 的 `isProfileComplete` / `profileProgress` 逻辑
-- Seed 传递、路由结构、connections、meetings 等所有其它模块
+- 删掉现有 `Dialog` gate、`gateOpen` state、`navigate({ to: "/profile" })` 分支、`sessionStorage.setItem("kindred:profile:return", ...)`。
+- `requestSayHello()` 直接 `setComposing(true)`——不再检查任何 profile 字段（name 会由 HelloComposer 内嵌兜住）。
+- 在 `conn?.status === "waiting"` 分支（已发出 hello 等待中）下方增加一条 `<ProfileNudgeInline />`：
+  - 仅当 `!isProfileComplete(loadProfile())` 显示
+  - 文案："在等 ta 的时候，让 ta 看到更多的你 · 2 分钟"
+  - 点击 → `setSheetOpen(true)`
+- 页面挂 `<ProfileSheet open={sheetOpen} onOpenChange={setSheetOpen} />`。
+
+### 4. `src/components/profile-sheet.tsx` — 新建
+
+- `Sheet` (side="right", `w-full sm:max-w-xl`, 内部滚动)。
+- 复用同一份表单 UI（把 `src/routes/profile.tsx` 的 `<main>` 内容抽成独立组件 `<ProfileForm />` 让抽屉与独立页共享）。
+- Header：进度徽章 + X 关闭。
+- 底部"完成"按钮总是可点，点击关抽屉；不校验"完整"。
+- 关闭时组件卸载即可，不需要回调（数据已随填随存）。
+
+### 5. `src/routes/profile.tsx` — 独立页简化
+
+- 抽出 `<ProfileForm />` 与抽屉共用。
+- 顶部 header 保留（Kindred logo → "/"，进度徽章 + LangSwitcher）。
+- Done 按钮去掉 `disabled`，点击 `navigate({ to: "/" })`。
+- **删除 `kindred:profile:return` sessionStorage 回跳逻辑**——不再需要。
+
+### 6. `src/components/home.tsx` — nudge 改为原地打开抽屉
+
+- nudge 里的 "去完善" 由 `<Link to="/profile">` 改为 `<button onClick={() => setSheetOpen(true)}>`。
+- 页面挂 `<ProfileSheet open={sheetOpen} onOpenChange={(o) => { setSheetOpen(o); if (!o) { const p = loadProfile(); setProfileReady(isProfileComplete(p)); setProgress(profileProgress(p)); } }} />`。
+- 保留 header 那个 "Profile" 链接跳 `/profile` 独立页（给想深链或想全屏编辑的人）。
+
+### 7. `src/components/canvas/meet-canvas.tsx` — 一致化
+
+- 若里面有"发起下一步（约见、发消息等）"按钮，同样直接放行，只用 HelloComposer 或对应 composer 里内嵌 name 兜底。
+- 若没有触达动作则不改。
+
+### 8. 文案 `src/locales/{en,zh-CN}/common.json`
+
+- 新增 `hello.name_inline_label`, `hello.name_inline_placeholder`
+- 新增 `hello.nudge_while_waiting`（"在等 ta 的时候，让 ta 看到更多的你 · 2 分钟"）
+- 现有 `hello.gate.*` 保留但不再使用（不删，避免破坏；下轮清理）
+- `profile.done` 语义从"完成（灰态直到全填）"改为"完成"，可无条件点击；`profile.incomplete_note` 改为鼓励式："已填的都保留了，任何时候可以回来补。"
+
+## 不动
+
+- 两个 Agent 的对话逻辑、seed、connections、understanding
+- IntroCanvas 的候选人卡、moments 展示、one-work 展示、`YourHelloRecap`
+- Profile 字段结构（`Profile` type、`MOMENT_PROMPTS`、`OneWork`）
+- i18n 现有 key 结构（只新增，不重命名）
+- 路由 `/profile` 继续存在
+
+## 用户完整体验
+
+1. 新用户进 App → 首页可直接打字、可选 Matchmaker/SideBySide chip → 进入 Agent。
+2. Matchmaker 对话，出候选人卡。首页与 Agent 顶部有一条不打扰的 nudge（"让 Matchmaker 更懂你 · 0/3"），点击原地打开 Profile 抽屉，可写可不写，关闭即保存。
+3. 用户想 Say hello → 按钮**直接可点**。
+4. HelloComposer 打开：如果还没填过名字，顶部多出一行"你会以什么名字出现" input；填完（约 5 秒）→ Send 亮起。
+5. Hello 发出，进入 waiting 状态。waiting 卡下方一条邀请："在等 ta 的时候，让 ta 看到更多的你 · 2 分钟"，点击滑出 Profile 抽屉；关闭即保存已填内容。
+6. 用户任何时候访问 `/profile` 或点首页 header 的 Profile → 独立页，同一份表单，同样随填随存，Done 无条件可点。
 
 ## 验收
 
-1. 全新用户进 App，能直接在首页输入框打字、提交，能进入 Matchmaker / Side by Side 正常对话、看到候选人卡。
-2. 顶部只有一条不打扰的提示条引导去填 Profile；不再有大卡片、不再锁输入框。
-3. 在候选人卡上点 "Say hello"，未填 Profile → 弹小对话框 → 去 `/profile` → 填完自动回到刚才那张卡，Say hello 按钮直接可用。
-4. 已填过 Profile 的用户，Say hello 直接开 HelloComposer，无弹窗。
-5. 首页顶部"Connections / Profile"链接不再产生 hydration mismatch。
+1. 全新用户完成一次 Say hello 用时 ≤ 30 秒（只填名字 + 写一句 reply）。
+2. Profile 抽屉 / 独立页在任意字段填一半退出，重进能看到已填内容。
+3. Say hello 按钮永不因 Profile 不全而灰掉。
+4. waiting 状态下能看到 Profile 补全邀请；点击原地打开抽屉，不跳路由；关闭抽屉后 waiting 状态、消息、候选人卡完好。
+5. 首页 nudge 点击在首页原地开抽屉；关闭后进度数字更新。
+6. `/profile` 独立页依然可用；Done 无条件可点，返回首页。
+7. 首页 header 的 Connections / Profile 链接不产生 hydration mismatch（已在上轮修复，回归确认）。
+
+## 技术备注
+
+- `Sheet` 用现有 `src/components/ui/sheet.tsx`，无新依赖。
+- `ProfileForm` 完全从 localStorage 读写，抽屉与独立页对同一 key 操作，天然一致。
+- 每个字段 onChange → setState → useEffect saveProfile 已实现"随填随存"，无需额外 debounce。

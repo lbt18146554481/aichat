@@ -89,11 +89,16 @@
   "hello": {
     "gate": {
       "title": "Let them see you, not keywords.",
-      "body": "If they reply, what they'll read is your profile. Take two minutes to fill it in, then come back to say hello.",
-      "cta": "Set it up (≈2 min)",
+      "body": "What others read is written in your own words. Fill in a little or a lot — it saves as you type.",
+      "cta": "Set it up",
       "later": "Later"
-    }
+    },
+    "name_inline_label": "You'll appear as",
+    "name_inline_placeholder": "Just a name is enough",
+    "name_inline_hint": "If they reply, this is what they'll see first. You can add more anytime.",
+    "nudge_while_waiting": "While you wait, let them see more of you · ~2 min"
   },
+
   "meet": {
     "label": "Proposed meet",
     "title": "A real meet — if you both want it.",
@@ -175,11 +180,14 @@
       "remove": "Remove"
     },
     "done": "Done — back to home",
+    "done_generic": "Done",
     "keep_going": "Keep going",
     "done_note": "Looks good. Anything you change here is reflected immediately in how others see you.",
-    "incomplete_note": "You need the basics, {{n}} Moments, and one thing you care about. Then the Agents can introduce you.",
+    "incomplete_note": "Whatever you've filled is saved — come back anytime to add more.",
+    "autosave_hint": "Saves as you type. Stop anytime, pick up later.",
     "preview_label": "How others see you",
     "preview_hint": "This is exactly what someone the Matchmaker introduces will see on the right pane."
+
   },
   "lang": { "label": "Language", "en": "English", "zh-CN": "中文" },
   "notfound": { "title": "Not found", "body": "That page isn't here.", "home": "Back" },
