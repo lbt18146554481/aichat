@@ -97,8 +97,6 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
 
   const loc = localized(person, lang);
   const moments = person.moments;
-  const profile = loadProfile();
-  const userHasMoments = profile.moments.filter((m) => m.answer.trim().length > 0).length > 0;
   const work = person.oneWork;
 
   function requestSayHello() {
@@ -252,25 +250,18 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
           )}
 
           {!conn && composing && (
-            <>
-              {!userHasMoments && (
-                <p className="mb-3 text-[12px] text-muted-foreground leading-snug border-l-2 border-border pl-3">
-                  {t("moment.need_user_moments")}
-                </p>
-              )}
-              <HelloComposer
-                moments={moments}
-                lang={lang}
-                initialPicked={draftPicked}
-                initialReply={draftReply}
-                onDraftChange={(picked, reply) => {
-                  setDraftPicked(picked);
-                  setDraftReply(reply);
-                }}
-                onSubmit={handleHello}
-                onCancel={handleCancel}
-              />
-            </>
+            <HelloComposer
+              moments={moments}
+              lang={lang}
+              initialPicked={draftPicked}
+              initialReply={draftReply}
+              onDraftChange={(picked, reply) => {
+                setDraftPicked(picked);
+                setDraftReply(reply);
+              }}
+              onSubmit={handleHello}
+              onCancel={handleCancel}
+            />
           )}
 
           {conn?.status === "waiting" && (
