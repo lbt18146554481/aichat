@@ -1,75 +1,78 @@
-# Profile 子页体验优化：顶部即返回，随填随存，去掉"保存"心智
 
-## 用户视角的问题
+# Say hello 极简化：composer 只做输入，引用从上方 moment 带下来
 
-用户从 Say hello 跳到 `/profile` 后：
-1. 顶部左上角的返回箭头写着 "Kindred"，指向 `/`——用户第一反应就是点它回上一页，结果被带到首页，Matchmaker 上下文视觉上"消失"（虽然 sessionStorage 里还在，但用户已经不在那条路径上）。
-2. 底部还有一个 "Done" 按钮才是真正带 `return` 逻辑的返回入口，位置远、层级低、用户不一定滚到。
-3. 顶部 + 底部两个"离开"入口做的是不同的事，认知负担重。
-4. 表单已经是随填随存（`ProfileForm` 里 `useEffect(saveProfile)`），但页面顶部进度条 + 底部 "Done" 按钮让用户误以为"必须点 Done 才保存"。
+## 目标
 
-核心矛盾：**顶部返回键的目的地和用户当前的来源路径不一致**，且**"保存"这一动作在 UI 上被过度强调**，与实际的自动保存机制不符。
+一屏内不出现同一条 moment 两次。Composer 只负责"写一句话并发送"；引用是可选的，通过在上方原有的 moments 上点击来"带下来"。
 
-## 设计目标
+## 文件改动
 
-1. 顶部返回键 = 智能返回：有 `return` 上下文时回 Agent，无则回首页——用户点哪个都能回到对的地方。
-2. 全站去掉"保存"这个词，改成"随时可离开，改动已自动保存"的心智。
-3. 底部不再有"必须点它"的 Done 按钮，避免和顶部返回竞争注意力。
+### 1. `src/lib/connections.ts`
 
-## 具体改动
+将 `HelloFromMe.quotedMomentId` 类型从 `string` 改为 `string | null`（允许无引用发送）。两处消费方 `intro-canvas.tsx` 的 `YourHelloRecap` 和 `connection-thread.tsx` 都用 `person.moments.find(...)`，返回 undefined 时已有 `if (!m) return null` 保护，无需改动。
 
-### 1. `src/routes/profile.tsx` — 顶部即返回
+### 2. `src/components/hello-composer.tsx` — 完全重写为极简
 
-- 顶部左上角：把 `<Link to="/">Kindred` 换成"上下文感知"的返回按钮：
-  - 若 `sessionStorage["kindred:profile:return"]` 存在（`/matchmaker` 或 `/side-by-side`），文案显示为 "← Back to Matchmaker" / "← Back to Side by Side"（中文对应"← 返回牵线人 / 返回并肩人"），点击执行现在 `finish()` 里那套 return-key 消费逻辑。
-  - 否则显示 "← Kindred"，点击回 `/`。
-  - 用一个 `handleBack()` 函数统一处理，替换原 `<Link>`。
-- 顶部右侧：把"1/3"进度条换成一个安静的自动保存指示："已自动保存 · 随时可离开"（`profile.autosaved_hint`）。进度信息可以移到下方 heading 区，作为参考，不再抢眼。
-- 顶部 return-hint banner 保留，但文案改为"改动会自动保存，随时点左上角回去打招呼"（`hello.gate.return_hint` 微调）。
-- 底部 section：删除 "Done" 按钮及其容器。整个页面不再有底部 CTA。滚到底就是滚到底。
+移除：内部的 moments 列表、"pick one" 标签、"your reply" 标签、reply hint。
 
-### 2. `src/components/canvas/intro-canvas.tsx` — 返回后自动检查
+保留结构：
+- 顶部：如果外部 `initialPicked` 指向一条 moment，渲染一个小的"引用块"（prompt + 答案 + 右上角 × 取消引用）。没有则不渲染。
+- 中间：一个 textarea（rows=4），placeholder 根据是否有引用切换（"回应这一段…" / "想对 TA 说的第一句话…"）。
+- 底部：右对齐 [取消] [发送]。发送禁用条件仅 `!reply.trim()`（引用不再是硬门槛）。
 
-- 从 `/profile` 返回 `/matchmaker` 后，`IntroCanvas` 挂载时读取 `loadProfile()`，若此时 `hasName + isVitalsComplete` 已满足且 draft 里 `composing=true`，则 composer 保持打开（当前已由 draft 恢复覆盖）。无需新增逻辑，只需确认现有 draft 恢复在返回路径上工作正常。
-- 追加：Say hello 点击时，若 profile 已完成 vitals 则不再写入 `return` key（当前逻辑已经是这样），保持不变。
+Props 保持：`moments / lang / initialPicked / initialReply / onDraftChange / onSubmit / onCancel`。`onSubmit` 签名改为 `(quotedMomentId: string | null, reply: string) => void`。新增 effect 监听 `initialPicked` 变化以跟随外部点击。
 
-### 3. 文案
+### 3. `src/components/canvas/intro-canvas.tsx` — moments 就地可点
 
-**`src/locales/en/common.json`**
-- `profile.autosaved_hint`: "Autosaved · leave anytime"
-- `hello.gate.return_hint`: "Changes save as you type — hit the back arrow whenever you're ready."
-- `hello.gate.back_to_matchmaker`: "Back to Matchmaker"
-- `hello.gate.back_to_sidebyside`: "Back to Side by Side"
-- 删除 `hello.gate.return_cta`、`profile.done_generic`（不再有底部按钮）。
+**Moments section**（约 157–179 行）：composing 时每条 `<article>` 变成 `<button>`；未 composing 时保持原样式（纯展示）。
 
-**`src/locales/zh-CN/common.json`**
-- `profile.autosaved_hint`: "已自动保存 · 随时可离开"
-- `hello.gate.return_hint`: "改动会自动保存，随时点左上角回去打招呼。"
-- `hello.gate.back_to_matchmaker`: "返回牵线人"
-- `hello.gate.back_to_sidebyside`: "返回并肩人"
-- 删除对应旧 key。
+- 选中项左边条从 `border-border` 换为 `border-foreground`（宽度不变，仅颜色，保持克制）。
+- 未选中项保持现在样式；composing 时 hover 出现极弱的 `border-foreground/40` 提示可点。
+- 点已选中的那条 → 取消引用（setDraftPicked(null)）。
+- 默认无选中：`setDraftPicked(null)` 初始，用户不点就是"无引用"。
 
-### 4. 不改动
+**Section 标签**（158–160 行）：composing 时文案换为 `moment.compose_hint`（"想聊哪一段？点一下引用（可选）"）；非 composing 保持 `moment.about_them`。
 
-- `ProfileForm` 内部随填随存逻辑不动。
-- `hasName / isVitalsComplete / profileProgress` 不动。
-- Matchmaker / Side-by-Side 状态持久化不动。
-- IntroCanvas 的 draft 持久化不动。
-- 首页 nudge、Header Profile 链接不动（那两条路径没有 return key，走"回 `/`"的自然路径）。
+**handleHello**（116–122 行）：签名改为 `(quotedMomentId: string | null, reply: string)`，直接透传给 `sayHello`。
 
-## 用户新体验
+**移除**（233–237 行）：`!userHasMoments` 的 `need_user_moments` 提示块——此提醒放在 profile 未完成的引导里更合适，composer 前不再堆叠。
 
-1. 未填 profile 用户点 Say hello → `/profile`，顶部左上角显示"← 返回牵线人"，右上角显示"已自动保存 · 随时可离开"，banner 说"改动会自动保存，随时点左上角回去打招呼"。
-2. 用户填几个字段——不看到任何"保存"按钮，也不需要点。
-3. 想回去随时点左上角箭头 → 回到 `/matchmaker`，消息 / 候选人 / composer 草稿全部原样。
-4. 从首页 nudge 或 Header 进入 → 顶部箭头显示"← Kindred"，点它回首页。
-5. 页面底部干净，没有孤立的"Done"按钮，没有"你还没保存"的暗示。
+**HelloComposer 调用**：保留原 props；`moments` 仍然传入用于渲染顶部引用块。
+
+其余（header / One Work / 等待态 YourHelloRecap / connected 状态）不动。
+
+### 4. 文案 `src/locales/en/common.json` + `src/locales/zh-CN/common.json`
+
+在 `moment` 命名空间新增：
+
+- `compose_hint`
+  - en: "Which one do you want to reply to? Tap one — optional."
+  - zh: "想聊哪一段？点一下引用（可选）。"
+- `reply_placeholder_open`
+  - en: "The first thing you want to say to them…"
+  - zh: "想对 TA 说的第一句话……"
+- `reply_placeholder_quoted`
+  - en: "Reply to this moment…"
+  - zh: "回应这一段……"
+- `remove_quote`
+  - en: "Remove quote"
+  - zh: "取消引用"
+
+保留但不再引用：`pick_one` / `your_reply` / `reply_hint` / `reply_placeholder` / `need_user_moments`（暂不删除，避免影响其他潜在引用）。
+
+## 新体验
+
+1. 打开 TA 卡片：header → moments → One Work → [Say hello] [Pass]。
+2. 点 Say hello：composer 出现，只有一个 textarea + 发送/取消；上方 section 标签变成"想聊哪一段？点一下引用（可选）"，moments 可点击。
+3. 用户想引用某条 → 点它 → 该条左边条高亮 + composer 顶部出现引用块。再点同一条或 × → 取消。
+4. 写完点发送。
+
+一屏内 moments 只出现一次；composer 只做发送本身该做的事。
 
 ## 验收
 
-1. 从 `/matchmaker` 点 Say hello 到 `/profile`，顶部左上角文案为"返回牵线人"，点击回 `/matchmaker` 且对话上下文保留。
-2. 从首页 nudge 到 `/profile`，顶部左上角文案为 "Kindred"，点击回 `/`。
-3. `/profile` 页面无底部 Done 按钮。
-4. 填一个字段后刷新 → 数据仍在。
-5. 从 `/side-by-side` 进入 `/profile`，顶部箭头文案为"返回并肩人"，点击回 `/side-by-side` 且对话保留。
-6. 顶部右侧显示"已自动保存 · 随时可离开"，不再显示"1/3"进度。
+1. Composer 内不再出现任何 TA 的 moment 文本副本（除顶部"当前引用"预览）。
+2. 上方 moments 在 composing 时可点选/取消；非 composing 时保持展示状态。
+3. 无引用时也可发送；连接记录中 `quotedMomentId` 为 `null`。
+4. `YourHelloRecap` 与 `ConnectionThread` 在 `quotedMomentId` 为 null 时静默跳过引用块，其余照旧显示回复内容。
+5. Typecheck 通过（`HelloFromMe.quotedMomentId: string | null` 传导干净）。

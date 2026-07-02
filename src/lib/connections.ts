@@ -20,7 +20,7 @@ export interface ChatMsg {
 }
 
 export interface HelloFromMe {
-  quotedMomentId: string;   // → person.moments[id]
+  quotedMomentId: string | null;   // → person.moments[id]; null = no quote
   reply: string;
 }
 

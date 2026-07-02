@@ -113,7 +113,7 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
     setComposing(true);
   }
 
-  function handleHello(quotedMomentId: string, reply: string) {
+  function handleHello(quotedMomentId: string | null, reply: string) {
     sayHello(person!.id, { quotedMomentId, reply });
     setComposing(false);
     setDraftPicked(null);
