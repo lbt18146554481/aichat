@@ -166,13 +166,12 @@ export function Home() {
           {mounted && !profileReady && (
             <div className="mt-4 flex items-center justify-center gap-2 text-[11.5px] text-muted-foreground">
               <span>{t("home.profile_nudge")}</span>
-              <button
-                type="button"
-                onClick={() => setSheetOpen(true)}
+              <Link
+                to="/profile"
                 className="underline decoration-dotted underline-offset-2 hover:text-foreground"
               >
                 {t("home.profile_nudge_cta", { done: progress.done, total: progress.total })}
-              </button>
+              </Link>
             </div>
           )}
 
@@ -184,19 +183,6 @@ export function Home() {
           </p>
         </div>
       </main>
-
-      <ProfileSheet
-        open={sheetOpen}
-        onOpenChange={(o) => {
-          setSheetOpen(o);
-          if (!o) {
-            const p = loadProfile();
-            setProfileReady(isProfileComplete(p));
-            setProgress(profileProgress(p));
-          }
-        }}
-        lang={lang}
-      />
     </div>
   );
 }
