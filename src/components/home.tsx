@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ArrowUp, MessageCircle, UserSearch, Users, UserCircle } from "lucide-react";
+import type { Lang } from "@/lib/i18n";
 import { LangSwitcher } from "@/components/lang-switcher";
+import { ProfileSheet } from "@/components/profile-sheet";
 import { routeIntent } from "@/lib/route-intent";
 import { setSeed, type AgentId } from "@/lib/seed";
 import { hasUnseen, list, rehydrate, subscribe } from "@/lib/connections";
 import { isProfileComplete, loadProfile, profileProgress } from "@/lib/profile";
+
 
 interface Chip {
   id: AgentId;
