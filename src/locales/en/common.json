@@ -180,11 +180,14 @@
       "remove": "Remove"
     },
     "done": "Done — back to home",
+    "done_generic": "Done",
     "keep_going": "Keep going",
     "done_note": "Looks good. Anything you change here is reflected immediately in how others see you.",
-    "incomplete_note": "You need the basics, {{n}} Moments, and one thing you care about. Then the Agents can introduce you.",
+    "incomplete_note": "Whatever you've filled is saved — come back anytime to add more.",
+    "autosave_hint": "Saves as you type. Stop anytime, pick up later.",
     "preview_label": "How others see you",
     "preview_hint": "This is exactly what someone the Matchmaker introduces will see on the right pane."
+
   },
   "lang": { "label": "Language", "en": "English", "zh-CN": "中文" },
   "notfound": { "title": "Not found", "body": "That page isn't here.", "home": "Back" },
