@@ -25,7 +25,9 @@ const CHIPS: Chip[] = [
 ];
 
 export function Home() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+
   const navigate = useNavigate();
   const taRef = useRef<HTMLTextAreaElement>(null);
 
