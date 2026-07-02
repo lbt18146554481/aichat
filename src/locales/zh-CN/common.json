@@ -174,11 +174,11 @@
       "remove": "移除"
     },
     "done": "完成 — 回首页",
-    "done_generic": "完成",
     "keep_going": "继续填",
     "done_note": "看上去不错。这里改的任何一句，别人看到的版本会同步更新。",
     "incomplete_note": "已填的都保留了——任何时候可以回来继续。",
     "autosave_hint": "边填边存。想停就停，下次继续。",
+    "autosaved_status": "已自动保存 · 随时可离开",
     "preview_label": "别人看到的你",
     "preview_hint": "这正是 Matchmaker 引荐给你的人，在右侧画面上会看到的样子。"
 
