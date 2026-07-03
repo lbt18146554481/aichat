@@ -158,11 +158,51 @@
     "progress": "Step {{done}} of {{total}}",
     "section": {
       "vitals": "The basics",
-      "vitals_hint": "Just the facts. Anyone you're introduced to will see these.",
+      "vitals_hint": "Facts the system uses to decide who's near you. Anyone you're introduced to sees these.",
+      "compat": "How you live",
+      "compat_hint": "Soft signals the system uses to put more likely fits higher. All optional.",
       "moments": "Pick at least {{n}} and answer in your own words",
-      "moments_hint": "Specific beats clever. A short, true sentence beats a polished paragraph.",
+      "moments_hint": "Other people read this to decide whether to say hello. Specific beats clever.",
       "one_work": "One thing you've cared about lately",
       "one_work_hint": "A book, film, album, exhibition, meal — any form. One line on why it stuck."
+    },
+    "optional": "Optional",
+    "compat": {
+      "weekend": {
+        "q": "An unclaimed weekend — you're most yourself when you…",
+        "quiet_recharge": "Recharge alone",
+        "one_close_friend": "See one close friend",
+        "out_and_about": "Are out among people"
+      },
+      "conflict": {
+        "q": "When something rubs you the wrong way with someone close, you tend to…",
+        "talk_now": "Talk about it now",
+        "cool_off_first": "Cool off, then talk",
+        "write_it_out": "Write it out first"
+      },
+      "five_years": {
+        "q": "The next few years, what you most want is…",
+        "depth_one_thing": "To go deep on one thing",
+        "range_many_things": "Range across many things",
+        "stability_family": "A steadier home life"
+      }
+    },
+    "activities": {
+      "title": "Things you actually do",
+      "hint": "Weekly rhythms, not aspirations. Side by Side uses these to find real overlaps.",
+      "add": "Add an activity",
+      "remove": "Remove",
+      "area_placeholder": "Neighborhood you usually go"
+    },
+    "cadence": {
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "occasional": "Now and then"
+    },
+    "mbti": {
+      "title": "MBTI (optional)",
+      "placeholder": "e.g. INFJ",
+      "note": "Shown as a tag on your profile. Not used for matching."
     },
     "f": {
       "name": "Name",
