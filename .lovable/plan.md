@@ -1,78 +1,103 @@
 
-# Say hello 极简化：composer 只做输入，引用从上方 moment 带下来
+# Profile 重构：三层结构，各司其职
 
-## 目标
+## 一、想清楚的结论（作为设计前提）
 
-一屏内不出现同一条 moment 两次。Composer 只负责"写一句话并发送"；引用是可选的，通过在上方原有的 moments 上点击来"带下来"。
+**Profile 的作用**：降低"要不要花时间在 TA 身上"的判断成本。它有两个读者——系统 & 另一个真人——各读各的部分。用户不为"吸引"而写，只为"诚实"而写。
 
-## 文件改动
+**内容的逻辑线**（对齐"先做朋友"的渐进定位）：
 
-### 1. `src/lib/connections.ts`
+| 层 | 读者 | 解决的问题 | 具体字段 |
+|---|---|---|---|
+| **L1 · Vitals** | 系统硬筛 | 地理/年龄段是否可能共处 | 名字、年龄、城市、职业 |
+| **L2 · Compatibility** | 系统排序 + 另一半的参考 | 长期相处的兼容性信号 | 3 道情境选择题 + 常做的活动 + MBTI（可选标签） |
+| **L3 · Specificity** | 另一个真人 | 触发"想对 TA 说一句话"的冲动 | Moments（≥3）+ One Work |
 
-将 `HelloFromMe.quotedMomentId` 类型从 `string` 改为 `string | null`（允许无引用发送）。两处消费方 `intro-canvas.tsx` 的 `YourHelloRecap` 和 `connection-thread.tsx` 都用 `person.moments.find(...)`，返回 undefined 时已有 `if (!m) return null` 保护，无需改动。
+**为什么不问婚史/生育**：定位是"先做朋友"，硬约束会劝退，也和产品气质冲突。这些真需要时可以在 L2 的情境题里以温和方式覆盖（比如"未来 5 年最想投入的事"）。
 
-### 2. `src/components/hello-composer.tsx` — 完全重写为极简
+**为什么 MBTI 只做标签不做排序**：学术信效度不够，但用户熟悉、愿意填、是自我表达词汇。放 L3 作为可选 tag，让人读时当作破冰点，不进匹配算法。
 
-移除：内部的 moments 列表、"pick one" 标签、"your reply" 标签、reply hint。
+**为什么 activities 放 profile 而非 Side by Side 现场问**：用户填 profile 时是"平静地想清楚自己"的状态；进入 Side by Side 时是"想找人"的状态，被追问会烦。且 activities 是 Side by Side 的燃料，profile 是唯一稳定源头。
 
-保留结构：
-- 顶部：如果外部 `initialPicked` 指向一条 moment，渲染一个小的"引用块"（prompt + 答案 + 右上角 × 取消引用）。没有则不渲染。
-- 中间：一个 textarea（rows=4），placeholder 根据是否有引用切换（"回应这一段…" / "想对 TA 说的第一句话…"）。
-- 底部：右对齐 [取消] [发送]。发送禁用条件仅 `!reply.trim()`（引用不再是硬门槛）。
+## 二、当前 profile.ts 的差距
 
-Props 保持：`moments / lang / initialPicked / initialReply / onDraftChange / onSubmit / onCancel`。`onSubmit` 签名改为 `(quotedMomentId: string | null, reply: string) => void`。新增 effect 监听 `initialPicked` 变化以跟随外部点击。
+- ✅ 已有：name / age / city / occupation / moments / oneWork
+- ❌ 缺 L2 全部：情境题、activities、MBTI
+- ⚠️ UI 上 L1 和 L3 混在一张长表单里，用户感受不到"哪段给谁看"
 
-### 3. `src/components/canvas/intro-canvas.tsx` — moments 就地可点
+## 三、要做的改动
 
-**Moments section**（约 157–179 行）：composing 时每条 `<article>` 变成 `<button>`；未 composing 时保持原样式（纯展示）。
+### 1. 数据模型 (`src/lib/profile.ts`)
 
-- 选中项左边条从 `border-border` 换为 `border-foreground`（宽度不变，仅颜色，保持克制）。
-- 未选中项保持现在样式；composing 时 hover 出现极弱的 `border-foreground/40` 提示可点。
-- 点已选中的那条 → 取消引用（setDraftPicked(null)）。
-- 默认无选中：`setDraftPicked(null)` 初始，用户不点就是"无引用"。
+```ts
+export interface CompatibilityAnswers {
+  weekend?: "quiet_recharge" | "one_close_friend" | "out_and_about";
+  conflict?: "talk_now" | "cool_off_first" | "write_it_out";
+  five_years?: "depth_one_thing" | "range_many_things" | "stability_family";
+  // 3 道题，可选，全部允许空
+}
 
-**Section 标签**（158–160 行）：composing 时文案换为 `moment.compose_hint`（"想聊哪一段？点一下引用（可选）"）；非 composing 保持 `moment.about_them`。
+export interface UserActivity {
+  kind: ActivityKind;      // 复用 types.ts 的 ActivityKind
+  area: string;            // 用户手填街区/区
+  cadence: "weekly" | "monthly" | "occasional";
+}
 
-**handleHello**（116–122 行）：签名改为 `(quotedMomentId: string | null, reply: string)`，直接透传给 `sayHello`。
+export interface Profile {
+  // 现有
+  name; age; city; occupation; moments; oneWork;
+  // 新增
+  activities: UserActivity[];   // 0-3 项
+  compatibility: CompatibilityAnswers;
+  mbti?: string;                // 可选，仅作为 tag
+}
+```
 
-**移除**（233–237 行）：`!userHasMoments` 的 `need_user_moments` 提示块——此提醒放在 profile 未完成的引导里更合适，composer 前不再堆叠。
+`isProfileComplete` 语义不变（仍以 vitals + 3 moments + oneWork 为准）；L2 字段全部可选，不影响任何"完整度"判定——保持"先做朋友"的低门槛。
 
-**HelloComposer 调用**：保留原 props；`moments` 仍然传入用于渲染顶部引用块。
+### 2. 表单结构 (`src/components/profile-form.tsx`)
 
-其余（header / One Work / 等待态 YourHelloRecap / connected 状态）不动。
+分三个视觉段落，每段一句 helper 说明"这段是给谁看的"：
 
-### 4. 文案 `src/locales/en/common.json` + `src/locales/zh-CN/common.json`
+```text
+┌ 基本信息 (Vitals) ────────────────────────
+│  helper: "系统用来判断你们是否在同一个城市。"
+│  [name] [age] [city] [occupation]
 
-在 `moment` 命名空间新增：
+┌ 你怎么生活 (Compatibility)  可选 ─────────
+│  helper: "系统用来把更可能合得来的人排在前面。填不填都可以。"
+│  · 3 道情境二/三选题（radio card 形式，不是下拉）
+│  · 常做的活动：+ 按钮加 1-3 项，每项 (kind, area, cadence)
+│  · MBTI 输入：可选，一行小字"仅作为标签展示，不参与匹配"
 
-- `compose_hint`
-  - en: "Which one do you want to reply to? Tap one — optional."
-  - zh: "想聊哪一段？点一下引用（可选）。"
-- `reply_placeholder_open`
-  - en: "The first thing you want to say to them…"
-  - zh: "想对 TA 说的第一句话……"
-- `reply_placeholder_quoted`
-  - en: "Reply to this moment…"
-  - zh: "回应这一段……"
-- `remove_quote`
-  - en: "Remove quote"
-  - zh: "取消引用"
+┌ 你的瞬间 (Specificity) ───────────────────
+│  helper: "别人会通过这些认识你。用你自己的话写。"
+│  · Moments 编辑器（现状）
+│  · One Work（现状）
+```
 
-保留但不再引用：`pick_one` / `your_reply` / `reply_hint` / `reply_placeholder` / `need_user_moments`（暂不删除，避免影响其他潜在引用）。
+所有字段沿用现有的"输入即保存"机制。三段之间用大间距分开，不用 tab、不用折叠——一屏顺序读下去。
 
-## 新体验
+### 3. 匹配器接入（后续，非本轮 UI 改动）
 
-1. 打开 TA 卡片：header → moments → One Work → [Say hello] [Pass]。
-2. 点 Say hello：composer 出现，只有一个 textarea + 发送/取消；上方 section 标签变成"想聊哪一段？点一下引用（可选）"，moments 可点击。
-3. 用户想引用某条 → 点它 → 该条左边条高亮 + composer 顶部出现引用块。再点同一条或 × → 取消。
-4. 写完点发送。
+在 `matchmaker.ts` 的 `scorePerson` 里，把 `profile.compatibility` 和 `profile.activities` 纳入软信号（Side by Side 已经用 activities，Matchmaker 补上兼容性题的加权）。本轮先落 UI 和数据模型；匹配逻辑接入拆到下一轮，避免一次改太多。
 
-一屏内 moments 只出现一次；composer 只做发送本身该做的事。
+### 4. i18n
 
-## 验收
+新增 keys：三段的 heading、helper、3 道情境题的题干和选项、activity 表单的 cadence 词汇、MBTI 提示。中英各一份。
 
-1. Composer 内不再出现任何 TA 的 moment 文本副本（除顶部"当前引用"预览）。
-2. 上方 moments 在 composing 时可点选/取消；非 composing 时保持展示状态。
-3. 无引用时也可发送；连接记录中 `quotedMomentId` 为 `null`。
-4. `YourHelloRecap` 与 `ConnectionThread` 在 `quotedMomentId` 为 null 时静默跳过引用块，其余照旧显示回复内容。
-5. Typecheck 通过（`HelloFromMe.quotedMomentId: string | null` 传导干净）。
+## 四、明确不做的
+
+- 不加婚史、生育、宗教、收入
+- 不做 MBTI 排序算法
+- 不做 activities 的时间段/技术水平细化（复用 UserActivity 三个字段够 Side by Side 撮合初版）
+- 不动 Matchmaker/Side by Side 的匹配逻辑（下一轮）
+- 不改 Say hello / IntroCanvas 相关代码
+
+## 五、验收
+
+1. 打开 `/profile`，看到三段清晰分隔，各自有一句 helper 说明用途。
+2. 只填 vitals + 3 moments + one work 仍算完成（保持低门槛）。
+3. L2 任何字段可留空、可随时补；填了即保存。
+4. `loadProfile()` 返回结构向后兼容旧数据（缺字段用默认值填充）。
+5. 中英文文案完整。
