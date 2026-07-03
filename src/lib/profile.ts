@@ -1,7 +1,12 @@
 // The user's own Profile — the SOURCE OF TRUTH for "who you are" inside
-// Kindred. Replaces the previous pattern of having a chat Agent infer/store
-// identity. Edited via /profile, surfaced to other users wherever Moments
-// or vitals would appear.
+// Kindred. Three layers, each with a different reader:
+//   L1 Vitals          → system hard-filters (name/age/city/occupation)
+//   L2 Compatibility   → system soft-signals (situational answers, activities,
+//                        optional MBTI tag) — all optional, no completion gate
+//   L3 Specificity     → other real people (Moments + One Work)
+// The Agent reads this; it never mutates it.
+
+import type { ActivityKind } from "./types";
 
 export type WorkKind = "book" | "film" | "music" | "exhibition" | "food" | "other";
 
@@ -16,12 +21,38 @@ export interface OneWork {
   why: string;          // one sentence
 }
 
+// ---------- Layer 2 --------------------------------------------------------
+
+// Three situational choices. Each is optional. Values are stable string ids
+// so the matcher can compare across users without depending on wording.
+export interface CompatibilityAnswers {
+  weekend?: "quiet_recharge" | "one_close_friend" | "out_and_about";
+  conflict?: "talk_now" | "cool_off_first" | "write_it_out";
+  five_years?: "depth_one_thing" | "range_many_things" | "stability_family";
+}
+
+export type ActivityCadence = "weekly" | "monthly" | "occasional";
+
+export interface UserActivity {
+  kind: ActivityKind;
+  area: string;          // user-typed neighborhood label
+  cadence: ActivityCadence;
+}
+
+// ---------- Profile --------------------------------------------------------
+
 export interface Profile {
+  // L1 vitals
   name: string;
   age: number | null;
   city: string;
   occupation: string;
-  moments: ProfileMoment[];   // need ≥ 3 to be considered complete
+  // L2 compatibility (all optional, do not affect completion)
+  activities: UserActivity[];
+  compatibility: CompatibilityAnswers;
+  mbti?: string;               // free-form 4-letter tag, display only
+  // L3 specificity
+  moments: ProfileMoment[];
   oneWork: OneWork | null;
 }
 
@@ -30,11 +61,15 @@ export const EMPTY_PROFILE: Profile = {
   age: null,
   city: "",
   occupation: "",
+  activities: [],
+  compatibility: {},
+  mbti: "",
   moments: [],
   oneWork: null,
 };
 
 export const MIN_MOMENTS = 3;
+export const MAX_ACTIVITIES = 3;
 const KEY = "kindred:profile.v1";
 
 export function loadProfile(): Profile {
@@ -42,7 +77,15 @@ export function loadProfile(): Profile {
   try {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return EMPTY_PROFILE;
-    return { ...EMPTY_PROFILE, ...(JSON.parse(raw) as Partial<Profile>) };
+    // Merge over defaults so older stored shapes get new fields as empty.
+    const parsed = JSON.parse(raw) as Partial<Profile>;
+    return {
+      ...EMPTY_PROFILE,
+      ...parsed,
+      activities: Array.isArray(parsed.activities) ? parsed.activities : [],
+      compatibility: parsed.compatibility ?? {},
+      moments: Array.isArray(parsed.moments) ? parsed.moments : [],
+    };
   } catch {
     return EMPTY_PROFILE;
   }
@@ -91,4 +134,31 @@ export function upsertMoment(p: Profile, promptId: string, answer: string): Prof
 
 export function removeMoment(p: Profile, promptId: string): Profile {
   return { ...p, moments: p.moments.filter((m) => m.promptId !== promptId) };
+}
+
+// ---------- Layer 2 mutators ----------------------------------------------
+
+export function setCompatibility<K extends keyof CompatibilityAnswers>(
+  p: Profile, key: K, value: CompatibilityAnswers[K] | undefined,
+): Profile {
+  const next = { ...p.compatibility };
+  if (value === undefined) delete next[key];
+  else next[key] = value;
+  return { ...p, compatibility: next };
+}
+
+export function addActivity(p: Profile, a: UserActivity): Profile {
+  if (p.activities.length >= MAX_ACTIVITIES) return p;
+  return { ...p, activities: [...p.activities, a] };
+}
+
+export function updateActivity(p: Profile, index: number, patch: Partial<UserActivity>): Profile {
+  return {
+    ...p,
+    activities: p.activities.map((a, i) => (i === index ? { ...a, ...patch } : a)),
+  };
+}
+
+export function removeActivity(p: Profile, index: number): Profile {
+  return { ...p, activities: p.activities.filter((_, i) => i !== index) };
 }
