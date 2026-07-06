@@ -1,103 +1,127 @@
 
-# Profile 重构：三层结构，各司其职
+# Say Hello 之后的产品设计
 
-## 一、想清楚的结论（作为设计前提）
+## 一、先把问题剥到最小
 
-**Profile 的作用**：降低"要不要花时间在 TA 身上"的判断成本。它有两个读者——系统 & 另一个真人——各读各的部分。用户不为"吸引"而写，只为"诚实"而写。
+发送方 A 发了 hello 给 B。**只有两个分支**：
 
-**内容的逻辑线**（对齐"先做朋友"的渐进定位）：
+- **分支 1：B 想和 A 聊** → 目标是让两人尽快开始真正的对话
+- **分支 2：B 不想和 A 聊** → 目标是让双方都体面地离开，谁都不难堪
 
-| 层 | 读者 | 解决的问题 | 具体字段 |
-|---|---|---|---|
-| **L1 · Vitals** | 系统硬筛 | 地理/年龄段是否可能共处 | 名字、年龄、城市、职业 |
-| **L2 · Compatibility** | 系统排序 + 另一半的参考 | 长期相处的兼容性信号 | 3 道情境选择题 + 常做的活动 + MBTI（可选标签） |
-| **L3 · Specificity** | 另一个真人 | 触发"想对 TA 说一句话"的冲动 | Moments（≥3）+ One Work |
+其他一切（"等待中"、"已读"、"在线"、"48小时倒计时"）都是干扰项。任何时间感、进度条、催促信号都会把"先做朋友"的气质破坏掉。
 
-**为什么不问婚史/生育**：定位是"先做朋友"，硬约束会劝退，也和产品气质冲突。这些真需要时可以在 L2 的情境题里以温和方式覆盖（比如"未来 5 年最想投入的事"）。
+**关键判断**：A 不应该看到"B 正在犹豫"或"B 拒绝了你"。A 只应该看到两种结果之一：**可以聊了** 或 **这次没有回音**。B 同理，B 不应该被逼着"接受/拒绝"，B 只有两个动作：**回一句** 或 **不回**。
 
-**为什么 MBTI 只做标签不做排序**：学术信效度不够，但用户熟悉、愿意填、是自我表达词汇。放 L3 作为可选 tag，让人读时当作破冰点，不进匹配算法。
+## 二、两个分支的产品流程
 
-**为什么 activities 放 profile 而非 Side by Side 现场问**：用户填 profile 时是"平静地想清楚自己"的状态；进入 Side by Side 时是"想找人"的状态，被追问会烦。且 activities 是 Side by Side 的燃料，profile 是唯一稳定源头。
+### 分支 1：B 想聊
 
-## 二、当前 profile.ts 的差距
-
-- ✅ 已有：name / age / city / occupation / moments / oneWork
-- ❌ 缺 L2 全部：情境题、activities、MBTI
-- ⚠️ UI 上 L1 和 L3 混在一张长表单里，用户感受不到"哪段给谁看"
-
-## 三、要做的改动
-
-### 1. 数据模型 (`src/lib/profile.ts`)
-
-```ts
-export interface CompatibilityAnswers {
-  weekend?: "quiet_recharge" | "one_close_friend" | "out_and_about";
-  conflict?: "talk_now" | "cool_off_first" | "write_it_out";
-  five_years?: "depth_one_thing" | "range_many_things" | "stability_family";
-  // 3 道题，可选，全部允许空
-}
-
-export interface UserActivity {
-  kind: ActivityKind;      // 复用 types.ts 的 ActivityKind
-  area: string;            // 用户手填街区/区
-  cadence: "weekly" | "monthly" | "occasional";
-}
-
-export interface Profile {
-  // 现有
-  name; age; city; occupation; moments; oneWork;
-  // 新增
-  activities: UserActivity[];   // 0-3 项
-  compatibility: CompatibilityAnswers;
-  mbti?: string;                // 可选，仅作为 tag
-}
+```
+A 发 hello（引用 B 的 moment + 一句话）
+        ↓
+B 在"收到"里看到：A 的名片 + A 引用的那条 moment + A 的一句话
+        ↓
+B 在同一个界面回一句（可选：引用 A 的一条 moment）
+        ↓
+瞬间连上，双方都进入正常聊天线程
+A 侧的这条 hello 从"已送出"直接变成"已连接"，无中间态
 ```
 
-`isProfileComplete` 语义不变（仍以 vitals + 3 moments + oneWork 为准）；L2 字段全部可选，不影响任何"完整度"判定——保持"先做朋友"的低门槛。
+**A 看到的**：hello 发出后，卡片显示"已送达"。当 B 回了，卡片变成正常聊天入口，红点提示。**没有"等待中"这个显式状态给 A 看**——A 只知道"发出去了"和"聊上了"两件事。
 
-### 2. 表单结构 (`src/components/profile-form.tsx`)
+**B 看到的**：Connections 页顶部出现"新的问候"一小段。点开就是一个卡片：A 的头像/名字/城市/职业 + A 引用的 B 的那条 moment（高亮） + A 写的一句话。下面直接就是回复框（复用 HelloComposer）。回完即连上。
 
-分三个视觉段落，每段一句 helper 说明"这段是给谁看的"：
+### 分支 2：B 不想聊
 
-```text
-┌ 基本信息 (Vitals) ────────────────────────
-│  helper: "系统用来判断你们是否在同一个城市。"
-│  [name] [age] [city] [occupation]
+B 的动作只有一个：**关掉那张卡片**（叫"稍后再说"或直接一个 × ）。不需要"拒绝"按钮，不需要理由。
 
-┌ 你怎么生活 (Compatibility)  可选 ─────────
-│  helper: "系统用来把更可能合得来的人排在前面。填不填都可以。"
-│  · 3 道情境二/三选题（radio card 形式，不是下拉）
-│  · 常做的活动：+ 按钮加 1-3 项，每项 (kind, area, cadence)
-│  · MBTI 输入：可选，一行小字"仅作为标签展示，不参与匹配"
+- B 侧：卡片消失，归档到一个折叠的"以后再说"区（B 可随时反悔重新打开回复）
+- A 侧：**hello 卡片安静地淡出**。没有"被拒绝"通知，没有红字。可能的表达是：卡片从主列表移到底部"没有回音"折叠区，灰色小字"这次没聊上"
 
-┌ 你的瞬间 (Specificity) ───────────────────
-│  helper: "别人会通过这些认识你。用你自己的话写。"
-│  · Moments 编辑器（现状）
-│  · One Work（现状）
+**A 想再试同一个人**：60 天内在 Matchmaker/Side by Side 里遇到同一个 B 时，"say hello" 按钮显示为"上次没聊上，先看看别人"的柔和提示，但**不硬性禁用**——如果 A 有新东西想说，仍然可以再发一次。这保留了产品的温度，也不制造"黑名单"。
+
+## 三、"等多久算没回音"的处理
+
+产品里 A 永远不看到倒计时。内部逻辑：
+- hello 发出后立刻进入"pending"（A 侧只显示"已送达"）
+- 原型里 45–90 秒后本地决定 B 的选择（70% 想聊 / 30% 不想聊），真实版本里由 B 的操作决定
+- 一旦决定：要么升级到"已连接"（分支 1），要么淡出到"没有回音"（分支 2）
+- **不存在"waiting"这个用户可见的状态**——这是上一版设计的最大冗余
+
+## 四、和上一版比，砍掉了什么
+
+| 上一版有 | 这一版为什么砍 |
+|---|---|
+| `waiting` 显式状态 + 撤回按钮 | A 不需要盯着"她还没回"。撤回是伪需求，制造焦虑 |
+| `quiet` 灰色卡 + 60 天硬冷却 | 太像"黑名单"。改为温和提示 + 折叠归档，不硬禁 |
+| B 侧"稍后再说"和"忽略"两个动作 | 合并成一个 × |
+| 4 个 sidebar 分区（收到/已连接/等待/静默） | 只要 2 个：**收到** + **在聊**；底部一个可折叠的**没有回音** |
+| "24h/45-90s" 倒计时逻辑暴露给用户 | 完全内部化 |
+
+## 五、要改的文件
+
+### 1. `src/lib/connections.ts`
+- 状态精简为 `"incoming" | "connected" | "faded"`
+  - `incoming`：B 侧未回的收件
+  - `connected`：双方接上，正常聊天
+  - `faded`：B 关掉了卡片，A 侧折叠归档
+- 新增 `respondToIncoming(personId, fromMe)` → 转为 `connected`，同时把 A 的原 hello 也升级
+- 新增 `dismissIncoming(personId)` → 转为 `faded`
+- 移除 `waiting` 相关代码、`withdraw`、`cooldown` 硬表
+- 保留 `maybeSeedIncoming`：在用户填够 3 个 moments 后，本地随机种一两个 `incoming` 让 B 侧界面不是空的
+- 原有的 `scheduleReply` 定时器改为决定"想聊 / 不想聊"两种结局
+
+### 2. `src/routes/connections.tsx`
+Sidebar 只有两段可见 + 一个折叠段：
+```
+收到（incoming，有红点）
+在聊（connected）
+─────
+没有回音（faded，默认折叠，灰色小字）
 ```
 
-所有字段沿用现有的"输入即保存"机制。三段之间用大间距分开，不用 tab、不用折叠——一屏顺序读下去。
+### 3. `src/components/canvas/incoming-hello.tsx`（新建）
+右侧画布，B 侧看 incoming 时的视图：
+- 顶部：A 的名片（头像/名字/城市/职业，点名字可跳看 A 的完整 profile）
+- 中部：A 引用的 B 的那条 moment（复用现有引用样式）+ A 的一句话
+- 下部：`HelloComposer`（复用），B 可选引用 A 的一条 moment + 回一句
+- 右上：一个小 `×`，hover 出 tooltip"稍后再说"
 
-### 3. 匹配器接入（后续，非本轮 UI 改动）
+### 4. `src/components/canvas/connection-thread.tsx`
+不变，`connected` 状态下的现有线程 UI 已经够用。
 
-在 `matchmaker.ts` 的 `scorePerson` 里，把 `profile.compatibility` 和 `profile.activities` 纳入软信号（Side by Side 已经用 activities，Matchmaker 补上兼容性题的加权）。本轮先落 UI 和数据模型；匹配逻辑接入拆到下一轮，避免一次改太多。
+### 5. `src/components/canvas/intro-canvas.tsx`
+"say hello" 按钮：如果对该 person 存在 `faded` 记录，按钮下方加一行小字 `t("hello.faded_hint")`（"上次没聊上，也许先看看别人"），按钮本身**不禁用**。
 
-### 4. i18n
+### 6. `src/components/home.tsx`
+`hasUnseen` 判断加入 `incoming` 分支（现有已支持 unseen 逻辑，只需覆盖新状态）。
 
-新增 keys：三段的 heading、helper、3 道情境题的题干和选项、activity 表单的 cadence 词汇、MBTI 提示。中英各一份。
+### 7. i18n（中英各一份新增 key）
+```
+connection.section_incoming = "收到"
+connection.section_connected = "在聊"
+connection.section_faded = "没有回音"
+connection.faded_hint = "这次没聊上"
+incoming.title = "{{name}} 想认识你"
+incoming.dismiss = "稍后再说"
+hello.faded_hint = "上次没聊上，也许先看看别人"
+hello.delivered = "已送达"
+```
 
-## 四、明确不做的
+## 六、明确不做
 
-- 不加婚史、生育、宗教、收入
-- 不做 MBTI 排序算法
-- 不做 activities 的时间段/技术水平细化（复用 UserActivity 三个字段够 Side by Side 撮合初版）
-- 不动 Matchmaker/Side by Side 的匹配逻辑（下一轮）
-- 不改 Say hello / IntroCanvas 相关代码
+- 不做已读回执、在线状态、输入中提示
+- 不做超时自动过期（faded 就是 faded，不会再变）
+- 不做"拒绝理由"、"举报"、"屏蔽"
+- 不做通知徽标数字，只保留红点
+- 不改 Matchmaker/Side by Side 推荐逻辑
+- 不改 Profile 结构
 
-## 五、验收
+## 七、验收
 
-1. 打开 `/profile`，看到三段清晰分隔，各自有一句 helper 说明用途。
-2. 只填 vitals + 3 moments + one work 仍算完成（保持低门槛）。
-3. L2 任何字段可留空、可随时补；填了即保存。
-4. `loadProfile()` 返回结构向后兼容旧数据（缺字段用默认值填充）。
-5. 中英文文案完整。
+1. A 发 hello → 主视图卡片显示"已送达"，无倒计时无进度条。
+2. B 打开 Connections → 顶部"收到"区有卡片，点开是引用高亮 + 回复框。
+3. B 回一句 → 双方立刻进入 `connected`，A 侧卡片红点提醒。
+4. B 关掉卡片 → A 侧卡片安静落入"没有回音"折叠区，无通知。
+5. A 再次在 Matchmaker 遇到 B → say hello 按钮下有柔和小字，仍可发送。
+6. 全流程无"拒绝/等待中/超时"等词。

@@ -264,13 +264,13 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
             />
           )}
 
-          {conn?.status === "waiting" && (
+          {conn?.status === "sent" && (
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-[12.5px] text-muted-foreground">
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse" />
-                {t("connection.waiting")}
+                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+                {t("connection.delivered")}
               </div>
-              <YourHelloRecap conn={conn} person={person} lang={lang} />
+              {conn.fromMe && <YourHelloRecap fromMe={conn.fromMe} person={person} lang={lang} />}
             </div>
           )}
 
@@ -285,6 +285,12 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
               <span className="text-[12px] text-muted-foreground">{t("connection.connected_note")}</span>
             </div>
           )}
+
+          {conn?.status === "faded" && (
+            <p className="text-[12.5px] text-muted-foreground leading-relaxed">
+              {t("hello.faded_hint")}
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -292,11 +298,11 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
 }
 
 function YourHelloRecap({
-  conn, person, lang,
-}: { conn: Connection; person: ReturnType<typeof getPersonById>; lang: Lang }) {
+  fromMe, person, lang,
+}: { fromMe: NonNullable<Connection["fromMe"]>; person: ReturnType<typeof getPersonById>; lang: Lang }) {
   const { t } = useTranslation();
   if (!person) return null;
-  const m = person.moments.find((mm) => mm.id === conn.fromMe.quotedMomentId);
+  const m = person.moments.find((mm) => mm.id === fromMe.quotedMomentId);
   if (!m) return null;
   const prompt = getMomentPromptById(m.promptId);
   return (
@@ -315,7 +321,7 @@ function YourHelloRecap({
       <div className="mt-2 pt-2 border-t border-border text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground mb-1">
         {t("moment.you_wrote")}
       </div>
-      <p className="text-[13px] text-foreground leading-snug">"{conn.fromMe.reply}"</p>
+      <p className="text-[13px] text-foreground leading-snug">"{fromMe.reply}"</p>
     </div>
   );
 }

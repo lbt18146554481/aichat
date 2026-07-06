@@ -79,14 +79,23 @@
     "say_hello": "打个招呼",
     "pass": "跳过",
     "hello_hint": "TA 会看到你写的那一句和你挑的 TA 那一段。还看不到你的名字——只有 TA 回应之后才会显示。",
-    "waiting": "已发送。等 TA 回应。",
+    "delivered": "已送达",
     "open_conversation": "进入对话",
     "connected_note": "现在你们可以自由聊了。",
-    "section_connected": "已连接",
-    "section_waiting": "等待中",
+    "section_incoming": "收到",
+    "section_connected": "在聊",
+    "section_faded": "没有回音",
     "empty": "还没有。在 Matchmaker 里对某个人打个招呼，TA 就会出现在这里。",
     "pick_one": "在左侧挑一段对话。",
     "composer_placeholder": "写点什么……"
+  },
+  "incoming": {
+    "label": "有人读到了你",
+    "dismiss": "稍后再说",
+    "they_read": "TA 读到了你的这一段",
+    "they_wrote": "{{name}} 写的",
+    "pick_to_reply": "挑一段 {{name}} 的话回一句（可选）",
+    "hint": "如果没感觉，关掉就好。TA 不会知道。"
   },
   "hello": {
     "gate": {
@@ -97,7 +106,8 @@
       "return_hint": "改动会自动保存，随时点左上角回去打招呼。",
       "back_to_matchmaker": "返回牵线人",
       "back_to_sidebyside": "返回并肩人"
-    }
+    },
+    "faded_hint": "上次没聊上——可以先看看别人，也可以再写点新的。"
   },
 
   "meet": {

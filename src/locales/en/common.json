@@ -81,14 +81,23 @@
     "say_hello": "Say hello",
     "pass": "Pass",
     "hello_hint": "They'll see what you wrote and the part of theirs you read. Not your name yet — that only unlocks if they reply.",
-    "waiting": "Sent. Waiting on them.",
+    "delivered": "Delivered",
     "open_conversation": "Open conversation",
     "connected_note": "You can talk freely now.",
-    "section_connected": "Connected",
-    "section_waiting": "Waiting",
+    "section_incoming": "New",
+    "section_connected": "Talking",
+    "section_faded": "Didn't land",
     "empty": "No one yet. Say hello to someone from the Matchmaker and they'll show up here.",
     "pick_one": "Pick a conversation on the left.",
     "composer_placeholder": "Write something…"
+  },
+  "incoming": {
+    "label": "Someone read you",
+    "dismiss": "Later",
+    "they_read": "They read this of yours",
+    "they_wrote": "{{name}} wrote back",
+    "pick_to_reply": "Pick one of {{name}}'s moments to reply to — optional",
+    "hint": "If you don't feel it, just close this. They won't be told."
   },
   "hello": {
     "gate": {
@@ -99,7 +108,8 @@
       "return_hint": "Changes save as you type — hit the back arrow whenever you're ready.",
       "back_to_matchmaker": "Back to Matchmaker",
       "back_to_sidebyside": "Back to Side by Side"
-    }
+    },
+    "faded_hint": "This didn't land last time. It's OK to move on — or say something new."
   },
 
   "meet": {
