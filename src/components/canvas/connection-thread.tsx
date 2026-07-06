@@ -102,7 +102,7 @@ function HelloAnchor({ conn, person, lang }: {
   lang: Lang;
 }) {
   const { t } = useTranslation();
-  const myMoment = person.moments.find((m) => m.id === conn.fromMe.quotedMomentId);
+  const myMoment = conn.fromMe ? person.moments.find((m) => m.id === conn.fromMe!.quotedMomentId) : null;
   const myPrompt = myMoment ? getMomentPromptById(myMoment.promptId) : null;
 
   const profile = loadProfile();
@@ -131,9 +131,11 @@ function HelloAnchor({ conn, person, lang }: {
           <p className="text-[13px] text-foreground leading-snug">
             {lang === "zh-CN" ? myMoment.answer_zh : myMoment.answer}
           </p>
-          <p className="mt-2 text-[13px] text-foreground leading-snug">
-            <span className="text-muted-foreground">— </span>"{conn.fromMe.reply}"
-          </p>
+          {conn.fromMe && (
+            <p className="mt-2 text-[13px] text-foreground leading-snug">
+              <span className="text-muted-foreground">— </span>"{conn.fromMe.reply}"
+            </p>
+          )}
         </article>
       )}
 
