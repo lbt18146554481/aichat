@@ -264,13 +264,13 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
             />
           )}
 
-          {conn?.status === "waiting" && (
+          {conn?.status === "sent" && (
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-[12.5px] text-muted-foreground">
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse" />
-                {t("connection.waiting")}
+                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+                {t("connection.delivered")}
               </div>
-              <YourHelloRecap conn={conn} person={person} lang={lang} />
+              {conn.fromMe && <YourHelloRecap fromMe={conn.fromMe} person={person} lang={lang} />}
             </div>
           )}
 
@@ -284,6 +284,12 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
               </Link>
               <span className="text-[12px] text-muted-foreground">{t("connection.connected_note")}</span>
             </div>
+          )}
+
+          {conn?.status === "faded" && (
+            <p className="text-[12.5px] text-muted-foreground leading-relaxed">
+              {t("hello.faded_hint")}
+            </p>
           )}
         </div>
       </div>
