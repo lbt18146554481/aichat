@@ -30,22 +30,21 @@ function MatchmakerPage() {
   const { i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
 
-  const [state, setState] = useState<MatchmakerState>(EMPTY);
+  const [state, setState] = useState<MatchmakerState>(() => {
+    if (typeof window === "undefined") return EMPTY;
+    const seed = consumeSeed("matchmaker");
+    if (seed) {
+      reset();
+      return userTurn(start(lang), seed, lang);
+    }
+    const loaded = load();
+    return loaded.messages.length === 0 ? start(lang) : loaded;
+  });
   const [hydrated, setHydrated] = useState(false);
   const [thinking, setThinking] = useState(false);
 
   useEffect(() => {
-    const seed = consumeSeed("matchmaker");
-    if (seed) {
-      reset();
-      const seeded = userTurn(start(lang), seed, lang);
-      setState(seeded);
-    } else {
-      const loaded = load();
-      setState(loaded.messages.length === 0 ? start(lang) : loaded);
-    }
     setHydrated(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { if (hydrated) save(state); }, [state, hydrated]);
