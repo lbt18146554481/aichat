@@ -106,7 +106,8 @@
       "return_hint": "改动会自动保存，随时点左上角回去打招呼。",
       "back_to_matchmaker": "返回牵线人",
       "back_to_sidebyside": "返回并肩人"
-    }
+    },
+    "faded_hint": "上次没聊上——可以先看看别人，也可以再写点新的。"
   },
 
   "meet": {

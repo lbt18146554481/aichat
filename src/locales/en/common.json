@@ -108,7 +108,8 @@
       "return_hint": "Changes save as you type — hit the back arrow whenever you're ready.",
       "back_to_matchmaker": "Back to Matchmaker",
       "back_to_sidebyside": "Back to Side by Side"
-    }
+    },
+    "faded_hint": "This didn't land last time. It's OK to move on — or say something new."
   },
 
   "meet": {
