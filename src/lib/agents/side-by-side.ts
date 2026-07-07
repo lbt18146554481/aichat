@@ -292,7 +292,11 @@ function tryPropose(s: SideState, lang: "en" | "zh-CN"): SideState {
   }
   const proposal = findProposal(s);
   if (!proposal) {
-    return pushA({ ...s, phase: "waiting" }, lang === "zh-CN" ? L.no_match.zh : L.no_match.en);
+    const hasNear = findNearMisses(s).length > 0;
+    const line = hasNear
+      ? (lang === "zh-CN" ? L.no_match_near.zh : L.no_match_near.en)
+      : (lang === "zh-CN" ? L.no_match_empty.zh : L.no_match_empty.en);
+    return pushA({ ...s, phase: "waiting" }, line);
   }
   const person = PEOPLE.find((p) => p.id === proposal.personId)!;
   return pushA(
