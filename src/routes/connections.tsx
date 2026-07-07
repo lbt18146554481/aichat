@@ -118,6 +118,20 @@ function ConnectionsPage() {
             </Section>
           )}
 
+          {sent.length > 0 && (
+            <Section label={t("connection.section_sent")}>
+              {sent.map((c) => (
+                <Row
+                  key={c.personId}
+                  conn={c}
+                  lang={lang}
+                  active={false}
+                  onSelect={() => openSentInMatchmaker(c.personId)}
+                />
+              ))}
+            </Section>
+          )}
+
           {faded.length > 0 && (
             <div className="py-3 border-t border-border">
               <button
