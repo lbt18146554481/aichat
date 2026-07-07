@@ -191,10 +191,13 @@ function Row({ conn, lang, active, muted, dot, onSelect }: {
   if (!person) return null;
   const loc = localized(person, lang);
   const last = conn.messages[conn.messages.length - 1];
+  const { t } = useTranslation();
   const subtitle = conn.status === "incoming"
     ? loc.occupation
     : conn.status === "faded"
     ? loc.city
+    : conn.status === "sent"
+    ? t("connection.delivered")
     : (last?.text ?? loc.occupation);
   return (
     <li>
