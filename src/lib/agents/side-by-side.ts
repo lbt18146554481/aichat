@@ -1,21 +1,27 @@
-// Side by Side — Agent for path B: proximity through shared activity.
+// Side by Side — one-sentence intent → at most one clarifying tap → candidate.
 //
-// Product terminates the moment two people are placed on a shared topic.
-// After that, the connections thread takes over — schedule, venue, whether
-// they actually meet, all live inside /connections. Side by Side does not
-// track "confirmed / attended / debrief" states; the connections layer is
-// the single source of truth for whether a conversation is happening.
+// Two hard rules for this agent:
+//  1. The user tells us what they want in their own words. We parse locally
+//     (no LLM) using a three-layer strategy so any input still routes
+//     somewhere useful.
+//  2. We ask at most ONE follow-up (when? or level?). Ambiguity resolution
+//     (multi-kind, no-kind fallback) does not count against that budget —
+//     it's clarifying what was already said, not adding new info.
+//
+// When the user hits "say hello" we hand off to /connections and terminate.
 
 import { PEOPLE, getPersonById } from "../people";
 import type { Activity, ActivityKind, Person, Weekday } from "../types";
 
-// What the user tells us. Only two dimensions: what + when. Level and area
-// are intentionally not surfaced — they add complexity without helping the
-// user decide anything at this step. Level still exists on Person's
-// Activity data and can bias matching, but we don't ask.
-export interface UserActivity {
+// ---- Domain -------------------------------------------------------------
+
+export type WhenTier = "weekend" | "weeknight" | "any";
+export type LevelTier = "beginner" | "intermediate" | "advanced";
+
+export interface UserIntent {
   kind: ActivityKind;
-  slots: Array<{ day: Weekday; window: "morning" | "midday" | "evening" }>;
+  when?: WhenTier;   // undefined = user hasn't said
+  level?: LevelTier; // undefined = user hasn't said / doesn't care
 }
 
 export interface Candidate {
@@ -29,72 +35,221 @@ export interface Candidate {
   reason_zh: string;
 }
 
-// Anonymously aggregated "close" bucket: same kind at a slot the user
-// didn't pick.
 export interface NearMiss {
   personCount: number;
   slot: { day: Weekday; window: "morning" | "midday" | "evening" };
 }
 
-// Derived phase — computed, never persisted.
-export type Phase = "gathering" | "reviewing" | "empty";
+// ---- Parse layers -------------------------------------------------------
+
+export type ParseLayer = "L1" | "L2" | "L3";
+
+export interface ParseResult {
+  layer: ParseLayer;
+  kind?: ActivityKind;
+  when?: WhenTier;
+  level?: LevelTier;
+  ambiguousKinds?: ActivityKind[]; // present on L2
+  truncated?: boolean;
+}
+
+const KIND_WORDS: Record<ActivityKind, string[]> = {
+  tennis: ["网球", "打网球", "tennis"],
+  run: ["跑步", "夜跑", "晨跑", "慢跑", "run", "running", "jog", "jogging"],
+  climb: ["攀岩", "爬岩", "抱石", "climb", "climbing", "bouldering"],
+  cook: ["做饭", "下厨", "煮饭", "cook", "cooking", "bake", "baking"],
+  exhibition: ["看展", "展览", "美术馆", "博物馆", "exhibit", "exhibition", "gallery", "museum"],
+  bookstore: ["书店", "逛书店", "bookstore", "bookshop"],
+};
+
+const WHEN_WORDS: Record<WhenTier, string[]> = {
+  weekend: ["周末", "周六", "周日", "星期六", "星期日", "礼拜六", "礼拜日", "sat", "sun", "saturday", "sunday", "weekend"],
+  weeknight: ["工作日", "平时晚上", "周中", "weekday", "weeknight", "weeknights"],
+  any: ["都行", "都可以", "任意", "随时", "anytime", "any time", "flexible", "whenever"],
+};
+
+// Standalone "晚上/evening" tips towards weeknight only when no weekend cue is present.
+const EVENING_HINTS = ["晚上", "evening", "evenings", "night"];
+
+const LEVEL_WORDS: Record<LevelTier, string[]> = {
+  beginner: ["新手", "入门", "初学", "刚学", "菜鸟", "beginner", "new", "novice"],
+  intermediate: ["会打", "一般", "中级", "还行", "intermediate", "casual"],
+  advanced: ["进阶", "不错", "高手", "老手", "advanced", "experienced", "serious"],
+};
+
+const NEGATION_WORDS = ["不想", "不要", "别", "don't", "dont", "do not", "no ", "not "];
+
+// Only tennis and climb use level as a real matching signal in our dataset.
+const LEVEL_KINDS: ActivityKind[] = ["tennis", "climb"];
+
+// Follow-up asks trigger only when the raw candidate pool is above this.
+const ASK_THRESHOLD = 3;
+
+const MAX_INPUT_CHARS = 140;
+
+function normalize(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[\u3000\s]+/g, " ")
+    .replace(/[,.，。;；:：!！?？、"'()\[\]{}]/g, " ")
+    .trim();
+}
+
+// A keyword hit is negated if a negation word appears within ~6 chars before it.
+function isNegated(text: string, hitIndex: number): boolean {
+  const before = text.slice(Math.max(0, hitIndex - 6), hitIndex);
+  return NEGATION_WORDS.some((n) => before.includes(n));
+}
+
+function findKindHits(text: string): ActivityKind[] {
+  const hits = new Set<ActivityKind>();
+  for (const kind of Object.keys(KIND_WORDS) as ActivityKind[]) {
+    for (const w of KIND_WORDS[kind]) {
+      const i = text.indexOf(w);
+      if (i >= 0 && !isNegated(text, i)) { hits.add(kind); break; }
+    }
+  }
+  return Array.from(hits);
+}
+
+function findWhen(text: string): WhenTier | undefined {
+  const flags: Record<WhenTier, boolean> = { weekend: false, weeknight: false, any: false };
+  for (const tier of Object.keys(WHEN_WORDS) as WhenTier[]) {
+    for (const w of WHEN_WORDS[tier]) {
+      if (text.includes(w)) { flags[tier] = true; break; }
+    }
+  }
+  // Standalone "evening" nudges to weeknight only if weekend isn't also mentioned.
+  if (!flags.weekend && !flags.weeknight && !flags.any) {
+    if (EVENING_HINTS.some((w) => text.includes(w))) flags.weeknight = true;
+  }
+  if (flags.any) return "any";
+  if (flags.weekend && flags.weeknight) return "any";
+  if (flags.weekend) return "weekend";
+  if (flags.weeknight) return "weeknight";
+  return undefined;
+}
+
+function findLevel(text: string): LevelTier | undefined {
+  for (const tier of Object.keys(LEVEL_WORDS) as LevelTier[]) {
+    for (const w of LEVEL_WORDS[tier]) {
+      if (text.includes(w)) return tier;
+    }
+  }
+  return undefined;
+}
+
+export function parseIntent(raw: string): ParseResult {
+  const truncated = raw.length > MAX_INPUT_CHARS;
+  const text = normalize(truncated ? raw.slice(0, MAX_INPUT_CHARS) : raw);
+  if (!text) return { layer: "L3", truncated };
+
+  const kinds = findKindHits(text);
+  const when = findWhen(text);
+
+  if (kinds.length === 0) return { layer: "L3", when, truncated };
+  if (kinds.length > 1) return { layer: "L2", ambiguousKinds: kinds, when, truncated };
+
+  const kind = kinds[0];
+  const level = LEVEL_KINDS.includes(kind) ? findLevel(text) : undefined;
+  return { layer: "L1", kind, when, level, truncated };
+}
+
+// ---- State --------------------------------------------------------------
+
+export type ViewKey = "prompt" | "disambiguate" | "fallback" | "ask" | "candidate" | "nearmiss";
 
 export interface SideState {
-  user: UserActivity | null;
+  intent: UserIntent | null;
+  ambiguousKinds: ActivityKind[] | null; // L2 disambiguation pending
+  parseFailed: boolean;                  // L3 fallback pending
+  pendingAsk: "when" | "level" | null;   // an ask is on screen
+  askedCount: number;                    // hard-capped at 1
+  truncated: boolean;                    // last input was truncated
+  skipped: string[];
   candidate: Candidate | null;
-  skipped: string[];       // personIds passed via "swap"
-  nearMisses: NearMiss[];  // top near-miss suggestion, when no candidate
-  poolExhausted: boolean;  // true when we've cycled through all candidates
+  nearMisses: NearMiss[];
+  poolExhausted: boolean;
 }
 
 export const EMPTY: SideState = {
-  user: null,
-  candidate: null,
+  intent: null,
+  ambiguousKinds: null,
+  parseFailed: false,
+  pendingAsk: null,
+  askedCount: 0,
+  truncated: false,
   skipped: [],
+  candidate: null,
   nearMisses: [],
   poolExhausted: false,
 };
 
-export function phaseOf(s: SideState): Phase {
-  if (!s.user) return "gathering";
-  if (s.candidate) return "reviewing";
-  return "empty";
+export function currentView(s: SideState): ViewKey {
+  if (s.parseFailed) return "fallback";
+  if (s.ambiguousKinds && s.ambiguousKinds.length > 0) return "disambiguate";
+  if (s.pendingAsk) return "ask";
+  if (!s.intent) return "prompt";
+  if (s.candidate) return "candidate";
+  return "nearmiss";
 }
 
 export function uid(): string { return Math.random().toString(36).slice(2, 10); }
 
 // ---- Matching -----------------------------------------------------------
 
-function overlap(a: UserActivity, b: Activity): { day: Weekday; window: "morning" | "midday" | "evening" } | null {
-  for (const s of a.slots) {
-    for (const o of b.slots) {
-      if (s.day === o.day && s.window === o.window) return s;
-    }
-  }
-  return null;
+function slotMatchesWhen(slot: { day: Weekday; window: "morning" | "midday" | "evening" }, when: WhenTier | undefined): boolean {
+  if (!when || when === "any") return true;
+  if (when === "weekend") return slot.day === "sat" || slot.day === "sun";
+  // weeknight = mon-fri evening
+  return slot.day !== "sat" && slot.day !== "sun" && slot.window === "evening";
 }
 
-function findAllMatches(state: SideState): Array<{ person: Person; activity: Activity; slot: { day: Weekday; window: "morning" | "midday" | "evening" }; score: number }> {
-  const user = state.user;
-  if (!user) return [];
-  const out: Array<{ person: Person; activity: Activity; slot: { day: Weekday; window: "morning" | "midday" | "evening" }; score: number }> = [];
+function scoreLevel(actLevel: LevelTier, want: LevelTier | undefined): number {
+  if (!want) return 0;
+  if (actLevel === want) return 3;
+  const order: LevelTier[] = ["beginner", "intermediate", "advanced"];
+  const diff = Math.abs(order.indexOf(actLevel) - order.indexOf(want));
+  return diff === 1 ? 1 : -2;
+}
+
+interface RankedMatch {
+  person: Person;
+  activity: Activity;
+  slot: { day: Weekday; window: "morning" | "midday" | "evening" };
+  score: number;
+}
+
+function findAllMatches(state: SideState, intent: UserIntent): RankedMatch[] {
+  const out: RankedMatch[] = [];
   for (const p of PEOPLE) {
     if (state.skipped.includes(p.id)) continue;
     for (const act of p.activities) {
-      if (act.kind !== user.kind) continue;
-      const slot = overlap(user, act);
+      if (act.kind !== intent.kind) continue;
+      const slot = act.slots.find((s) => slotMatchesWhen(s, intent.when));
       if (!slot) continue;
-      // Level is now a soft signal — no hard filter. Slight boost for a
-      // deterministic tiebreak so results feel stable.
-      const levelBoost = act.level === "intermediate" ? 1 : 0;
-      out.push({ person: p, activity: act, slot, score: 10 + levelBoost });
+      const score = 10 + scoreLevel(act.level, intent.level);
+      out.push({ person: p, activity: act, slot, score });
     }
   }
   out.sort((a, b) => b.score - a.score);
   return out;
 }
 
-function toCandidate(person: Person, activity: Activity, slot: { day: Weekday; window: "morning" | "midday" | "evening" }): Candidate {
+// Count of raw candidates for gating "do we need to ask?"
+function poolSize(state: SideState, intent: UserIntent): number {
+  let n = 0;
+  for (const p of PEOPLE) {
+    if (state.skipped.includes(p.id)) continue;
+    for (const act of p.activities) {
+      if (act.kind !== intent.kind) continue;
+      if (act.slots.some((s) => slotMatchesWhen(s, intent.when))) { n += 1; break; }
+    }
+  }
+  return n;
+}
+
+function toCandidate(person: Person, activity: Activity, slot: RankedMatch["slot"]): Candidate {
   return {
     personId: person.id,
     kind: activity.kind,
@@ -102,12 +257,12 @@ function toCandidate(person: Person, activity: Activity, slot: { day: Weekday; w
     window: slot.window,
     venue: activity.venue,
     venue_zh: activity.venue_zh,
-    reason: reasonFor(person, activity, "en"),
-    reason_zh: reasonFor(person, activity, "zh-CN"),
+    reason: reasonFor(activity, "en"),
+    reason_zh: reasonFor(activity, "zh-CN"),
   };
 }
 
-function reasonFor(p: Person, a: Activity, lang: "en" | "zh-CN"): string {
+function reasonFor(a: Activity, lang: "en" | "zh-CN"): string {
   if (lang === "zh-CN") {
     return `TA 每周也在这个时段${kindZh(a.kind)}，常去${a.area_zh}。你们大概率会遇上，只是这次有人把这件事说开。`;
   }
@@ -121,23 +276,16 @@ function kindZh(k: ActivityKind) {
 }
 
 // ---- Near-misses --------------------------------------------------------
-//
-// Only "same kind, different slot" — we don't push cross-activity
-// suggestions anymore; if the user picked tennis, they mean tennis.
 
-function findNearMisses(state: SideState): NearMiss[] {
-  const user = state.user;
-  if (!user) return [];
+function findNearMisses(state: SideState, intent: UserIntent): NearMiss[] {
   const key = (s: { day: Weekday; window: "morning" | "midday" | "evening" }) => `${s.day}-${s.window}`;
-  const userSlots = new Set(user.slots.map(key));
   const buckets = new Map<string, NearMiss>();
-
   for (const p of PEOPLE) {
     if (state.skipped.includes(p.id)) continue;
     for (const act of p.activities) {
-      if (act.kind !== user.kind) continue;
+      if (act.kind !== intent.kind) continue;
       for (const slot of act.slots) {
-        if (userSlots.has(key(slot))) continue;
+        if (slotMatchesWhen(slot, intent.when)) continue;
         const k = key(slot);
         const existing = buckets.get(k);
         if (existing) existing.personCount += 1;
@@ -148,54 +296,116 @@ function findNearMisses(state: SideState): NearMiss[] {
   return Array.from(buckets.values()).sort((a, b) => b.personCount - a.personCount);
 }
 
-// ---- Recompute ----------------------------------------------------------
+// ---- Decide next step ---------------------------------------------------
 
-function recompute(s: SideState): SideState {
-  if (!s.user) return { ...s, candidate: null, nearMisses: [], poolExhausted: false };
-  const matches = findAllMatches(s);
-  if (matches.length === 0) {
-    // No candidate for this exact slot — offer near-miss instead.
-    // Distinguish "pool exhausted" (we've already been through the good
-    // ones and skipped them) from "truly no one".
-    const totalForKindSlot = PEOPLE.reduce((n, p) => {
-      for (const act of p.activities) {
-        if (act.kind !== s.user!.kind) continue;
-        if (overlap(s.user!, act)) return n + 1;
+function decide(state: SideState): SideState {
+  // Fallback / disambiguation take precedence and are decided upstream.
+  if (state.parseFailed || (state.ambiguousKinds && state.ambiguousKinds.length > 0)) {
+    return { ...state, candidate: null, nearMisses: [], poolExhausted: false, pendingAsk: null };
+  }
+  if (!state.intent) {
+    return { ...state, candidate: null, nearMisses: [], poolExhausted: false, pendingAsk: null };
+  }
+
+  // Gate: do we need one clarifying tap?
+  if (state.askedCount < 1 && !state.pendingAsk) {
+    const size = poolSize(state, state.intent);
+    if (size > ASK_THRESHOLD) {
+      if (!state.intent.when) return { ...state, pendingAsk: "when", candidate: null, nearMisses: [] };
+      if (LEVEL_KINDS.includes(state.intent.kind) && !state.intent.level) {
+        return { ...state, pendingAsk: "level", candidate: null, nearMisses: [] };
       }
-      return n;
-    }, 0);
-    const exhausted = totalForKindSlot > 0 && s.skipped.length >= totalForKindSlot;
-    return { ...s, candidate: null, nearMisses: findNearMisses(s), poolExhausted: exhausted };
+    }
+  }
+
+  const matches = findAllMatches(state, state.intent);
+  if (matches.length === 0) {
+    const totalForKind = poolSize({ ...state, skipped: [] }, state.intent);
+    const exhausted = totalForKind > 0 && state.skipped.length >= totalForKind;
+    return {
+      ...state,
+      candidate: null,
+      nearMisses: findNearMisses(state, state.intent),
+      poolExhausted: exhausted,
+      pendingAsk: null,
+    };
   }
   const m = matches[0];
-  return { ...s, candidate: toCandidate(m.person, m.activity, m.slot), nearMisses: [], poolExhausted: false };
+  return {
+    ...state,
+    candidate: toCandidate(m.person, m.activity, m.slot),
+    nearMisses: [],
+    poolExhausted: false,
+    pendingAsk: null,
+  };
 }
 
 // ---- Public API ---------------------------------------------------------
 
-export function start(): SideState {
-  return { ...EMPTY };
+export function start(): SideState { return { ...EMPTY }; }
+
+export function submitPrompt(state: SideState, text: string): SideState {
+  const parsed = parseIntent(text);
+  // Any new prompt resets skipped/candidate — the user is telling a fresh story.
+  const base: SideState = {
+    ...EMPTY,
+    truncated: !!parsed.truncated,
+  };
+  if (parsed.layer === "L3") {
+    return { ...base, parseFailed: true };
+  }
+  if (parsed.layer === "L2") {
+    return { ...base, ambiguousKinds: parsed.ambiguousKinds ?? [], intent: parsed.when || parsed.level ? { kind: (parsed.ambiguousKinds ?? [])[0], when: parsed.when, level: parsed.level } : null };
+    // NOTE: intent is scratch — resolveAmbiguity overwrites kind. Keeping when/level so we don't lose the tier the user already said.
+  }
+  const intent: UserIntent = { kind: parsed.kind!, when: parsed.when, level: parsed.level };
+  return decide({ ...base, intent });
 }
 
-export function setUserActivity(s: SideState, user: UserActivity): SideState {
-  return recompute({ ...s, user, skipped: [], candidate: null });
+export function resolveAmbiguity(state: SideState, kind: ActivityKind): SideState {
+  // Carry over any when/level we already parsed from the original sentence.
+  const carry = state.intent ?? { kind } as UserIntent;
+  const intent: UserIntent = { kind, when: carry.when, level: carry.level };
+  return decide({ ...state, intent, ambiguousKinds: null, parseFailed: false });
 }
 
-export function swap(s: SideState): SideState {
-  if (!s.candidate) return s;
-  return recompute({ ...s, skipped: [...s.skipped, s.candidate.personId], candidate: null });
+export function chooseFromFallback(state: SideState, kind: ActivityKind): SideState {
+  const intent: UserIntent = { kind };
+  return decide({ ...EMPTY, intent });
 }
 
-export function addSlot(s: SideState, slot: { day: Weekday; window: "morning" | "midday" | "evening" }): SideState {
-  if (!s.user) return s;
-  const exists = s.user.slots.some((x) => x.day === slot.day && x.window === slot.window);
-  const nextUser = exists ? s.user : { ...s.user, slots: [...s.user.slots, slot] };
-  return recompute({ ...s, user: nextUser });
+export function answerSlot(state: SideState, slot: "when" | "level", value: WhenTier | LevelTier | "any"): SideState {
+  if (!state.intent) return state;
+  const nextIntent: UserIntent = { ...state.intent };
+  if (slot === "when") {
+    nextIntent.when = value as WhenTier;
+  } else {
+    nextIntent.level = value === "any" ? undefined : (value as LevelTier);
+  }
+  return decide({ ...state, intent: nextIntent, pendingAsk: null, askedCount: state.askedCount + 1 });
 }
 
-// The opener text used to seed the connections thread. One template per
-// kind — the user can rewrite it after the fact inside connections.
-export function makeOpener(candidate: Candidate, user: UserActivity, lang: "en" | "zh-CN"): string {
+export function swap(state: SideState): SideState {
+  if (!state.candidate || !state.intent) return state;
+  return decide({ ...state, skipped: [...state.skipped, state.candidate.personId], candidate: null });
+}
+
+// Return to the prompt view, keeping nothing.
+export function restart(): SideState { return { ...EMPTY }; }
+
+// Try a specific near-miss slot: reuse the current kind but shift `when` to
+// match the suggested slot.
+export function tryNearMiss(state: SideState, slot: { day: Weekday; window: "morning" | "midday" | "evening" }): SideState {
+  if (!state.intent) return state;
+  const tier: WhenTier = (slot.day === "sat" || slot.day === "sun")
+    ? "weekend"
+    : (slot.window === "evening" ? "weeknight" : "any");
+  const intent: UserIntent = { ...state.intent, when: tier };
+  return decide({ ...EMPTY, intent });
+}
+
+// The opener text used to seed the connections thread.
+export function makeOpener(candidate: Candidate, intent: UserIntent, lang: "en" | "zh-CN"): string {
   const kindZhMap: Record<ActivityKind, string> = {
     tennis: "打网球", run: "跑步", climb: "攀岩", cook: "做饭", exhibition: "看展", bookstore: "逛书店",
   };
@@ -207,23 +417,22 @@ export function makeOpener(candidate: Candidate, user: UserActivity, lang: "en" 
   const winZh = { morning: "上午", midday: "中午", evening: "晚上" }[candidate.window];
   const winEn = { morning: "morning", midday: "midday", evening: "evening" }[candidate.window];
   if (lang === "zh-CN") {
-    return `看到你也在${dayZh}${winZh}${kindZhMap[user.kind]}——我常在${candidate.venue_zh}。要不要一起？`;
+    return `看到你也在${dayZh}${winZh}${kindZhMap[intent.kind]}——我常在${candidate.venue_zh}。要不要一起？`;
   }
-  return `Saw you also ${kindEnMap[user.kind]} on ${dayEn} ${winEn}s — I'm often at ${candidate.venue}. Want to go together?`;
+  return `Saw you also ${kindEnMap[intent.kind]} on ${dayEn} ${winEn}s — I'm often at ${candidate.venue}. Want to go together?`;
 }
 
 // ---- Persistence --------------------------------------------------------
 
-const KEY = "kindred:sidebyside.v2";
+const KEY = "kindred:sidebyside.v3";
 export function load(): SideState {
   if (typeof window === "undefined") return EMPTY;
   try {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return EMPTY;
     const parsed = JSON.parse(raw) as Partial<SideState>;
-    // If restoring with a user but stale computed fields, recompute.
     const base: SideState = { ...EMPTY, ...parsed };
-    return base.user ? recompute(base) : base;
+    return base.intent ? decide(base) : base;
   } catch { return EMPTY; }
 }
 export function save(s: SideState) {
@@ -237,5 +446,7 @@ export function reset(): SideState {
   return EMPTY;
 }
 
-// Silence unused-import warnings if a shared helper isn't used elsewhere.
+export const ALL_KINDS: ActivityKind[] = ["tennis", "run", "climb", "cook", "exhibition", "bookstore"];
+
+// Silence unused import warning.
 export type _KeepPeopleFn = typeof getPersonById;

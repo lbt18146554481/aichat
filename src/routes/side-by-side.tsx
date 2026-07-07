@@ -3,21 +3,27 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Lang } from "@/lib/i18n";
 import { WorkspaceHeader } from "@/components/workspace-header";
-import { MeetCanvas, EditForm } from "@/components/canvas/meet-canvas";
+import { MeetCanvas } from "@/components/canvas/meet-canvas";
 import { sayHello } from "@/lib/connections";
 import { consumeSeed } from "@/lib/seed";
+import type { ActivityKind, Weekday } from "@/lib/types";
 import {
   EMPTY,
-  addSlot,
+  answerSlot,
+  chooseFromFallback,
   load,
   makeOpener,
   reset,
+  resolveAmbiguity,
+  restart,
   save,
-  setUserActivity,
   start,
+  submitPrompt,
   swap,
+  tryNearMiss,
+  type LevelTier,
   type SideState,
-  type UserActivity,
+  type WhenTier,
 } from "@/lib/agents/side-by-side";
 
 export const Route = createFileRoute("/side-by-side")({
@@ -39,55 +45,54 @@ function SideBySidePage() {
     if (typeof window === "undefined") return EMPTY;
     const seed = consumeSeed("sidebyside");
     if (seed) {
-      // Seeding just brings the user to the form; we don't parse the intent
-      // — the two-choice form does that for them.
       reset();
       return start();
     }
-    const loaded = load();
-    return loaded;
+    return load();
   });
   const [hydrated, setHydrated] = useState(false);
-  const [editing, setEditing] = useState(false);
 
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
-
+  useEffect(() => { setHydrated(true); }, []);
   useEffect(() => { if (hydrated) save(state); }, [state, hydrated]);
 
   function handleReset() {
     if (!confirm("Start over?")) return;
     reset();
     setState(start());
-    setEditing(false);
   }
 
-  function handleSetActivity(a: UserActivity) {
-    setState((s) => setUserActivity(s, a));
-    setEditing(false);
+  function handleSubmitPrompt(text: string) {
+    setState((s) => submitPrompt(s, text));
   }
-
+  function handleResolveAmbiguity(kind: ActivityKind) {
+    setState((s) => resolveAmbiguity(s, kind));
+  }
+  function handleChooseFromFallback(kind: ActivityKind) {
+    setState((s) => chooseFromFallback(s, kind));
+  }
+  function handleAnswerSlot(slot: "when" | "level", value: WhenTier | LevelTier | "any") {
+    setState((s) => answerSlot(s, slot, value));
+  }
   function handleSwap() {
     setState((s) => swap(s));
   }
-
-  function handleAddSlot(slot: Parameters<typeof addSlot>[1]) {
-    setState((s) => addSlot(s, slot));
+  function handleRestart() {
+    setState(restart());
+  }
+  function handleTryNearMiss(slot: { day: Weekday; window: "morning" | "midday" | "evening" }) {
+    setState((s) => tryNearMiss(s, slot));
   }
 
   function handleSayHello() {
     setState((current) => {
-      if (!current.candidate || !current.user) return current;
-      const opener = makeOpener(current.candidate, current.user, lang);
+      if (!current.candidate || !current.intent) return current;
+      const opener = makeOpener(current.candidate, current.intent, lang);
       sayHello(current.candidate.personId, { quotedMomentId: null, reply: opener });
-      // After say hello: park in a clean state so a re-entry is fresh.
       const next: SideState = {
         ...current,
         candidate: null,
         skipped: [...current.skipped, current.candidate.personId],
       };
-      // Navigate on next tick so state save can flush.
       window.setTimeout(() => void navigate({ to: "/connections" }), 0);
       return next;
     });
@@ -103,21 +108,17 @@ function SideBySidePage() {
         onReset={handleReset}
       />
       <main className="flex-1 min-h-0 overflow-hidden">
-        {editing && state.user ? (
-          <EditForm
-            initial={state.user}
-            onSubmit={(a) => handleSetActivity(a)}
-          />
-        ) : (
-          <MeetCanvas
-            state={state}
-            onSetActivity={handleSetActivity}
-            onSwap={handleSwap}
-            onAddSlot={handleAddSlot}
-            onSayHello={handleSayHello}
-            onEdit={() => setEditing(true)}
-          />
-        )}
+        <MeetCanvas
+          state={state}
+          onSubmitPrompt={handleSubmitPrompt}
+          onResolveAmbiguity={handleResolveAmbiguity}
+          onChooseFromFallback={handleChooseFromFallback}
+          onAnswerSlot={handleAnswerSlot}
+          onSwap={handleSwap}
+          onSayHello={handleSayHello}
+          onRestart={handleRestart}
+          onTryNearMiss={handleTryNearMiss}
+        />
       </main>
     </div>
   );
