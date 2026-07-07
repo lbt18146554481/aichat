@@ -141,6 +141,79 @@ function kindZh(k: ActivityKind) {
   return ({ tennis: "网球", run: "跑步", climb: "攀岩", cook: "做饭", exhibition: "看展", bookstore: "逛书店" } as const)[k];
 }
 
+// ---- Near-misses --------------------------------------------------------
+//
+// When we can't propose a match, we still want the user to have something to
+// act on. Aggregate the pool (anonymously) into "close" buckets — the same
+// activity in a slot you didn't pick, or the same slot with a different
+// activity. Counts only, never names.
+
+export interface NearMiss {
+  variant: "other_slot" | "other_kind_same_slot";
+  personCount: number;
+  hint: {
+    kind?: ActivityKind;
+    slot?: { day: Weekday; window: "morning" | "midday" | "evening" };
+  };
+  // Human labels are built at render time from i18n; we return the raw slot
+  // and let the UI localize.
+}
+
+export function findNearMisses(state: SideState): NearMiss[] {
+  const user = state.user;
+  if (!user) return [];
+  const userSlotKey = (s: { day: Weekday; window: "morning" | "midday" | "evening" }) => `${s.day}-${s.window}`;
+  const userSlots = new Set(user.slots.map(userSlotKey));
+
+  // Same activity, other slots — aggregate person counts per (day,window).
+  const sameKindOtherSlot = new Map<string, { slot: { day: Weekday; window: "morning" | "midday" | "evening" }; count: number }>();
+  // Same slot, other activity — aggregate per kind.
+  const otherKindSameSlot = new Map<ActivityKind, number>();
+
+  for (const p of PEOPLE) {
+    if (state.passedIds.includes(p.id)) continue;
+    for (const act of p.activities) {
+      // level filter — same tolerance as findProposal
+      const dist = levelDistance(user, act);
+      if (dist > 1 && act.kind === user.kind) continue;
+      for (const slot of act.slots) {
+        const key = userSlotKey(slot);
+        const inUserSlot = userSlots.has(key);
+        if (act.kind === user.kind && !inUserSlot) {
+          const bucket = sameKindOtherSlot.get(key) ?? { slot, count: 0 };
+          bucket.count += 1;
+          sameKindOtherSlot.set(key, bucket);
+        } else if (act.kind !== user.kind && inUserSlot) {
+          otherKindSameSlot.set(act.kind, (otherKindSameSlot.get(act.kind) ?? 0) + 1);
+        }
+      }
+    }
+  }
+
+  const out: NearMiss[] = [];
+  for (const { slot, count } of sameKindOtherSlot.values()) {
+    out.push({ variant: "other_slot", personCount: count, hint: { slot } });
+  }
+  for (const [kind, count] of otherKindSameSlot.entries()) {
+    out.push({ variant: "other_kind_same_slot", personCount: count, hint: { kind } });
+  }
+  // Rank: more people first, "same activity, other slot" preferred over
+  // "different activity" (keep the user's stated interest).
+  out.sort((a, b) => {
+    if (a.variant !== b.variant) return a.variant === "other_slot" ? -1 : 1;
+    return b.personCount - a.personCount;
+  });
+  return out.slice(0, 3);
+}
+
+// Kinds the user has NOT picked, for the "try something else entirely" chip
+// row shown when there are zero near-misses.
+export function otherKinds(state: SideState): ActivityKind[] {
+  const current = state.user?.kind;
+  const all: ActivityKind[] = ["tennis", "run", "climb", "cook", "exhibition", "bookstore"];
+  return all.filter((k) => k !== current);
+}
+
 // ---- Lines --------------------------------------------------------------
 
 const L = {
@@ -176,9 +249,25 @@ const L = {
     en: "I've already proposed this week. One a week — so it stays real. New ones next week.",
     zh: "本周已经给你提过一次了。每周一次——为了让它保持真实。下周再说。",
   },
-  no_match: {
-    en: "No one fits your hour and level this week. I keep watching — I'll come back.",
-    zh: "本周没人能对上你的时段和水平。我继续看，下次有人我来说。",
+  no_match_near: {
+    en: "Nobody in this exact slot this week. Close ones on the right — take a look.",
+    zh: "这一格本周没人。差一点就有——右边看看邻近的几个选择。",
+  },
+  no_match_empty: {
+    en: "This activity has no one in your city this week. Want to try another? Pick on the right.",
+    zh: "你选的活动这周整个池子里都没人。要不换一个试试？右边可以直接切。",
+  },
+  slot_added: {
+    en: "Added. Let me look again with that slot in.",
+    zh: "加上了。带着这个时段再看看。",
+  },
+  kind_switched: {
+    en: "Switched. Let me look again.",
+    zh: "换了。再看看。",
+  },
+  updated: {
+    en: "Updated. Looking again.",
+    zh: "调整了。再看看。",
   },
 };
 
