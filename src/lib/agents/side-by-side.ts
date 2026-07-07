@@ -286,6 +286,27 @@ export function setUserActivity(s: SideState, user: UserActivity, lang: "en" | "
   return tryPropose(after, lang);
 }
 
+export function addSlot(s: SideState, slot: { day: Weekday; window: "morning" | "midday" | "evening" }, lang: "en" | "zh-CN"): SideState {
+  if (!s.user) return s;
+  const exists = s.user.slots.some((x) => x.day === slot.day && x.window === slot.window);
+  const nextUser = exists ? s.user : { ...s.user, slots: [...s.user.slots, slot] };
+  const after = pushA({ ...s, user: nextUser, phase: "waiting" as Phase }, lang === "zh-CN" ? L.slot_added.zh : L.slot_added.en);
+  return tryPropose(after, lang);
+}
+
+export function switchKind(s: SideState, kind: ActivityKind, lang: "en" | "zh-CN"): SideState {
+  if (!s.user) return s;
+  if (s.user.kind === kind) return s;
+  const nextUser = { ...s.user, kind };
+  const after = pushA({ ...s, user: nextUser, phase: "waiting" as Phase }, lang === "zh-CN" ? L.kind_switched.zh : L.kind_switched.en);
+  return tryPropose(after, lang);
+}
+
+export function updateUserActivity(s: SideState, user: UserActivity, lang: "en" | "zh-CN"): SideState {
+  const after = pushA({ ...s, user, phase: "waiting" as Phase }, lang === "zh-CN" ? L.updated.zh : L.updated.en);
+  return tryPropose(after, lang);
+}
+
 function tryPropose(s: SideState, lang: "en" | "zh-CN"): SideState {
   if (s.weeklyProposalsUsed >= WEEKLY_CAP) {
     return pushA({ ...s, phase: "waiting" }, lang === "zh-CN" ? L.weekly_cap.zh : L.weekly_cap.en);
