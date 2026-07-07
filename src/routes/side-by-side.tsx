@@ -123,10 +123,6 @@ function SideBySidePage() {
     setState((s) => simulateThemReply(s, accepted, lang));
   }
 
-  function handleTheirReply(accepted: boolean) {
-    setState((s) => simulateThemReply(s, accepted, lang));
-  }
-
   if (!hydrated) return <div className="h-screen bg-background" />;
 
   const messages: AgentMsg[] = state.messages;
@@ -146,6 +142,9 @@ function SideBySidePage() {
         <MeetCanvas
           state={state}
           onSetActivity={handleSetActivity}
+          onUpdateActivity={handleUpdateActivity}
+          onAddSlot={handleAddSlot}
+          onSwitchKind={handleSwitchKind}
           onAccept={handleAccept}
           onDecline={handleDecline}
           onTheirReply={handleTheirReply}
