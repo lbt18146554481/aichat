@@ -179,6 +179,7 @@ export function IncomingHello({ personId }: Props) {
           </p>
         </div>
       </div>
+      </div>
     </div>
   );
 }
