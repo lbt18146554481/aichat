@@ -130,10 +130,19 @@
 
 
   "meet": {
-    "hero_prompt": "What do you want to do this week — and roughly when?",
-    "what_label": "The thing",
-    "when_label": "Roughly when",
-    "when_group": {
+    "prompt_hero": "Say what you want to do.",
+    "prompt_hint": "In your own words — e.g. \"Saturday morning tennis\", \"want to cook with someone this week\".",
+    "prompt_placeholder": "What you want to do, roughly when…",
+    "prompt_meta": "Cmd/Ctrl + Enter to send",
+    "prompt_submit": "Find someone",
+    "truncated_hint": "That's a lot — I only pulled keywords from the first part.",
+    "step_clarify": "One quick check",
+    "step_one_more": "One more tap",
+    "disambiguate_ask": "Which one did you mean?",
+    "parse_fallback": "I only know people around these things — pick one to keep going.",
+    "ask_when": "When roughly for {{kind}}?",
+    "ask_level": "About what level of {{kind}}?",
+    "when": {
       "weekend": "This weekend",
       "weekend_hint": "Sat / Sun",
       "weeknight": "A weeknight",
@@ -141,7 +150,14 @@
       "any": "I'm flexible",
       "any_hint": "any time"
     },
-    "form_submit": "Find someone",
+    "level": {
+      "beginner": "Beginner",
+      "intermediate": "Casual",
+      "advanced": "Pretty serious",
+      "any": "Doesn't matter"
+    },
+    "heard_you": "Heard",
+    "restart": "Say something else",
     "disclaimer": "Finding someone is just the start — the real thing is what you talk about after.",
     "pick_label": "Someone who's also there",
     "say_hello": "Say hello",
@@ -149,11 +165,9 @@
     "pick_footnote": "You'll pick up the conversation in Connections. Name and photo unlock the way they always do.",
     "no_one": "Nobody in this exact slot this week.",
     "pool_exhausted": "You've seen everyone in this slot.",
-    "near_hint_one": "But 1 person also plays there — {{day}} {{window}}.",
-    "near_hint_other": "But {{count}} people also play there — {{day}} {{window}}.",
-    "near_try": "Try {{day}} {{window}} instead",
-    "adjust": "Adjust",
-    "adjust_conditions": "Change the conditions"
+    "near_hint_one": "But 1 person is also there — {{day}} {{window}}.",
+    "near_hint_other": "But {{count}} people are also there — {{day}} {{window}}.",
+    "near_try": "Try {{day}} {{window}} instead"
   },
   "activity": {
     "kind": {
