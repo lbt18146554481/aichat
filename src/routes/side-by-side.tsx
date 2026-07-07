@@ -8,6 +8,7 @@ import { consumeSeed } from "@/lib/seed";
 import {
   EMPTY,
   accept,
+  addSlot,
   decline,
   load,
   reset,
@@ -15,7 +16,9 @@ import {
   setUserActivity,
   simulateThemReply,
   start,
+  switchKind,
   uid,
+  updateUserActivity,
   type SideState,
   type UserActivity,
 } from "@/lib/agents/side-by-side";
