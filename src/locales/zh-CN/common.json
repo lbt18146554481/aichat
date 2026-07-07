@@ -128,10 +128,19 @@
 
 
   "meet": {
-    "hero_prompt": "这周你想做点什么，大概什么时候？",
-    "what_label": "做什么",
-    "when_label": "大概什么时候",
-    "when_group": {
+    "prompt_hero": "说一句，你想做什么。",
+    "prompt_hint": "自己的话就行，比如"周六上午想打网球"、"这周想找人一起做饭"。",
+    "prompt_placeholder": "想做什么，大概什么时候……",
+    "prompt_meta": "Cmd/Ctrl + Enter 发送",
+    "prompt_submit": "找人",
+    "truncated_hint": "内容有点多，我只抓了前面这段的关键词。",
+    "step_clarify": "再确认一下",
+    "step_one_more": "还差一点点",
+    "disambiguate_ask": "你说的是哪一个？",
+    "parse_fallback": "我目前只在这几件事上认识人，选一个继续。",
+    "ask_when": "{{kind}}大概什么时候方便？",
+    "ask_level": "{{kind}}大概什么水平？",
+    "when": {
       "weekend": "这个周末",
       "weekend_hint": "周六 / 周日",
       "weeknight": "工作日晚上",
@@ -139,7 +148,14 @@
       "any": "都行",
       "any_hint": "任何时间"
     },
-    "form_submit": "帮我找一个人",
+    "level": {
+      "beginner": "新手",
+      "intermediate": "会一点",
+      "advanced": "打得不错",
+      "any": "无所谓"
+    },
+    "heard_you": "听到的",
+    "restart": "重新说一句",
     "disclaimer": "找到只是起点，聊起来才是。TA 不感兴趣也不会知道是你。",
     "pick_label": "一个可能对得上的人",
     "say_hello": "打个招呼",
@@ -147,10 +163,8 @@
     "pick_footnote": "点了会去到 Connections，你们从那儿继续聊。名字和照片按平时的方式解锁。",
     "no_one": "这个时段这周没人。",
     "pool_exhausted": "这个时段的人你都看过了。",
-    "near_hint": "但是 {{day}}{{window}}有 {{count}} 个人也打——",
-    "near_try": "试试 {{day}}{{window}}",
-    "adjust": "调整",
-    "adjust_conditions": "换个条件"
+    "near_hint": "但是 {{day}}{{window}}有 {{count}} 个人也在——",
+    "near_try": "试试 {{day}}{{window}}"
   },
   "activity": {
     "kind": {
