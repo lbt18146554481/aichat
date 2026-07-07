@@ -1,20 +1,25 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowUp } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, ArrowUp } from "lucide-react";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import { get, markSeen, send, subscribe, type Connection } from "@/lib/connections";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
 import { loadProfile } from "@/lib/profile";
+import { setFocusPerson } from "@/lib/seed";
 
 interface Props { personId: string; }
 
 export function ConnectionThread({ personId }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const navigate = useNavigate();
   const [conn, setConn] = useState<Connection | null>(() => get(personId));
   const [text, setText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const msgRefs = useRef<Record<string, HTMLLIElement | null>>({});
+  const focusedTheirRef = useRef<string | null>(null);
 
   useEffect(() => {
     const unsub = subscribe(() => setConn(get(personId)));
