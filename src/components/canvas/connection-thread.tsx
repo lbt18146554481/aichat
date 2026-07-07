@@ -28,9 +28,31 @@ export function ConnectionThread({ personId }: Props) {
     return () => { unsub(); };
   }, [personId]);
 
+  const { lastMineId, lastTheirsId } = useMemo(() => {
+    const msgs = conn?.messages ?? [];
+    let mine: string | null = null;
+    let theirs: string | null = null;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (!mine && msgs[i].from === "me") mine = msgs[i].id;
+      if (!theirs && msgs[i].from === "them") theirs = msgs[i].id;
+      if (mine && theirs) break;
+    }
+    return { lastMineId: mine, lastTheirsId: theirs };
+  }, [conn?.messages]);
+
   useEffect(() => {
+    // On first arrival with an unseen latest-their reply, center it.
+    // Otherwise, scroll to bottom on new messages.
+    if (lastTheirsId && focusedTheirRef.current !== lastTheirsId) {
+      const el = msgRefs.current[lastTheirsId];
+      if (el) {
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+        focusedTheirRef.current = lastTheirsId;
+        return;
+      }
+    }
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [conn?.messages.length]);
+  }, [conn?.messages.length, lastTheirsId]);
 
   const person = getPersonById(personId);
   if (!person || !conn || conn.status !== "connected") return null;
@@ -43,9 +65,22 @@ export function ConnectionThread({ personId }: Props) {
     setText("");
   }
 
+  function backToIntro() {
+    setFocusPerson(personId);
+    void navigate({ to: "/matchmaker" });
+  }
+
   return (
     <div className="h-full flex flex-col">
       <div className="border-b border-border bg-background px-5 py-3 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={backToIntro}
+          aria-label={t("connection.back_to_intro", { name: loc.name })}
+          className="shrink-0 w-8 h-8 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
         <img src={avatarUrl(person.id)} alt={loc.name} className="w-9 h-9 rounded-full border border-border" />
         <div className="min-w-0">
           <div className="text-[13.5px] font-semibold text-foreground truncate">{loc.name}</div>
@@ -59,22 +94,40 @@ export function ConnectionThread({ personId }: Props) {
           <HelloAnchor conn={conn} person={person} lang={lang} />
 
           <ul className="space-y-2.5">
-            {conn.messages.map((m) => (
-              <li key={m.id} className={m.from === "me" ? "flex justify-end" : "flex justify-start"}>
-                <div
-                  className={
-                    m.from === "me"
-                      ? "max-w-[80%] rounded-2xl rounded-br-md bg-foreground text-background px-3.5 py-2 text-[14px] leading-relaxed"
-                      : "max-w-[80%] rounded-2xl rounded-bl-md bg-secondary text-foreground px-3.5 py-2 text-[14px] leading-relaxed"
-                  }
+            {conn.messages.map((m) => {
+              const isMine = m.from === "me";
+              const isLastMine = isMine && m.id === lastMineId;
+              const isLastTheirs = !isMine && m.id === lastTheirsId;
+              const highlight = isLastMine || isLastTheirs;
+              return (
+                <li
+                  key={m.id}
+                  ref={(el) => { msgRefs.current[m.id] = el; }}
+                  className={isMine ? "flex flex-col items-end" : "flex flex-col items-start"}
                 >
-                  {m.text}
-                </div>
-              </li>
-            ))}
+                  {highlight && (
+                    <div className="mb-1 text-[9.5px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
+                      {isLastMine ? t("connection.your_last") : t("connection.their_reply")}
+                    </div>
+                  )}
+                  <div
+                    className={[
+                      "max-w-[80%] px-3.5 py-2 text-[14px] leading-relaxed",
+                      isMine
+                        ? "rounded-2xl rounded-br-md bg-foreground text-background"
+                        : "rounded-2xl rounded-bl-md bg-secondary text-foreground",
+                      highlight ? "ring-1 ring-foreground/30" : "",
+                    ].join(" ")}
+                  >
+                    {m.text}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </div>
+
 
       <div className="border-t border-border bg-background px-4 py-3">
         <div className="max-w-md mx-auto relative">
