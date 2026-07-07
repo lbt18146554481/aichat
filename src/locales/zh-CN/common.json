@@ -150,7 +150,19 @@
     "decline": "这次不",
     "awaiting_them": "在等 TA 的回应……",
     "anon_name": "某人",
-    "confirmed_note": "见面当天你们会在场地看到对方的名字和照片。仅此而已。去打球就好。"
+    "confirmed_note": "见面当天你们会在场地看到对方的名字和照片。仅此而已。去打球就好。",
+    "recap_label": "你现在的时段",
+    "near_intro": "这一格本周没人。差一点就有：",
+    "near_people_count": "{{count}} 个人",
+    "near_add_slot": "加上这个时段",
+    "near_other_kind": "同一时段，还有 {{count}} 个人在{{kind}}",
+    "near_switch_kind": "换成这个",
+    "near_empty_intro": "{{kind}}这周整个池子里都没人。要不换一个试试？",
+    "adjust": "调整",
+    "adjust_label": "调整偏好",
+    "adjust_title": "改一改，我再看看",
+    "adjust_submit": "保存并再看",
+    "adjust_cancel": "取消"
   },
   "activity": {
     "kind": {

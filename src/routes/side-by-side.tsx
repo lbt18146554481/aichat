@@ -8,6 +8,7 @@ import { consumeSeed } from "@/lib/seed";
 import {
   EMPTY,
   accept,
+  addSlot,
   decline,
   load,
   reset,
@@ -15,7 +16,9 @@ import {
   setUserActivity,
   simulateThemReply,
   start,
+  switchKind,
   uid,
+  updateUserActivity,
   type SideState,
   type UserActivity,
 } from "@/lib/agents/side-by-side";
@@ -86,6 +89,30 @@ function SideBySidePage() {
     }, 600);
   }
 
+  function handleUpdateActivity(a: UserActivity) {
+    setThinking(true);
+    window.setTimeout(() => {
+      setState((s) => updateUserActivity(s, a, lang));
+      setThinking(false);
+    }, 400);
+  }
+
+  function handleAddSlot(slot: { day: Parameters<typeof addSlot>[1]["day"]; window: Parameters<typeof addSlot>[1]["window"] }) {
+    setThinking(true);
+    window.setTimeout(() => {
+      setState((s) => addSlot(s, slot, lang));
+      setThinking(false);
+    }, 400);
+  }
+
+  function handleSwitchKind(kind: Parameters<typeof switchKind>[1]) {
+    setThinking(true);
+    window.setTimeout(() => {
+      setState((s) => switchKind(s, kind, lang));
+      setThinking(false);
+    }, 400);
+  }
+
   function handleAccept() {
     setState((s) => accept(s, lang));
   }
@@ -115,6 +142,9 @@ function SideBySidePage() {
         <MeetCanvas
           state={state}
           onSetActivity={handleSetActivity}
+          onUpdateActivity={handleUpdateActivity}
+          onAddSlot={handleAddSlot}
+          onSwitchKind={handleSwitchKind}
           onAccept={handleAccept}
           onDecline={handleDecline}
           onTheirReply={handleTheirReply}
