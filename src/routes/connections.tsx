@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
@@ -8,6 +8,7 @@ import { LangSwitcher } from "@/components/lang-switcher";
 import { ConnectionThread } from "@/components/canvas/connection-thread";
 import { IncomingHello } from "@/components/canvas/incoming-hello";
 import { list, rehydrate, subscribe, type Connection } from "@/lib/connections";
+import { setFocusPerson } from "@/lib/seed";
 
 export const Route = createFileRoute("/connections")({
   component: ConnectionsPage,
