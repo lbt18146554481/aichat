@@ -187,11 +187,11 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 function Row({ conn, lang, active, muted, dot, onSelect }: {
   conn: Connection; lang: Lang; active: boolean; muted?: boolean; dot?: boolean; onSelect: () => void;
 }) {
+  const { t } = useTranslation();
   const person = getPersonById(conn.personId);
   if (!person) return null;
   const loc = localized(person, lang);
   const last = conn.messages[conn.messages.length - 1];
-  const { t } = useTranslation();
   const subtitle = conn.status === "incoming"
     ? loc.occupation
     : conn.status === "faded"
