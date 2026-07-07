@@ -280,6 +280,7 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
                 </button>
                 <Link
                   to="/connections"
+                  search={{ open: person.id }}
                   className="px-3 py-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {t("intro.check_progress")}
