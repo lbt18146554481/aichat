@@ -5,7 +5,7 @@ import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
 import type { MatchmakerState } from "@/lib/agents/matchmaker";
-import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
+import { get, sayHello, subscribe, undoFadedFor, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
 import { hasName, isVitalsComplete, loadProfile } from "@/lib/profile";
 
@@ -265,31 +265,72 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
           )}
 
           {conn?.status === "sent" && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-[12.5px] text-muted-foreground">
                 <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
                 {t("connection.delivered")}
               </div>
               {conn.fromMe && <YourHelloRecap fromMe={conn.fromMe} person={person} lang={lang} />}
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <button
+                  onClick={onAnotherPerson}
+                  className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
+                >
+                  {t("intro.next_person_after")}
+                </button>
+                <Link
+                  to="/connections"
+                  className="px-3 py-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {t("intro.check_progress")}
+                </Link>
+              </div>
+              <p className="text-[11.5px] text-muted-foreground leading-snug">
+                {t("intro.after_hello_hint")}
+              </p>
             </div>
           )}
 
           {conn?.status === "connected" && (
-            <div className="flex items-center gap-3">
-              <Link
-                to="/connections"
-                className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
-              >
-                {t("connection.open_conversation")}
-              </Link>
-              <span className="text-[12px] text-muted-foreground">{t("connection.connected_note")}</span>
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  to="/connections"
+                  className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
+                >
+                  {t("connection.open_conversation")}
+                </Link>
+                <button
+                  onClick={onAnotherPerson}
+                  className="px-3 py-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {t("intro.while_you_chat")}
+                </button>
+              </div>
+              <span className="block text-[12px] text-muted-foreground">{t("connection.connected_note")}</span>
             </div>
           )}
 
           {conn?.status === "faded" && (
-            <p className="text-[12.5px] text-muted-foreground leading-relaxed">
-              {t("hello.faded_hint")}
-            </p>
+            <div className="space-y-3">
+              <p className="text-[12.5px] text-muted-foreground leading-relaxed">
+                {t("hello.faded_hint")}
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={onAnotherPerson}
+                  className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
+                >
+                  {t("intro.next_person_after")}
+                </button>
+                <button
+                  onClick={() => { undoFadedFor(person!.id); setComposing(true); }}
+                  className="px-3 py-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {t("intro.hello_again")}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>

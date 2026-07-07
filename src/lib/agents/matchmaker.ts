@@ -248,6 +248,20 @@ export function actAnotherPerson(s: MatchmakerState, lang: "en" | "zh-CN") {
   return userTurn(s, lang === "zh-CN" ? "换一个吧。" : "Show me someone else.", lang);
 }
 
+// Focus a specific person as the current intro (used when the user comes
+// back from Connections' "waiting" list). Non-mutating on the passed state
+// aside from currentPersonId / shownIds bookkeeping.
+export function focusPerson(state: MatchmakerState, personId: string): MatchmakerState {
+  const person = getPersonById(personId);
+  if (!person) return state;
+  return {
+    ...state,
+    phase: "introducing",
+    currentPersonId: personId,
+    shownIds: state.shownIds.includes(personId) ? state.shownIds : [...state.shownIds, personId],
+  };
+}
+
 // ---- Persistence ---------------------------------------------------------
 
 const KEY = "kindred:matchmaker.v3";

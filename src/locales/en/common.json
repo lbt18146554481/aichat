@@ -55,7 +55,12 @@
     "empty_title": "I'll introduce one person here.",
     "empty_hint": "Not a list — one person at a time, with a reason. Tell me what you're looking for on the left.",
     "another_person": "Someone else",
-    "one_work_label": "One {{kind}} that matters to them"
+    "one_work_label": "One {{kind}} that matters to them",
+    "after_hello_hint": "When they write back, I'll flag it in the corner. You can keep meeting others.",
+    "next_person_after": "See someone else",
+    "check_progress": "Check progress",
+    "hello_again": "Say it another way",
+    "while_you_chat": "See someone else"
   },
   "moment": {
     "about_them": "Three small things about {{name}}",
@@ -87,6 +92,7 @@
     "section_incoming": "New",
     "section_connected": "Talking",
     "section_faded": "Didn't land",
+    "section_sent": "Waiting",
     "empty": "No one yet. Say hello to someone from the Matchmaker and they'll show up here.",
     "pick_one": "Pick a conversation on the left.",
     "composer_placeholder": "Write something…"
@@ -111,6 +117,12 @@
     },
     "faded_hint": "This didn't land last time. It's OK to move on — or say something new."
   },
+  "notify": {
+    "replied": "{{name}} wrote back",
+    "new_hello": "{{name}} said hello"
+  },
+
+
 
   "meet": {
     "label": "Proposed meet",

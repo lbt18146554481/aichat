@@ -3,7 +3,9 @@ import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, MessageCircle, RotateCcw, UserCircle } from "lucide-react";
 import { LangSwitcher } from "./lang-switcher";
-import { hasUnseen, list, subscribe } from "@/lib/connections";
+import { hasUnseen, list, subscribe, type Connection } from "@/lib/connections";
+import { avatarUrl, getPersonById, localized } from "@/lib/people";
+import type { Lang } from "@/lib/i18n";
 
 interface Props {
   agentNameKey: string;
@@ -11,17 +13,44 @@ interface Props {
   onReset?: () => void;
 }
 
+// The connection whose "arrival" should light up the bell: prefer a newly
+// connected reply, then an incoming hello. Anything the user has already
+// seen is filtered out.
+function pickAlert(items: Connection[]): Connection | null {
+  const unseenConnected = items
+    .filter((c) => c.status === "connected" && (c.lastSeenAt ?? 0) < (c.connectedAt ?? c.helloAt))
+    .sort((a, b) => (b.connectedAt ?? 0) - (a.connectedAt ?? 0))[0];
+  if (unseenConnected) return unseenConnected;
+  const unseenIncoming = items
+    .filter((c) => c.status === "incoming" && (c.lastSeenAt ?? 0) < c.helloAt)
+    .sort((a, b) => b.helloAt - a.helloAt)[0];
+  return unseenIncoming ?? null;
+}
+
 export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const [connCount, setConnCount] = useState(0);
   const [unseen, setUnseen] = useState(false);
+  const [alert, setAlert] = useState<Connection | null>(null);
 
   useEffect(() => {
-    const update = () => { setConnCount(list().length); setUnseen(hasUnseen()); };
+    const update = () => {
+      const items = list();
+      setConnCount(items.length);
+      setUnseen(hasUnseen());
+      setAlert(pickAlert(items));
+    };
     update();
     const unsub = subscribe(update);
-    return () => { unsub(); };
+    // Poll every 3s to catch background scheduleResolution flips while the
+    // user is still on this page.
+    const iv = window.setInterval(update, 3000);
+    return () => { unsub(); window.clearInterval(iv); };
   }, []);
+
+  const alertPerson = alert ? getPersonById(alert.personId) : null;
+  const alertName = alertPerson ? localized(alertPerson, lang).name : "";
 
   return (
     <header className="w-full border-b border-border bg-background/90 backdrop-blur sticky top-0 z-30">
@@ -46,7 +75,31 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {connCount > 0 && (
+          {alert && alertPerson ? (
+            <Link
+              to="/connections"
+              aria-label={
+                alert.status === "connected"
+                  ? t("notify.replied", { name: alertName })
+                  : t("notify.new_hello", { name: alertName })
+              }
+              className="relative inline-flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full border border-border bg-card hover:bg-secondary transition-colors"
+            >
+              <span className="relative">
+                <img
+                  src={avatarUrl(alertPerson.id)}
+                  alt=""
+                  className="w-6 h-6 rounded-full border border-border bg-secondary"
+                />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />
+              </span>
+              <span className="text-[11.5px] text-foreground max-w-[9rem] truncate">
+                {alert.status === "connected"
+                  ? t("notify.replied", { name: alertName })
+                  : t("notify.new_hello", { name: alertName })}
+              </span>
+            </Link>
+          ) : connCount > 0 ? (
             <Link
               to="/connections"
               className="relative inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -55,7 +108,7 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
               <span>{t("header.connections")}</span>
               {unseen && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-foreground" />}
             </Link>
-          )}
+          ) : null}
           <Link
             to="/profile"
             aria-label={t("header.profile")}

@@ -214,6 +214,16 @@ export function dismissIncoming(personId: string) {
   write(state);
 }
 
+// I want to say hello again to someone whose previous hello faded. Wipe
+// the connection so `sayHello` starts a fresh "sent" record.
+export function undoFadedFor(personId: string) {
+  const state = read();
+  const conn = state[personId];
+  if (!conn || conn.status !== "faded") return;
+  delete state[personId];
+  write(state);
+}
+
 // ---- Thread messaging (connected) ---------------------------------------
 
 export function send(personId: string, text: string) {

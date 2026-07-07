@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
@@ -8,6 +8,7 @@ import { LangSwitcher } from "@/components/lang-switcher";
 import { ConnectionThread } from "@/components/canvas/connection-thread";
 import { IncomingHello } from "@/components/canvas/incoming-hello";
 import { list, rehydrate, subscribe, type Connection } from "@/lib/connections";
+import { setFocusPerson } from "@/lib/seed";
 
 export const Route = createFileRoute("/connections")({
   component: ConnectionsPage,
@@ -24,6 +25,7 @@ type PaneKind = "thread" | "incoming" | null;
 function ConnectionsPage() {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const navigate = useNavigate();
   const [items, setItems] = useState<Connection[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showFaded, setShowFaded] = useState(false);
@@ -54,7 +56,13 @@ function ConnectionsPage() {
 
   const incoming = items.filter((c) => c.status === "incoming");
   const connected = items.filter((c) => c.status === "connected");
+  const sent = items.filter((c) => c.status === "sent");
   const faded = items.filter((c) => c.status === "faded");
+
+  function openSentInMatchmaker(personId: string) {
+    setFocusPerson(personId);
+    void navigate({ to: "/matchmaker" });
+  }
 
   const activeConn = activeId ? items.find((c) => c.personId === activeId) ?? null : null;
   const paneKind: PaneKind =
@@ -105,6 +113,20 @@ function ConnectionsPage() {
                   lang={lang}
                   active={c.personId === activeId}
                   onSelect={() => setActiveId(c.personId)}
+                />
+              ))}
+            </Section>
+          )}
+
+          {sent.length > 0 && (
+            <Section label={t("connection.section_sent")}>
+              {sent.map((c) => (
+                <Row
+                  key={c.personId}
+                  conn={c}
+                  lang={lang}
+                  active={false}
+                  onSelect={() => openSentInMatchmaker(c.personId)}
                 />
               ))}
             </Section>
@@ -165,6 +187,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 function Row({ conn, lang, active, muted, dot, onSelect }: {
   conn: Connection; lang: Lang; active: boolean; muted?: boolean; dot?: boolean; onSelect: () => void;
 }) {
+  const { t } = useTranslation();
   const person = getPersonById(conn.personId);
   if (!person) return null;
   const loc = localized(person, lang);
@@ -173,6 +196,8 @@ function Row({ conn, lang, active, muted, dot, onSelect }: {
     ? loc.occupation
     : conn.status === "faded"
     ? loc.city
+    : conn.status === "sent"
+    ? t("connection.delivered")
     : (last?.text ?? loc.occupation);
   return (
     <li>
