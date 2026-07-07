@@ -115,6 +115,12 @@
     },
     "faded_hint": "上次没聊上——可以先看看别人，也可以再写点新的。"
   },
+  "notify": {
+    "replied": "{{name}} 回你了",
+    "new_hello": "{{name}} 想认识你"
+  },
+
+
 
   "meet": {
     "label": "一次见面提议",
