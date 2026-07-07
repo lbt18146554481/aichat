@@ -1,24 +1,21 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Lang } from "@/lib/i18n";
-import { Workspace, type AgentMsg } from "@/components/workspace";
-import { MeetCanvas } from "@/components/canvas/meet-canvas";
+import { WorkspaceHeader } from "@/components/workspace-header";
+import { MeetCanvas, EditForm } from "@/components/canvas/meet-canvas";
+import { sayHello } from "@/lib/connections";
 import { consumeSeed } from "@/lib/seed";
 import {
   EMPTY,
-  accept,
   addSlot,
-  decline,
   load,
+  makeOpener,
   reset,
   save,
   setUserActivity,
-  simulateThemReply,
   start,
-  switchKind,
-  uid,
-  updateUserActivity,
+  swap,
   type SideState,
   type UserActivity,
 } from "@/lib/agents/side-by-side";
@@ -36,30 +33,22 @@ export const Route = createFileRoute("/side-by-side")({
 function SideBySidePage() {
   const { i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const navigate = useNavigate();
 
   const [state, setState] = useState<SideState>(() => {
     if (typeof window === "undefined") return EMPTY;
     const seed = consumeSeed("sidebyside");
     if (seed) {
+      // Seeding just brings the user to the form; we don't parse the intent
+      // — the two-choice form does that for them.
       reset();
-      const base = start(lang);
-      const ackEn = "Got it. Side by Side works around something you actually do every week. Pick your activity on the right and I'll start watching for a real overlap.";
-      const ackZh = "明白。Side by Side 围绕你每周本来就在做的事来安排。先在右边告诉我你常做什么，我就开始留意真正能对上的人。";
-      const now = Date.now();
-      return {
-        ...base,
-        messages: [
-          ...base.messages,
-          { id: uid(), role: "user", t: now, text: seed },
-          { id: uid(), role: "assistant", t: now + 1, text: lang === "zh-CN" ? ackZh : ackEn },
-        ],
-      };
+      return start();
     }
     const loaded = load();
-    return loaded.messages.length === 0 ? start(lang) : loaded;
+    return loaded;
   });
   const [hydrated, setHydrated] = useState(false);
-  const [thinking, setThinking] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     setHydrated(true);
@@ -70,86 +59,66 @@ function SideBySidePage() {
   function handleReset() {
     if (!confirm("Start over?")) return;
     reset();
-    setState(start(lang));
-  }
-
-  // The composer is mostly informational here — Side by Side is driven by
-  // the form on the right. But we still allow a free-text reply that just
-  // gets echoed and noted.
-  function send(_text: string) {
-    setThinking(true);
-    window.setTimeout(() => setThinking(false), 300);
+    setState(start());
+    setEditing(false);
   }
 
   function handleSetActivity(a: UserActivity) {
-    setThinking(true);
-    window.setTimeout(() => {
-      setState((s) => setUserActivity(s, a, lang));
-      setThinking(false);
-    }, 600);
+    setState((s) => setUserActivity(s, a));
+    setEditing(false);
   }
 
-  function handleUpdateActivity(a: UserActivity) {
-    setThinking(true);
-    window.setTimeout(() => {
-      setState((s) => updateUserActivity(s, a, lang));
-      setThinking(false);
-    }, 400);
+  function handleSwap() {
+    setState((s) => swap(s));
   }
 
-  function handleAddSlot(slot: { day: Parameters<typeof addSlot>[1]["day"]; window: Parameters<typeof addSlot>[1]["window"] }) {
-    setThinking(true);
-    window.setTimeout(() => {
-      setState((s) => addSlot(s, slot, lang));
-      setThinking(false);
-    }, 400);
+  function handleAddSlot(slot: Parameters<typeof addSlot>[1]) {
+    setState((s) => addSlot(s, slot));
   }
 
-  function handleSwitchKind(kind: Parameters<typeof switchKind>[1]) {
-    setThinking(true);
-    window.setTimeout(() => {
-      setState((s) => switchKind(s, kind, lang));
-      setThinking(false);
-    }, 400);
-  }
-
-  function handleAccept() {
-    setState((s) => accept(s, lang));
-  }
-  function handleDecline() {
-    setState((s) => decline(s, lang));
-  }
-  function handleTheirReply(accepted: boolean) {
-    setState((s) => simulateThemReply(s, accepted, lang));
+  function handleSayHello() {
+    setState((current) => {
+      if (!current.candidate || !current.user) return current;
+      const opener = makeOpener(current.candidate, current.user, lang);
+      sayHello(current.candidate.personId, { quotedMomentId: null, reply: opener });
+      // After say hello: park in a clean state so a re-entry is fresh.
+      const next: SideState = {
+        ...current,
+        candidate: null,
+        skipped: [...current.skipped, current.candidate.personId],
+      };
+      // Navigate on next tick so state save can flush.
+      window.setTimeout(() => void navigate({ to: "/connections" }), 0);
+      return next;
+    });
   }
 
   if (!hydrated) return <div className="h-screen bg-background" />;
 
-  const messages: AgentMsg[] = state.messages;
-  const composerDisabled = state.phase !== "waiting" && state.phase !== "gathering";
-
   return (
-    <Workspace
-      agentNameKey="agents.sidebyside.name"
-      agentSubtitleKey="agents.sidebyside.tagline"
-      placeholderKey="meet.composer_placeholder"
-      messages={messages}
-      thinking={thinking}
-      onSend={send}
-      onReset={handleReset}
-      composerDisabled={composerDisabled}
-      rightPane={
-        <MeetCanvas
-          state={state}
-          onSetActivity={handleSetActivity}
-          onUpdateActivity={handleUpdateActivity}
-          onAddSlot={handleAddSlot}
-          onSwitchKind={handleSwitchKind}
-          onAccept={handleAccept}
-          onDecline={handleDecline}
-          onTheirReply={handleTheirReply}
-        />
-      }
-    />
+    <div className="h-screen flex flex-col bg-background">
+      <WorkspaceHeader
+        agentNameKey="agents.sidebyside.name"
+        agentSubtitleKey="agents.sidebyside.tagline"
+        onReset={handleReset}
+      />
+      <main className="flex-1 min-h-0 overflow-hidden">
+        {editing && state.user ? (
+          <EditForm
+            initial={state.user}
+            onSubmit={(a) => handleSetActivity(a)}
+          />
+        ) : (
+          <MeetCanvas
+            state={state}
+            onSetActivity={handleSetActivity}
+            onSwap={handleSwap}
+            onAddSlot={handleAddSlot}
+            onSayHello={handleSayHello}
+            onEdit={() => setEditing(true)}
+          />
+        )}
+      </main>
+    </div>
   );
 }
