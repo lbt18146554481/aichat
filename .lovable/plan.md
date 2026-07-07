@@ -1,128 +1,140 @@
-## 卡点还原
+## 定案：Side by Side = 基于"事"的搭讪入口
 
-用户到 `/side-by-side` → 填完表单（比如"网球 · 中级 · 周六上午 · Riverside"）→ 提交 → 系统在 `PEOPLE` 里没找到同时满足**同活动 + 同时段 + 水平差 ≤1**的人 → 右边只剩一个虚线圆圈 + "我继续盯着"，左边同一句话。**用户没有任何下一步**。
+产品终点是**两个人在 connections 里开始聊**，不是"完成一次约"。之后敲时间、去哪、见不见，走用户已经在用的对话线程。Side by Side 只负责**把两个陌生人放到同一个话题里**，然后交棒。
 
-这一步要解决的问题不是"补一个功能"，是**在没匹配到的时候，让用户依然能推进**。
-
-## 设计原则
-
-1. **说清为什么**：不是"没人"，而是"没人在你选的那一格"。
-2. **给出可动作的邻近格**：告诉用户"如果你愿意挪一格，就有人"。
-3. **允许即时改条件**：不用回上一步、不用重填表单，就地调偏好。
-4. **保留原承诺**：即使有 near-miss，也**不**破坏"每周一次真实约"的调性——邻近格只是让用户**修改自己的可约时段**，而不是降低匹配标准。
-5. **对话框保持讲述层**：所有操作都在右边（跟 Matchmaker 的分工一致）。
-
-## 一、新增 `findNearMisses` — 给出"差一格"的候选
-
-`src/lib/agents/side-by-side.ts` 加一个函数：
-
-```ts
-export interface NearMiss {
-  kind: "other_slot" | "other_activity_here" | "other_area";
-  personCount: number;      // 有几个人在这个邻近格，不暴露是谁
-  hint: {                    // 用户要挪的那一格
-    kind?: ActivityKind;     // 换活动
-    slot?: { day; window };  // 换时段
-  };
-  label_en: string;
-  label_zh: string;
-}
-
-export function findNearMisses(state: SideState): NearMiss[]
-```
-
-规则（在 `PEOPLE` 里聚合，全部匿名，只回人数）：
-- **同活动，不同时段**：用户是 `tennis/sat-morning`，找出 `tennis/*` 的所有 (day, window) 组合，去掉用户已经选过的，按人数排序取 top 3。文案："周日上午还有 2 个人打网球" / "工作日晚上也有 1 个"。
-- **同活动，不同区域**：用户填了 area 但 PEOPLE 的 activity.area 不同，如果同活动同时段有人但**只**是区域不同，独立提示。文案："同一时段，Downtown 有 1 个人在打网球"。
-- **同时段，不同活动**：如果用户周六上午本来也做别的（不假设，只提示可能性）。文案："周六上午做别的事的话，还有 3 个人"。
-
-`kind: "other_slot"` 的 hint 里带具体的 (day, window)，点击时**加入**到 `state.user.slots`（不是替换，用户仍然保留原时段）。这一步很关键——用户不是"改主意"，是"多开一扇门"。
-
-## 二、右侧 waiting pane：从"死圆圈"变成"邻近格面板"
-
-改 `src/components/canvas/meet-canvas.tsx`，当 `state.phase === "waiting" && state.user` 时（表单已提交但没约）：
+## 三步产品（起 / 中 / 结）
 
 ```
-┌────────────────────────────────────────┐
-│ 你的时段                                │
-│  🎾  网球 · 中级 · 周六上午 · Riverside │
-│                                        │
-│ 这一格本周没人。差一点就有：              │
-│                                        │
-│ ┌────────────────────────────────────┐ │
-│ │ 周日上午 · 2 个人也打网球            │ │
-│ │ [ 加上这个时段 ]                    │ │
-│ └────────────────────────────────────┘ │
-│ ┌────────────────────────────────────┐ │
-│ │ 工作日晚上 · 1 个人也打网球          │ │
-│ │ [ 加上这个时段 ]                    │ │
-│ └────────────────────────────────────┘ │
-│                                        │
-│ ─────── 或者 ────────                   │
-│                                        │
-│ [ 调整偏好 ]                            │
-│                                        │
-│ 没有合适的也没关系。有人出现我立刻告诉你。│
-└────────────────────────────────────────┘
+[起 · 说]              [中 · 看]                [结 · 招呼]
+一屏两段选择             一张匿名候选卡              一键 say hello
+                                                  → 进 /connections
+"你这周想做什么          "TA 周六上午也要去          "打个招呼"
+ 什么时候？"             Riverside 打网球"          → 以这件事为
+                                                    开场白的一条
+                        [ 打个招呼 ] [ 换一个 ]     hello 已发出
 ```
 
-要点：
-- 顶部一栏灰底 recap：**用户当前的偏好**（活动/水平/时段/区域），一眼看到自己填了啥。
-- 中间：**最多 3 张** near-miss 卡片，每张只说人数，绝不暴露是谁。按钮明写「加上这个时段」（不是"改成"，是"追加"）。
-- 底部：「调整偏好」——点了展开原 `ActivityForm`（复用组件，预填当前值），改完提交调用新的 `updateUserActivity(state, user, lang)`，它 = `setUserActivity` 但不会 `pushA` 那句 "Saved."，改成 "调整了。再看看。"（新台词）。
-- 最后一句安抚文本保留（"有人出现我立刻告诉你"），但不再是唯一的东西。
-- **没有 near-miss 可推**（真的全空）时：中间那块换成一段解释文案 "网球在你的城市这周确实没人。如果你愿意换个活动试试——" + 直接给一排 chip：其它 6 种 ActivityKind，点了直接改 `state.user.kind` 并重跑匹配。
+**Step 1 · 起**  
+一屏两段，不再有第三段：
 
-## 三、Agent 台词跟着变
+```
+这周你想做点什么，什么时候？
 
-`src/lib/agents/side-by-side.ts` 里 `L.no_match` 目前是一句死话。改成动态：
-- **有 near-miss**：`"这一格本周没人。差一点就有——右边看看邻近的几个时段。"` / `"Nobody in this exact slot this week. Close ones on the right — take a look."`
-- **完全没有**：`"你选的活动这周整个城市都没人。要不换个试试？右边可以直接切。"` / 类似英文。
-- 用户点「加上这个时段」后：Agent 说 `"记下了。加上周日上午一起看。"` 然后重跑 `tryPropose`——如果这次匹配到，直接进 proposed。
+做什么   [🎾][🏃][🧗][🍳][🖼][📚]
+何时     ○ 这个周末   ○ 工作日晚上   ○ 随便都行
+                                          (点这行展开 21 格具体时段)
+              [ 帮我找一个人 ]
 
-## 四、左侧对话框：**保持不动**
+  找到只是起点，聊起来才是。TA 拒绝也不会知道是你。
+```
 
-对话框仍然是禁用状态（`composerDisabled` 逻辑不变）。用户不用打字，所有操作在右边。这是刻意的——Side by Side 的操作面就在右侧卡上，跟 Matchmaker 的操作在 IntroCanvas 卡上一样，学一次就够。
+去掉：level（水平）、area（区域）、单独的 day + window 双字段。数据层保留 level 做匹配加权，用户不填。
 
-## 五、Header：轻微的"进展感"
+**Step 2 · 中**  
+一张卡，两个按钮，没别的：
 
-Header 现在只有 Connections 徽章。加一枚极小的状态芝麻点：如果 `sideBySideState.phase === "waiting" && state.user`（等着约），Side by Side 的 tab 或 chip 上加一个 mono 小字 "watching"。**不闪、不红点**——就是让用户知道系统还在替他看。（可选，如果嫌花，可以先不做。）
+```
+┌────────────────────────────────────┐
+│   🎾  周六上午 · Riverside          │
+│   [?]  TA 周六上午也要去那儿打球     │
+│                                     │
+│   [ 打个招呼 ]      [ 换一个 ]      │
+└────────────────────────────────────┘
+```
 
----
+- **打个招呼**：调用现有 `connections.hello(personId, openerText)`，`openerText` 由系统自动生成一句以"这件事+这个时段"为主语的话（en/zh 各一套模板，用户不写）。然后 **直接 `navigate("/connections")`**，Side by Side 页任务结束。
+- **换一个**：换下一个候选。无预算上限，池子看完了就一句"这个组合的都看过了"+ 一个"换个条件"按钮回 Step 1。
 
-## 技术细节
+**无匹配时**：不再是三按钮面板。就一段话 + 一个按钮：
 
-**新文件**
-- 无。所有变更在现有文件里。
+```
+  这周你选的时段没人。
+  周日上午有 2 个人也打网球。
 
-**改动**
+              [ 试试周日上午 ]
+              或 [ 换个条件 ]  ← 次要
+```
+
+top-1 near-miss 一键跳转；没有近邻时只显示"换个条件"。
+
+**Step 3 · 结**  
+**没有 Step 3**。用户已经在 `/connections` 里那条 thread 上，之后 TA 回不回、约几点、去不去，全部走 Matchmaker 的现成机制。Side by Side 页面回到 Step 1 的空状态，本周还想再来一次就再来一次。
+
+## 起中结的信号
+
+- **起**：Step 1 表单可见 = 用户在告诉系统"我想干嘛"
+- **中**：Step 2 匿名卡可见 = 系统给出一个选项让用户裁决
+- **结**：点了"打个招呼"，路由跳到 `/connections`。**这就是终止信号**——Side by Side 的活干完了。
+
+## 拆掉不做（相比上一版）
+
+- ❌ Step 3 "正在问 TA" 全屏等待——不再需要。Side by Side 不管 TA 有没有同意，那是 connections 的事。
+- ❌ Step 4 约定卡 / 加入日历 / 取消——不再需要。约定发生在 connections 的对话里。
+- ❌ Step 5 24h 后 debrief——不再需要。两个人是不是要继续，看 connections thread 就够了。
+- ❌ Header 徽章 "周六 · 网球"——不再需要。没有独立于 connections 的"约"了。
+- ❌ `SideState` 里的 `phase = "proposed" | "awaiting_them" | "confirmed"`——退化成 `"gathering" | "reviewing"` 两个状态。
+- ❌ `accept` / `decline` / `simulateThemReply`——通通删掉。
+- ❌ 左侧对话框——`side-by-side.tsx` 从双栏改单栏，`Workspace` 换成一个薄的 `SoloShell`（Header + 中间内容）。
+- ❌ level / area 字段。
+- ❌ retry 额度。
+- ❌ 匿名当天解锁机制——因为不再有"当天"这个概念，直接跳去 connections 后按现有匿名/揭示逻辑走（connections 里 hello 是有名字的，那就有名字，符合 Matchmaker 现状）。
+
+## 留下
+
+- `state.user`（UserActivity）——用户填的偏好，用来匹配和显示 recap。
+- `findMatches` / `findNearMisses`——匹配算法保留，用户看不到多余选项。
+- `hello()` in `connections.ts`——直接复用。
+- `PEOPLE` 数据 + activity 字段——保留，级别当加权。
+
+## 技术改动清单
+
+**改**
+- `src/routes/side-by-side.tsx`：不再用 `Workspace`。改用一个新的 `SoloShell`（Header + 中间容器，无对话框）。删除所有 `send/messages/composerDisabled/thinking` 相关逻辑，只留 `state` + 4 个 handler：`handleSetActivity` / `handleSwap` / `handleSayHello` / `handleAdjust`。
+- `src/components/canvas/meet-canvas.tsx`：完全重写为三个视图 `<FormView>` / `<PickView>` / `<EmptyView>`，按 `state.phase` + 是否有 near-miss 切换。删除所有 accept/decline/awaiting/confirmed 相关分支。
 - `src/lib/agents/side-by-side.ts`：
-  - 加 `findNearMisses(state): NearMiss[]`。
-  - 加 `addSlot(state, slot, lang): SideState`（追加 slot 到 `user.slots` 后调 `tryPropose`）。
-  - 加 `switchKind(state, kind, lang): SideState`（改 `user.kind` 后调 `tryPropose`）。
-  - 加 `updateUserActivity(state, user, lang): SideState`（编辑现有 user，不重来）。
-  - `L.no_match` 拆成 `L.no_match_with_near` / `L.no_match_empty`，`tryPropose` 根据是否有 near-miss 选一个。
-- `src/components/canvas/meet-canvas.tsx`：
-  - `phase === "waiting" && state.user` 分支渲染新的 `WaitingPane` 内部组件（recap + near-miss 卡片 + 调整偏好 + activity chip 换）。
-  - `ActivityForm` 抽出成能接受 `initial` 的组件（用于「调整偏好」）。
-- `src/routes/side-by-side.tsx`：加 `handleAddSlot` / `handleSwitchKind` / `handleUpdateActivity` 三个 wrapper。
-- `src/locales/*/common.json`：新增文案 `meet.recap_title` / `meet.near_title` / `meet.near_empty_title` / `meet.near_add_slot` / `meet.adjust` / `meet.try_other_kind` + agent 台词两条。
+  - `SideState` 简化：`{ user?: UserActivity; candidate?: { personId; slot; reason }; skipped: string[]; nearMisses: NearMiss[] }`。删除 `phase`（改用派生态）、`messages`、`proposal`、`confirmedAt` 等。
+  - 新增 `sayHello(state, lang): { nextState, personId, opener }`——生成 opener 文案，把 candidate 加入 skipped，返回让路由跳 `/connections`。
+  - 保留并微调 `findMatches` / `findNearMisses` / `switchKind` / `addSlot`。
+  - 删除 `accept` / `decline` / `simulateThemReply` / `L.*` 里大量不再出现的台词。
+- `src/lib/connections.ts`：`hello()` 接受 `opener?: string` 参数（现在应该已经有 opener 文本参数，若无则加）。
+- `src/components/home.tsx`（如涉及 Side by Side chip 文案）：把长句改成简单一句，比如"和一个人做点什么"→ 保持现状即可。
 
-**不做**
-- 不引入通知/邮件/推送——"我盯着"仍然是本地承诺。
-- 不做跨活动的智能推荐（"跑步的人可能也喜欢网球"），太啰嗦。
-- 不做匹配质量降级（把 level 差从 ≤1 放宽到 ≤2）——匹配严格性是产品承诺。
-- 不改 confirmed / 日历 / plans 归档等更后段的事，先把这一步跑通再说。
+**新增**
+- `src/components/solo-shell.tsx`（或直接内联在 side-by-side.tsx 里，一个 20 行的组件）：单栏容器 + 复用现有 `WorkspaceHeader`。
+
+**删除的文件**（如存在）
+- `src/components/canvas/sent-waiting.tsx` — 上一版加的 Step 3 等待态组件，不再需要。**保留判断**：如果 Matchmaker 侧也在用它，就不删；只是 Side by Side 不再引用。
+
+**locales**（en + zh-CN）
+- 新增：`meet.hero_prompt`（起点大标题）、`meet.when_group.{weekend,weeknight,any}`、`meet.pick_specific_slot`、`meet.reason_template.{tennis,running,climbing,cook,gallery,books}`（用于自动 opener）、`meet.say_hello`、`meet.swap`、`meet.no_slot_hint`、`meet.no_slot_fallback`、`meet.adjust`、`meet.pool_exhausted`。
+- 删除：`meet.form_area*`、`meet.composer_placeholder`、`meet.confirmed_*`、`meet.awaiting_*`、`meet.accept`、`meet.decline`、`meet.near_add_slot`、`meet.near_other_kind`、`meet.near_switch_kind`、`meet.recap_label`、`meet.adjust_pref_*`、`agents.sidebyside.*` 里所有面向"等 TA / 已定"的台词。
+
+**opener 模板举例**  
+系统点击"打个招呼"时用 `state.user.kind` + `candidate.slot` + `candidate.reason` 拼一句：
+- zh：`看到你也在周六上午打网球，我也常去 Riverside。要不要一起？`
+- en：`Saw you play tennis Saturday mornings too — I go to Riverside a lot. Want to hit together?`  
+6 个 kind × 一个模板即可，不做花活。用户可以进 connections 后自己改（现有 hello composer 应该已经支持）。
 
 ## 验收
 
-1. 填完一个偏冷的组合（比如"攀岩 · 周三 · 中午"）→ 右边不再是空转圈，而是 recap + 邻近格卡片（如果种子数据里有邻近人）。
-2. 点「加上周日上午」→ 右边直接变成 proposed 状态（或者再次 waiting 但多了一格 recap），流程能跑下去。
-3. 填一个真没人的组合 → 右边显示"换个活动试试"+ 6 个活动 chip，点一下立刻重新匹配。
-4. 点「调整偏好」→ 表单展开、预填、改完提交 → recap 更新、near-miss 重算。
-5. 左侧对话框始终是禁用讲述，用户不用打字。
-6. Agent 那句话跟着状态变（有 near / 完全空 / 加了 slot / 换了活动），不是永远一句死话。
+1. 进 `/side-by-side` 是单栏，无左对话框；一屏内看到"做什么 + 何时 + CTA"。
+2. 提交冷组合 → 一段话 + 一个"试试周日上午"按钮 + 一个次要"换个条件"。
+3. 提交能匹配的组合 → 一张匿名卡 + 两个按钮。
+4. 点"打个招呼" → 立即跳到 `/connections`，能看到一条新 thread，opener 是那句拼好的话。
+5. 点"换一个" → 卡换人；池子耗尽后按钮消失，出现"这个组合都看过了"+ 一个"换个条件"。
+6. `SideState` 里没有 `phase = "confirmed" | "awaiting_them" | "proposed"` 相关代码路径。
+7. `tsgo --noEmit` 通过。
 
-## 之后的路（本轮不做，仅备忘）
+## 为什么这是"够简"的止点
 
-跑通 waiting → proposed 之后再回来做：`confirmed` 变约定卡、`.ics` 下载、`/connections?tab=plans` 归档。跳过这一步直接做后面等于给一个跑不到终点的通道装终点线。
+再往下砍就伤到目的了：
+- 砍掉 Step 2 的"换一个" → 用户只能盲选一个人，接受度会掉
+- 砍掉无匹配的 near-miss 建议 → 又回到"死圆圈"
+- 砍掉时段字段只留活动 → 匹配没有意义
+
+再往上加就重回混乱：
+- 加回等待态 → 引入独立于 connections 的时间线，用户要在两个地方看进度
+- 加回约定卡 / 日历 → 让 Side by Side 抢 connections 的活
+- 加回 debrief → 又要维护一个只此一处的状态机
+
+这一版：**Side by Side 只做"把两个人放到一个话题下"这一件事**，然后把接力棒交给 connections。产品自洽，用户学一次（在 connections 聊天）就能同时用两个入口。
