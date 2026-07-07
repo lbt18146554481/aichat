@@ -53,7 +53,12 @@
     "empty_title": "我会在这里引荐一个人。",
     "empty_hint": "不是列表——一次一个人，带着理由。在左边告诉我你想找的人。",
     "another_person": "换一个人",
-    "one_work_label": "TA 在意的一件{{kind}}"
+    "one_work_label": "TA 在意的一件{{kind}}",
+    "after_hello_hint": "TA 回你的时候，我会在右上角提醒你。你可以继续看别人。",
+    "next_person_after": "看下一个人",
+    "check_progress": "去看进展",
+    "hello_again": "换个方式再说一次",
+    "while_you_chat": "继续看下一个"
   },
   "moment": {
     "about_them": "关于 {{name}} 的三件小事",
@@ -85,6 +90,7 @@
     "section_incoming": "收到",
     "section_connected": "在聊",
     "section_faded": "没有回音",
+    "section_sent": "等回音",
     "empty": "还没有。在 Matchmaker 里对某个人打个招呼，TA 就会出现在这里。",
     "pick_one": "在左侧挑一段对话。",
     "composer_placeholder": "写点什么……"
