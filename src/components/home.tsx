@@ -154,6 +154,7 @@ export function Home() {
                 disabled={!text.trim()}
                 className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-full bg-foreground text-background disabled:opacity-25 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
                 aria-label={t("home.send")}
+                suppressHydrationWarning
               >
                 <ArrowUp className="w-4 h-4" strokeWidth={2.25} />
               </button>
