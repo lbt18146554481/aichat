@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, X } from "lucide-react";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
@@ -13,6 +14,7 @@ import {
 } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
 import { loadProfile } from "@/lib/profile";
+import { setFocusPerson } from "@/lib/seed";
 
 interface Props { personId: string; }
 
