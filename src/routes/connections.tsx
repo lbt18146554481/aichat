@@ -25,6 +25,7 @@ type PaneKind = "thread" | "incoming" | null;
 function ConnectionsPage() {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const navigate = useNavigate();
   const [items, setItems] = useState<Connection[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showFaded, setShowFaded] = useState(false);
@@ -55,7 +56,13 @@ function ConnectionsPage() {
 
   const incoming = items.filter((c) => c.status === "incoming");
   const connected = items.filter((c) => c.status === "connected");
+  const sent = items.filter((c) => c.status === "sent");
   const faded = items.filter((c) => c.status === "faded");
+
+  function openSentInMatchmaker(personId: string) {
+    setFocusPerson(personId);
+    void navigate({ to: "/matchmaker" });
+  }
 
   const activeConn = activeId ? items.find((c) => c.personId === activeId) ?? null : null;
   const paneKind: PaneKind =
