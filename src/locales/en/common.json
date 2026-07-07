@@ -117,6 +117,12 @@
     },
     "faded_hint": "This didn't land last time. It's OK to move on — or say something new."
   },
+  "notify": {
+    "replied": "{{name}} wrote back",
+    "new_hello": "{{name}} said hello"
+  },
+
+
 
   "meet": {
     "label": "Proposed meet",
