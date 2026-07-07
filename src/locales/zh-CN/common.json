@@ -129,7 +129,7 @@
 
   "meet": {
     "prompt_hero": "说一句，你想做什么。",
-    "prompt_hint": "自己的话就行，比如"周六上午想打网球"、"这周想找人一起做饭"。",
+    "prompt_hint": "自己的话就行，比如「周六上午想打网球」、「这周想找人一起做饭」。",
     "prompt_placeholder": "想做什么，大概什么时候……",
     "prompt_meta": "Cmd/Ctrl + Enter 发送",
     "prompt_submit": "找人",
