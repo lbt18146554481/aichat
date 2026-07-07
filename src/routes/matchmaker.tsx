@@ -4,10 +4,11 @@ import { useTranslation } from "react-i18next";
 import type { Lang } from "@/lib/i18n";
 import { Workspace, type AgentMsg } from "@/components/workspace";
 import { IntroCanvas } from "@/components/canvas/intro-canvas";
-import { consumeSeed } from "@/lib/seed";
+import { consumeFocusPerson, consumeSeed } from "@/lib/seed";
 import {
   EMPTY,
   actAnotherPerson,
+  focusPerson,
   load,
   reset,
   save,
@@ -38,7 +39,9 @@ function MatchmakerPage() {
       return userTurn(start(lang), seed, lang);
     }
     const loaded = load();
-    return loaded.messages.length === 0 ? start(lang) : loaded;
+    const base = loaded.messages.length === 0 ? start(lang) : loaded;
+    const focusId = consumeFocusPerson();
+    return focusId ? focusPerson(base, focusId) : base;
   });
   const [hydrated, setHydrated] = useState(false);
   const [thinking, setThinking] = useState(false);
