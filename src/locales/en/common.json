@@ -152,7 +152,20 @@
     "decline": "Not this one",
     "awaiting_them": "Waiting on them…",
     "anon_name": "Someone",
-    "confirmed_note": "On the day, you'll see each other's name & photo at the venue. Nothing more, nothing less. Just go play."
+    "confirmed_note": "On the day, you'll see each other's name & photo at the venue. Nothing more, nothing less. Just go play.",
+    "recap_label": "Your slot",
+    "near_intro": "Nobody in this exact slot this week. Close ones:",
+    "near_people_count": "{{count}} people",
+    "near_people_count_one": "1 person",
+    "near_add_slot": "Add this slot",
+    "near_other_kind": "Same slot — {{count}} doing {{kind}}",
+    "near_switch_kind": "Switch to this",
+    "near_empty_intro": "No one's doing {{kind}} in your city this week. Try another?",
+    "adjust": "Edit",
+    "adjust_label": "Edit preferences",
+    "adjust_title": "Tweak — I'll look again",
+    "adjust_submit": "Save & look again",
+    "adjust_cancel": "Cancel"
   },
   "activity": {
     "kind": {
