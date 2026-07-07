@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, X, Loader2 } from "lucide-react";
+import { Check, X, Loader2, Plus, Pencil } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
-import type { SideState, UserActivity } from "@/lib/agents/side-by-side";
+import type { NearMiss, SideState, UserActivity } from "@/lib/agents/side-by-side";
+import { findNearMisses, otherKinds } from "@/lib/agents/side-by-side";
 import type { ActivityKind, Weekday } from "@/lib/types";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 
 interface Props {
   state: SideState;
   onSetActivity: (a: UserActivity) => void;
+  onUpdateActivity: (a: UserActivity) => void;
+  onAddSlot: (slot: { day: Weekday; window: "morning" | "midday" | "evening" }) => void;
+  onSwitchKind: (kind: ActivityKind) => void;
   onAccept: () => void;
   onDecline: () => void;
   onTheirReply: (accepted: boolean) => void;
@@ -19,7 +23,16 @@ const DAYS: Weekday[] = ["mon","tue","wed","thu","fri","sat","sun"];
 const WINDOWS = ["morning", "midday", "evening"] as const;
 const LEVELS = ["beginner","intermediate","advanced"] as const;
 
-export function MeetCanvas({ state, onSetActivity, onAccept, onDecline, onTheirReply }: Props) {
+export function MeetCanvas({
+  state,
+  onSetActivity,
+  onUpdateActivity,
+  onAddSlot,
+  onSwitchKind,
+  onAccept,
+  onDecline,
+  onTheirReply,
+}: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
 
@@ -37,17 +50,13 @@ export function MeetCanvas({ state, onSetActivity, onAccept, onDecline, onTheirR
 
   if (state.phase === "waiting") {
     return (
-      <div className="h-full grid place-items-center px-8 py-12">
-        <div className="max-w-sm text-center">
-          <div className="w-10 h-10 mx-auto rounded-full border border-dashed border-border" />
-          <h2 className="mt-5 text-[15px] font-medium text-foreground">
-            {t("meet.watching_title")}
-          </h2>
-          <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed">
-            {t("meet.watching_hint")}
-          </p>
-        </div>
-      </div>
+      <WaitingPane
+        state={state}
+        lang={lang}
+        onAddSlot={onAddSlot}
+        onSwitchKind={onSwitchKind}
+        onUpdate={onUpdateActivity}
+      />
     );
   }
 
@@ -65,7 +74,7 @@ export function MeetCanvas({ state, onSetActivity, onAccept, onDecline, onTheirR
   const winLabel = t(`activity.window.${proposal.window}`);
 
   return (
-    <div className="h-full px-8 py-10">
+    <div className="h-full px-8 py-10 overflow-y-auto">
       <div className="mx-auto max-w-md">
         <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
           {t("meet.label")}
@@ -151,22 +160,188 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ActivityForm({ onSubmit }: { onSubmit: (a: UserActivity) => void }) {
+// ---- Waiting pane -------------------------------------------------------
+
+function WaitingPane({
+  state,
+  lang,
+  onAddSlot,
+  onSwitchKind,
+  onUpdate,
+}: {
+  state: SideState;
+  lang: Lang;
+  onAddSlot: (slot: { day: Weekday; window: "morning" | "midday" | "evening" }) => void;
+  onSwitchKind: (kind: ActivityKind) => void;
+  onUpdate: (a: UserActivity) => void;
+}) {
   const { t } = useTranslation();
-  const [kind, setKind] = useState<ActivityKind>("tennis");
-  const [level, setLevel] = useState<typeof LEVELS[number]>("intermediate");
-  const [day, setDay] = useState<Weekday>("sat");
-  const [windowSel, setWindow] = useState<typeof WINDOWS[number]>("morning");
-  const [area, setArea] = useState("");
+  const [editing, setEditing] = useState(false);
+  const user = state.user!;
+  const nears = findNearMisses(state);
+  const swaps = otherKinds(state);
+
+  if (editing) {
+    return (
+      <ActivityForm
+        initial={user}
+        onSubmit={(a) => { onUpdate(a); setEditing(false); }}
+        onCancel={() => setEditing(false)}
+      />
+    );
+  }
+
+  const primarySlot = user.slots[0];
 
   return (
     <div className="h-full px-8 py-10 overflow-y-auto">
       <div className="mx-auto max-w-md">
         <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
-          {t("meet.form_label")}
+          {t("meet.recap_label")}
         </div>
         <h2 className="mt-2 text-[18px] font-semibold tracking-tight text-foreground">
-          {t("meet.form_title")}
+          {t("meet.watching_title")}
+        </h2>
+
+        {/* Recap */}
+        <div className="mt-5 rounded-xl border border-border bg-secondary/40 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[14px] font-medium text-foreground">
+                {t(`activity.kind.${user.kind}`)} · {t(`activity.level.${user.level}`)}
+              </div>
+              <div className="mt-1 text-[12px] text-muted-foreground">
+                {user.slots.map((s) => `${t(`activity.day.${s.day}`)} · ${t(`activity.window.${s.window}`)}`).join(" / ")}
+                {user.area && user.area !== "—" ? ` · ${user.area}` : ""}
+              </div>
+            </div>
+            <button
+              onClick={() => setEditing(true)}
+              className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
+            >
+              <Pencil className="w-3 h-3" />
+              {t("meet.adjust")}
+            </button>
+          </div>
+        </div>
+
+        {/* Near misses */}
+        {nears.length > 0 ? (
+          <>
+            <p className="mt-6 text-[12.5px] text-muted-foreground leading-relaxed">
+              {t("meet.near_intro")}
+            </p>
+            <div className="mt-3 space-y-2">
+              {nears.map((n, i) => (
+                <NearCard key={i} near={n} lang={lang} onAddSlot={onAddSlot} onSwitchKind={onSwitchKind} />
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="mt-6 text-[12.5px] text-muted-foreground leading-relaxed">
+              {t("meet.near_empty_intro", { kind: t(`activity.kind.${user.kind}`) })}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {swaps.map((k) => (
+                <button
+                  key={k}
+                  onClick={() => onSwitchKind(k)}
+                  className="px-2.5 py-1.5 rounded-md text-[12px] border border-border bg-card text-foreground/80 hover:border-foreground/40 hover:text-foreground transition-colors"
+                >
+                  {t(`activity.kind.${k}`)}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        <p className="mt-8 text-[11.5px] text-muted-foreground leading-relaxed border-t border-border pt-4">
+          {t("meet.watching_hint")}
+          {primarySlot ? "" : ""}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function NearCard({
+  near,
+  lang,
+  onAddSlot,
+  onSwitchKind,
+}: {
+  near: NearMiss;
+  lang: Lang;
+  onAddSlot: (slot: { day: Weekday; window: "morning" | "midday" | "evening" }) => void;
+  onSwitchKind: (kind: ActivityKind) => void;
+}) {
+  const { t } = useTranslation();
+  if (near.variant === "other_slot" && near.hint.slot) {
+    const s = near.hint.slot;
+    const line = lang === "zh-CN"
+      ? `${t(`activity.day.${s.day}`)}${t(`activity.window.${s.window}`)} · ${t("meet.near_people_count", { count: near.personCount })}`
+      : `${t(`activity.day.${s.day}`)} ${t(`activity.window.${s.window}`)} · ${t("meet.near_people_count", { count: near.personCount })}`;
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3.5 py-2.5">
+        <div className="text-[13px] text-foreground">{line}</div>
+        <button
+          onClick={() => onAddSlot(s)}
+          className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[12px] bg-foreground text-background hover:opacity-90 transition-opacity"
+        >
+          <Plus className="w-3 h-3" />
+          {t("meet.near_add_slot")}
+        </button>
+      </div>
+    );
+  }
+  if (near.variant === "other_kind_same_slot" && near.hint.kind) {
+    const k = near.hint.kind;
+    const line = t("meet.near_other_kind", {
+      kind: t(`activity.kind.${k}`),
+      count: near.personCount,
+    });
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3.5 py-2.5">
+        <div className="text-[13px] text-foreground">{line}</div>
+        <button
+          onClick={() => onSwitchKind(k)}
+          className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[12px] border border-border text-foreground hover:border-foreground/60 transition-colors"
+        >
+          {t("meet.near_switch_kind")}
+        </button>
+      </div>
+    );
+  }
+  return null;
+}
+
+// ---- Activity form ------------------------------------------------------
+
+function ActivityForm({
+  onSubmit,
+  initial,
+  onCancel,
+}: {
+  onSubmit: (a: UserActivity) => void;
+  initial?: UserActivity;
+  onCancel?: () => void;
+}) {
+  const { t } = useTranslation();
+  const [kind, setKind] = useState<ActivityKind>(initial?.kind ?? "tennis");
+  const [level, setLevel] = useState<typeof LEVELS[number]>(initial?.level ?? "intermediate");
+  const [day, setDay] = useState<Weekday>(initial?.slots[0]?.day ?? "sat");
+  const [windowSel, setWindow] = useState<typeof WINDOWS[number]>(initial?.slots[0]?.window ?? "morning");
+  const [area, setArea] = useState(initial?.area && initial.area !== "—" ? initial.area : "");
+
+  return (
+    <div className="h-full px-8 py-10 overflow-y-auto">
+      <div className="mx-auto max-w-md">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
+          {t(initial ? "meet.adjust_label" : "meet.form_label")}
+        </div>
+        <h2 className="mt-2 text-[18px] font-semibold tracking-tight text-foreground">
+          {t(initial ? "meet.adjust_title" : "meet.form_title")}
         </h2>
         <p className="mt-1.5 text-[12.5px] text-muted-foreground leading-relaxed">
           {t("meet.form_subtitle")}
@@ -211,12 +386,22 @@ function ActivityForm({ onSubmit }: { onSubmit: (a: UserActivity) => void }) {
           </Field>
         </div>
 
-        <button
-          onClick={() => onSubmit({ kind, level, area: area || "—", slots: [{ day, window: windowSel }] })}
-          className="mt-7 inline-flex items-center px-4 py-2.5 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
-        >
-          {t("meet.form_submit")}
-        </button>
+        <div className="mt-7 flex items-center gap-2">
+          <button
+            onClick={() => onSubmit({ kind, level, area: area || "—", slots: [{ day, window: windowSel }] })}
+            className="inline-flex items-center px-4 py-2.5 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
+          >
+            {t(initial ? "meet.adjust_submit" : "meet.form_submit")}
+          </button>
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              className="inline-flex items-center px-4 py-2.5 rounded-md border border-border text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t("meet.adjust_cancel")}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
