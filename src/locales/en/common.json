@@ -95,7 +95,12 @@
     "section_sent": "Waiting",
     "empty": "No one yet. Say hello to someone from the Matchmaker and they'll show up here.",
     "pick_one": "Pick a conversation on the left.",
-    "composer_placeholder": "Write something…"
+    "composer_placeholder": "Write something…",
+    "back_to_intro": "Back to {{name}}",
+    "waiting_title": "Waiting on {{name}}",
+    "waiting_hint": "As soon as they write back, this fills in. You can keep meeting others in the meantime.",
+    "your_last": "Your last message",
+    "their_reply": "Their latest reply"
   },
   "incoming": {
     "label": "Someone read you",

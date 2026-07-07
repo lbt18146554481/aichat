@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, X } from "lucide-react";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
@@ -13,12 +14,14 @@ import {
 } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
 import { loadProfile } from "@/lib/profile";
+import { setFocusPerson } from "@/lib/seed";
 
 interface Props { personId: string; }
 
 export function IncomingHello({ personId }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const navigate = useNavigate();
   const [conn, setConn] = useState<Connection | null>(() => get(personId));
   const [picked, setPicked] = useState<string | null>(null);
   const [reply, setReply] = useState("");
@@ -49,8 +52,24 @@ export function IncomingHello({ personId }: Props) {
     dismissIncoming(personId);
   }
 
+  function backToIntro() {
+    setFocusPerson(personId);
+    void navigate({ to: "/matchmaker" });
+  }
+
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full flex flex-col">
+      <div className="border-b border-border bg-background px-5 py-3 flex items-center">
+        <button
+          type="button"
+          onClick={backToIntro}
+          className="inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span className="truncate max-w-[220px]">{t("connection.back_to_intro", { name: loc.name })}</span>
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto">
       <div className="max-w-md mx-auto px-6 py-10">
         {/* Header — who they are */}
         <div className="flex items-start gap-4">
@@ -159,6 +178,7 @@ export function IncomingHello({ personId }: Props) {
             {t("incoming.hint")}
           </p>
         </div>
+      </div>
       </div>
     </div>
   );

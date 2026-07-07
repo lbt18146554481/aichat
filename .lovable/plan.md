@@ -1,123 +1,67 @@
+## 目标
 
-## 问题定义
+1. 点「去看进展」→ 直接落到该人的对话（或等待页），并高亮「你最后一句」与「TA 最新回复」。
+2. 从对话返回时，回到刚才那张 Matchmaker 卡片，草稿/滚动/所选此人都不丢。
 
-用户在 Matchmaker 里描述择偶偏好 → 系统推人 → 用户对某个人发了 hello。**然后呢？** 当前是：卡片上只显示"已送达"，其他啥也没有。用户被"卡"在这张卡片上——想继续探索不知道怎么继续，想看进展要跳到 /connections，对方回没回也没提醒。
+---
 
-从用户视角，发完 hello 之后只该做三件事：
+## 一、`?open=<personId>` 直达
 
-1. **继续看下一个人**（不必坐等）
-2. **一眼知道之前发的有没有结果**（不用主动查）
-3. **对方回了，能立刻回消息**（一个入口）
+- `src/routes/connections.tsx`
+  - 用 `validateSearch` (zod + fallback) 声明 `{ open?: string }`。
+  - 首次 items 加载后，如果 `open` 命中且状态是 `incoming | connected | sent`，`setActiveId(open)`，然后 `navigate({ search: {}, replace: true })` 清 URL，避免刷新反复触发。
+  - 记录 `activeId` 到 `sessionStorage["kindred:connections:last"]`；无 `?open` 时优先恢复上次的 active（仍存在的话）。
 
-## 设计原则
+- `src/components/canvas/intro-canvas.tsx`
+  - `sent` 分支的「去看进展」和 `connected` 分支的「进入对话」 `<Link>` 加 `search={{ open: person.id }}`。
 
-- **发完 hello = 松一口气，不是盯着屏幕**。所以发完之后的主 CTA 必须是"看下一个"，不是"等她回"。
-- **进展是被推送到你眼前的，不是你去查的**。connected 事件要在用户当前所在页面（Matchmaker）就能感知。
-- **不制造焦虑数字**。徽标只用红点，不用未读数字堆砌。
-- **sent 状态对用户可见但不打扰**。用户至少要能在 Connections 里看到"我发出去还没结果的那几个人"，否则它们像凭空消失。
+## 二、Sent 也有落点：Waiting Pane
 
-## 用户流程（发 hello 之后）
+`sent` 目前在右侧没有 pane。新增 `src/components/canvas/sent-waiting.tsx`：
 
-```text
-[Matchmaker 卡片：已发 hello，status=sent]
-    ├─ 主 CTA →「看下一个人」（触发 actAnotherPerson）
-    ├─ 次要 →「去 Connections」(带红点，如果有未读)
-    └─ 底部小字：「她回你的时候我会提醒你」
+- 顶栏：「← 回到 XX 的介绍」按钮（`setFocusPerson` + `navigate("/matchmaker")`）。
+- 内容：头像 + 名字 + 「在等 XX 的回音」+ 复用 `YourHelloRecap` 展示 hello 内容 + 一段安抚文本。
 
-  ↓ 后台 30-90s 决定
+`connections.tsx` 的 `paneKind` 加一档 `waiting`：`sent` → 渲染 `SentWaitingPane`。侧栏 sent 行的行为改为「设置 activeId（打开右侧 waiting pane）」，而不是直接跳回 Matchmaker——原来那条跳转路径由 waiting pane 顶栏的按钮承担，更符合用户预期。
 
-[分支 A: connected]
-    - Header 右上角出现一个圆点通知（红点 + 头像）
-    - 用户点通知 → 直接跳 /connections 打开该人
-    - 若用户还在看该人的卡片：卡片自动切成「打开对话」按钮 + 加一句「她回你了」
+## 三、Thread 高亮 + 返回按钮
 
-[分支 B: faded]
-    - 完全静默，无提醒
-    - 用户如果主动回到该人卡片：显示温和 hint + 两个 CTA
-        「看下一个」/「换个方式再说一次」（重新展开 composer）
-```
+改 `src/components/canvas/connection-thread.tsx`：
 
-## 具体改动
+- 顶栏左侧加「← 回到 XX 的介绍」按钮：`setFocusPerson(personId)` + `navigate({ to: "/matchmaker" })`。
+- 用 `useMemo` 算 `lastMineIdx` / `lastTheirsIdx`。渲染时给两条气泡外层套一个小容器：
+  - 上方一行 mono 小标签：`你最后说` / `TA 刚回`。
+  - 气泡加 `ring-1 ring-foreground/25` 轻微强调，不改现有配色。
+- 首次进入若有 `lastTheirsIdx`，用 `messageRefs[lastTheirsIdx]?.scrollIntoView({ block: "center" })` 定位；否则维持现有 scroll-to-bottom。
 
-### 1. `src/components/canvas/intro-canvas.tsx` — 发完 hello 之后的卡片
+`IncomingHello` 顶栏也加同样的「← 回到 XX 的介绍」按钮，保证任意右侧 pane 都能一键返回。
 
-`conn?.status === "sent"` 区块补齐 CTA：
+## 四、Matchmaker 端接住返回
 
-```text
-[已送达 chip]
-[你引用了什么 + 你写了什么 — 已有的 YourHelloRecap]
-─────
-主按钮：「看下一个人」→ 调用 onAnotherPerson
-次要链接：「去 Connections 看进展」→ Link to="/connections"
-小字：「她回你的时候我会提醒你」
-```
+- Matchmaker 页在挂载时已 `consumeFocusPerson` → `focusPerson(state, id)`，卡片直接切到该人。
+- Intro Canvas 里的 per-person `sessionStorage` 草稿逻辑已存在，返回后 composer/picked/reply 自动还原——无需改动。
+- 只需确认：`focusPerson` 也在「Matchmaker 已 hydrate 状态下再次到达」时被消费；当前实现是从 `useState` 初始化里读，OK。
 
-`conn?.status === "faded"` 区块补 CTA：
+## 五、i18n 新增
 
-```text
-[hint 文本 — 已有]
-主按钮：「看下一个人」
-次要链接：「再说一次」→ 清掉 conn，重新展开 composer
-   （sayHello 已允许 faded 后重新发起，逻辑已 ready）
-```
+`connection`（en/zh 各加）：
 
-`conn?.status === "connected"` 区块补一个次要按钮「继续看下一个」。
-
-### 2. `src/components/workspace-header.tsx` — 通知红点
-
-Header 右上角挂一个 NotificationBell 类组件（复用现有 `hasUnseen()`）：
-
-- 有未读 → 红点 + 一个圆形头像叠加（取最新 connected 或 incoming 的那个人）
-- 点击 → 跳 `/connections`，自动打开那个人
-- 每 3s 轮询一次 `list()`（连接状态变化不是热路径，够用）
-
-这是整个"发完 hello 之后仍在 Matchmaker" 的关键闭环——之前用户根本不知道对方回了。
-
-### 3. `src/routes/connections.tsx` — 加 sent section
-
-Sidebar 顺序改成：
-
-```text
-新的问候（incoming）  ← 红点
-在聊（connected）
-等回音（sent）        ← 新增，灰色小字，无红点
-─────
-没有回音（faded，可折叠）
-```
-
-sent 段落让用户能一眼看到"我发出去在等的这几个人"——目前它们从视图里彻底消失了，只有回到 Matchmaker 该人卡片才看得到。
-
-sent 行点击后：跳回 Matchmaker 该人卡片（因为 sent 状态没有 thread 可看，回到卡片是最自然的落点）。用 `sessionStorage` 传一个"要打开的 personId"，Matchmaker 页读一次就消费掉。
-
-### 4. `src/lib/connections.ts` — 一个小新增
-
-新增 `undoFadedFor(personId)`：清掉 faded 状态，让「再说一次」可以从零开始。
-
-### 5. i18n（新增 key）
-
-```text
-intro.after_hello_hint     = "她回你的时候，我会在右上角提醒你"
-intro.next_person_after    = "看下一个人"
-intro.check_progress       = "去 Connections 看进展"
-intro.hello_again          = "换个方式再说一次"
-intro.while_you_chat       = "继续看下一个"
-connection.section_sent    = "等回音"
-notify.replied             = "{{name}} 回你了"
-```
+- `back_to_intro`: "Back to {{name}}" / "回到 {{name}} 的介绍"
+- `waiting_title`: "Waiting on {{name}}" / "在等 {{name}} 的回音"
+- `waiting_hint`: 一句安抚 / "TA 一回来这里就会亮起。你可以继续看别人。"
+- `your_last`: "Your last message" / "你最后说"
+- `their_reply`: "Their latest reply" / "TA 刚回"
 
 ## 明确不做
 
-- 不做未读数字，只红点
-- 不做实时 WebSocket / 后台推送（原型阶段轮询足够）
-- 不改 Matchmaker Agent 的对话逻辑
-- 不改 sayHello / scheduleResolution 的决策规则
-- 不做撤回 hello、不做编辑 hello
+- 不做 websocket / 实时推送（继续复用 header 轮询红点）。
+- 不改 sayHello / 解决规则 / Agent 对话逻辑。
+- 不做已读回执、消息编辑撤回。
 
 ## 验收
 
-1. 发完 hello，卡片上有一个明显的「看下一个人」大按钮，用户不会卡住。
-2. 用户点「看下一个」→ Matchmaker 直接介绍下一个人，之前那个 sent 记录仍在。
-3. 后台 connected 发生时，Header 右上角自动亮起红点+头像，无需刷新。
-4. 点红点 → 跳 /connections 且直接打开该人的对话。
-5. Connections 侧栏新出现「等回音」段，能看到所有 sent。点击后回到 Matchmaker 该人卡片。
-6. Faded 之后，卡片上两个明确 CTA：看下一个 / 再说一次。「再说一次」能重新打开 composer 并成功发送。
+1. `sent` 卡片点「去看进展」→ 直达 /connections，右侧就是这个人的 waiting pane。
+2. `connected` 卡片点「进入对话」→ 直达该人对话；自动滚到「TA 刚回」那条，你的最后一句也有明显标记。
+3. 对话/waiting/incoming 顶部都有「← 回到 XX 的介绍」按钮，一键回 Matchmaker，卡片仍是该人、composer 草稿仍在。
+4. 从其他入口再进 /connections（不带 `?open`），恢复上次看的那个人 pane，不会被自动选择打乱。
+5. 侧栏「等回音」不再直接跳走，而是打开 waiting pane；waiting pane 顶栏按钮才回到 Matchmaker——路径统一。

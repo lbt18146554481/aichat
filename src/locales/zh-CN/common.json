@@ -93,7 +93,12 @@
     "section_sent": "等回音",
     "empty": "还没有。在 Matchmaker 里对某个人打个招呼，TA 就会出现在这里。",
     "pick_one": "在左侧挑一段对话。",
-    "composer_placeholder": "写点什么……"
+    "composer_placeholder": "写点什么……",
+    "back_to_intro": "回到 {{name}} 的介绍",
+    "waiting_title": "在等 {{name}} 的回音",
+    "waiting_hint": "TA 一回来这里就会亮起。你可以继续看别人。",
+    "your_last": "你最后说",
+    "their_reply": "TA 刚回"
   },
   "incoming": {
     "label": "有人读到了你",

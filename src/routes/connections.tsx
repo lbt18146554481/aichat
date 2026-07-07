@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
@@ -7,10 +7,16 @@ import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { ConnectionThread } from "@/components/canvas/connection-thread";
 import { IncomingHello } from "@/components/canvas/incoming-hello";
+import { SentWaitingPane } from "@/components/canvas/sent-waiting";
 import { list, rehydrate, subscribe, type Connection } from "@/lib/connections";
-import { setFocusPerson } from "@/lib/seed";
+
+const LAST_ACTIVE_KEY = "kindred:connections:last";
 
 export const Route = createFileRoute("/connections")({
+  validateSearch: (raw: Record<string, unknown>): { open?: string } => {
+    const v = raw?.open;
+    return typeof v === "string" && v.length > 0 ? { open: v } : {};
+  },
   component: ConnectionsPage,
   head: () => ({
     meta: [
@@ -20,15 +26,17 @@ export const Route = createFileRoute("/connections")({
   }),
 });
 
-type PaneKind = "thread" | "incoming" | null;
+type PaneKind = "thread" | "incoming" | "waiting" | null;
 
 function ConnectionsPage() {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
+  const { open } = Route.useSearch();
   const [items, setItems] = useState<Connection[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showFaded, setShowFaded] = useState(false);
+  const consumedOpenRef = useRef<string | null>(null);
 
   useEffect(() => {
     rehydrate();
@@ -38,20 +46,56 @@ function ConnectionsPage() {
     return () => { unsub(); };
   }, []);
 
+  // Consume ?open= once — direct-land on the requested person.
+  useEffect(() => {
+    if (!open || consumedOpenRef.current === open) return;
+    if (items.length === 0) return;
+    const target = items.find((c) => c.personId === open);
+    if (target && (target.status === "connected" || target.status === "incoming" || target.status === "sent")) {
+      setActiveId(open);
+      consumedOpenRef.current = open;
+      // Clear the param so a refresh doesn't re-consume it.
+      void navigate({ to: "/connections", search: {}, replace: true });
+    }
+  }, [open, items, navigate]);
+
+  // Restore last-active from sessionStorage on first list load.
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current || items.length === 0 || open) return;
+    restoredRef.current = true;
+    try {
+      const saved = window.sessionStorage.getItem(LAST_ACTIVE_KEY);
+      if (saved) {
+        const target = items.find((c) => c.personId === saved);
+        if (target && target.status !== "faded") {
+          setActiveId(saved);
+        }
+      }
+    } catch { /* noop */ }
+  }, [items, open]);
+
+  // Persist active whenever it changes.
+  useEffect(() => {
+    if (!activeId) return;
+    try { window.sessionStorage.setItem(LAST_ACTIVE_KEY, activeId); } catch { /* noop */ }
+  }, [activeId]);
+
   useEffect(() => {
     if (activeId) {
-      // If the active connection was dismissed/faded, drop it.
       const active = items.find((c) => c.personId === activeId);
-      if (!active || (active.status !== "connected" && active.status !== "incoming")) {
+      if (!active || active.status === "faded") {
         setActiveId(null);
       }
       return;
     }
-    // Auto-select an incoming first, else the first connected.
+    // Auto-select: incoming > connected > sent.
     const firstIncoming = items.find((c) => c.status === "incoming");
     if (firstIncoming) { setActiveId(firstIncoming.personId); return; }
     const firstConnected = items.find((c) => c.status === "connected");
-    if (firstConnected) setActiveId(firstConnected.personId);
+    if (firstConnected) { setActiveId(firstConnected.personId); return; }
+    const firstSent = items.find((c) => c.status === "sent");
+    if (firstSent) setActiveId(firstSent.personId);
   }, [items, activeId]);
 
   const incoming = items.filter((c) => c.status === "incoming");
@@ -59,15 +103,11 @@ function ConnectionsPage() {
   const sent = items.filter((c) => c.status === "sent");
   const faded = items.filter((c) => c.status === "faded");
 
-  function openSentInMatchmaker(personId: string) {
-    setFocusPerson(personId);
-    void navigate({ to: "/matchmaker" });
-  }
-
   const activeConn = activeId ? items.find((c) => c.personId === activeId) ?? null : null;
   const paneKind: PaneKind =
     activeConn?.status === "incoming" ? "incoming"
     : activeConn?.status === "connected" ? "thread"
+    : activeConn?.status === "sent" ? "waiting"
     : null;
 
   return (
@@ -125,8 +165,8 @@ function ConnectionsPage() {
                   key={c.personId}
                   conn={c}
                   lang={lang}
-                  active={false}
-                  onSelect={() => openSentInMatchmaker(c.personId)}
+                  active={c.personId === activeId}
+                  onSelect={() => setActiveId(c.personId)}
                 />
               ))}
             </Section>
@@ -164,6 +204,7 @@ function ConnectionsPage() {
         <section className="min-h-0 bg-secondary/30 hidden lg:block">
           {paneKind === "thread" && activeId && <ConnectionThread personId={activeId} />}
           {paneKind === "incoming" && activeId && <IncomingHello personId={activeId} />}
+          {paneKind === "waiting" && activeId && <SentWaitingPane personId={activeId} />}
           {paneKind === null && (
             <div className="h-full grid place-items-center">
               <p className="text-[13px] text-muted-foreground">{t("connection.pick_one")}</p>
