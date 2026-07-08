@@ -1,11 +1,15 @@
 // Side by Side — the "intent pool".
 //
-// Everyone (including the user) publishes a short "I want to do X, at Y, at Z
+// Everyone (including the user) publishes a short "I want to do X, when Y, at Z
 // level" record into a shared pool. Matching happens between two records.
 // The match card can then quote both sides verbatim — that's the "source of
 // truth" for anything the UI shows about the other person.
+//
+// Kinds we recognize by keyword: tennis, run, climb, cook, exhibition, bookstore.
+// Anything else the user types goes in as kind="other" and matches on shared
+// keywords in the raw text — so "找人一起骑行" matches another "骑行" wish.
 
-import type { Activity, ActivityKind, Person, Weekday } from "./types";
+import type { Activity, ActivityKind, Weekday } from "./types";
 import { PEOPLE } from "./people";
 
 export type WhenTier = "weekend" | "weeknight" | "any";
@@ -28,9 +32,14 @@ export interface Intent {
   venue: string;
   venue_zh: string;
 
-  /** The person's own words. What the match card quotes as "TA 说". */
+  /** The person's own words. What the match card quotes. */
   rawText: string;
   rawText_zh: string;
+
+  /** True when the intent's `when` was unspecified — matches anyone. */
+  whenAny?: boolean;
+  /** True when the intent's `level` was unspecified — matches anyone. */
+  levelAny?: boolean;
 
   createdAt: number;
 }
@@ -70,10 +79,12 @@ function synthesize(
     cook: "cook together",
     exhibition: "catch an exhibition",
     bookstore: "wander a bookstore",
+    other: "hang out",
   };
   const kindZh: Record<ActivityKind, string> = {
     tennis: "打网球", run: "跑步", climb: "攀岩",
     cook: "一起做饭", exhibition: "看展", bookstore: "逛书店",
+    other: "一起做点什么",
   };
   const dayEn: Record<Weekday, string> = {
     mon: "Monday", tue: "Tuesday", wed: "Wednesday",
@@ -155,20 +166,25 @@ function saveMyIntents(list: Intent[]) {
   try { window.localStorage.setItem(MY_KEY, JSON.stringify(list)); } catch { /* noop */ }
 }
 
+function whenToSlot(when: WhenTier, kind: ActivityKind): { day: Weekday; window: "morning" | "midday" | "evening" } {
+  const day: Weekday = when === "weeknight" ? "wed" : "sat";
+  const window: "morning" | "midday" | "evening" =
+    when === "weeknight" ? "evening"
+    : LEVEL_KINDS.includes(kind) || kind === "run" ? "morning"
+    : "evening";
+  return { day, window };
+}
+
 export function publishMyIntent(input: {
   kind: ActivityKind;
-  when: WhenTier;
-  level?: LevelTier;
+  when?: WhenTier;      // undefined means "any"
+  level?: LevelTier;    // undefined means "any"
   rawText: string;
 }): Intent {
-  // Concretize when into a representative day/window for display.
-  const day: Weekday = input.when === "weeknight" ? "wed" : "sat";
-  const window: "morning" | "midday" | "evening" =
-    input.when === "weeknight" ? "evening"
-    : LEVEL_KINDS.includes(input.kind) || input.kind === "run" ? "morning"
-    : "evening";
+  const when: WhenTier = input.when ?? "any";
+  const { day, window } = whenToSlot(when, input.kind);
   const intent: Intent = {
-    id: `me:${Date.now().toString(36)}`,
+    id: `me:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
     ownerId: "me",
     ownerName: "You", ownerName_zh: "你",
     ownerCity: "", ownerCity_zh: "",
@@ -178,11 +194,33 @@ export function publishMyIntent(input: {
     venue: "", venue_zh: "",
     rawText: input.rawText,
     rawText_zh: input.rawText,
+    whenAny: !input.when,
+    levelAny: !input.level,
     createdAt: Date.now(),
   };
   const list = loadMyIntents();
   saveMyIntents([...list, intent]);
   return intent;
+}
+
+/** Update fields on my intent — returns the new intent, or null if not found. */
+export function updateMyIntent(id: string, patch: { when?: WhenTier; level?: LevelTier }): Intent | null {
+  const list = loadMyIntents();
+  const idx = list.findIndex((i) => i.id === id);
+  if (idx < 0) return null;
+  const cur = list[idx];
+  let next: Intent = { ...cur };
+  if (patch.when !== undefined) {
+    const { day, window } = whenToSlot(patch.when, cur.kind);
+    next.day = day; next.window = window; next.whenAny = false;
+  }
+  if (patch.level !== undefined) {
+    next.level = patch.level; next.levelAny = false;
+  }
+  const nextList = [...list];
+  nextList[idx] = next;
+  saveMyIntents(nextList);
+  return next;
 }
 
 export function revokeMyIntent(id: string) {
@@ -192,6 +230,37 @@ export function revokeMyIntent(id: string) {
 
 export function clearMyIntents() {
   saveMyIntents([]);
+}
+
+// ---- Keyword tokenizer (for kind="other" matching) ---------------------
+
+const STOPWORDS = new Set([
+  "want", "looking", "for", "some", "someone", "with", "the", "and", "a", "an", "to", "of",
+  "想", "找", "人", "一起", "和", "跟", "的", "了", "在", "有", "个", "点",
+]);
+export function tokenize(text: string): Set<string> {
+  const t = text.toLowerCase().replace(/[\s\p{P}]+/gu, " ").trim();
+  const out = new Set<string>();
+  // English words length >= 3
+  for (const w of t.split(/\s+/)) {
+    if (w.length >= 3 && !STOPWORDS.has(w) && /^[a-z0-9]+$/.test(w)) out.add(w);
+  }
+  // CJK bigrams from every run of Han characters
+  const hanRe = /[\u4e00-\u9fff]{2,}/g;
+  let m: RegExpExecArray | null;
+  while ((m = hanRe.exec(t)) !== null) {
+    const chunk = m[0];
+    for (let i = 0; i < chunk.length - 1; i++) {
+      const bg = chunk.slice(i, i + 2);
+      if (!STOPWORDS.has(bg)) out.add(bg);
+    }
+  }
+  return out;
+}
+function overlapCount(a: Set<string>, b: Set<string>): number {
+  let n = 0;
+  for (const x of a) if (b.has(x)) n++;
+  return n;
 }
 
 // ---- Matching -----------------------------------------------------------
@@ -205,15 +274,33 @@ function score(mine: Intent, other: Intent): number {
   return s;
 }
 
-/** Look through seed pool for someone whose intent is compatible with mine. */
+function kindsCompatible(mine: Intent, other: Intent): boolean {
+  if (mine.kind === "other" || other.kind === "other") {
+    // Match on keyword overlap in raw text.
+    const a = tokenize((mine.rawText || "") + " " + (mine.rawText_zh || ""));
+    const b = tokenize((other.rawText || "") + " " + (other.rawText_zh || ""));
+    return overlapCount(a, b) >= 2;
+  }
+  return mine.kind === other.kind;
+}
+
+/** Look through seed pool + other users' intents for a compatible partner. */
 export function findMatch(mine: Intent, opts?: { exclude?: string[] }): Intent | null {
   const excluded = new Set(opts?.exclude ?? []);
-  const mineWhen = slotToWhen(mine.day, mine.window);
-  const pool = seedPool()
+  const mineWhen: WhenTier | undefined = mine.whenAny ? undefined : slotToWhen(mine.day, mine.window);
+  const mineLevel: LevelTier | undefined = mine.levelAny ? undefined : mine.level;
+  const pool = [...seedPool(), ...loadMyIntents().filter((it) => it.id !== mine.id)]
     .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id))
-    .filter((it) => it.kind === mine.kind)
-    .filter((it) => whenCompatible(mineWhen, slotToWhen(it.day, it.window)))
-    .filter((it) => levelCompatible(mine.kind, mine.level, it.level));
+    .filter((it) => kindsCompatible(mine, it))
+    .filter((it) => {
+      const theirWhen: WhenTier = it.whenAny ? "any" : slotToWhen(it.day, it.window);
+      return whenCompatible(mineWhen, theirWhen);
+    })
+    .filter((it) => {
+      const kind = mine.kind !== "other" ? mine.kind : it.kind;
+      const theirLevel: LevelTier | undefined = it.levelAny ? undefined : it.level;
+      return levelCompatible(kind, mineLevel, theirLevel ?? "intermediate");
+    });
   if (pool.length === 0) return null;
   pool.sort((a, b) => score(mine, b) - score(mine, a));
   return pool[0];
@@ -224,10 +311,10 @@ export function findNearMisses(mine: Intent, opts?: { exclude?: string[] }): Int
   const excluded = new Set(opts?.exclude ?? []);
   const mineWhen = slotToWhen(mine.day, mine.window);
   return seedPool()
-    .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id) && it.kind === mine.kind)
+    .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id) && kindsCompatible(mine, it))
     .filter((it) =>
       !whenCompatible(mineWhen, slotToWhen(it.day, it.window)) ||
-      !levelCompatible(mine.kind, mine.level, it.level),
+      !levelCompatible(mine.kind !== "other" ? mine.kind : it.kind, mine.level, it.level),
     )
     .slice(0, 3);
 }
