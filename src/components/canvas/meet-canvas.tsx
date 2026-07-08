@@ -18,7 +18,7 @@ interface Props {
 }
 
 const KIND_EMOJI: Record<ActivityKind, string> = {
-  tennis: "🎾", run: "🏃", climb: "🧗", cook: "🍳", exhibition: "🖼", bookstore: "📚",
+  tennis: "🎾", run: "🏃", climb: "🧗", cook: "🍳", exhibition: "🖼", bookstore: "📚", other: "✨",
 };
 
 export function MeetCanvas(props: Props) {
