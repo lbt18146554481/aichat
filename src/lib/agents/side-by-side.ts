@@ -12,6 +12,7 @@
 
 import { PEOPLE, getPersonById } from "../people";
 import type { Activity, ActivityKind, Person, Weekday } from "../types";
+import { addEntry, hasEntry } from "../waitlist";
 
 // ---- Domain -------------------------------------------------------------
 
@@ -33,11 +34,25 @@ export interface Candidate {
   venue_zh: string;
   reason: string;
   reason_zh: string;
+  /** True when the person is also "waiting" on this slot — always true in our
+   *  seed data, but the flag keeps the mutual-match contract explicit. */
+  mutual: boolean;
 }
 
 export interface NearMiss {
   personCount: number;
   slot: { day: Weekday; window: "morning" | "midday" | "evening" };
+}
+
+/** Sibling kinds we suggest when a stated intent has no matches at all. */
+const KIND_GROUPS: ActivityKind[][] = [
+  ["tennis", "run", "climb"],       // active
+  ["exhibition", "bookstore"],      // cultural
+  ["cook"],                         // homebody (no siblings)
+];
+function suggestKindsFor(kind: ActivityKind): ActivityKind[] {
+  const group = KIND_GROUPS.find((g) => g.includes(kind)) ?? [];
+  return group.filter((k) => k !== kind);
 }
 
 // ---- Parse layers -------------------------------------------------------
@@ -83,7 +98,7 @@ const NEGATION_WORDS = ["不想", "不要", "别", "don't", "dont", "do not", "n
 const LEVEL_KINDS: ActivityKind[] = ["tennis", "climb"];
 
 // Follow-up asks trigger only when the raw candidate pool is above this.
-const ASK_THRESHOLD = 3;
+const ASK_THRESHOLD = 2;
 
 const MAX_INPUT_CHARS = 140;
 
@@ -165,7 +180,9 @@ export type ChipAction =
   | { type: "choose_fallback"; kind: ActivityKind }
   | { type: "answer_when"; value: WhenTier }
   | { type: "answer_level"; value: LevelTier | "any" }
-  | { type: "try_near_miss"; slot: { day: Weekday; window: "morning" | "midday" | "evening" } };
+  | { type: "try_near_miss"; slot: { day: Weekday; window: "morning" | "midday" | "evening" } }
+  | { type: "suggest_kind"; kind: ActivityKind }
+  | { type: "add_to_waitlist" };
 
 export interface SideMsg {
   id: string;
@@ -180,12 +197,16 @@ export interface SideState {
   ambiguousKinds: ActivityKind[] | null; // L2 disambiguation pending
   parseFailed: boolean;                  // L3 fallback pending
   pendingAsk: "when" | "level" | null;   // an ask is on screen
-  askedCount: number;                    // hard-capped at 1
+  askedWhen: boolean;                    // asked once — never re-asks
+  askedLevel: boolean;                   // asked once — never re-asks
   truncated: boolean;                    // last input was truncated
   skipped: string[];
   candidate: Candidate | null;
   nearMisses: NearMiss[];
+  suggestKinds: ActivityKind[];          // sibling kinds to offer on no-match
   poolExhausted: boolean;
+  waitlistJoinedForCurrent: boolean;     // user tapped "join waitlist" for current intent
+  recalledFromWaitlist: boolean;         // this intent was already in the local waitlist
   messages: SideMsg[];
 }
 
@@ -194,12 +215,16 @@ export const EMPTY: SideState = {
   ambiguousKinds: null,
   parseFailed: false,
   pendingAsk: null,
-  askedCount: 0,
+  askedWhen: false,
+  askedLevel: false,
   truncated: false,
   skipped: [],
   candidate: null,
   nearMisses: [],
+  suggestKinds: [],
   poolExhausted: false,
+  waitlistJoinedForCurrent: false,
+  recalledFromWaitlist: false,
   messages: [],
 };
 
@@ -277,6 +302,7 @@ function toCandidate(person: Person, activity: Activity, slot: RankedMatch["slot
     venue_zh: activity.venue_zh,
     reason: reasonFor(activity, "en"),
     reason_zh: reasonFor(activity, "zh-CN"),
+    mutual: true,
   };
 }
 
@@ -316,22 +342,47 @@ function findNearMisses(state: SideState, intent: UserIntent): NearMiss[] {
 
 // ---- Decide next step ---------------------------------------------------
 
+/**
+ * True if asking `slot` might actually narrow the candidate pool.
+ * If every possible answer yields the same pool, the ask is noise — skip it.
+ */
+function askWouldHelp(state: SideState, slot: "when" | "level"): boolean {
+  if (!state.intent) return false;
+  const answers: (WhenTier | LevelTier)[] =
+    slot === "when" ? ["weekend", "weeknight", "any"] : ["beginner", "intermediate", "advanced"];
+  const sizes = new Set<number>();
+  for (const a of answers) {
+    const probeIntent: UserIntent = { ...state.intent };
+    if (slot === "when") probeIntent.when = a as WhenTier;
+    else probeIntent.level = a as LevelTier;
+    sizes.add(findAllMatches({ ...state, intent: probeIntent }, probeIntent).length);
+  }
+  return sizes.size > 1;
+}
+
 function decide(state: SideState): SideState {
   // Fallback / disambiguation take precedence and are decided upstream.
   if (state.parseFailed || (state.ambiguousKinds && state.ambiguousKinds.length > 0)) {
-    return { ...state, candidate: null, nearMisses: [], poolExhausted: false, pendingAsk: null };
+    return { ...state, candidate: null, nearMisses: [], suggestKinds: [], poolExhausted: false, pendingAsk: null };
   }
   if (!state.intent) {
-    return { ...state, candidate: null, nearMisses: [], poolExhausted: false, pendingAsk: null };
+    return { ...state, candidate: null, nearMisses: [], suggestKinds: [], poolExhausted: false, pendingAsk: null };
   }
 
-  // Gate: do we need one clarifying tap?
-  if (state.askedCount < 1 && !state.pendingAsk) {
+  // Gate: do we need a clarifying tap? Up to two, one for when, one for level.
+  if (!state.pendingAsk) {
     const size = poolSize(state, state.intent);
     if (size > ASK_THRESHOLD) {
-      if (!state.intent.when) return { ...state, pendingAsk: "when", candidate: null, nearMisses: [] };
-      if (LEVEL_KINDS.includes(state.intent.kind) && !state.intent.level) {
-        return { ...state, pendingAsk: "level", candidate: null, nearMisses: [] };
+      if (!state.askedWhen && !state.intent.when && askWouldHelp(state, "when")) {
+        return { ...state, pendingAsk: "when", candidate: null, nearMisses: [], suggestKinds: [] };
+      }
+      if (
+        !state.askedLevel &&
+        LEVEL_KINDS.includes(state.intent.kind) &&
+        !state.intent.level &&
+        askWouldHelp(state, "level")
+      ) {
+        return { ...state, pendingAsk: "level", candidate: null, nearMisses: [], suggestKinds: [] };
       }
     }
   }
@@ -340,12 +391,15 @@ function decide(state: SideState): SideState {
   if (matches.length === 0) {
     const totalForKind = poolSize({ ...state, skipped: [] }, state.intent);
     const exhausted = totalForKind > 0 && state.skipped.length >= totalForKind;
+    const recalled = hasEntry(state.intent);
     return {
       ...state,
       candidate: null,
       nearMisses: findNearMisses(state, state.intent),
+      suggestKinds: suggestKindsFor(state.intent.kind),
       poolExhausted: exhausted,
       pendingAsk: null,
+      recalledFromWaitlist: recalled,
     };
   }
   const m = matches[0];
@@ -353,6 +407,7 @@ function decide(state: SideState): SideState {
     ...state,
     candidate: toCandidate(m.person, m.activity, m.slot),
     nearMisses: [],
+    suggestKinds: [],
     poolExhausted: false,
     pendingAsk: null,
   };
@@ -401,7 +456,14 @@ export function answerSlot(state: SideState, slot: "when" | "level", value: When
   } else {
     nextIntent.level = value === "any" ? undefined : (value as LevelTier);
   }
-  return decide({ ...state, intent: nextIntent, pendingAsk: null, askedCount: state.askedCount + 1 });
+  const nextState: SideState = {
+    ...state,
+    intent: nextIntent,
+    pendingAsk: null,
+    askedWhen: slot === "when" ? true : state.askedWhen,
+    askedLevel: slot === "level" ? true : state.askedLevel,
+  };
+  return decide(nextState);
 }
 
 export function swap(state: SideState): SideState {
@@ -422,6 +484,13 @@ export function tryNearMiss(state: SideState, slot: { day: Weekday; window: "mor
   const intent: UserIntent = { ...state.intent, when: tier };
   return decide({ ...EMPTY, intent, messages: state.messages });
 }
+
+export function addToWaitlist(state: SideState): SideState {
+  if (!state.intent) return state;
+  addEntry(state.intent);
+  return { ...state, waitlistJoinedForCurrent: true, recalledFromWaitlist: true };
+}
+
 
 
 // The opener text used to seed the connections thread.

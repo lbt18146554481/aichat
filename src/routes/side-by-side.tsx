@@ -11,6 +11,7 @@ import type { ActivityKind, Weekday } from "@/lib/types";
 import {
   ALL_KINDS,
   EMPTY,
+  addToWaitlist,
   answerSlot,
   chooseFromFallback,
   currentView,
@@ -104,29 +105,61 @@ function narrate(s: SideState, t: TFunction): SideMsg | null {
   }
 
   if (view === "candidate" && s.intent) {
-    return msg("assistant", t("meet.showing_one", { summary: heardSummary(s.intent, t) }));
+    return msg("assistant", t("meet.found_mutual", { summary: heardSummary(s.intent, t) }));
   }
 
   if (view === "nearmiss" && s.intent) {
-    if (s.poolExhausted) return msg("assistant", t("meet.pool_exhausted_msg"));
+    const kindLabel = t(`activity.kind.${s.intent.kind}`);
+    const whenLabel = s.intent.when ? t(`meet.when.${s.intent.when}`) : t("meet.when.any");
+
+    if (s.poolExhausted) {
+      return msg("assistant", t("meet.pool_exhausted_msg"));
+    }
+
+    const chips: NonNullable<SideMsg["chips"]> = [];
+
+    // Waitlist chip — only if not already joined for this intent.
+    if (!s.waitlistJoinedForCurrent) {
+      chips.push({
+        id: "wl-join",
+        label: s.recalledFromWaitlist ? t("meet.waitlist_recalled_chip") : t("meet.waitlist_cta"),
+        action: { type: "add_to_waitlist" },
+      });
+    }
+
+    // Near-miss chip (top slot only, to keep chat clean; more in canvas).
     const top = s.nearMisses[0];
     if (top) {
-      return msg("assistant",
-        t("meet.no_match_near", {
-          count: top.personCount,
+      chips.push({
+        id: "near",
+        label: t("meet.near_try", {
           day: t(`activity.day.${top.slot.day}`),
           window: t(`activity.window.${top.slot.window}`),
         }),
-        [{
-          id: "near",
-          label: t("meet.near_try", {
+        action: { type: "try_near_miss", slot: top.slot },
+      });
+    }
+
+    // Sibling kind suggestions.
+    for (const k of s.suggestKinds) {
+      chips.push({
+        id: `sk-${k}`,
+        label: t("meet.suggest_kind_chip", { kind: t(`activity.kind.${k}`) }),
+        action: { type: "suggest_kind", kind: k },
+      });
+    }
+
+    const headline = s.recalledFromWaitlist
+      ? t("meet.waitlist_recall_msg", { kind: kindLabel, when: whenLabel })
+      : top
+        ? t("meet.no_match_near", {
+            count: top.personCount,
             day: t(`activity.day.${top.slot.day}`),
             window: t(`activity.window.${top.slot.window}`),
-          }),
-          action: { type: "try_near_miss", slot: top.slot },
-        }]);
-    }
-    return msg("assistant", t("meet.no_match"));
+          })
+        : t("meet.no_match_waitlist", { kind: kindLabel, when: whenLabel });
+
+    return msg("assistant", headline, chips.length > 0 ? chips : undefined);
   }
 
   return null;
@@ -202,7 +235,18 @@ function SideBySidePage() {
             window: t(`activity.window.${a.slot.window}`),
           }));
         break;
+      case "suggest_kind":
+        actWith((s) => chooseFromFallback(s, a.kind),
+          t("meet.suggest_kind_chip", { kind: t(`activity.kind.${a.kind}`) }));
+        break;
+      case "add_to_waitlist":
+        actWith((s) => addToWaitlist(s), t("meet.waitlist_cta"));
+        break;
     }
+  }
+
+  function handleJoinWaitlist() {
+    actWith((s) => addToWaitlist(s), t("meet.waitlist_cta"));
   }
 
   function handleSwap() {
@@ -263,6 +307,7 @@ function SideBySidePage() {
           onSwap={handleSwap}
           onSayHello={handleSayHello}
           onTryNearMiss={handleTryNearMiss}
+          onJoinWaitlist={handleJoinWaitlist}
         />
       }
     />
