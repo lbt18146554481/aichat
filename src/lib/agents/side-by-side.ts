@@ -179,7 +179,9 @@ export type ChipAction =
   | { type: "choose_fallback"; kind: ActivityKind }
   | { type: "answer_when"; value: WhenTier }
   | { type: "answer_level"; value: LevelTier | "any" }
-  | { type: "try_near_miss"; slot: { day: Weekday; window: "morning" | "midday" | "evening" } };
+  | { type: "try_near_miss"; slot: { day: Weekday; window: "morning" | "midday" | "evening" } }
+  | { type: "suggest_kind"; kind: ActivityKind }
+  | { type: "add_to_waitlist" };
 
 export interface SideMsg {
   id: string;
@@ -194,12 +196,16 @@ export interface SideState {
   ambiguousKinds: ActivityKind[] | null; // L2 disambiguation pending
   parseFailed: boolean;                  // L3 fallback pending
   pendingAsk: "when" | "level" | null;   // an ask is on screen
-  askedCount: number;                    // hard-capped at 1
+  askedWhen: boolean;                    // asked once — never re-asks
+  askedLevel: boolean;                   // asked once — never re-asks
   truncated: boolean;                    // last input was truncated
   skipped: string[];
   candidate: Candidate | null;
   nearMisses: NearMiss[];
+  suggestKinds: ActivityKind[];          // sibling kinds to offer on no-match
   poolExhausted: boolean;
+  waitlistJoinedForCurrent: boolean;     // user tapped "join waitlist" for current intent
+  recalledFromWaitlist: boolean;         // this intent was already in the local waitlist
   messages: SideMsg[];
 }
 
@@ -208,12 +214,16 @@ export const EMPTY: SideState = {
   ambiguousKinds: null,
   parseFailed: false,
   pendingAsk: null,
-  askedCount: 0,
+  askedWhen: false,
+  askedLevel: false,
   truncated: false,
   skipped: [],
   candidate: null,
   nearMisses: [],
+  suggestKinds: [],
   poolExhausted: false,
+  waitlistJoinedForCurrent: false,
+  recalledFromWaitlist: false,
   messages: [],
 };
 
