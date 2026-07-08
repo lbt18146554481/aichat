@@ -291,6 +291,7 @@ function toCandidate(person: Person, activity: Activity, slot: RankedMatch["slot
     venue_zh: activity.venue_zh,
     reason: reasonFor(activity, "en"),
     reason_zh: reasonFor(activity, "zh-CN"),
+    mutual: true,
   };
 }
 
