@@ -160,15 +160,19 @@
     "hide_alignment": "收起",
     "chat_placeholder": "说点什么…",
     "left_placeholder_during_chat": "在这边继续找 Agent，或发布一条新心愿…",
-    "narrate_matched": "已经把「{{summary}}」发到池子里。有人也在等这件事——看右边。",
-    "narrate_nomatch": "已经把「{{summary}}」发到池子里，现在还没人对上。心愿先挂着——右边可以换个时间或撤回。",
-    "narrate_chat": "两边都在了。右边直接聊就行——需要我随时叫我。"
+    "narrate_matched": "已经把「{{summary}}」发到池子里，有人也在等这件事——看右边。",
+    "narrate_nomatch": "已经把「{{summary}}」发到池子里，现在还没人对上。心愿先挂着——右边可以换个时段或撤回。",
+    "narrate_nomatch_ask": "已经把「{{summary}}」发到池子里，暂时没人对上。{{ask}}",
+    "narrate_chat": "两边都在了。右边直接聊就行——需要我随时叫我。",
+    "ask_when": "补一句大概什么时候方便，我更容易帮你对上：",
+    "ask_level": "补一句水平如何，我更容易帮你对上："
   },
 
   "activity": {
     "kind": {
       "tennis": "网球", "run": "跑步", "climb": "攀岩",
-      "cook": "做饭", "exhibition": "看展", "bookstore": "逛书店"
+      "cook": "做饭", "exhibition": "看展", "bookstore": "逛书店",
+      "other": "这件事"
     },
     "level": { "beginner": "新手", "intermediate": "中级", "advanced": "进阶" },
     "day": {
