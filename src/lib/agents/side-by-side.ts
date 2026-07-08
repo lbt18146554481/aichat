@@ -12,6 +12,7 @@
 
 import { PEOPLE, getPersonById } from "../people";
 import type { Activity, ActivityKind, Person, Weekday } from "../types";
+import { addEntry, hasEntry } from "../waitlist";
 
 // ---- Domain -------------------------------------------------------------
 
