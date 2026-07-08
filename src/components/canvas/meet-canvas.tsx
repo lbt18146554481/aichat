@@ -18,7 +18,7 @@ interface Props {
 }
 
 const KIND_EMOJI: Record<ActivityKind, string> = {
-  tennis: "🎾", run: "🏃", climb: "🧗", cook: "🍳", exhibition: "🖼", bookstore: "📚",
+  tennis: "🎾", run: "🏃", climb: "🧗", cook: "🍳", exhibition: "🖼", bookstore: "📚", other: "✨",
 };
 
 export function MeetCanvas(props: Props) {
@@ -130,8 +130,13 @@ function IntentCard({ intent, side, lang }: { intent: Intent; side: "me" | "them
       <p className="mt-2.5 text-[13px] text-foreground leading-relaxed">"{raw}"</p>
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         <Tag>{KIND_EMOJI[intent.kind]} {t(`activity.kind.${intent.kind}`)}</Tag>
-        <Tag>{t(`activity.day.${intent.day}`)} {t(`activity.window.${intent.window}`)}</Tag>
-        <Tag>{t(`activity.level.${intent.level}`)}</Tag>
+        {!intent.whenAny && (
+          <Tag>{t(`activity.day.${intent.day}`)} {t(`activity.window.${intent.window}`)}</Tag>
+        )}
+        {!intent.levelAny && (intent.kind === "tennis" || intent.kind === "climb") && (
+          <Tag>{t(`activity.level.${intent.level}`)}</Tag>
+        )}
+        {intent.whenAny && <Tag>{t("meet.when.any")}</Tag>}
       </div>
     </article>
   );

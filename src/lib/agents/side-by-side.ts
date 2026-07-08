@@ -1,9 +1,15 @@
-// Side by Side — the agent that collects an intent, publishes it into the
-// pool, and (when the pool has a compatible one) surfaces the match.
+// Side by Side — the agent that collects a wish, publishes it into the pool,
+// and surfaces the match. One flow:
 //
-// The whole flow is: collect → publish → match / nomatch → chat.
-// No "waiting for TA to accept". If two intents in the pool line up, that
-// IS the match — the user starts talking right there.
+//   user says something → parse → publish (immediately, with whatever we heard)
+//        → auto-match against pool
+//           ├─ hit  → stage "match" → user taps [start chat] → stage "chat"
+//           └─ miss → stage "nomatch" → optional clarify chips (when/level)
+//                     → user can also try a near-miss or revoke
+//
+// Publishing IS waiting. Publishing IS asking. There is no separate "browse"
+// mode and no "waiting for TA to accept" — if both wishes are in the pool
+// and compatible, that's the match.
 
 import type { ActivityKind, Weekday } from "../types";
 import {
@@ -14,7 +20,7 @@ import {
   revokeMyIntent,
   seedPool,
   siblingKinds,
-  slotToWhen,
+  updateMyIntent,
   type Intent,
   type LevelTier,
   type WhenTier,
@@ -22,16 +28,12 @@ import {
 
 export type { LevelTier, WhenTier } from "../intents";
 
-// ---- Parse layers (unchanged: L1/L2/L3) ---------------------------------
-
-export type ParseLayer = "L1" | "L2" | "L3";
+// ---- Parse --------------------------------------------------------------
 
 export interface ParseResult {
-  layer: ParseLayer;
-  kind?: ActivityKind;
+  kind: ActivityKind;
   when?: WhenTier;
   level?: LevelTier;
-  ambiguousKinds?: ActivityKind[];
   truncated?: boolean;
 }
 
@@ -42,6 +44,7 @@ const KIND_WORDS: Record<ActivityKind, string[]> = {
   cook: ["做饭", "下厨", "煮饭", "cook", "cooking", "bake", "baking"],
   exhibition: ["看展", "展览", "美术馆", "博物馆", "exhibit", "exhibition", "gallery", "museum"],
   bookstore: ["书店", "逛书店", "bookstore", "bookshop"],
+  other: [],
 };
 const WHEN_WORDS: Record<WhenTier, string[]> = {
   weekend: ["周末", "周六", "周日", "星期六", "星期日", "礼拜六", "礼拜日", "sat", "sun", "saturday", "sunday", "weekend"],
@@ -68,15 +71,16 @@ function isNegated(text: string, i: number): boolean {
   const before = text.slice(Math.max(0, i - 6), i);
   return NEGATION_WORDS.some((n) => before.includes(n));
 }
-function findKindHits(text: string): ActivityKind[] {
-  const hits = new Set<ActivityKind>();
+function findKindHit(text: string): ActivityKind | null {
+  // First known kind wins — we no longer disambiguate with the user.
   for (const kind of Object.keys(KIND_WORDS) as ActivityKind[]) {
+    if (kind === "other") continue;
     for (const w of KIND_WORDS[kind]) {
       const i = text.indexOf(w);
-      if (i >= 0 && !isNegated(text, i)) { hits.add(kind); break; }
+      if (i >= 0 && !isNegated(text, i)) return kind;
     }
   }
-  return Array.from(hits);
+  return null;
 }
 function findWhen(text: string): WhenTier | undefined {
   const flags: Record<WhenTier, boolean> = { weekend: false, weeknight: false, any: false };
@@ -102,26 +106,19 @@ function findLevel(text: string): LevelTier | undefined {
 export function parseIntent(raw: string): ParseResult {
   const truncated = raw.length > MAX_INPUT_CHARS;
   const text = normalize(truncated ? raw.slice(0, MAX_INPUT_CHARS) : raw);
-  if (!text) return { layer: "L3", truncated };
-  const kinds = findKindHits(text);
+  const kind = findKindHit(text) ?? "other";
   const when = findWhen(text);
-  if (kinds.length === 0) return { layer: "L3", when, truncated };
-  if (kinds.length > 1) return { layer: "L2", ambiguousKinds: kinds, when, truncated };
-  const kind = kinds[0];
   const level = LEVEL_KINDS.includes(kind) ? findLevel(text) : undefined;
-  return { layer: "L1", kind, when, level, truncated };
+  return { kind, when, level, truncated };
 }
 
-// ---- Chip actions (dispatched by the route) -----------------------------
+// ---- Messages / state ---------------------------------------------------
 
 export type ChipAction =
-  | { type: "resolve_ambiguity"; kind: ActivityKind }
-  | { type: "choose_fallback"; kind: ActivityKind }
-  | { type: "answer_when"; value: WhenTier }
-  | { type: "answer_level"; value: LevelTier | "any" }
+  | { type: "refine_when"; value: WhenTier }
+  | { type: "refine_level"; value: LevelTier }
   | { type: "start_chat" }
   | { type: "try_near_miss"; intentId: string }
-  | { type: "suggest_kind"; kind: ActivityKind }
   | { type: "revoke" };
 
 export interface SideMsg {
@@ -134,215 +131,116 @@ export interface SideMsg {
 
 export interface ChatMsg { id: string; from: "me" | "them"; text: string; t: number; }
 
-// ---- State --------------------------------------------------------------
-
-export type Stage = "collect" | "match" | "nomatch" | "chat";
-
-export interface Collecting {
-  kind?: ActivityKind;
-  when?: WhenTier;
-  level?: LevelTier;
-  rawText: string; // the user's original words (last submitted prompt)
-}
+export type Stage = "prompt" | "published" | "chat";
 
 export interface SideState {
-  collecting: Collecting;
   stage: Stage;
-
-  // parse-layer flags (only meaningful before publish)
-  ambiguousKinds: ActivityKind[] | null;
-  parseFailed: boolean;
-  pendingAsk: "when" | "level" | null;
-  askedWhen: boolean;
-  askedLevel: boolean;
-  truncated: boolean;
-
   myIntentId: string | null;
   matchIntentId: string | null;
   nearMissIds: string[];
-
-  // for "swap" — intents we already tried and don't want to see again
   triedIntentIds: string[];
-
-  messages: SideMsg[];    // left-side agent conversation
-  chatMessages: ChatMsg[]; // right-side chat with the matched person
+  truncated: boolean;
+  messages: SideMsg[];
+  chatMessages: ChatMsg[];
 }
 
 export const EMPTY: SideState = {
-  collecting: { rawText: "" },
-  stage: "collect",
-  ambiguousKinds: null,
-  parseFailed: false,
-  pendingAsk: null,
-  askedWhen: false,
-  askedLevel: false,
-  truncated: false,
+  stage: "prompt",
   myIntentId: null,
   matchIntentId: null,
   nearMissIds: [],
   triedIntentIds: [],
+  truncated: false,
   messages: [],
   chatMessages: [],
 };
 
-export type ViewKey = "prompt" | "disambiguate" | "fallback" | "ask" | "match" | "nomatch" | "chat";
+export type ViewKey = "empty" | "match" | "nomatch" | "chat";
 
 export function currentView(s: SideState): ViewKey {
   if (s.stage === "chat") return "chat";
-  if (s.stage === "match") return "match";
-  if (s.stage === "nomatch") return "nomatch";
-  if (s.parseFailed) return "fallback";
-  if (s.ambiguousKinds && s.ambiguousKinds.length > 0) return "disambiguate";
-  if (s.pendingAsk) return "ask";
-  return "prompt";
+  if (s.stage === "published" && s.matchIntentId) return "match";
+  if (s.stage === "published") return "nomatch";
+  return "empty";
 }
 
 export function uid(): string { return Math.random().toString(36).slice(2, 10); }
 
-// ---- Publish & match ----------------------------------------------------
+// ---- Core actions -------------------------------------------------------
 
-function attemptPublish(state: SideState): SideState {
-  const c = state.collecting;
-  if (!c.kind) return state;
-
-  // Ask for missing when if we haven't already
-  if (!c.when && !state.askedWhen) {
-    return { ...state, stage: "collect", pendingAsk: "when" };
-  }
-  // Ask for level on level-relevant kinds if we haven't already
-  if (LEVEL_KINDS.includes(c.kind) && !c.level && !state.askedLevel) {
-    return { ...state, stage: "collect", pendingAsk: "level" };
-  }
-
-  // All required slots filled → publish.
-  const when: WhenTier = c.when ?? "any";
-  const mine = publishMyIntent({
-    kind: c.kind,
-    when,
-    level: c.level,
-    rawText: c.rawText,
-  });
-
+function rematchAfterUpdate(state: SideState, intentId: string): SideState {
+  const mine = getIntentById(intentId);
+  if (!mine) return state;
   const match = findMatch(mine, { exclude: state.triedIntentIds });
   if (match) {
-    return {
-      ...state,
-      stage: "match",
-      pendingAsk: null,
-      myIntentId: mine.id,
-      matchIntentId: match.id,
-      nearMissIds: [],
-    };
+    return { ...state, stage: "published", matchIntentId: match.id, nearMissIds: [] };
   }
-
   const nears = findNearMisses(mine, { exclude: state.triedIntentIds });
   return {
     ...state,
-    stage: "nomatch",
-    pendingAsk: null,
-    myIntentId: mine.id,
+    stage: "published",
     matchIntentId: null,
     nearMissIds: nears.map((n) => n.id),
   };
 }
 
-// ---- Public actions -----------------------------------------------------
-
 export function start(): SideState { return { ...EMPTY }; }
 
 export function submitPrompt(state: SideState, text: string): SideState {
+  // Revoke any prior wish — one active wish at a time keeps the demo legible.
+  if (state.myIntentId) revokeMyIntent(state.myIntentId);
   const parsed = parseIntent(text);
-  // Any new prompt resets collection state (but keeps message log & chat history? no — new prompt
-  // means a fresh intent; scrub old intent references but keep chat *only if* we're not leaving a match)
-  const base: SideState = {
-    ...EMPTY,
-    truncated: !!parsed.truncated,
-    messages: state.messages,
-  };
-
-  if (parsed.layer === "L3") return { ...base, stage: "collect", parseFailed: true };
-  if (parsed.layer === "L2") {
-    return {
-      ...base,
-      stage: "collect",
-      ambiguousKinds: parsed.ambiguousKinds ?? [],
-      collecting: { rawText: text, when: parsed.when, level: parsed.level },
-    };
-  }
-
-  const collecting: Collecting = {
+  const mine = publishMyIntent({
     kind: parsed.kind,
     when: parsed.when,
     level: parsed.level,
     rawText: text,
-  };
-  return attemptPublish({ ...base, collecting });
-}
-
-export function resolveAmbiguity(state: SideState, kind: ActivityKind): SideState {
-  const next: SideState = {
-    ...state,
-    ambiguousKinds: null,
-    parseFailed: false,
-    collecting: { ...state.collecting, kind },
-  };
-  return attemptPublish(next);
-}
-
-export function chooseFromFallback(state: SideState, kind: ActivityKind): SideState {
-  return attemptPublish({
-    ...EMPTY,
-    messages: state.messages,
-    collecting: { kind, rawText: state.collecting.rawText || "" },
   });
+  const base: SideState = {
+    ...EMPTY,
+    truncated: !!parsed.truncated,
+    messages: state.messages,
+    myIntentId: mine.id,
+  };
+  return rematchAfterUpdate(base, mine.id);
 }
 
-export function answerSlot(state: SideState, slot: "when" | "level", value: WhenTier | LevelTier | "any"): SideState {
-  const next: SideState = { ...state, pendingAsk: null };
-  if (slot === "when") {
-    next.collecting = { ...state.collecting, when: value as WhenTier };
-    next.askedWhen = true;
-  } else {
-    next.collecting = { ...state.collecting, level: value === "any" ? undefined : (value as LevelTier) };
-    next.askedLevel = true;
-  }
-  return attemptPublish(next);
+export function refineWhen(state: SideState, when: WhenTier): SideState {
+  if (!state.myIntentId) return state;
+  updateMyIntent(state.myIntentId, { when });
+  return rematchAfterUpdate(state, state.myIntentId);
 }
 
-/** User clicked "try this other slot" from near-miss — pivot my intent to that time/level. */
+export function refineLevel(state: SideState, level: LevelTier): SideState {
+  if (!state.myIntentId) return state;
+  updateMyIntent(state.myIntentId, { level });
+  return rematchAfterUpdate(state, state.myIntentId);
+}
+
+/** Pivot my published wish to a near-miss person's slot and rematch. */
 export function tryNearMiss(state: SideState, intentId: string): SideState {
   const other = getIntentById(intentId);
-  if (!other || !state.collecting.kind) return state;
-  // Revoke old intent (if any), reset and re-publish with pivoted when/level
-  if (state.myIntentId) revokeMyIntent(state.myIntentId);
-  const when = slotToWhen(other.day, other.window);
-  const next: SideState = {
-    ...EMPTY,
-    messages: state.messages,
-    collecting: {
-      kind: state.collecting.kind,
-      when,
-      level: other.level,
-      rawText: state.collecting.rawText,
-    },
-    askedWhen: true,
-    askedLevel: true,
-    triedIntentIds: state.triedIntentIds,
-  };
-  return attemptPublish(next);
+  if (!other || !state.myIntentId) return state;
+  const mineWhen: WhenTier =
+    other.day === "sat" || other.day === "sun" ? "weekend"
+    : other.window === "evening" ? "weeknight"
+    : "any";
+  updateMyIntent(state.myIntentId, { when: mineWhen, level: other.level });
+  return rematchAfterUpdate(
+    { ...state, triedIntentIds: [...state.triedIntentIds] },
+    state.myIntentId,
+  );
 }
 
-/** Move from match → chat. The pool records are the source; here we open a canvas chat. */
 export function startChat(state: SideState): SideState {
-  if (state.stage !== "match" || !state.matchIntentId) return state;
+  if (state.stage !== "published" || !state.matchIntentId) return state;
   const other = getIntentById(state.matchIntentId);
   if (!other) return state;
-  const opener = buildTheirOpener(other);
+  const opener = other.rawText_zh || other.rawText;
   const first: ChatMsg = { id: uid(), from: "them", text: opener, t: Date.now() };
   return { ...state, stage: "chat", chatMessages: [first] };
 }
 
-/** Send a message in the right-side chat. Simulates a canned reply. */
 export function sendChatMessage(state: SideState, text: string): SideState {
   if (state.stage !== "chat") return state;
   const mine: ChatMsg = { id: uid(), from: "me", text, t: Date.now() };
@@ -351,37 +249,20 @@ export function sendChatMessage(state: SideState, text: string): SideState {
 
 export function receiveSimulatedReply(state: SideState): SideState {
   if (state.stage !== "chat" || !state.matchIntentId) return state;
-  const other = getIntentById(state.matchIntentId);
-  if (!other) return state;
-  const replies = [
-    other.rawText_zh.startsWith("想") ? "好啊，那就那个时候？" : "Works for me — that time?",
-    "Cool. I'm usually there anyway.",
-    "定了。到时候见 👍",
-  ];
+  const replies = ["好啊，那就那个时候？", "Cool. I'm usually there anyway.", "定了。到时候见 👍"];
   const pick = replies[state.chatMessages.length % replies.length];
   const reply: ChatMsg = { id: uid(), from: "them", text: pick, t: Date.now() };
   return { ...state, chatMessages: [...state.chatMessages, reply] };
 }
 
-/** Revoke my published intent and go back to the empty prompt state. */
 export function revokeAndReset(state: SideState): SideState {
   if (state.myIntentId) revokeMyIntent(state.myIntentId);
   return { ...EMPTY, messages: state.messages };
 }
 
-export function restart(): SideState { return { ...EMPTY }; }
+// ---- Persistence -------------------------------------------------------
 
-// ---- Their opener (for the seeded chat) ---------------------------------
-
-function buildTheirOpener(other: Intent): string {
-  // Use the person's own published rawText as their first message — that's
-  // the "already-recorded" source the user can trust.
-  return other.rawText_zh || other.rawText;
-}
-
-// ---- Persistence --------------------------------------------------------
-
-const KEY = "kindred:sidebyside.v4";
+const KEY = "kindred:sidebyside.v5";
 export function load(): SideState {
   if (typeof window === "undefined") return EMPTY;
   try {

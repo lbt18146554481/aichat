@@ -163,14 +163,18 @@
     "chat_placeholder": "Say something…",
     "left_placeholder_during_chat": "Ask the Agent something, or publish a new wish…",
     "narrate_matched": "Published '{{summary}}'. Someone in the pool wants the same thing — see the right side.",
-    "narrate_nomatch": "Published '{{summary}}'. Nobody in the pool lines up right now. I'm keeping it live — swap the time or take it back on the right.",
-    "narrate_chat": "You're both in. Talk on the right — I'll stay here if you want me for anything."
+    "narrate_nomatch": "Published '{{summary}}'. Nobody in the pool lines up right now. It stays live — swap the time or take it back on the right.",
+    "narrate_nomatch_ask": "Published '{{summary}}'. Nobody lines up yet. {{ask}}",
+    "narrate_chat": "You're both in. Talk on the right — I'll stay here if you want me for anything.",
+    "ask_when": "Add roughly when you're free, I'll match you faster:",
+    "ask_level": "Add roughly what level, I'll match you faster:"
   },
 
   "activity": {
     "kind": {
       "tennis": "Tennis", "run": "Running", "climb": "Climbing",
-      "cook": "Cooking", "exhibition": "Exhibitions", "bookstore": "Bookstores"
+      "cook": "Cooking", "exhibition": "Exhibitions", "bookstore": "Bookstores",
+      "other": "this"
     },
     "level": { "beginner": "Beginner", "intermediate": "Intermediate", "advanced": "Advanced" },
     "day": {
