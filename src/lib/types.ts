@@ -20,7 +20,7 @@ export interface Activity {
   venue_zh: string;
 }
 
-export type ActivityKind = "tennis" | "run" | "climb" | "cook" | "exhibition" | "bookstore";
+export type ActivityKind = "tennis" | "run" | "climb" | "cook" | "exhibition" | "bookstore" | "other";
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
 export interface Reflection {
