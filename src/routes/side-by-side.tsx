@@ -1,28 +1,34 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { Lang } from "@/lib/i18n";
-import { WorkspaceHeader } from "@/components/workspace-header";
+import { Workspace, type AgentMsg } from "@/components/workspace";
 import { MeetCanvas } from "@/components/canvas/meet-canvas";
 import { sayHello } from "@/lib/connections";
 import { consumeSeed } from "@/lib/seed";
 import type { ActivityKind, Weekday } from "@/lib/types";
 import {
+  ALL_KINDS,
   EMPTY,
   answerSlot,
   chooseFromFallback,
+  currentView,
   load,
   makeOpener,
   reset,
   resolveAmbiguity,
-  restart,
   save,
   start,
   submitPrompt,
   swap,
   tryNearMiss,
+  uid,
+  type ChipAction,
   type LevelTier,
+  type SideMsg,
   type SideState,
+  type UserIntent,
   type WhenTier,
 } from "@/lib/agents/side-by-side";
 
@@ -36,51 +42,186 @@ export const Route = createFileRoute("/side-by-side")({
   }),
 });
 
+// ---- Narration ------------------------------------------------------------
+
+function heardSummary(intent: UserIntent, t: TFunction): string {
+  const bits: string[] = [t(`activity.kind.${intent.kind}`)];
+  if (intent.when)  bits.push(t(`meet.when.${intent.when}`));
+  if (intent.level) bits.push(t(`meet.level.${intent.level}`));
+  return bits.join(" · ");
+}
+
+function msg(role: "user" | "assistant", text: string, chips?: SideMsg["chips"]): SideMsg {
+  return { id: uid(), role, t: Date.now(), text, ...(chips ? { chips } : {}) };
+}
+
+/** Compose the assistant reply for the new state (after an action). */
+function narrate(s: SideState, t: TFunction): SideMsg | null {
+  const view = currentView(s);
+  const truncatedPrefix = s.truncated ? `${t("meet.truncated_hint")}\n\n` : "";
+
+  if (view === "fallback") {
+    return msg("assistant", truncatedPrefix + t("meet.fallback_intro"),
+      ALL_KINDS.map<NonNullable<SideMsg["chips"]>[number]>((k) => ({
+        id: `fb-${k}`,
+        label: t(`activity.kind.${k}`),
+        action: { type: "choose_fallback", kind: k },
+      })));
+  }
+
+  if (view === "disambiguate") {
+    return msg("assistant", truncatedPrefix + t("meet.disambiguate_ask"),
+      (s.ambiguousKinds ?? []).map((k) => ({
+        id: `da-${k}`,
+        label: t(`activity.kind.${k}`),
+        action: { type: "resolve_ambiguity", kind: k },
+      })));
+  }
+
+  if (view === "ask" && s.pendingAsk === "when" && s.intent) {
+    const kindLabel = t(`activity.kind.${s.intent.kind}`);
+    const heard = heardSummary(s.intent, t);
+    return msg("assistant",
+      `${truncatedPrefix}${t("meet.heard", { summary: heard })}\n${t("meet.ask_when", { kind: kindLabel })}`,
+      [
+        { id: "w-weekend",   label: t("meet.when.weekend"),   action: { type: "answer_when", value: "weekend" } },
+        { id: "w-weeknight", label: t("meet.when.weeknight"), action: { type: "answer_when", value: "weeknight" } },
+        { id: "w-any",       label: t("meet.when.any"),       action: { type: "answer_when", value: "any" } },
+      ]);
+  }
+
+  if (view === "ask" && s.pendingAsk === "level" && s.intent) {
+    const kindLabel = t(`activity.kind.${s.intent.kind}`);
+    const heard = heardSummary(s.intent, t);
+    return msg("assistant",
+      `${truncatedPrefix}${t("meet.heard", { summary: heard })}\n${t("meet.ask_level", { kind: kindLabel })}`,
+      [
+        { id: "l-beginner",     label: t("meet.level.beginner"),     action: { type: "answer_level", value: "beginner" } },
+        { id: "l-intermediate", label: t("meet.level.intermediate"), action: { type: "answer_level", value: "intermediate" } },
+        { id: "l-advanced",     label: t("meet.level.advanced"),     action: { type: "answer_level", value: "advanced" } },
+        { id: "l-any",          label: t("meet.level.any"),          action: { type: "answer_level", value: "any" } },
+      ]);
+  }
+
+  if (view === "candidate" && s.intent) {
+    return msg("assistant", t("meet.showing_one", { summary: heardSummary(s.intent, t) }));
+  }
+
+  if (view === "nearmiss" && s.intent) {
+    if (s.poolExhausted) return msg("assistant", t("meet.pool_exhausted_msg"));
+    const top = s.nearMisses[0];
+    if (top) {
+      return msg("assistant",
+        t("meet.no_match_near", {
+          count: top.personCount,
+          day: t(`activity.day.${top.slot.day}`),
+          window: t(`activity.window.${top.slot.window}`),
+        }),
+        [{
+          id: "near",
+          label: t("meet.near_try", {
+            day: t(`activity.day.${top.slot.day}`),
+            window: t(`activity.window.${top.slot.window}`),
+          }),
+          action: { type: "try_near_miss", slot: top.slot },
+        }]);
+    }
+    return msg("assistant", t("meet.no_match"));
+  }
+
+  return null;
+}
+
+// ---- Page ----------------------------------------------------------------
+
 function SideBySidePage() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
 
   const [state, setState] = useState<SideState>(() => {
     if (typeof window === "undefined") return EMPTY;
     const seed = consumeSeed("sidebyside");
-    if (seed) {
-      reset();
-      return start();
-    }
+    if (seed) { reset(); return start(); }
     return load();
   });
   const [hydrated, setHydrated] = useState(false);
+  const [thinking, setThinking] = useState(false);
 
   useEffect(() => { setHydrated(true); }, []);
   useEffect(() => { if (hydrated) save(state); }, [state, hydrated]);
 
+  // Seed the opening assistant message once, after i18n is ready.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (state.messages.length === 0) {
+      setState((s) => ({ ...s, messages: [msg("assistant", t("meet.opening"))] }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
+
+  function actWith(mutate: (s: SideState) => SideState, userText?: string) {
+    setThinking(true);
+    window.setTimeout(() => {
+      setState((s) => {
+        const withUser: SideState = userText
+          ? { ...s, messages: [...s.messages, msg("user", userText)] }
+          : s;
+        const next = mutate(withUser);
+        const narr = narrate(next, t);
+        return narr ? { ...next, messages: [...next.messages, narr] } : next;
+      });
+      setThinking(false);
+    }, 450);
+  }
+
+  function handleSend(text: string) {
+    actWith((s) => submitPrompt(s, text), text);
+  }
+
+  function handleChipClick(rawAction: unknown) {
+    const a = rawAction as ChipAction;
+    switch (a.type) {
+      case "resolve_ambiguity":
+        actWith((s) => resolveAmbiguity(s, a.kind), t(`activity.kind.${a.kind}`));
+        break;
+      case "choose_fallback":
+        actWith((s) => chooseFromFallback(s, a.kind), t(`activity.kind.${a.kind}`));
+        break;
+      case "answer_when":
+        actWith((s) => answerSlot(s, "when", a.value), t(`meet.when.${a.value}`));
+        break;
+      case "answer_level":
+        actWith((s) => answerSlot(s, "level", a.value),
+          a.value === "any" ? t("meet.level.any") : t(`meet.level.${a.value as LevelTier}`));
+        break;
+      case "try_near_miss":
+        actWith((s) => tryNearMiss(s, a.slot),
+          t("meet.near_try", {
+            day: t(`activity.day.${a.slot.day}`),
+            window: t(`activity.window.${a.slot.window}`),
+          }));
+        break;
+    }
+  }
+
+  function handleSwap() {
+    actWith((s) => swap(s));
+  }
+
+  function handleTryNearMiss(slot: { day: Weekday; window: "morning" | "midday" | "evening" }) {
+    actWith((s) => tryNearMiss(s, slot),
+      t("meet.near_try", {
+        day: t(`activity.day.${slot.day}`),
+        window: t(`activity.window.${slot.window}`),
+      }));
+  }
+
   function handleReset() {
     if (!confirm("Start over?")) return;
     reset();
-    setState(start());
-  }
-
-  function handleSubmitPrompt(text: string) {
-    setState((s) => submitPrompt(s, text));
-  }
-  function handleResolveAmbiguity(kind: ActivityKind) {
-    setState((s) => resolveAmbiguity(s, kind));
-  }
-  function handleChooseFromFallback(kind: ActivityKind) {
-    setState((s) => chooseFromFallback(s, kind));
-  }
-  function handleAnswerSlot(slot: "when" | "level", value: WhenTier | LevelTier | "any") {
-    setState((s) => answerSlot(s, slot, value));
-  }
-  function handleSwap() {
-    setState((s) => swap(s));
-  }
-  function handleRestart() {
-    setState(restart());
-  }
-  function handleTryNearMiss(slot: { day: Weekday; window: "morning" | "midday" | "evening" }) {
-    setState((s) => tryNearMiss(s, slot));
+    const s = start();
+    setState({ ...s, messages: [msg("assistant", t("meet.opening"))] });
   }
 
   function handleSayHello() {
@@ -100,26 +241,30 @@ function SideBySidePage() {
 
   if (!hydrated) return <div className="h-screen bg-background" />;
 
+  // Silence unused import — keeps ActivityKind referenced for type inference stability.
+  const _kindTypeAnchor: ActivityKind | null = null;
+  void _kindTypeAnchor;
+
+  const messages: AgentMsg[] = state.messages;
+
   return (
-    <div className="h-screen flex flex-col bg-background">
-      <WorkspaceHeader
-        agentNameKey="agents.sidebyside.name"
-        agentSubtitleKey="agents.sidebyside.tagline"
-        onReset={handleReset}
-      />
-      <main className="flex-1 min-h-0 overflow-hidden">
+    <Workspace
+      agentNameKey="agents.sidebyside.name"
+      agentSubtitleKey="agents.sidebyside.tagline"
+      placeholderKey="chat.placeholder_first"
+      messages={messages}
+      thinking={thinking}
+      onSend={handleSend}
+      onReset={handleReset}
+      onChipClick={handleChipClick}
+      rightPane={
         <MeetCanvas
           state={state}
-          onSubmitPrompt={handleSubmitPrompt}
-          onResolveAmbiguity={handleResolveAmbiguity}
-          onChooseFromFallback={handleChooseFromFallback}
-          onAnswerSlot={handleAnswerSlot}
           onSwap={handleSwap}
           onSayHello={handleSayHello}
-          onRestart={handleRestart}
           onTryNearMiss={handleTryNearMiss}
         />
-      </main>
-    </div>
+      }
+    />
   );
 }
