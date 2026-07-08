@@ -307,6 +307,7 @@ function SideBySidePage() {
           onSwap={handleSwap}
           onSayHello={handleSayHello}
           onTryNearMiss={handleTryNearMiss}
+          onJoinWaitlist={handleJoinWaitlist}
         />
       }
     />
