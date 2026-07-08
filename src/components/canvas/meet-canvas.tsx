@@ -329,13 +329,13 @@ function ChatBubble({ m }: { m: ChatMsg }) {
 
 // ---- Helpers -------------------------------------------------------------
 
-function sharedWhenLabel(a: Intent, b: Intent, t: (k: string, opts?: unknown) => string): string {
+function sharedWhenLabel(a: Intent, b: Intent, t: TFunction): string {
   if (a.day === b.day && a.window === b.window) {
     return `${t(`activity.day.${a.day}`)} ${t(`activity.window.${a.window}`)}`;
   }
   return t(`activity.day.${b.day}`) + " " + t(`activity.window.${b.window}`);
 }
-function sharedLevelLabel(a: Intent, b: Intent, t: (k: string, opts?: unknown) => string): string {
+function sharedLevelLabel(a: Intent, b: Intent, t: TFunction): string {
   if (a.level === b.level) return t(`activity.level.${a.level}`);
   return t("intent.level_similar");
 }
