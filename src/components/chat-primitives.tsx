@@ -59,6 +59,39 @@ export function AssistantBubble({ text }: { text: string }) {
   );
 }
 
+export interface ChipOption {
+  id: string;
+  label: string;
+  /** Route-defined payload; Workspace treats it as opaque. */
+  action: unknown;
+}
+
+export function ChipRow({
+  chips,
+  disabled,
+  onPick,
+}: {
+  chips: ChipOption[];
+  disabled?: boolean;
+  onPick: (action: unknown) => void;
+}) {
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {chips.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          disabled={disabled}
+          onClick={() => onPick(c.action)}
+          className="px-3 py-1.5 rounded-full border border-border bg-card text-[12.5px] text-foreground/85 hover:border-foreground/40 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          {c.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function ThinkingRow() {
   return (
     <div className="flex items-center gap-1.5 text-muted-foreground">
