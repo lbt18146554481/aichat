@@ -235,7 +235,18 @@ function SideBySidePage() {
             window: t(`activity.window.${a.slot.window}`),
           }));
         break;
+      case "suggest_kind":
+        actWith((s) => chooseFromFallback(s, a.kind),
+          t("meet.suggest_kind_chip", { kind: t(`activity.kind.${a.kind}`) }));
+        break;
+      case "add_to_waitlist":
+        actWith((s) => addToWaitlist(s), t("meet.waitlist_cta"));
+        break;
     }
+  }
+
+  function handleJoinWaitlist() {
+    actWith((s) => addToWaitlist(s), t("meet.waitlist_cta"));
   }
 
   function handleSwap() {
