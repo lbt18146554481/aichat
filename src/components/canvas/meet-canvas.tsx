@@ -1,16 +1,20 @@
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BellRing, Check, MessageCircle, RefreshCw, Sparkles, Users } from "lucide-react";
+import type { TFunction } from "i18next";
+import { ArrowUp, MessageCircle, Users, X, Undo2 } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
-import type { SideState, WhenTier, LevelTier } from "@/lib/agents/side-by-side";
+import type { SideState, ChatMsg } from "@/lib/agents/side-by-side";
 import { currentView } from "@/lib/agents/side-by-side";
-import type { ActivityKind, Weekday } from "@/lib/types";
+import { getIntentById, type Intent } from "@/lib/intents";
+import type { ActivityKind } from "@/lib/types";
+import { avatarUrl } from "@/lib/people";
 
 interface Props {
   state: SideState;
-  onSwap: () => void;
-  onSayHello: () => void;
-  onTryNearMiss: (slot: { day: Weekday; window: "morning" | "midday" | "evening" }) => void;
-  onJoinWaitlist: () => void;
+  onStartChat: () => void;
+  onRevoke: () => void;
+  onTryNearMiss: (intentId: string) => void;
+  onSendChat: (text: string) => void;
 }
 
 const KIND_EMOJI: Record<ActivityKind, string> = {
@@ -19,12 +23,13 @@ const KIND_EMOJI: Record<ActivityKind, string> = {
 
 export function MeetCanvas(props: Props) {
   const view = currentView(props.state);
-  if (view === "candidate") return <CandidateView {...props} />;
-  if (view === "nearmiss")  return <NearMissView {...props} />;
+  if (view === "chat") return <ChatView {...props} />;
+  if (view === "match") return <MatchView {...props} />;
+  if (view === "nomatch") return <NoMatchView {...props} />;
   return <EmptyCanvas />;
 }
 
-// ---- Empty canvas ---------------------------------------------------------
+// ---- Empty ---------------------------------------------------------------
 
 function EmptyCanvas() {
   const { t } = useTranslation();
@@ -45,143 +50,159 @@ function EmptyCanvas() {
   );
 }
 
-// ---- Candidate ------------------------------------------------------------
+// ---- Match — two intent cards side by side + [start chat] --------------
 
-function CandidateView({ state, onSwap, onSayHello }: Props) {
+function MatchView({ state, onStartChat }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
-  const c = state.candidate!;
-  const intent = state.intent!;
-  const kindLabel = t(`activity.kind.${c.kind}`);
-  const dayLabel = t(`activity.day.${c.day}`);
-  const winLabel = t(`activity.window.${c.window}`);
-  const venue = lang === "zh-CN" ? c.venue_zh : c.venue;
-  const reason = lang === "zh-CN" ? c.reason_zh : c.reason;
+  const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
+  const other = state.matchIntentId ? getIntentById(state.matchIntentId) : null;
+  if (!mine || !other) return <EmptyCanvas />;
+
+  const alignedKind = t(`activity.kind.${mine.kind}`);
+  const alignedWhen = sharedWhenLabel(mine, other, t);
+  const alignedLevel = sharedLevelLabel(mine, other, t);
 
   return (
-    <div className="h-full px-6 py-12 overflow-y-auto">
-      <div className="mx-auto max-w-md">
-        <div className="flex items-center justify-between">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
-            {t("meet.pick_label")}
-          </div>
-          <HeardYou intent={intent} />
+    <div className="h-full overflow-y-auto px-6 py-10">
+      <div className="mx-auto max-w-lg">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
+          {t("intent.match_label")}
         </div>
 
-        <div className="mt-4 rounded-xl border border-border bg-card p-5">
-          {/* Mutual badge — the emotional core of Side by Side. */}
-          {c.mutual && (
-            <div className="mb-4 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-[11px] font-medium">
-              <Sparkles className="w-3 h-3" />
-              {t("meet.mutual_badge", { day: dayLabel, window: winLabel, kind: kindLabel })}
-            </div>
-          )}
-
-          <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-full bg-secondary border border-border grid place-items-center text-[24px] leading-none">
-              {KIND_EMOJI[c.kind]}
-            </div>
-            <div className="min-w-0">
-              <div className="text-[15px] font-semibold text-foreground">
-                {kindLabel} · {dayLabel} {winLabel}
-              </div>
-              <div className="text-[12px] text-muted-foreground">{venue}</div>
-            </div>
-          </div>
-
-          <div className="mt-5 flex items-start gap-3">
-            <div className="shrink-0 w-9 h-9 rounded-full bg-secondary border border-border grid place-items-center text-muted-foreground text-[13px] font-mono">?</div>
-            <p className="text-[12.5px] text-foreground/85 leading-relaxed pt-1">{reason}</p>
-          </div>
-
-          <div className="mt-6 flex gap-2">
-            <button
-              onClick={onSayHello}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
-            >
-              <MessageCircle className="w-3.5 h-3.5" />
-              {t("meet.say_hello")}
-            </button>
-            <button
-              onClick={onSwap}
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-md border border-border text-[13px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              {t("meet.swap")}
-            </button>
-          </div>
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <IntentCard intent={mine} side="me" lang={lang} />
+          <IntentCard intent={other} side="them" lang={lang} />
         </div>
 
-        <p className="mt-5 text-[11.5px] text-muted-foreground leading-relaxed">
-          {t("meet.pick_footnote")}
+        <div className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3">
+          <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-emerald-700 dark:text-emerald-400">
+            {t("intent.aligned_label")}
+          </div>
+          <p className="mt-1.5 text-[13px] text-foreground leading-relaxed">
+            {t("intent.aligned_body", {
+              kind: alignedKind,
+              when: alignedWhen,
+              level: alignedLevel,
+            })}
+          </p>
+        </div>
+
+        <button
+          onClick={onStartChat}
+          className="mt-4 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-md bg-foreground text-background text-[13.5px] font-medium hover:opacity-90 transition-opacity"
+        >
+          <MessageCircle className="w-3.5 h-3.5" />
+          {t("intent.start_chat")}
+        </button>
+
+        <p className="mt-4 text-[11.5px] text-muted-foreground leading-relaxed text-center">
+          {t("intent.match_footnote")}
         </p>
       </div>
     </div>
   );
 }
 
-// ---- No match — waitlist card + near-miss list ----------------------------
-
-function NearMissView({ state, onTryNearMiss, onJoinWaitlist }: Props) {
+function IntentCard({ intent, side, lang }: { intent: Intent; side: "me" | "them"; lang: Lang }) {
   const { t } = useTranslation();
-  const intent = state.intent!;
-  const kindLabel = t(`activity.kind.${intent.kind}`);
-  const whenLabel = intent.when ? t(`meet.when.${intent.when}`) : t("meet.when.any");
-  const joined = state.waitlistJoinedForCurrent || state.recalledFromWaitlist;
+  const raw = lang === "zh-CN" ? intent.rawText_zh : intent.rawText;
+  const label = side === "me" ? t("intent.you_said") : t("intent.they_said");
+  const nameOrYou = side === "me"
+    ? t("intent.your_tag")
+    : `${lang === "zh-CN" ? intent.ownerName_zh : intent.ownerName}${(lang === "zh-CN" ? intent.ownerCity_zh : intent.ownerCity) ? " · " + (lang === "zh-CN" ? intent.ownerCity_zh : intent.ownerCity) : ""}`;
 
   return (
-    <div className="h-full px-6 py-12 overflow-y-auto">
-      <div className="mx-auto max-w-md">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
-          {t("meet.pick_label")}
-        </div>
-
-        {/* Waitlist card */}
-        <div className="mt-4 rounded-xl border border-border bg-card p-5">
-          <div className="flex items-start gap-3">
-            <div className="shrink-0 w-10 h-10 rounded-full bg-secondary border border-border grid place-items-center text-muted-foreground">
-              {joined ? <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : <BellRing className="w-4 h-4" />}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-semibold text-foreground">
-                {joined ? t("meet.waitlist_joined_title") : t("meet.waitlist_offer_title")}
-              </div>
-              <p className="mt-1 text-[12.5px] text-muted-foreground leading-relaxed">
-                {joined
-                  ? t("meet.waitlist_joined_body", { kind: kindLabel, when: whenLabel })
-                  : t("meet.waitlist_offer_body", { kind: kindLabel, when: whenLabel })}
-              </p>
-              {!joined && (
-                <button
-                  onClick={onJoinWaitlist}
-                  className="mt-3 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-foreground text-background text-[12.5px] font-medium hover:opacity-90 transition-opacity"
-                >
-                  <BellRing className="w-3.5 h-3.5" />
-                  {t("meet.waitlist_cta")}
-                </button>
-              )}
-            </div>
+    <article className="rounded-xl border border-border bg-card p-4 flex flex-col">
+      <div className="flex items-center gap-2">
+        {side === "them" ? (
+          <img src={avatarUrl(intent.ownerId)} alt="" className="w-7 h-7 rounded-full border border-border" />
+        ) : (
+          <div className="w-7 h-7 rounded-full bg-secondary border border-border grid place-items-center text-[11px] font-mono text-muted-foreground">
+            {t("intent.you_short")}
           </div>
+        )}
+        <div className="min-w-0">
+          <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">{label}</div>
+          <div className="text-[12px] text-foreground/85 truncate">{nameOrYou}</div>
+        </div>
+      </div>
+      <p className="mt-2.5 text-[13px] text-foreground leading-relaxed">"{raw}"</p>
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        <Tag>{KIND_EMOJI[intent.kind]} {t(`activity.kind.${intent.kind}`)}</Tag>
+        <Tag>{t(`activity.day.${intent.day}`)} {t(`activity.window.${intent.window}`)}</Tag>
+        <Tag>{t(`activity.level.${intent.level}`)}</Tag>
+      </div>
+    </article>
+  );
+}
+
+function Tag({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary border border-border text-[11px] text-foreground/80">
+      {children}
+    </span>
+  );
+}
+
+// ---- No match — my published card + near-miss list ---------------------
+
+function NoMatchView({ state, onRevoke, onTryNearMiss }: Props) {
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
+  if (!mine) return <EmptyCanvas />;
+
+  const nears = state.nearMissIds.map((id) => getIntentById(id)).filter(Boolean) as Intent[];
+
+  return (
+    <div className="h-full overflow-y-auto px-6 py-10">
+      <div className="mx-auto max-w-lg">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
+          {t("intent.published_label")}
         </div>
 
-        {/* Near-miss list */}
-        {!state.poolExhausted && state.nearMisses.length > 0 && (
-          <div className="mt-5">
-            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
-              {t("meet.near_label")}
+        <div className="mt-4 rounded-xl border border-border bg-card p-4">
+          <IntentCard intent={mine} side="me" lang={lang} />
+          <button
+            onClick={onRevoke}
+            className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Undo2 className="w-3 h-3" />
+            {t("intent.revoke")}
+          </button>
+        </div>
+
+        {nears.length > 0 && (
+          <div className="mt-6">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
+              {t("intent.near_label")}
             </div>
-            <ul className="space-y-2">
-              {state.nearMisses.slice(0, 3).map((nm) => (
-                <li key={`${nm.slot.day}-${nm.slot.window}`}>
+            <p className="mt-1 text-[12px] text-muted-foreground leading-relaxed">
+              {t("intent.near_hint")}
+            </p>
+            <ul className="mt-3 space-y-2.5">
+              {nears.map((n) => (
+                <li key={n.id}>
                   <button
-                    onClick={() => onTryNearMiss(nm.slot)}
-                    className="w-full text-left rounded-lg border border-border bg-card px-3.5 py-2.5 hover:border-foreground/40 transition-colors"
+                    onClick={() => onTryNearMiss(n.id)}
+                    className="w-full text-left rounded-lg border border-border bg-card p-3.5 hover:border-foreground/40 transition-colors"
                   >
-                    <div className="text-[13px] text-foreground">
-                      {t(`activity.day.${nm.slot.day}`)} {t(`activity.window.${nm.slot.window}`)}
+                    <div className="flex items-center gap-2">
+                      <img src={avatarUrl(n.ownerId)} alt="" className="w-6 h-6 rounded-full border border-border" />
+                      <div className="text-[12px] text-foreground/85">
+                        {lang === "zh-CN" ? n.ownerName_zh : n.ownerName}
+                        {(lang === "zh-CN" ? n.ownerCity_zh : n.ownerCity) && (
+                          <span className="text-muted-foreground"> · {lang === "zh-CN" ? n.ownerCity_zh : n.ownerCity}</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-[11.5px] text-muted-foreground mt-0.5">
-                      {t("meet.near_people", { count: nm.personCount })}
+                    <p className="mt-2 text-[12.5px] text-foreground/85 leading-relaxed">
+                      "{lang === "zh-CN" ? n.rawText_zh : n.rawText}"
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <Tag>{t(`activity.day.${n.day}`)} {t(`activity.window.${n.window}`)}</Tag>
+                      <Tag>{t(`activity.level.${n.level}`)}</Tag>
                     </div>
                   </button>
                 </li>
@@ -189,27 +210,135 @@ function NearMissView({ state, onTryNearMiss, onJoinWaitlist }: Props) {
             </ul>
           </div>
         )}
-
-        {state.poolExhausted && (
-          <p className="mt-4 text-[12.5px] text-muted-foreground leading-relaxed">
-            {t("meet.pool_exhausted_hint")}
-          </p>
-        )}
       </div>
     </div>
   );
 }
 
-// ---- Shared ---------------------------------------------------------------
+// ---- Chat view (in-canvas) ---------------------------------------------
 
-function HeardYou({ intent }: { intent: { kind: ActivityKind; when?: WhenTier; level?: LevelTier } }) {
-  const { t } = useTranslation();
-  const bits: string[] = [t(`activity.kind.${intent.kind}`)];
-  if (intent.when) bits.push(t(`meet.when.${intent.when}`));
-  if (intent.level) bits.push(t(`meet.level.${intent.level}`));
+function ChatView({ state, onSendChat }: Props) {
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const [expanded, setExpanded] = useState(false);
+  const [text, setText] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
+  const other = state.matchIntentId ? getIntentById(state.matchIntentId) : null;
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [state.chatMessages.length]);
+
+  if (!mine || !other) return <EmptyCanvas />;
+
+  function submit() {
+    const v = text.trim();
+    if (!v) return;
+    onSendChat(v);
+    setText("");
+  }
+
+  const otherName = lang === "zh-CN" ? other.ownerName_zh : other.ownerName;
+  const otherCity = lang === "zh-CN" ? other.ownerCity_zh : other.ownerCity;
+
   return (
-    <span className="text-[10.5px] font-mono text-muted-foreground truncate max-w-[60%]" title={bits.join(" · ")}>
-      {t("meet.heard_you")}: {bits.join(" · ")}
-    </span>
+    <div className="h-full flex flex-col">
+      {/* Slim aligned banner (click to expand full alignment card) */}
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="text-left border-b border-border bg-emerald-500/5 px-5 py-2.5 hover:bg-emerald-500/10 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <img src={avatarUrl(other.ownerId)} alt="" className="w-8 h-8 rounded-full border border-border" />
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-semibold text-foreground truncate">{otherName}{otherCity ? ` · ${otherCity}` : ""}</div>
+            <div className="text-[11px] text-muted-foreground truncate">
+              {t("intent.aligned_slim", {
+                kind: t(`activity.kind.${mine.kind}`),
+                day: t(`activity.day.${mine.day}`),
+                window: t(`activity.window.${mine.window}`),
+              })}
+            </div>
+          </div>
+          <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+            {expanded ? t("intent.hide_alignment") : t("intent.show_alignment")}
+          </span>
+        </div>
+        {expanded && (
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 pointer-events-none">
+            <IntentCard intent={mine} side="me" lang={lang} />
+            <IntentCard intent={other} side="them" lang={lang} />
+          </div>
+        )}
+      </button>
+
+      {/* Messages */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="max-w-md mx-auto">
+          <ul className="space-y-2.5">
+            {state.chatMessages.map((m) => <ChatBubble key={m.id} m={m} />)}
+          </ul>
+        </div>
+      </div>
+
+      {/* Composer */}
+      <div className="border-t border-border bg-background px-4 py-3">
+        <div className="max-w-md mx-auto relative">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
+            rows={1}
+            placeholder={t("intent.chat_placeholder")}
+            className="w-full resize-none rounded-xl border border-border bg-card px-4 py-2.5 pr-11 text-[14px] leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-foreground/30"
+          />
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!text.trim()}
+            aria-label="Send"
+            className="absolute right-2 bottom-1.5 w-8 h-8 grid place-items-center rounded-lg bg-foreground text-background disabled:opacity-25 hover:opacity-90 transition-opacity"
+          >
+            <ArrowUp className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
+
+function ChatBubble({ m }: { m: ChatMsg }) {
+  const isMine = m.from === "me";
+  return (
+    <li className={isMine ? "flex justify-end" : "flex justify-start"}>
+      <div
+        className={[
+          "max-w-[80%] px-3.5 py-2 text-[14px] leading-relaxed",
+          isMine
+            ? "rounded-2xl rounded-br-md bg-foreground text-background"
+            : "rounded-2xl rounded-bl-md bg-secondary text-foreground",
+        ].join(" ")}
+      >
+        {m.text}
+      </div>
+    </li>
+  );
+}
+
+// ---- Helpers -------------------------------------------------------------
+
+function sharedWhenLabel(a: Intent, b: Intent, t: TFunction): string {
+  if (a.day === b.day && a.window === b.window) {
+    return `${t(`activity.day.${a.day}`)} ${t(`activity.window.${a.window}`)}`;
+  }
+  return t(`activity.day.${b.day}`) + " " + t(`activity.window.${b.window}`);
+}
+function sharedLevelLabel(a: Intent, b: Intent, t: TFunction): string {
+  if (a.level === b.level) return t(`activity.level.${a.level}`);
+  return t("intent.level_similar");
+}
+
+// Silence unused imports for consumers that used to pass X icon here.
+export const _KeepX = X;
