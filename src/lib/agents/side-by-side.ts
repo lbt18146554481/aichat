@@ -341,22 +341,47 @@ function findNearMisses(state: SideState, intent: UserIntent): NearMiss[] {
 
 // ---- Decide next step ---------------------------------------------------
 
+/**
+ * True if asking `slot` might actually narrow the candidate pool.
+ * If every possible answer yields the same pool, the ask is noise — skip it.
+ */
+function askWouldHelp(state: SideState, slot: "when" | "level"): boolean {
+  if (!state.intent) return false;
+  const answers: (WhenTier | LevelTier)[] =
+    slot === "when" ? ["weekend", "weeknight", "any"] : ["beginner", "intermediate", "advanced"];
+  const sizes = new Set<number>();
+  for (const a of answers) {
+    const probeIntent: UserIntent = { ...state.intent };
+    if (slot === "when") probeIntent.when = a as WhenTier;
+    else probeIntent.level = a as LevelTier;
+    sizes.add(findAllMatches({ ...state, intent: probeIntent }, probeIntent).length);
+  }
+  return sizes.size > 1;
+}
+
 function decide(state: SideState): SideState {
   // Fallback / disambiguation take precedence and are decided upstream.
   if (state.parseFailed || (state.ambiguousKinds && state.ambiguousKinds.length > 0)) {
-    return { ...state, candidate: null, nearMisses: [], poolExhausted: false, pendingAsk: null };
+    return { ...state, candidate: null, nearMisses: [], suggestKinds: [], poolExhausted: false, pendingAsk: null };
   }
   if (!state.intent) {
-    return { ...state, candidate: null, nearMisses: [], poolExhausted: false, pendingAsk: null };
+    return { ...state, candidate: null, nearMisses: [], suggestKinds: [], poolExhausted: false, pendingAsk: null };
   }
 
-  // Gate: do we need one clarifying tap?
-  if (state.askedCount < 1 && !state.pendingAsk) {
+  // Gate: do we need a clarifying tap? Up to two, one for when, one for level.
+  if (!state.pendingAsk) {
     const size = poolSize(state, state.intent);
     if (size > ASK_THRESHOLD) {
-      if (!state.intent.when) return { ...state, pendingAsk: "when", candidate: null, nearMisses: [] };
-      if (LEVEL_KINDS.includes(state.intent.kind) && !state.intent.level) {
-        return { ...state, pendingAsk: "level", candidate: null, nearMisses: [] };
+      if (!state.askedWhen && !state.intent.when && askWouldHelp(state, "when")) {
+        return { ...state, pendingAsk: "when", candidate: null, nearMisses: [], suggestKinds: [] };
+      }
+      if (
+        !state.askedLevel &&
+        LEVEL_KINDS.includes(state.intent.kind) &&
+        !state.intent.level &&
+        askWouldHelp(state, "level")
+      ) {
+        return { ...state, pendingAsk: "level", candidate: null, nearMisses: [], suggestKinds: [] };
       }
     }
   }
@@ -369,6 +394,7 @@ function decide(state: SideState): SideState {
       ...state,
       candidate: null,
       nearMisses: findNearMisses(state, state.intent),
+      suggestKinds: suggestKindsFor(state.intent.kind),
       poolExhausted: exhausted,
       pendingAsk: null,
     };
@@ -378,6 +404,7 @@ function decide(state: SideState): SideState {
     ...state,
     candidate: toCandidate(m.person, m.activity, m.slot),
     nearMisses: [],
+    suggestKinds: [],
     poolExhausted: false,
     pendingAsk: null,
   };
