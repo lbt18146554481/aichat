@@ -11,6 +11,7 @@ import type { ActivityKind, Weekday } from "@/lib/types";
 import {
   ALL_KINDS,
   EMPTY,
+  addToWaitlist,
   answerSlot,
   chooseFromFallback,
   currentView,
