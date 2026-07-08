@@ -1,36 +1,33 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import type { Lang } from "@/lib/i18n";
 import { Workspace, type AgentMsg } from "@/components/workspace";
 import { MeetCanvas } from "@/components/canvas/meet-canvas";
-import { sayHello } from "@/lib/connections";
 import { consumeSeed } from "@/lib/seed";
-import type { ActivityKind, Weekday } from "@/lib/types";
+import type { ActivityKind } from "@/lib/types";
 import {
   ALL_KINDS,
   EMPTY,
-  addToWaitlist,
   answerSlot,
   chooseFromFallback,
   currentView,
   load,
-  makeOpener,
+  receiveSimulatedReply,
   reset,
   resolveAmbiguity,
+  revokeAndReset,
   save,
+  sendChatMessage,
   start,
+  startChat,
   submitPrompt,
-  swap,
   tryNearMiss,
   uid,
   type ChipAction,
   type LevelTier,
   type SideMsg,
   type SideState,
-  type UserIntent,
-  type WhenTier,
 } from "@/lib/agents/side-by-side";
 
 export const Route = createFileRoute("/side-by-side")({
@@ -38,17 +35,19 @@ export const Route = createFileRoute("/side-by-side")({
   head: () => ({
     meta: [
       { title: "Side by Side — Kindred" },
-      { name: "description", content: "Meet someone over something you both already do." },
+      { name: "description", content: "Two-way match on something you both already want to do." },
     ],
   }),
 });
 
 // ---- Narration ------------------------------------------------------------
 
-function heardSummary(intent: UserIntent, t: TFunction): string {
-  const bits: string[] = [t(`activity.kind.${intent.kind}`)];
-  if (intent.when)  bits.push(t(`meet.when.${intent.when}`));
-  if (intent.level) bits.push(t(`meet.level.${intent.level}`));
+function collectingSummary(s: SideState, t: TFunction): string {
+  const c = s.collecting;
+  const bits: string[] = [];
+  if (c.kind) bits.push(t(`activity.kind.${c.kind}`));
+  if (c.when) bits.push(t(`meet.when.${c.when}`));
+  if (c.level) bits.push(t(`meet.level.${c.level}`));
   return bits.join(" · ");
 }
 
@@ -56,17 +55,16 @@ function msg(role: "user" | "assistant", text: string, chips?: SideMsg["chips"])
   return { id: uid(), role, t: Date.now(), text, ...(chips ? { chips } : {}) };
 }
 
-/** Compose the assistant reply for the new state (after an action). */
 function narrate(s: SideState, t: TFunction): SideMsg | null {
   const view = currentView(s);
   const truncatedPrefix = s.truncated ? `${t("meet.truncated_hint")}\n\n` : "";
 
   if (view === "fallback") {
     return msg("assistant", truncatedPrefix + t("meet.fallback_intro"),
-      ALL_KINDS.map<NonNullable<SideMsg["chips"]>[number]>((k) => ({
+      ALL_KINDS.map((k) => ({
         id: `fb-${k}`,
         label: t(`activity.kind.${k}`),
-        action: { type: "choose_fallback", kind: k },
+        action: { type: "choose_fallback", kind: k } as ChipAction,
       })));
   }
 
@@ -75,13 +73,13 @@ function narrate(s: SideState, t: TFunction): SideMsg | null {
       (s.ambiguousKinds ?? []).map((k) => ({
         id: `da-${k}`,
         label: t(`activity.kind.${k}`),
-        action: { type: "resolve_ambiguity", kind: k },
+        action: { type: "resolve_ambiguity", kind: k } as ChipAction,
       })));
   }
 
-  if (view === "ask" && s.pendingAsk === "when" && s.intent) {
-    const kindLabel = t(`activity.kind.${s.intent.kind}`);
-    const heard = heardSummary(s.intent, t);
+  if (view === "ask" && s.pendingAsk === "when" && s.collecting.kind) {
+    const kindLabel = t(`activity.kind.${s.collecting.kind}`);
+    const heard = collectingSummary(s, t);
     return msg("assistant",
       `${truncatedPrefix}${t("meet.heard", { summary: heard })}\n${t("meet.ask_when", { kind: kindLabel })}`,
       [
@@ -91,9 +89,9 @@ function narrate(s: SideState, t: TFunction): SideMsg | null {
       ]);
   }
 
-  if (view === "ask" && s.pendingAsk === "level" && s.intent) {
-    const kindLabel = t(`activity.kind.${s.intent.kind}`);
-    const heard = heardSummary(s.intent, t);
+  if (view === "ask" && s.pendingAsk === "level" && s.collecting.kind) {
+    const kindLabel = t(`activity.kind.${s.collecting.kind}`);
+    const heard = collectingSummary(s, t);
     return msg("assistant",
       `${truncatedPrefix}${t("meet.heard", { summary: heard })}\n${t("meet.ask_level", { kind: kindLabel })}`,
       [
@@ -104,62 +102,16 @@ function narrate(s: SideState, t: TFunction): SideMsg | null {
       ]);
   }
 
-  if (view === "candidate" && s.intent) {
-    return msg("assistant", t("meet.found_mutual", { summary: heardSummary(s.intent, t) }));
+  if (view === "match") {
+    return msg("assistant", t("intent.narrate_matched", { summary: collectingSummary(s, t) }));
   }
 
-  if (view === "nearmiss" && s.intent) {
-    const kindLabel = t(`activity.kind.${s.intent.kind}`);
-    const whenLabel = s.intent.when ? t(`meet.when.${s.intent.when}`) : t("meet.when.any");
+  if (view === "nomatch") {
+    return msg("assistant", t("intent.narrate_nomatch", { summary: collectingSummary(s, t) }));
+  }
 
-    if (s.poolExhausted) {
-      return msg("assistant", t("meet.pool_exhausted_msg"));
-    }
-
-    const chips: NonNullable<SideMsg["chips"]> = [];
-
-    // Waitlist chip — only if not already joined for this intent.
-    if (!s.waitlistJoinedForCurrent) {
-      chips.push({
-        id: "wl-join",
-        label: s.recalledFromWaitlist ? t("meet.waitlist_recalled_chip") : t("meet.waitlist_cta"),
-        action: { type: "add_to_waitlist" },
-      });
-    }
-
-    // Near-miss chip (top slot only, to keep chat clean; more in canvas).
-    const top = s.nearMisses[0];
-    if (top) {
-      chips.push({
-        id: "near",
-        label: t("meet.near_try", {
-          day: t(`activity.day.${top.slot.day}`),
-          window: t(`activity.window.${top.slot.window}`),
-        }),
-        action: { type: "try_near_miss", slot: top.slot },
-      });
-    }
-
-    // Sibling kind suggestions.
-    for (const k of s.suggestKinds) {
-      chips.push({
-        id: `sk-${k}`,
-        label: t("meet.suggest_kind_chip", { kind: t(`activity.kind.${k}`) }),
-        action: { type: "suggest_kind", kind: k },
-      });
-    }
-
-    const headline = s.recalledFromWaitlist
-      ? t("meet.waitlist_recall_msg", { kind: kindLabel, when: whenLabel })
-      : top
-        ? t("meet.no_match_near", {
-            count: top.personCount,
-            day: t(`activity.day.${top.slot.day}`),
-            window: t(`activity.window.${top.slot.window}`),
-          })
-        : t("meet.no_match_waitlist", { kind: kindLabel, when: whenLabel });
-
-    return msg("assistant", headline, chips.length > 0 ? chips : undefined);
+  if (view === "chat") {
+    return msg("assistant", t("intent.narrate_chat"));
   }
 
   return null;
@@ -168,9 +120,7 @@ function narrate(s: SideState, t: TFunction): SideMsg | null {
 // ---- Page ----------------------------------------------------------------
 
 function SideBySidePage() {
-  const { t, i18n } = useTranslation();
-  const lang = (i18n.resolvedLanguage as Lang) ?? "en";
-  const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [state, setState] = useState<SideState>(() => {
     if (typeof window === "undefined") return EMPTY;
@@ -184,7 +134,6 @@ function SideBySidePage() {
   useEffect(() => { setHydrated(true); }, []);
   useEffect(() => { if (hydrated) save(state); }, [state, hydrated]);
 
-  // Seed the opening assistant message once, after i18n is ready.
   useEffect(() => {
     if (!hydrated) return;
     if (state.messages.length === 0) {
@@ -205,10 +154,12 @@ function SideBySidePage() {
         return narr ? { ...next, messages: [...next.messages, narr] } : next;
       });
       setThinking(false);
-    }, 450);
+    }, 350);
   }
 
   function handleSend(text: string) {
+    // In chat stage, left composer talks to Agent — not the peer. Keep it simple:
+    // treat prompts during chat as "new intent" attempts (fresh publish).
     actWith((s) => submitPrompt(s, text), text);
   }
 
@@ -228,37 +179,33 @@ function SideBySidePage() {
         actWith((s) => answerSlot(s, "level", a.value),
           a.value === "any" ? t("meet.level.any") : t(`meet.level.${a.value as LevelTier}`));
         break;
+      case "start_chat":
+        actWith((s) => startChat(s));
+        break;
       case "try_near_miss":
-        actWith((s) => tryNearMiss(s, a.slot),
-          t("meet.near_try", {
-            day: t(`activity.day.${a.slot.day}`),
-            window: t(`activity.window.${a.slot.window}`),
-          }));
+        actWith((s) => tryNearMiss(s, a.intentId));
         break;
       case "suggest_kind":
-        actWith((s) => chooseFromFallback(s, a.kind),
-          t("meet.suggest_kind_chip", { kind: t(`activity.kind.${a.kind}`) }));
+        actWith((s) => chooseFromFallback(s, a.kind), t(`activity.kind.${a.kind}`));
         break;
-      case "add_to_waitlist":
-        actWith((s) => addToWaitlist(s), t("meet.waitlist_cta"));
+      case "revoke":
+        actWith((s) => revokeAndReset(s));
         break;
     }
   }
 
-  function handleJoinWaitlist() {
-    actWith((s) => addToWaitlist(s), t("meet.waitlist_cta"));
+  function handleStartChat() {
+    actWith((s) => startChat(s));
   }
-
-  function handleSwap() {
-    actWith((s) => swap(s));
+  function handleRevoke() {
+    actWith((s) => revokeAndReset(s));
   }
-
-  function handleTryNearMiss(slot: { day: Weekday; window: "morning" | "midday" | "evening" }) {
-    actWith((s) => tryNearMiss(s, slot),
-      t("meet.near_try", {
-        day: t(`activity.day.${slot.day}`),
-        window: t(`activity.window.${slot.window}`),
-      }));
+  function handleTryNearMiss(intentId: string) {
+    actWith((s) => tryNearMiss(s, intentId));
+  }
+  function handleSendChat(text: string) {
+    setState((s) => sendChatMessage(s, text));
+    window.setTimeout(() => setState((s) => receiveSimulatedReply(s)), 900);
   }
 
   function handleReset() {
@@ -268,34 +215,21 @@ function SideBySidePage() {
     setState({ ...s, messages: [msg("assistant", t("meet.opening"))] });
   }
 
-  function handleSayHello() {
-    setState((current) => {
-      if (!current.candidate || !current.intent) return current;
-      const opener = makeOpener(current.candidate, current.intent, lang);
-      sayHello(current.candidate.personId, { quotedMomentId: null, reply: opener });
-      const next: SideState = {
-        ...current,
-        candidate: null,
-        skipped: [...current.skipped, current.candidate.personId],
-      };
-      window.setTimeout(() => void navigate({ to: "/connections" }), 0);
-      return next;
-    });
-  }
-
   if (!hydrated) return <div className="h-screen bg-background" />;
 
-  // Silence unused import — keeps ActivityKind referenced for type inference stability.
-  const _kindTypeAnchor: ActivityKind | null = null;
-  void _kindTypeAnchor;
+  // Silence unused imports.
+  const _kindAnchor: ActivityKind | null = null;
+  void _kindAnchor;
 
   const messages: AgentMsg[] = state.messages;
+  const placeholderKey =
+    state.stage === "chat" ? "intent.left_placeholder_during_chat" : "chat.placeholder_first";
 
   return (
     <Workspace
       agentNameKey="agents.sidebyside.name"
       agentSubtitleKey="agents.sidebyside.tagline"
-      placeholderKey="chat.placeholder_first"
+      placeholderKey={placeholderKey}
       messages={messages}
       thinking={thinking}
       onSend={handleSend}
@@ -304,10 +238,10 @@ function SideBySidePage() {
       rightPane={
         <MeetCanvas
           state={state}
-          onSwap={handleSwap}
-          onSayHello={handleSayHello}
+          onStartChat={handleStartChat}
+          onRevoke={handleRevoke}
           onTryNearMiss={handleTryNearMiss}
-          onJoinWaitlist={handleJoinWaitlist}
+          onSendChat={handleSendChat}
         />
       }
     />
