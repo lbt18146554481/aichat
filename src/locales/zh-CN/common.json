@@ -128,25 +128,23 @@
 
 
   "meet": {
-    "prompt_hero": "说一句，你想做什么。",
-    "prompt_hint": "自己的话就行，比如「周六上午想打网球」、「这周想找人一起做饭」。",
-    "prompt_placeholder": "想做什么，大概什么时候……",
-    "prompt_meta": "Cmd/Ctrl + Enter 发送",
-    "prompt_submit": "找人",
+    "opening": "这周想做点什么，又想找人一起？用自己的话跟我说就行。",
+    "empty_title": "在这里会出现一个人。",
+    "empty_hint": "在左边告诉我你想做什么——我给你找一个也在做同一件事的人。",
     "truncated_hint": "内容有点多，我只抓了前面这段的关键词。",
-    "step_clarify": "再确认一下",
-    "step_one_more": "还差一点点",
+    "heard": "听到的:{{summary}}。",
     "disambiguate_ask": "你说的是哪一个？",
-    "parse_fallback": "我目前只在这几件事上认识人，选一个继续。",
+    "fallback_intro": "我目前只在这几件事上认识人。挑一个，我接着找。",
     "ask_when": "{{kind}}大概什么时候方便？",
     "ask_level": "{{kind}}大概什么水平？",
+    "showing_one": "给你看一个——{{summary}}。已经放在右边。",
+    "no_match": "这会儿没有对得上的人。",
+    "no_match_near": "这个时段没人对得上——但 {{day}}{{window}}有 {{count}} 个人也在。",
+    "pool_exhausted_msg": "这个时段的人你都看过了。换个说法再试一次？",
     "when": {
       "weekend": "这个周末",
-      "weekend_hint": "周六 / 周日",
       "weeknight": "工作日晚上",
-      "weeknight_hint": "周一到周五晚上",
-      "any": "都行",
-      "any_hint": "任何时间"
+      "any": "都行"
     },
     "level": {
       "beginner": "新手",
@@ -155,17 +153,17 @@
       "any": "无所谓"
     },
     "heard_you": "听到的",
-    "restart": "重新说一句",
-    "disclaimer": "找到只是起点，聊起来才是。TA 不感兴趣也不会知道是你。",
     "pick_label": "一个可能对得上的人",
     "say_hello": "打个招呼",
     "swap": "换一个",
-    "pick_footnote": "点了会去到 Connections，你们从那儿继续聊。名字和照片按平时的方式解锁。",
+    "pick_footnote": "点了会去到 Connections,你们从那儿继续聊。名字和照片按平时的方式解锁。",
     "no_one": "这个时段这周没人。",
     "pool_exhausted": "这个时段的人你都看过了。",
+    "retry_hint": "在左边换个说法再说一次。",
     "near_hint": "但是 {{day}}{{window}}有 {{count}} 个人也在——",
     "near_try": "试试 {{day}}{{window}}"
   },
+
   "activity": {
     "kind": {
       "tennis": "网球", "run": "跑步", "climb": "攀岩",
