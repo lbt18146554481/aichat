@@ -159,6 +159,22 @@ export function parseIntent(raw: string): ParseResult {
 
 export type ViewKey = "prompt" | "disambiguate" | "fallback" | "ask" | "candidate" | "nearmiss";
 
+/** Chip actions that ride inside assistant messages. Route dispatches these. */
+export type ChipAction =
+  | { type: "resolve_ambiguity"; kind: ActivityKind }
+  | { type: "choose_fallback"; kind: ActivityKind }
+  | { type: "answer_when"; value: WhenTier }
+  | { type: "answer_level"; value: LevelTier | "any" }
+  | { type: "try_near_miss"; slot: { day: Weekday; window: "morning" | "midday" | "evening" } };
+
+export interface SideMsg {
+  id: string;
+  role: "user" | "assistant";
+  t: number;
+  text: string;
+  chips?: { id: string; label: string; action: ChipAction }[];
+}
+
 export interface SideState {
   intent: UserIntent | null;
   ambiguousKinds: ActivityKind[] | null; // L2 disambiguation pending
@@ -170,6 +186,7 @@ export interface SideState {
   candidate: Candidate | null;
   nearMisses: NearMiss[];
   poolExhausted: boolean;
+  messages: SideMsg[];
 }
 
 export const EMPTY: SideState = {
@@ -183,6 +200,7 @@ export const EMPTY: SideState = {
   candidate: null,
   nearMisses: [],
   poolExhausted: false,
+  messages: [],
 };
 
 export function currentView(s: SideState): ViewKey {
@@ -346,10 +364,11 @@ export function start(): SideState { return { ...EMPTY }; }
 
 export function submitPrompt(state: SideState, text: string): SideState {
   const parsed = parseIntent(text);
-  // Any new prompt resets skipped/candidate — the user is telling a fresh story.
+  // Any new prompt resets skipped/candidate — but keep chat history.
   const base: SideState = {
     ...EMPTY,
     truncated: !!parsed.truncated,
+    messages: state.messages,
   };
   if (parsed.layer === "L3") {
     return { ...base, parseFailed: true };
@@ -371,7 +390,7 @@ export function resolveAmbiguity(state: SideState, kind: ActivityKind): SideStat
 
 export function chooseFromFallback(state: SideState, kind: ActivityKind): SideState {
   const intent: UserIntent = { kind };
-  return decide({ ...EMPTY, intent });
+  return decide({ ...EMPTY, intent, messages: state.messages });
 }
 
 export function answerSlot(state: SideState, slot: "when" | "level", value: WhenTier | LevelTier | "any"): SideState {
@@ -390,7 +409,7 @@ export function swap(state: SideState): SideState {
   return decide({ ...state, skipped: [...state.skipped, state.candidate.personId], candidate: null });
 }
 
-// Return to the prompt view, keeping nothing.
+// Return to the prompt view, keeping nothing (chat cleared too).
 export function restart(): SideState { return { ...EMPTY }; }
 
 // Try a specific near-miss slot: reuse the current kind but shift `when` to
@@ -401,8 +420,9 @@ export function tryNearMiss(state: SideState, slot: { day: Weekday; window: "mor
     ? "weekend"
     : (slot.window === "evening" ? "weeknight" : "any");
   const intent: UserIntent = { ...state.intent, when: tier };
-  return decide({ ...EMPTY, intent });
+  return decide({ ...EMPTY, intent, messages: state.messages });
 }
+
 
 // The opener text used to seed the connections thread.
 export function makeOpener(candidate: Candidate, intent: UserIntent, lang: "en" | "zh-CN"): string {

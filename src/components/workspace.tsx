@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { Lang } from "@/lib/i18n";
-import { Composer, AssistantBubble, UserBubble, ThinkingRow } from "./chat-primitives";
+import { Composer, AssistantBubble, UserBubble, ThinkingRow, ChipRow, type ChipOption } from "./chat-primitives";
 import { WorkspaceHeader } from "./workspace-header";
 
-export interface AgentMsg { id: string; role: "user" | "assistant"; t: number; text: string; }
+export interface AgentMsg {
+  id: string;
+  role: "user" | "assistant";
+  t: number;
+  text: string;
+  /** Optional chip choices attached to an assistant message. */
+  chips?: ChipOption[];
+}
 
 interface Props {
   agentNameKey: string;
@@ -20,6 +27,8 @@ interface Props {
   composerDisabled?: boolean;
   /** Override placeholder. */
   placeholderOverride?: string;
+  /** Called when the user taps a chip inside an assistant message. */
+  onChipClick?: (action: unknown) => void;
   lang?: Lang; // kept for parity, not currently used internally
 }
 
@@ -34,6 +43,7 @@ export function Workspace({
   rightPane,
   composerDisabled,
   placeholderOverride,
+  onChipClick,
 }: Props) {
   const { t } = useTranslation();
   const [input, setInput] = useState("");
@@ -53,6 +63,15 @@ export function Workspace({
     onSend(text);
   }
 
+  // Only the last assistant message's chips are actionable.
+  let lastChipMsgIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "assistant" && messages[i].chips && messages[i].chips!.length > 0) {
+      lastChipMsgIdx = i;
+      break;
+    }
+  }
+
   return (
     <div className="h-screen flex flex-col bg-background">
       <WorkspaceHeader
@@ -67,9 +86,22 @@ export function Workspace({
           <div ref={scrollRef} className="flex-1 overflow-y-auto">
             <div className="max-w-xl mx-auto px-5 py-6">
               <ul className="space-y-4">
-                {messages.map((m) => (
+                {messages.map((m, i) => (
                   <li key={m.id}>
-                    {m.role === "user" ? <UserBubble text={m.text} /> : <AssistantBubble text={m.text} />}
+                    {m.role === "user" ? (
+                      <UserBubble text={m.text} />
+                    ) : (
+                      <>
+                        <AssistantBubble text={m.text} />
+                        {m.chips && m.chips.length > 0 && (
+                          <ChipRow
+                            chips={m.chips}
+                            disabled={i !== lastChipMsgIdx || thinking}
+                            onPick={(a) => onChipClick?.(a)}
+                          />
+                        )}
+                      </>
+                    )}
                   </li>
                 ))}
                 {thinking && <li><ThinkingRow /></li>}

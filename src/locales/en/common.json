@@ -130,25 +130,23 @@
 
 
   "meet": {
-    "prompt_hero": "Say what you want to do.",
-    "prompt_hint": "In your own words — e.g. \"Saturday morning tennis\", \"want to cook with someone this week\".",
-    "prompt_placeholder": "What you want to do, roughly when…",
-    "prompt_meta": "Cmd/Ctrl + Enter to send",
-    "prompt_submit": "Find someone",
+    "opening": "What do you feel like doing this week — and want company for? Just say it in your own words.",
+    "empty_title": "Someone will show up here.",
+    "empty_hint": "Tell me what you want to do on the left — I'll find one person who's also there.",
     "truncated_hint": "That's a lot — I only pulled keywords from the first part.",
-    "step_clarify": "One quick check",
-    "step_one_more": "One more tap",
+    "heard": "Heard: {{summary}}.",
     "disambiguate_ask": "Which one did you mean?",
-    "parse_fallback": "I only know people around these things — pick one to keep going.",
+    "fallback_intro": "I only know people around a few things. Pick one and I'll keep going.",
     "ask_when": "When roughly for {{kind}}?",
     "ask_level": "About what level of {{kind}}?",
+    "showing_one": "Here's one — {{summary}}. Pinned on the right.",
+    "no_match": "Nobody lines up with that right now.",
+    "no_match_near": "Nobody matches exactly — but {{count}} people are also around {{day}} {{window}}.",
+    "pool_exhausted_msg": "You've seen everyone in this slot. Try saying it a different way.",
     "when": {
       "weekend": "This weekend",
-      "weekend_hint": "Sat / Sun",
       "weeknight": "A weeknight",
-      "weeknight_hint": "Mon–Fri evenings",
-      "any": "I'm flexible",
-      "any_hint": "any time"
+      "any": "I'm flexible"
     },
     "level": {
       "beginner": "Beginner",
@@ -157,18 +155,17 @@
       "any": "Doesn't matter"
     },
     "heard_you": "Heard",
-    "restart": "Say something else",
-    "disclaimer": "Finding someone is just the start — the real thing is what you talk about after.",
     "pick_label": "Someone who's also there",
     "say_hello": "Say hello",
     "swap": "Someone else",
     "pick_footnote": "You'll pick up the conversation in Connections. Name and photo unlock the way they always do.",
     "no_one": "Nobody in this exact slot this week.",
     "pool_exhausted": "You've seen everyone in this slot.",
-    "near_hint_one": "But 1 person is also there — {{day}} {{window}}.",
-    "near_hint_other": "But {{count}} people are also there — {{day}} {{window}}.",
+    "retry_hint": "Say something else on the left.",
+    "near_hint": "But {{count}} people are also there — {{day}} {{window}}.",
     "near_try": "Try {{day}} {{window}} instead"
   },
+
   "activity": {
     "kind": {
       "tennis": "Tennis", "run": "Running", "climb": "Climbing",
