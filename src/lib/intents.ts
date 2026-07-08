@@ -236,7 +236,16 @@ export function clearMyIntents() {
 
 const STOPWORDS = new Set([
   "want", "looking", "for", "some", "someone", "with", "the", "and", "a", "an", "to", "of",
+  "usually", "around", "around", "casual", "serious", "not", "too", "just", "picked", "up",
+  "morning", "mornings", "evening", "evenings", "midday", "afternoon",
+  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "weekend", "weeknight",
+  // Chinese single words/particles
   "想", "找", "人", "一起", "和", "跟", "的", "了", "在", "有", "个", "点",
+  // Chinese bigrams that show up in the seed template "想找人…" and in dates/levels
+  "想找", "找人", "人周", "常在", "会一", "一点", "不较", "较真",
+  "周一", "周二", "周三", "周四", "周五", "周六", "周日",
+  "早上", "上午", "中午", "下午", "晚上", "傍晚",
+  "新手", "中级", "进阶",
 ]);
 export function tokenize(text: string): Set<string> {
   const t = text.toLowerCase().replace(/[\s\p{P}]+/gu, " ").trim();
