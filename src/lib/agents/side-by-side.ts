@@ -364,10 +364,11 @@ export function start(): SideState { return { ...EMPTY }; }
 
 export function submitPrompt(state: SideState, text: string): SideState {
   const parsed = parseIntent(text);
-  // Any new prompt resets skipped/candidate — the user is telling a fresh story.
+  // Any new prompt resets skipped/candidate — but keep chat history.
   const base: SideState = {
     ...EMPTY,
     truncated: !!parsed.truncated,
+    messages: state.messages,
   };
   if (parsed.layer === "L3") {
     return { ...base, parseFailed: true };
@@ -389,7 +390,7 @@ export function resolveAmbiguity(state: SideState, kind: ActivityKind): SideStat
 
 export function chooseFromFallback(state: SideState, kind: ActivityKind): SideState {
   const intent: UserIntent = { kind };
-  return decide({ ...EMPTY, intent });
+  return decide({ ...EMPTY, intent, messages: state.messages });
 }
 
 export function answerSlot(state: SideState, slot: "when" | "level", value: WhenTier | LevelTier | "any"): SideState {
@@ -408,7 +409,7 @@ export function swap(state: SideState): SideState {
   return decide({ ...state, skipped: [...state.skipped, state.candidate.personId], candidate: null });
 }
 
-// Return to the prompt view, keeping nothing.
+// Return to the prompt view, keeping nothing (chat cleared too).
 export function restart(): SideState { return { ...EMPTY }; }
 
 // Try a specific near-miss slot: reuse the current kind but shift `when` to
@@ -419,8 +420,9 @@ export function tryNearMiss(state: SideState, slot: { day: Weekday; window: "mor
     ? "weekend"
     : (slot.window === "evening" ? "weeknight" : "any");
   const intent: UserIntent = { ...state.intent, when: tier };
-  return decide({ ...EMPTY, intent });
+  return decide({ ...EMPTY, intent, messages: state.messages });
 }
+
 
 // The opener text used to seed the connections thread.
 export function makeOpener(candidate: Candidate, intent: UserIntent, lang: "en" | "zh-CN"): string {
