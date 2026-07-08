@@ -453,7 +453,14 @@ export function answerSlot(state: SideState, slot: "when" | "level", value: When
   } else {
     nextIntent.level = value === "any" ? undefined : (value as LevelTier);
   }
-  return decide({ ...state, intent: nextIntent, pendingAsk: null, askedCount: state.askedCount + 1 });
+  const nextState: SideState = {
+    ...state,
+    intent: nextIntent,
+    pendingAsk: null,
+    askedWhen: slot === "when" ? true : state.askedWhen,
+    askedLevel: slot === "level" ? true : state.askedLevel,
+  };
+  return decide(nextState);
 }
 
 export function swap(state: SideState): SideState {
