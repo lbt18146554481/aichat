@@ -97,7 +97,7 @@ const NEGATION_WORDS = ["不想", "不要", "别", "don't", "dont", "do not", "n
 const LEVEL_KINDS: ActivityKind[] = ["tennis", "climb"];
 
 // Follow-up asks trigger only when the raw candidate pool is above this.
-const ASK_THRESHOLD = 3;
+const ASK_THRESHOLD = 2;
 
 const MAX_INPUT_CHARS = 140;
 
