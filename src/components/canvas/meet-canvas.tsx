@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { ArrowUp, MessageCircle, Users, X, Undo2 } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
 import type { SideState, ChatMsg } from "@/lib/agents/side-by-side";
