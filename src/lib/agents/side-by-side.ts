@@ -159,6 +159,22 @@ export function parseIntent(raw: string): ParseResult {
 
 export type ViewKey = "prompt" | "disambiguate" | "fallback" | "ask" | "candidate" | "nearmiss";
 
+/** Chip actions that ride inside assistant messages. Route dispatches these. */
+export type ChipAction =
+  | { type: "resolve_ambiguity"; kind: ActivityKind }
+  | { type: "choose_fallback"; kind: ActivityKind }
+  | { type: "answer_when"; value: WhenTier }
+  | { type: "answer_level"; value: LevelTier | "any" }
+  | { type: "try_near_miss"; slot: { day: Weekday; window: "morning" | "midday" | "evening" } };
+
+export interface SideMsg {
+  id: string;
+  role: "user" | "assistant";
+  t: number;
+  text: string;
+  chips?: { id: string; label: string; action: ChipAction }[];
+}
+
 export interface SideState {
   intent: UserIntent | null;
   ambiguousKinds: ActivityKind[] | null; // L2 disambiguation pending
@@ -170,6 +186,7 @@ export interface SideState {
   candidate: Candidate | null;
   nearMisses: NearMiss[];
   poolExhausted: boolean;
+  messages: SideMsg[];
 }
 
 export const EMPTY: SideState = {
@@ -183,6 +200,7 @@ export const EMPTY: SideState = {
   candidate: null,
   nearMisses: [],
   poolExhausted: false,
+  messages: [],
 };
 
 export function currentView(s: SideState): ViewKey {
