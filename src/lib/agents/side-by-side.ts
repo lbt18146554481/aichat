@@ -33,11 +33,25 @@ export interface Candidate {
   venue_zh: string;
   reason: string;
   reason_zh: string;
+  /** True when the person is also "waiting" on this slot — always true in our
+   *  seed data, but the flag keeps the mutual-match contract explicit. */
+  mutual: boolean;
 }
 
 export interface NearMiss {
   personCount: number;
   slot: { day: Weekday; window: "morning" | "midday" | "evening" };
+}
+
+/** Sibling kinds we suggest when a stated intent has no matches at all. */
+const KIND_GROUPS: ActivityKind[][] = [
+  ["tennis", "run", "climb"],       // active
+  ["exhibition", "bookstore"],      // cultural
+  ["cook"],                         // homebody (no siblings)
+];
+function suggestKindsFor(kind: ActivityKind): ActivityKind[] {
+  const group = KIND_GROUPS.find((g) => g.includes(kind)) ?? [];
+  return group.filter((k) => k !== kind);
 }
 
 // ---- Parse layers -------------------------------------------------------
