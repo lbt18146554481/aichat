@@ -485,6 +485,13 @@ export function tryNearMiss(state: SideState, slot: { day: Weekday; window: "mor
   return decide({ ...EMPTY, intent, messages: state.messages });
 }
 
+export function addToWaitlist(state: SideState): SideState {
+  if (!state.intent) return state;
+  addEntry(state.intent);
+  return { ...state, waitlistJoinedForCurrent: true, recalledFromWaitlist: true };
+}
+
+
 
 // The opener text used to seed the connections thread.
 export function makeOpener(candidate: Candidate, intent: UserIntent, lang: "en" | "zh-CN"): string {
