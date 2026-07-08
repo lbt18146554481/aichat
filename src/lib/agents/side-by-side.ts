@@ -391,6 +391,7 @@ function decide(state: SideState): SideState {
   if (matches.length === 0) {
     const totalForKind = poolSize({ ...state, skipped: [] }, state.intent);
     const exhausted = totalForKind > 0 && state.skipped.length >= totalForKind;
+    const recalled = hasEntry(state.intent);
     return {
       ...state,
       candidate: null,
@@ -398,6 +399,7 @@ function decide(state: SideState): SideState {
       suggestKinds: suggestKindsFor(state.intent.kind),
       poolExhausted: exhausted,
       pendingAsk: null,
+      recalledFromWaitlist: recalled,
     };
   }
   const m = matches[0];
