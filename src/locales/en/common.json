@@ -175,7 +175,16 @@
     "edit_location": "Where (optional)",
     "edit_location_placeholder": "A neighborhood, court, park…",
     "edit_apply": "Save & rematch",
-    "edited_user_msg": "Edited my wish → {{changes}}"
+    "edited_user_msg": "Edited my wish → {{changes}}",
+    "pool_remaining": "{{count}} more waiting",
+    "pool_empty_hint": "No one else in the pool right now",
+    "next_match": "See next",
+    "revoke_reshare": "Withdraw & rewrite",
+    "pool_exhausted_label": "You've seen everyone in the pool",
+    "pool_exhausted_body": "Nobody else lines up with this wish right now. Loosen the time or level, or withdraw and try something different.",
+    "narrate_next_match": "Here's the next one who wants the same thing.",
+    "narrate_pool_exhausted": "That was the last person matching this wish. Want to loosen it, or say something else?",
+    "narrate_revoked": "Withdrawn. What would you rather do?"
 
   },
 
