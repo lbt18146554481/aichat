@@ -459,6 +459,11 @@ function SideBySidePage() {
       case "revoke":
         actWith((s) => revokeAndReset(s));
         break;
+      case "check_back":
+        // Wish stays published; user goes back to home. Home banner will
+        // surface it (waiting or matched) on next visit.
+        void navigate({ to: "/" });
+        break;
     }
   }
 
