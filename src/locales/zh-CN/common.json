@@ -173,7 +173,16 @@
     "edit_location": "在哪（可选）",
     "edit_location_placeholder": "写个片区、球场、公园…",
     "edit_apply": "保存并重新匹配",
-    "edited_user_msg": "改了下心愿 → {{changes}}"
+    "edited_user_msg": "改了下心愿 → {{changes}}",
+    "pool_remaining": "池子里还有 {{count}} 人",
+    "pool_empty_hint": "池子里暂时没有别的人了",
+    "next_match": "看下一个",
+    "revoke_reshare": "撤回，重发一条",
+    "pool_exhausted_label": "池子里对得上的人你都看过了",
+    "pool_exhausted_body": "现在没有别的人和这条心愿对得上。可以放宽时间或水平，也可以撤回，换件别的事。",
+    "narrate_next_match": "换一个看看，这是新的一位。",
+    "narrate_pool_exhausted": "这是最后一位。要不要放宽条件，或者换件别的事？",
+    "narrate_revoked": "好，这条撤了。你想做点别的？"
 
   },
 

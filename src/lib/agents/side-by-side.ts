@@ -227,6 +227,17 @@ export function editWish(
   return rematchAfterUpdate(state, state.myIntentId);
 }
 
+/** Skip the currently shown match — add to triedIntentIds and re-run findMatch. */
+export function skipMatch(state: SideState): SideState {
+  if (!state.myIntentId || !state.matchIntentId) return state;
+  const tried = state.triedIntentIds.includes(state.matchIntentId)
+    ? state.triedIntentIds
+    : [...state.triedIntentIds, state.matchIntentId];
+  const next: SideState = { ...state, triedIntentIds: tried, matchIntentId: null };
+  return rematchAfterUpdate(next, state.myIntentId);
+}
+
+
 
 /** Pivot my published wish to a near-miss person's slot and rematch. */
 export function tryNearMiss(state: SideState, intentId: string): SideState {

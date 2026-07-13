@@ -303,8 +303,8 @@ function kindsCompatible(mine: Intent, other: Intent): boolean {
   return mine.kind === other.kind;
 }
 
-/** Look through seed pool + other users' intents for a compatible partner. */
-export function findMatch(mine: Intent, opts?: { exclude?: string[] }): Intent | null {
+/** All compatible partners (sorted best-first), excluding any IDs in opts.exclude. */
+export function findAllMatches(mine: Intent, opts?: { exclude?: string[] }): Intent[] {
   const excluded = new Set(opts?.exclude ?? []);
   const mineWhen: WhenTier | undefined = mine.whenAny ? undefined : slotToWhen(mine.day, mine.window);
   const mineLevel: LevelTier | undefined = mine.levelAny ? undefined : mine.level;
@@ -320,10 +320,20 @@ export function findMatch(mine: Intent, opts?: { exclude?: string[] }): Intent |
       const theirLevel: LevelTier | undefined = it.levelAny ? undefined : it.level;
       return levelCompatible(kind, mineLevel, theirLevel ?? "intermediate");
     });
-  if (pool.length === 0) return null;
   pool.sort((a, b) => score(mine, b) - score(mine, a));
-  return pool[0];
+  return pool;
 }
+
+/** Look through seed pool + other users' intents for a compatible partner. */
+export function findMatch(mine: Intent, opts?: { exclude?: string[] }): Intent | null {
+  return findAllMatches(mine, opts)[0] ?? null;
+}
+
+/** Count remaining compatible partners not yet in `exclude`. */
+export function countAvailableMatches(mine: Intent, opts?: { exclude?: string[] }): number {
+  return findAllMatches(mine, opts).length;
+}
+
 
 /** Same kind, but when/level don't line up — useful "you might want to shift" hints. */
 export function findNearMisses(mine: Intent, opts?: { exclude?: string[] }): Intent[] {

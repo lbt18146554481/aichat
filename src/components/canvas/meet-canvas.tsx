@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { ArrowUp, MessageCircle, Pencil, Users, X, Undo2 } from "lucide-react";
+import { ArrowUp, MessageCircle, Pencil, SkipForward, Users, X, Undo2 } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
 import type { SideState, ChatMsg, LevelTier, WhenTier } from "@/lib/agents/side-by-side";
 import { currentView } from "@/lib/agents/side-by-side";
-import { getIntentById, type Intent } from "@/lib/intents";
+import { countAvailableMatches, getIntentById, type Intent } from "@/lib/intents";
 import type { ActivityKind } from "@/lib/types";
 import { avatarUrl } from "@/lib/people";
 
@@ -16,7 +16,10 @@ interface Props {
   onTryNearMiss: (intentId: string) => void;
   onSendChat: (text: string) => void;
   onEditWish: (patch: { when?: WhenTier; level?: LevelTier; location?: string }) => void;
+  onSkip: () => void;
+  onRevokeReshare: () => void;
 }
+
 
 
 const KIND_EMOJI: Record<ActivityKind, string> = {
@@ -54,7 +57,7 @@ function EmptyCanvas() {
 
 // ---- Match — two intent cards side by side + [start chat] --------------
 
-function MatchView({ state, onStartChat, onEditWish }: Props) {
+function MatchView({ state, onStartChat, onEditWish, onSkip, onRevokeReshare }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const [editing, setEditing] = useState(false);
@@ -66,12 +69,24 @@ function MatchView({ state, onStartChat, onEditWish }: Props) {
   const alignedWhen = sharedWhenLabel(mine, other, t);
   const alignedLevel = sharedLevelLabel(mine, other, t);
   const showLevel = mine.kind === "tennis" || mine.kind === "climb";
+  // Remaining candidates = everyone still matchable minus the current TA.
+  const remaining = Math.max(
+    0,
+    countAvailableMatches(mine, { exclude: state.triedIntentIds }) - 1,
+  );
 
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
       <div className="mx-auto max-w-lg">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
-          {t("intent.match_label")}
+        <div className="flex items-baseline justify-between gap-3">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
+            {t("intent.match_label")}
+          </div>
+          {remaining > 0 && (
+            <div className="text-[11px] text-muted-foreground">
+              {t("intent.pool_remaining", { count: remaining })}
+            </div>
+          )}
         </div>
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -101,11 +116,31 @@ function MatchView({ state, onStartChat, onEditWish }: Props) {
             {t("intent.start_chat")}
           </button>
           <button
-            onClick={() => setEditing((v) => !v)}
-            className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md border border-border text-[13px] text-foreground/85 hover:bg-secondary transition-colors"
+            onClick={onSkip}
+            disabled={remaining === 0}
+            title={remaining === 0 ? t("intent.pool_empty_hint") : undefined}
+            className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md border border-border text-[13px] text-foreground/85 hover:bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <Pencil className="w-3.5 h-3.5" />
+            <SkipForward className="w-3.5 h-3.5" />
+            {t("intent.next_match")}
+          </button>
+        </div>
+
+        <div className="mt-3 flex items-center justify-center gap-3 text-[12px] text-muted-foreground">
+          <button
+            onClick={() => setEditing((v) => !v)}
+            className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+          >
+            <Pencil className="w-3 h-3" />
             {editing ? t("intent.edit_close") : t("intent.edit_wish")}
+          </button>
+          <span className="opacity-40">·</span>
+          <button
+            onClick={onRevokeReshare}
+            className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+          >
+            <Undo2 className="w-3 h-3" />
+            {t("intent.revoke_reshare")}
           </button>
         </div>
 
@@ -124,6 +159,8 @@ function MatchView({ state, onStartChat, onEditWish }: Props) {
     </div>
   );
 }
+
+
 
 function EditWishPanel({
   intent,
@@ -279,31 +316,40 @@ function Tag({ children }: { children: React.ReactNode }) {
 
 // ---- No match — my published card + near-miss list ---------------------
 
-function NoMatchView({ state, onRevoke, onTryNearMiss }: Props) {
+function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
   if (!mine) return <EmptyCanvas />;
 
   const nears = state.nearMissIds.map((id) => getIntentById(id)).filter(Boolean) as Intent[];
+  const exhausted = state.triedIntentIds.length > 0;
 
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
       <div className="mx-auto max-w-lg">
         <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
-          {t("intent.published_label")}
+          {exhausted ? t("intent.pool_exhausted_label") : t("intent.published_label")}
         </div>
+        {exhausted && (
+          <p className="mt-2 text-[13px] text-foreground/85 leading-relaxed">
+            {t("intent.pool_exhausted_body")}
+          </p>
+        )}
 
         <div className="mt-4 rounded-xl border border-border bg-card p-4">
           <IntentCard intent={mine} side="me" lang={lang} />
           <button
-            onClick={onRevoke}
+            onClick={exhausted ? onRevokeReshare : onRevoke}
             className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
           >
             <Undo2 className="w-3 h-3" />
-            {t("intent.revoke")}
+            {exhausted ? t("intent.revoke_reshare") : t("intent.revoke")}
           </button>
         </div>
+
+
+
 
         {nears.length > 0 && (
           <div className="mt-6">
