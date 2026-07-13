@@ -262,6 +262,8 @@ function IntentCard({ intent, side, lang }: { intent: Intent; side: "me" | "them
           <Tag>{t(`activity.level.${intent.level}`)}</Tag>
         )}
         {intent.whenAny && <Tag>{t("meet.when.any")}</Tag>}
+        {side === "me" && intent.location && <Tag>📍 {intent.location}</Tag>}
+
       </div>
     </article>
   );
