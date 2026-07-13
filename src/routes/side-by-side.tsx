@@ -9,6 +9,7 @@ import { getIntentById } from "@/lib/intents";
 import {
   EMPTY,
   currentView,
+  editWish,
   load,
   receiveSimulatedReply,
   refineLevel,
@@ -28,6 +29,7 @@ import {
   type SideState,
   type WhenTier,
 } from "@/lib/agents/side-by-side";
+
 
 export const Route = createFileRoute("/side-by-side")({
   component: SideBySidePage,
@@ -183,10 +185,19 @@ function SideBySidePage() {
   function handleStartChat() { actWith((s) => startChat(s)); }
   function handleRevoke()    { actWith((s) => revokeAndReset(s)); }
   function handleTryNearMiss(intentId: string) { actWith((s) => tryNearMiss(s, intentId)); }
+  function handleEditWish(patch: { when?: WhenTier; level?: LevelTier; location?: string }) {
+    const bits: string[] = [];
+    if (patch.when) bits.push(t(`meet.when.${patch.when}`));
+    if (patch.level) bits.push(t(`meet.level.${patch.level}`));
+    if (patch.location !== undefined && patch.location.trim()) bits.push(patch.location.trim());
+    const userText = bits.length ? t("intent.edited_user_msg", { changes: bits.join(" · ") }) : undefined;
+    actWith((s) => editWish(s, patch), userText);
+  }
   function handleSendChat(text: string) {
     setState((s) => sendChatMessage(s, text));
     window.setTimeout(() => setState((s) => receiveSimulatedReply(s)), 900);
   }
+
 
   function handleReset() {
     if (!confirm("Start over?")) return;
@@ -218,7 +229,9 @@ function SideBySidePage() {
           onRevoke={handleRevoke}
           onTryNearMiss={handleTryNearMiss}
           onSendChat={handleSendChat}
+          onEditWish={handleEditWish}
         />
+
       }
     />
   );

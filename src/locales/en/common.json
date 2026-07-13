@@ -167,7 +167,16 @@
     "narrate_nomatch_ask": "Published '{{summary}}'. Nobody lines up yet. {{ask}}",
     "narrate_chat": "You're both in. Talk on the right — I'll stay here if you want me for anything.",
     "ask_when": "Add roughly when you're free, I'll match you faster:",
-    "ask_level": "Add roughly what level, I'll match you faster:"
+    "ask_level": "Add roughly what level, I'll match you faster:",
+    "edit_wish": "Edit wish",
+    "edit_close": "Close",
+    "edit_when": "When",
+    "edit_level": "Level",
+    "edit_location": "Where (optional)",
+    "edit_location_placeholder": "A neighborhood, court, park…",
+    "edit_apply": "Save & rematch",
+    "edited_user_msg": "Edited my wish → {{changes}}"
+
   },
 
   "activity": {

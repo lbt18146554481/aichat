@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { ArrowUp, MessageCircle, Users, X, Undo2 } from "lucide-react";
+import { ArrowUp, MessageCircle, Pencil, Users, X, Undo2 } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
-import type { SideState, ChatMsg } from "@/lib/agents/side-by-side";
+import type { SideState, ChatMsg, LevelTier, WhenTier } from "@/lib/agents/side-by-side";
 import { currentView } from "@/lib/agents/side-by-side";
 import { getIntentById, type Intent } from "@/lib/intents";
 import type { ActivityKind } from "@/lib/types";
@@ -15,7 +15,9 @@ interface Props {
   onRevoke: () => void;
   onTryNearMiss: (intentId: string) => void;
   onSendChat: (text: string) => void;
+  onEditWish: (patch: { when?: WhenTier; level?: LevelTier; location?: string }) => void;
 }
+
 
 const KIND_EMOJI: Record<ActivityKind, string> = {
   tennis: "🎾", run: "🏃", climb: "🧗", cook: "🍳", exhibition: "🖼", bookstore: "📚", other: "✨",
@@ -52,9 +54,10 @@ function EmptyCanvas() {
 
 // ---- Match — two intent cards side by side + [start chat] --------------
 
-function MatchView({ state, onStartChat }: Props) {
+function MatchView({ state, onStartChat, onEditWish }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const [editing, setEditing] = useState(false);
   const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
   const other = state.matchIntentId ? getIntentById(state.matchIntentId) : null;
   if (!mine || !other) return <EmptyCanvas />;
@@ -62,6 +65,7 @@ function MatchView({ state, onStartChat }: Props) {
   const alignedKind = t(`activity.kind.${mine.kind}`);
   const alignedWhen = sharedWhenLabel(mine, other, t);
   const alignedLevel = sharedLevelLabel(mine, other, t);
+  const showLevel = mine.kind === "tennis" || mine.kind === "climb";
 
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
@@ -88,13 +92,30 @@ function MatchView({ state, onStartChat }: Props) {
           </p>
         </div>
 
-        <button
-          onClick={onStartChat}
-          className="mt-4 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-md bg-foreground text-background text-[13.5px] font-medium hover:opacity-90 transition-opacity"
-        >
-          <MessageCircle className="w-3.5 h-3.5" />
-          {t("intent.start_chat")}
-        </button>
+        <div className="mt-4 flex items-center gap-2">
+          <button
+            onClick={onStartChat}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-md bg-foreground text-background text-[13.5px] font-medium hover:opacity-90 transition-opacity"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            {t("intent.start_chat")}
+          </button>
+          <button
+            onClick={() => setEditing((v) => !v)}
+            className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md border border-border text-[13px] text-foreground/85 hover:bg-secondary transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            {editing ? t("intent.edit_close") : t("intent.edit_wish")}
+          </button>
+        </div>
+
+        {editing && (
+          <EditWishPanel
+            intent={mine}
+            showLevel={showLevel}
+            onApply={(patch) => { onEditWish(patch); setEditing(false); }}
+          />
+        )}
 
         <p className="mt-4 text-[11.5px] text-muted-foreground leading-relaxed text-center">
           {t("intent.match_footnote")}
@@ -103,6 +124,110 @@ function MatchView({ state, onStartChat }: Props) {
     </div>
   );
 }
+
+function EditWishPanel({
+  intent,
+  showLevel,
+  onApply,
+}: {
+  intent: Intent;
+  showLevel: boolean;
+  onApply: (patch: { when?: WhenTier; level?: LevelTier; location?: string }) => void;
+}) {
+  const { t } = useTranslation();
+  const currentWhen: WhenTier = intent.whenAny
+    ? "any"
+    : intent.day === "sat" || intent.day === "sun" ? "weekend"
+    : intent.window === "evening" ? "weeknight" : "any";
+  const [when, setWhen] = useState<WhenTier>(currentWhen);
+  const [level, setLevel] = useState<LevelTier | "any">(intent.levelAny ? "any" : intent.level);
+  const [location, setLocation] = useState<string>(intent.location ?? "");
+
+  const whenOptions: WhenTier[] = ["weekend", "weeknight", "any"];
+  const levelOptions: (LevelTier | "any")[] = ["beginner", "intermediate", "advanced", "any"];
+
+  function apply() {
+    const patch: { when?: WhenTier; level?: LevelTier; location?: string } = {};
+    if (when !== currentWhen) patch.when = when;
+    if (showLevel) {
+      const cur = intent.levelAny ? "any" : intent.level;
+      if (level !== cur && level !== "any") patch.level = level as LevelTier;
+    }
+    if ((intent.location ?? "") !== location) patch.location = location;
+    onApply(patch);
+  }
+
+  return (
+    <div className="mt-3 rounded-xl border border-border bg-card p-4 space-y-4">
+      <div>
+        <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">
+          {t("intent.edit_when")}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {whenOptions.map((w) => (
+            <button
+              key={w}
+              onClick={() => setWhen(w)}
+              className={[
+                "px-3 py-1 rounded-full text-[12px] border transition-colors",
+                when === w
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-secondary text-foreground/80 hover:border-foreground/40",
+              ].join(" ")}
+            >
+              {t(`meet.when.${w}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {showLevel && (
+        <div>
+          <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">
+            {t("intent.edit_level")}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {levelOptions.map((l) => (
+              <button
+                key={l}
+                onClick={() => setLevel(l)}
+                className={[
+                  "px-3 py-1 rounded-full text-[12px] border transition-colors",
+                  level === l
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border bg-secondary text-foreground/80 hover:border-foreground/40",
+                ].join(" ")}
+              >
+                {t(`meet.level.${l}`)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">
+          {t("intent.edit_location")}
+        </div>
+        <input
+          type="text"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          placeholder={t("intent.edit_location_placeholder")}
+          className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-foreground/40"
+        />
+      </div>
+
+      <button
+        onClick={apply}
+        className="w-full inline-flex items-center justify-center px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
+      >
+        {t("intent.edit_apply")}
+      </button>
+    </div>
+  );
+}
+
 
 function IntentCard({ intent, side, lang }: { intent: Intent; side: "me" | "them"; lang: Lang }) {
   const { t } = useTranslation();
@@ -137,6 +262,8 @@ function IntentCard({ intent, side, lang }: { intent: Intent; side: "me" | "them
           <Tag>{t(`activity.level.${intent.level}`)}</Tag>
         )}
         {intent.whenAny && <Tag>{t("meet.when.any")}</Tag>}
+        {side === "me" && intent.location && <Tag>📍 {intent.location}</Tag>}
+
       </div>
     </article>
   );

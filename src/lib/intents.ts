@@ -40,9 +40,13 @@ export interface Intent {
   whenAny?: boolean;
   /** True when the intent's `level` was unspecified — matches anyone. */
   levelAny?: boolean;
+  /** Optional user-typed location note. Doesn't filter matches — shown as a tag. */
+  location?: string;
+  location_zh?: string;
 
   createdAt: number;
 }
+
 
 // ---- Compatibility ------------------------------------------------------
 
@@ -204,7 +208,7 @@ export function publishMyIntent(input: {
 }
 
 /** Update fields on my intent — returns the new intent, or null if not found. */
-export function updateMyIntent(id: string, patch: { when?: WhenTier; level?: LevelTier }): Intent | null {
+export function updateMyIntent(id: string, patch: { when?: WhenTier; level?: LevelTier; location?: string }): Intent | null {
   const list = loadMyIntents();
   const idx = list.findIndex((i) => i.id === id);
   if (idx < 0) return null;
@@ -212,16 +216,22 @@ export function updateMyIntent(id: string, patch: { when?: WhenTier; level?: Lev
   let next: Intent = { ...cur };
   if (patch.when !== undefined) {
     const { day, window } = whenToSlot(patch.when, cur.kind);
-    next.day = day; next.window = window; next.whenAny = false;
+    next.day = day; next.window = window; next.whenAny = patch.when === "any";
   }
   if (patch.level !== undefined) {
     next.level = patch.level; next.levelAny = false;
+  }
+  if (patch.location !== undefined) {
+    const v = patch.location.trim();
+    next.location = v || undefined;
+    next.location_zh = v || undefined;
   }
   const nextList = [...list];
   nextList[idx] = next;
   saveMyIntents(nextList);
   return next;
 }
+
 
 export function revokeMyIntent(id: string) {
   const list = loadMyIntents();
