@@ -21,7 +21,26 @@
       "cta": "去填资料 · {{done}}/{{total}}"
     },
     "profile_nudge": "让 Agent 也能这样介绍你 ——",
-    "profile_nudge_cta": "完善资料 · {{done}}/{{total}}"
+    "profile_nudge_cta": "完善资料 · {{done}}/{{total}}",
+    "banner": {
+      "waiting_title": "还给你挂着一条心愿",
+      "waiting_body": "{{summary}} · {{ago}}发出",
+      "waiting_hint": "你不在的时候我会继续帮你留意。",
+      "waiting_cta": "去看看",
+      "matched_title": "有人和你排上了",
+      "matched_body": "{{name}} · {{summary}}",
+      "matched_cta": "去看看",
+      "chat_title": "和 {{name}} 的对话进行中",
+      "chat_body": "{{summary}}",
+      "chat_cta": "继续",
+      "cancel": "撤回这条心愿"
+    },
+    "time": {
+      "just_now": "刚刚",
+      "minutes": "{{n}} 分钟前",
+      "hours": "{{n}} 小时前",
+      "days": "{{n}} 天前"
+    }
   },
   "agents": {
     "matchmaker": {
