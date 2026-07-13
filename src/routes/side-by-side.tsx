@@ -229,7 +229,9 @@ function SideBySidePage() {
           onRevoke={handleRevoke}
           onTryNearMiss={handleTryNearMiss}
           onSendChat={handleSendChat}
+          onEditWish={handleEditWish}
         />
+
       }
     />
   );
