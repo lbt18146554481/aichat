@@ -39,7 +39,7 @@
     "home": "Back to home"
   },
   "header": {
-    "reset": "Start over",
+    "reset": "+ New wish",
     "subtitle": "AI Agent",
     "letters": "Letters",
     "connections": "Connections",
@@ -190,8 +190,25 @@
     "pool_exhausted_body": "Nobody else lines up with this wish right now. Loosen the time or level, or withdraw and try something different.",
     "narrate_next_match": "Here's the next one who wants the same thing.",
     "narrate_pool_exhausted": "That was the last person matching this wish. Want to loosen it, or say something else?",
-    "narrate_revoked": "Withdrawn. What would you rather do?"
-
+    "narrate_revoked": "Withdrawn. What would you rather do?",
+    "chip_about_person": "Who is TA",
+    "chip_ask_opener": "Draft me an opener",
+    "chip_new_type": "Someone different",
+    "chip_use_draft": "Use this in the chat",
+    "chip_start_with_draft": "Start with this line",
+    "agent_ask_trait": "What kind of person? Just one line.",
+    "agent_trait_saved": "Got it — showing someone else.",
+    "agent_opener_lead": "Try this:",
+    "agent_reply_lead": "You could say:",
+    "agent_no_brief": "I don't have much on TA yet — check the card on the right.",
+    "agent_no_opener": "I don't have an opener drafted for this one — best in your own words.",
+    "agent_no_reply_hint": "I'll skip a suggestion here — your own words will land better.",
+    "back_to_candidate": "← Back to candidate",
+    "memory_prefix": "Last time you told me you wanted someone {{trait}} — same direction now?",
+    "narrate_new_activity": "Fresh start. What do you want to do this time?",
+    "narrate_new_activity_with_memory": "Fresh start. Last time you said you wanted someone {{trait}} — same direction now?",
+    "left_placeholder_match": "Ask me about TA, or say you want someone different…",
+    "left_placeholder_chat": "Ask me what to say, or draft a line…"
   },
 
   "activity": {

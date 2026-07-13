@@ -37,7 +37,7 @@
   },
   "nav": { "home": "返回首页" },
   "header": {
-    "reset": "重新开始",
+    "reset": "+ 新一件事",
     "subtitle": "AI Agent",
     "letters": "信件",
     "connections": "我的联系",
@@ -188,8 +188,25 @@
     "pool_exhausted_body": "现在没有别的人和这条心愿对得上。可以放宽时间或水平，也可以撤回，换件别的事。",
     "narrate_next_match": "换一个看看，这是新的一位。",
     "narrate_pool_exhausted": "这是最后一位。要不要放宽条件，或者换件别的事？",
-    "narrate_revoked": "好，这条撤了。你想做点别的？"
-
+    "narrate_revoked": "好，这条撤了。你想做点别的？",
+    "chip_about_person": "TA 是什么样的人",
+    "chip_ask_opener": "帮我想句开场白",
+    "chip_new_type": "想要不一样的人",
+    "chip_use_draft": "用这句发给 TA",
+    "chip_start_with_draft": "用这句开始聊",
+    "agent_ask_trait": "想遇到什么样的？一句话就行。",
+    "agent_trait_saved": "记下了 —— 我换个看看。",
+    "agent_opener_lead": "试试这句：",
+    "agent_reply_lead": "可以这样回：",
+    "agent_no_brief": "关于 TA 我知道的还不多，先看看右边卡片吧。",
+    "agent_no_opener": "我还没准备好这位的开场白——直接用你自己的话开吧。",
+    "agent_no_reply_hint": "这一条我先不给建议，你自己写更真实。",
+    "back_to_candidate": "← 回到候选",
+    "memory_prefix": "上次你说过想遇到「{{trait}}」——这次也这个方向？",
+    "narrate_new_activity": "好，从头来。这次想和人一起做点什么？",
+    "narrate_new_activity_with_memory": "好，从头来。上次你说过想遇到「{{trait}}」——这次也这个方向？",
+    "left_placeholder_match": "问我关于 TA 的事，或者说想换个人…",
+    "left_placeholder_chat": "问我怎么回，或者让我想句话…"
   },
 
   "activity": {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { ArrowUp, MessageCircle, Pencil, SkipForward, Users, X, Undo2 } from "lucide-react";
+import { ArrowUp, ArrowLeft, MessageCircle, SkipForward, Users, X } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
 import type { SideState, ChatMsg, LevelTier, WhenTier } from "@/lib/agents/side-by-side";
 import { currentView } from "@/lib/agents/side-by-side";
@@ -19,7 +19,12 @@ interface Props {
   onEditWish: (patch: { when?: WhenTier; level?: LevelTier; location?: string }) => void;
   onSkip: () => void;
   onRevokeReshare: () => void;
+  /** Return from the TA chat back to the candidate card without ending the wish. */
+  onBackToCandidate?: () => void;
+  /** Called after the composer has consumed state.pendingDraft. */
+  onDraftConsumed?: () => void;
 }
+
 
 
 
@@ -58,10 +63,9 @@ function EmptyCanvas() {
 
 // ---- Match — two intent cards side by side + [start chat] --------------
 
-function MatchView({ state, onStartChat, onEditWish, onSkip, onRevokeReshare }: Props) {
+function MatchView({ state, onStartChat, onSkip }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
-  const [editing, setEditing] = useState(false);
   const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
   const other = state.matchIntentId ? getIntentById(state.matchIntentId) : null;
   if (!mine || !other) return <EmptyCanvas />;
@@ -69,7 +73,6 @@ function MatchView({ state, onStartChat, onEditWish, onSkip, onRevokeReshare }: 
   const alignedKind = t(`activity.kind.${mine.kind}`);
   const alignedWhen = sharedWhenLabel(mine, other, t);
   const alignedLevel = sharedLevelLabel(mine, other, t);
-  const showLevel = mine.kind === "tennis" || mine.kind === "climb";
   // Remaining candidates = everyone still matchable minus the current TA.
   const remaining = Math.max(
     0,
@@ -128,31 +131,9 @@ function MatchView({ state, onStartChat, onEditWish, onSkip, onRevokeReshare }: 
           </button>
         </div>
 
-        <div className="mt-3 flex items-center justify-center gap-3 text-[12px] text-muted-foreground">
-          <button
-            onClick={() => setEditing((v) => !v)}
-            className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
-          >
-            <Pencil className="w-3 h-3" />
-            {editing ? t("intent.edit_close") : t("intent.edit_wish")}
-          </button>
-          <span className="opacity-40">·</span>
-          <button
-            onClick={onRevokeReshare}
-            className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
-          >
-            <Undo2 className="w-3 h-3" />
-            {t("intent.revoke_reshare")}
-          </button>
-        </div>
+        {/* Editing / withdrawing lives in the left Agent chat now — right pane
+            stays focused on the person. */}
 
-        {editing && (
-          <EditWishPanel
-            intent={mine}
-            showLevel={showLevel}
-            onApply={(patch) => { onEditWish(patch); setEditing(false); }}
-          />
-        )}
 
         <p className="mt-4 text-[11.5px] text-muted-foreground leading-relaxed text-center">
           {t("intent.match_footnote")}
@@ -426,7 +407,7 @@ function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare }: Props)
             onClick={exhausted ? onRevokeReshare : onRevoke}
             className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
           >
-            <Undo2 className="w-3 h-3" />
+            <ArrowLeft className="w-3 h-3" />
             {exhausted ? t("intent.revoke_reshare") : t("intent.revoke")}
           </button>
         </div>
@@ -478,11 +459,12 @@ function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare }: Props)
 
 // ---- Chat view (in-canvas) ---------------------------------------------
 
-function ChatView({ state, onSendChat }: Props) {
+function ChatView({ state, onSendChat, onBackToCandidate, onDraftConsumed }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const [expanded, setExpanded] = useState(false);
   const [text, setText] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
   const other = state.matchIntentId ? getIntentById(state.matchIntentId) : null;
@@ -490,6 +472,23 @@ function ChatView({ state, onSendChat }: Props) {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [state.chatMessages.length]);
+
+  // Pre-fill the composer when the left Agent drafts a line for the user.
+  useEffect(() => {
+    if (state.pendingDraft) {
+      setText(state.pendingDraft);
+      onDraftConsumed?.();
+      // Focus and place cursor at end so the user can tweak before sending.
+      window.setTimeout(() => {
+        const el = textareaRef.current;
+        if (el) {
+          el.focus();
+          el.selectionStart = el.selectionEnd = el.value.length;
+        }
+      }, 40);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.pendingDraft]);
 
   if (!mine || !other) return <EmptyCanvas />;
 
@@ -505,35 +504,46 @@ function ChatView({ state, onSendChat }: Props) {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Slim aligned banner (click to expand full alignment card) */}
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="text-left border-b border-border bg-emerald-500/5 px-5 py-2.5 hover:bg-emerald-500/10 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <img src={avatarUrl(other.ownerId)} alt="" className="w-8 h-8 rounded-full border border-border" />
-          <div className="min-w-0 flex-1">
-            <div className="text-[13px] font-semibold text-foreground truncate">{otherName}{otherCity ? ` · ${otherCity}` : ""}</div>
-            <div className="text-[11px] text-muted-foreground truncate">
-              {t("intent.aligned_slim", {
-                kind: t(`activity.kind.${mine.kind}`),
-                day: t(`activity.day.${mine.day}`),
-                window: t(`activity.window.${mine.window}`),
-              })}
-            </div>
-          </div>
-          <span className="text-[10px] font-mono text-muted-foreground shrink-0">
-            {expanded ? t("intent.hide_alignment") : t("intent.show_alignment")}
-          </span>
-        </div>
-        {expanded && (
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 pointer-events-none">
-            <IntentCard intent={mine} side="me" lang={lang} />
-            <IntentCard intent={other} side="them" lang={lang} />
-          </div>
+      {/* Back to candidate + slim aligned banner */}
+      <div className="border-b border-border bg-emerald-500/5">
+        {onBackToCandidate && (
+          <button
+            type="button"
+            onClick={onBackToCandidate}
+            className="w-full text-left px-5 pt-2 pb-1 text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
+          >
+            {t("intent.back_to_candidate")}
+          </button>
         )}
-      </button>
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="w-full text-left px-5 py-2.5 hover:bg-emerald-500/10 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <img src={avatarUrl(other.ownerId)} alt="" className="w-8 h-8 rounded-full border border-border" />
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-semibold text-foreground truncate">{otherName}{otherCity ? ` · ${otherCity}` : ""}</div>
+              <div className="text-[11px] text-muted-foreground truncate">
+                {t("intent.aligned_slim", {
+                  kind: t(`activity.kind.${mine.kind}`),
+                  day: t(`activity.day.${mine.day}`),
+                  window: t(`activity.window.${mine.window}`),
+                })}
+              </div>
+            </div>
+            <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+              {expanded ? t("intent.hide_alignment") : t("intent.show_alignment")}
+            </span>
+          </div>
+          {expanded && (
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 pointer-events-none">
+              <IntentCard intent={mine} side="me" lang={lang} />
+              <IntentCard intent={other} side="them" lang={lang} />
+            </div>
+          )}
+        </button>
+      </div>
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4">
@@ -548,6 +558,7 @@ function ChatView({ state, onSendChat }: Props) {
       <div className="border-t border-border bg-background px-4 py-3">
         <div className="max-w-md mx-auto relative">
           <textarea
+            ref={textareaRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
