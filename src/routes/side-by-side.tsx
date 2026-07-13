@@ -6,8 +6,13 @@ import { Workspace, type AgentMsg } from "@/components/workspace";
 import { MeetCanvas } from "@/components/canvas/meet-canvas";
 import { consumeSeed } from "@/lib/seed";
 import { getIntentById } from "@/lib/intents";
+import { getPersonById } from "@/lib/people";
+import { lastTrait, rememberTrait } from "@/lib/agent-memory";
+import type { Lang } from "@/lib/i18n";
 import {
   EMPTY,
+  backToCandidate,
+  clearPendingDraft,
   currentView,
   editWish,
   load,
@@ -18,6 +23,8 @@ import {
   revokeAndReset,
   save,
   sendChatMessage,
+  setAwaitingTrait,
+  setPendingDraft,
   skipMatch,
   start,
   startChat,
@@ -64,6 +71,16 @@ function summarize(intentId: string | null, t: TFunction): string {
   return parts.join(" · ");
 }
 
+// Chips attached to the Agent message when a match arrives.
+// These are the three things you'd realistically ask a private advisor.
+function matchChips(t: TFunction): SideMsg["chips"] {
+  return [
+    { id: "chip-about",  label: t("intent.chip_about_person"), action: { type: "ask_about_person" } },
+    { id: "chip-opener", label: t("intent.chip_ask_opener"),   action: { type: "ask_opener" } },
+    { id: "chip-newtype",label: t("intent.chip_new_type"),     action: { type: "request_new_type" } },
+  ];
+}
+
 function narrate(state: SideState, prev: SideState, t: TFunction): SideMsg | null {
   const view = currentView(state);
   const truncated = state.truncated ? `${t("meet.truncated_hint")}\n\n` : "";
@@ -71,7 +88,11 @@ function narrate(state: SideState, prev: SideState, t: TFunction): SideMsg | nul
   if (view === "match") {
     // Only announce a new match when it wasn't already there.
     if (prev.matchIntentId === state.matchIntentId) return null;
-    return msg("assistant", truncated + t("intent.narrate_matched", { summary: summarize(state.myIntentId, t) }));
+    return msg(
+      "assistant",
+      truncated + t("intent.narrate_matched", { summary: summarize(state.myIntentId, t) }),
+      matchChips(t),
+    );
   }
 
   if (view === "nomatch") {
@@ -92,7 +113,6 @@ function narrate(state: SideState, prev: SideState, t: TFunction): SideMsg | nul
       );
     }
     if (chips.length === 0) {
-      // Something was missing before but nothing helpful to ask now — plain narration.
       return msg("assistant", truncated + t("intent.narrate_nomatch", { summary: summarize(state.myIntentId, t) }));
     }
     const askKind = mine.whenAny ? "when" : "level";
@@ -107,8 +127,27 @@ function narrate(state: SideState, prev: SideState, t: TFunction): SideMsg | nul
   return null;
 }
 
+// ---- Question detection (demo keyword matching, not real NLU) --------
+type Question = "about_person" | "opener" | "reply_hint" | "new_type" | "new_activity" | null;
+
+function classify(text: string): Question {
+  const s = text.toLowerCase();
+  // "new activity" — user wants to change what they're doing entirely
+  if (/(换件事|换个事|换件别的|做点别的|别的事|做别的|new wish|new activity|something else|different thing)/i.test(text)) return "new_activity";
+  // "different kind of person" — same activity, different TA
+  if (/(不一样的人|换个人|换一个|其他人|别的人|different person|someone else|someone different|other kind)/i.test(text)) return "new_type";
+  // Draft an opener
+  if (/(开场白|怎么开始|怎么打招呼|想句话|想一句|opener|first line|first message|what to say|how to start)/i.test(text)) return "opener";
+  // Reply hint
+  if (/(怎么回|回什么|想不出|怎么答|help me reply|what should i say|what to reply|not sure how)/i.test(text)) return "reply_hint";
+  // Who is TA
+  if (/(TA 是|ta是|什么样的人|介绍.*TA|介绍下|介绍一下|多讲讲|讲讲 TA|讲讲ta|who is|tell me about|more about|what.*they like)/i.test(text)) return "about_person";
+  return null;
+}
+
 function SideBySidePage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.resolvedLanguage as Lang) ?? "en";
 
   // Consume the homepage-seeded prompt exactly once. consumeSeed() removes the
   // value from sessionStorage on read, so we must not call it twice.
@@ -129,11 +168,16 @@ function SideBySidePage() {
   useEffect(() => { setHydrated(true); }, []);
   useEffect(() => { if (hydrated) save(state); }, [state, hydrated]);
 
-  // Opening message.
+  // Opening message — if the Agent already remembers a preferred trait from a
+  // previous activity, lead with it. Otherwise the plain opener.
   useEffect(() => {
     if (!hydrated) return;
     if (state.messages.length === 0) {
-      setState((s) => ({ ...s, messages: [msg("assistant", t("meet.opening"))] }));
+      const trait = lastTrait();
+      const opening = trait
+        ? t("intent.memory_prefix", { trait }) + "\n\n" + t("meet.opening")
+        : t("meet.opening");
+      setState((s) => ({ ...s, messages: [msg("assistant", opening)] }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
@@ -162,7 +206,203 @@ function SideBySidePage() {
     }, 320);
   }
 
+  // ---- Agent-Q&A replies -------------------------------------------------
+  // These add an assistant message + (optionally) a chip. They do NOT
+  // change the intent / match state.
+
+  function respondAboutPerson(userText: string) {
+    setThinking(true);
+    window.setTimeout(() => {
+      setState((s) => {
+        const other = s.matchIntentId ? getIntentById(s.matchIntentId) : null;
+        const person = other ? getPersonById(other.ownerId) : null;
+        const brief = person?.personBrief
+          ? (lang === "zh-CN" ? person.personBrief.zh : person.personBrief.en)
+          : t("intent.agent_no_brief");
+        const nextMsgs = [
+          ...s.messages,
+          msg("user", userText),
+          msg("assistant", brief),
+        ];
+        return { ...s, messages: nextMsgs };
+      });
+      setThinking(false);
+    }, 320);
+  }
+
+  function respondOpener(userText: string, forChat: boolean) {
+    setThinking(true);
+    window.setTimeout(() => {
+      setState((s) => {
+        const other = s.matchIntentId ? getIntentById(s.matchIntentId) : null;
+        const person = other ? getPersonById(other.ownerId) : null;
+        const line = person?.openerSuggestion
+          ? (lang === "zh-CN" ? person.openerSuggestion.zh : person.openerSuggestion.en)
+          : null;
+        if (!line) {
+          return {
+            ...s,
+            messages: [
+              ...s.messages,
+              msg("user", userText),
+              msg("assistant", t("intent.agent_no_opener")),
+            ],
+          };
+        }
+        const chipAction: ChipAction = forChat
+          ? { type: "use_draft", text: line }
+          : { type: "start_chat_with_draft", text: line };
+        const chipLabel = forChat
+          ? t("intent.chip_use_draft")
+          : t("intent.chip_start_with_draft");
+        const body = `${t("intent.agent_opener_lead")}\n\n"${line}"`;
+        return {
+          ...s,
+          messages: [
+            ...s.messages,
+            msg("user", userText),
+            msg("assistant", body, [{ id: "chip-draft-" + Date.now(), label: chipLabel, action: chipAction }]),
+          ],
+        };
+      });
+      setThinking(false);
+    }, 320);
+  }
+
+  function respondReplyHint(userText: string) {
+    setThinking(true);
+    window.setTimeout(() => {
+      setState((s) => {
+        const other = s.matchIntentId ? getIntentById(s.matchIntentId) : null;
+        const person = other ? getPersonById(other.ownerId) : null;
+        const hints = person?.replyHints
+          ? (lang === "zh-CN" ? person.replyHints.zh : person.replyHints.en)
+          : null;
+        const line = hints && hints.length > 0
+          ? hints[s.chatMessages.length % hints.length]
+          : null;
+        if (!line) {
+          return {
+            ...s,
+            messages: [
+              ...s.messages,
+              msg("user", userText),
+              msg("assistant", t("intent.agent_no_reply_hint")),
+            ],
+          };
+        }
+        const body = `${t("intent.agent_reply_lead")}\n\n"${line}"`;
+        return {
+          ...s,
+          messages: [
+            ...s.messages,
+            msg("user", userText),
+            msg("assistant", body, [
+              { id: "chip-usedraft-" + Date.now(), label: t("intent.chip_use_draft"), action: { type: "use_draft", text: line } },
+            ]),
+          ],
+        };
+      });
+      setThinking(false);
+    }, 320);
+  }
+
+  function askForTrait(userText: string) {
+    setThinking(true);
+    window.setTimeout(() => {
+      setState((s) => setAwaitingTrait({
+        ...s,
+        messages: [
+          ...s.messages,
+          msg("user", userText),
+          msg("assistant", t("intent.agent_ask_trait")),
+        ],
+      }, true));
+      setThinking(false);
+    }, 320);
+  }
+
+  function consumeTraitAndSkip(userText: string) {
+    rememberTrait(userText);
+    setThinking(true);
+    window.setTimeout(() => {
+      setState((s) => {
+        // Clear the flag and skip to next match.
+        const skipped = skipMatch({ ...s, awaitingTrait: false });
+        const line = skipped.matchIntentId
+          ? t("intent.agent_trait_saved")
+          : t("intent.narrate_pool_exhausted");
+        return {
+          ...skipped,
+          messages: [
+            ...skipped.messages,
+            msg("user", userText),
+            msg("assistant", line),
+          ],
+        };
+      });
+      setThinking(false);
+    }, 320);
+  }
+
+  function startNewActivity(userText?: string) {
+    setThinking(true);
+    window.setTimeout(() => {
+      setState((s) => {
+        const cleared = revokeAndReset(s);
+        const trait = lastTrait();
+        const line = trait
+          ? t("intent.narrate_new_activity_with_memory", { trait })
+          : t("intent.narrate_new_activity");
+        const nextMsgs: SideMsg[] = [
+          ...(userText ? [msg("user", userText)] : []),
+          msg("assistant", line),
+        ];
+        // Fresh conversation: drop prior messages, start clean.
+        return { ...cleared, messages: nextMsgs };
+      });
+      setThinking(false);
+    }, 320);
+  }
+
   function handleSend(text: string) {
+    // If we asked "what kind of person" and are waiting on a trait, treat
+    // whatever they type next as the trait.
+    if (state.awaitingTrait) {
+      consumeTraitAndSkip(text);
+      return;
+    }
+
+    // Route by keyword when we're in a match or chat context.
+    if (state.stage === "published" && state.matchIntentId) {
+      const q = classify(text);
+      if (q === "new_activity") return startNewActivity(text);
+      if (q === "new_type")     return askForTrait(text);
+      if (q === "about_person") return respondAboutPerson(text);
+      if (q === "opener")       return respondOpener(text, /*forChat*/ false);
+      if (q === "reply_hint")   return respondReplyHint(text);
+      // Otherwise fall through to submitPrompt (user is publishing a new wish).
+    }
+    if (state.stage === "chat") {
+      const q = classify(text);
+      if (q === "new_activity") return startNewActivity(text);
+      if (q === "about_person") return respondAboutPerson(text);
+      if (q === "opener")       return respondOpener(text, /*forChat*/ true);
+      if (q === "reply_hint")   return respondReplyHint(text);
+      if (q === "new_type") {
+        // Not meaningful mid-chat; nudge back to candidate view.
+        setState((s) => ({
+          ...s,
+          stage: "published",
+          chatMessages: [],
+          messages: [...s.messages, msg("user", text), msg("assistant", t("intent.agent_ask_trait"))],
+          awaitingTrait: true,
+        }));
+        return;
+      }
+      // Fall through: user typed a new wish mid-chat — publish it.
+    }
+
     actWith((s) => submitPrompt(s, text), text);
   }
 
@@ -177,6 +417,21 @@ function SideBySidePage() {
         break;
       case "start_chat":
         actWith((s) => startChat(s));
+        break;
+      case "start_chat_with_draft":
+        actWith((s) => startChat(s, a.text));
+        break;
+      case "use_draft":
+        setState((s) => setPendingDraft(s, a.text));
+        break;
+      case "ask_about_person":
+        respondAboutPerson(t("intent.chip_about_person"));
+        break;
+      case "ask_opener":
+        respondOpener(t("intent.chip_ask_opener"), state.stage === "chat");
+        break;
+      case "request_new_type":
+        askForTrait(t("intent.chip_new_type"));
         break;
       case "try_near_miss":
         actWith((s) => tryNearMiss(s, a.intentId));
@@ -226,20 +481,24 @@ function SideBySidePage() {
     window.setTimeout(() => setState((s) => receiveSimulatedReply(s)), 900);
   }
 
+  function handleBackToCandidate() { setState((s) => backToCandidate(s)); }
+  function handleDraftConsumed()   { setState((s) => clearPendingDraft(s)); }
 
-
+  // "New activity" from the header. Same semantic as before but no confirm —
+  // the user has learned this means "reset the current wish and start clean".
   function handleReset() {
-    if (!confirm("Start over?")) return;
-    reset();
-    const s = start();
-    setState({ ...s, messages: [msg("assistant", t("meet.opening"))] });
+    startNewActivity();
   }
 
   if (!hydrated) return <div className="h-screen bg-background" />;
 
   const messages: AgentMsg[] = state.messages;
   const placeholderKey =
-    state.stage === "chat" ? "intent.left_placeholder_during_chat" : "chat.placeholder_first";
+    state.stage === "chat"
+      ? "intent.left_placeholder_chat"
+      : state.matchIntentId
+        ? "intent.left_placeholder_match"
+        : "chat.placeholder_first";
 
   return (
     <Workspace
@@ -261,9 +520,9 @@ function SideBySidePage() {
           onEditWish={handleEditWish}
           onSkip={handleSkip}
           onRevokeReshare={handleRevokeReshare}
+          onBackToCandidate={handleBackToCandidate}
+          onDraftConsumed={handleDraftConsumed}
         />
-
-
       }
     />
   );
