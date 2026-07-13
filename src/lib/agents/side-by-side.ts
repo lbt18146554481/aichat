@@ -118,6 +118,11 @@ export type ChipAction =
   | { type: "refine_when"; value: WhenTier }
   | { type: "refine_level"; value: LevelTier }
   | { type: "start_chat" }
+  | { type: "start_chat_with_draft"; text: string }
+  | { type: "use_draft"; text: string }
+  | { type: "ask_about_person" }
+  | { type: "ask_opener" }
+  | { type: "request_new_type" }
   | { type: "try_near_miss"; intentId: string }
   | { type: "revoke" };
 
@@ -142,6 +147,12 @@ export interface SideState {
   truncated: boolean;
   messages: SideMsg[];
   chatMessages: ChatMsg[];
+  /** Text the left Agent has drafted, to be pre-filled into the right-side
+   *  TA composer when it renders. Cleared once consumed. */
+  pendingDraft?: string;
+  /** When true, the next user message in the left composer is treated as
+   *  a "what kind of person do you want" answer (feeds Agent memory + skips). */
+  awaitingTrait?: boolean;
 }
 
 export const EMPTY: SideState = {
@@ -254,13 +265,18 @@ export function tryNearMiss(state: SideState, intentId: string): SideState {
   );
 }
 
-export function startChat(state: SideState): SideState {
+export function startChat(state: SideState, draft?: string): SideState {
   if (state.stage !== "published" || !state.matchIntentId) return state;
   const other = getIntentById(state.matchIntentId);
   if (!other) return state;
   const opener = other.rawText_zh || other.rawText;
   const first: ChatMsg = { id: uid(), from: "them", text: opener, t: Date.now() };
-  return { ...state, stage: "chat", chatMessages: [first] };
+  return {
+    ...state,
+    stage: "chat",
+    chatMessages: [first],
+    ...(draft ? { pendingDraft: draft } : {}),
+  };
 }
 
 export function sendChatMessage(state: SideState, text: string): SideState {
@@ -281,6 +297,28 @@ export function revokeAndReset(state: SideState): SideState {
   if (state.myIntentId) revokeMyIntent(state.myIntentId);
   return { ...EMPTY, messages: state.messages };
 }
+
+/** Set a draft the right-side TA composer should pre-fill with. */
+export function setPendingDraft(state: SideState, text: string): SideState {
+  return { ...state, pendingDraft: text };
+}
+
+export function clearPendingDraft(state: SideState): SideState {
+  if (!state.pendingDraft) return state;
+  const { pendingDraft: _drop, ...rest } = state;
+  return rest as SideState;
+}
+
+/** Return to the candidate card view without ending the wish. TA chat resets. */
+export function backToCandidate(state: SideState): SideState {
+  if (state.stage !== "chat") return state;
+  return { ...state, stage: "published", chatMessages: [] };
+}
+
+export function setAwaitingTrait(state: SideState, v: boolean): SideState {
+  return { ...state, awaitingTrait: v };
+}
+
 
 // ---- Persistence -------------------------------------------------------
 

@@ -70,5 +70,11 @@ export interface Person {
   oneWork?: OneWorkRef;
   /** One-sentence "why is TA" line for the side-by-side match card. Demo copy. */
   whyPersonLine?: { en: string; zh: string };
+  /** 2-3 sentence "who is TA" line the Agent reads out when asked. Demo copy. */
+  personBrief?: { en: string; zh: string };
+  /** One-line suggested opener when the user asks Agent to draft one. Demo copy. */
+  openerSuggestion?: { en: string; zh: string };
+  /** A few short reply suggestions during a chat. Demo copy. */
+  replyHints?: { en: string[]; zh: string[] };
 }
 

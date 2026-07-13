@@ -362,6 +362,186 @@ const WHY_PERSON: Record<string, { en: string; zh: string }> = {
            zh: "TA 比城市醒得更早 —— 你说过想遇到生活节奏踏实的人。" },
 };
 
+// Demo content read by the Agent when the user asks about TA / for an opener /
+// for a reply hint. Purely display — no NLU, no algorithm.
+const DEMO_CONTENT: Record<
+  string,
+  {
+    personBrief: { en: string; zh: string };
+    openerSuggestion: { en: string; zh: string };
+    replyHints: { en: string[]; zh: string[] };
+  }
+> = {
+  isa: {
+    personBrief: {
+      en: "Isa is a translator in Lisbon — reads in three languages, cooks in one. Keeps a list of bookstores in every city she visits, reads on rainy afternoons with the window cracked. Quiet on the outside, warm underneath.",
+      zh: "Isa 是里斯本的翻译——用三种语言读书，用一种做饭。去过的每座城市她都记下书店清单，下雨的午后会留一条窗缝读书。外表安静，内里很暖。",
+    },
+    openerSuggestion: {
+      en: "Hey — I saw you're also into slow reading afternoons. What's on your nightstand right now?",
+      zh: "嘿——看到你也喜欢慢慢读书的下午。最近床头放的是哪本？",
+    },
+    replyHints: {
+      en: ["That's a nice one — what made you pick it up?", "Ha, I've been meaning to read that. Any moment that stuck?"],
+      zh: ["这本不错——什么契机开始读的？", "哈，我也一直想读。有哪段特别记得住吗？"],
+    },
+  },
+  june: {
+    personBrief: {
+      en: "June is an architect in Brooklyn. Ambitious without being loud about it, walks home the long way, makes coffee like a small ceremony. Notices things.",
+      zh: "June 是布鲁克林的建筑师。有野心但不张扬，回家总走远路，冲咖啡像一场小仪式。观察力很敏锐。",
+    },
+    openerSuggestion: {
+      en: "Hey — long-way-home person here too. What's the best detour on your route lately?",
+      zh: "嘿——我也是那种回家走远路的人。你最近的路线上最喜欢绕哪一段？",
+    },
+    replyHints: {
+      en: ["That sounds like your kind of block.", "I'd walk that one too. What made you notice it?"],
+      zh: ["听起来就是你会走的那种街区。", "我也想走走看。最开始是什么让你注意到的？"],
+    },
+  },
+  theo: {
+    personBrief: {
+      en: "Theo is a composer in Berlin. Honest in a way that takes a minute — won't perform a feeling he doesn't have. Writes piano pieces nobody asked for, cooks the same pasta every Tuesday.",
+      zh: "Theo 是柏林的作曲家。诚实需要一点时间习惯——不会假装自己没有的感受。写没人点的钢琴曲，每周二做同一道意面。",
+    },
+    openerSuggestion: {
+      en: "Hi — I saw the Tuesday pasta thing. Serious question: is it the same pasta because it's good, or because it's Tuesday?",
+      zh: "嗨——看到你的周二意面。认真问：因为它好吃，还是因为它是周二？",
+    },
+    replyHints: {
+      en: ["Ha — that's the correct answer.", "Fair. Mine would be the noodles on Sunday nights."],
+      zh: ["哈——这答案没毛病。", "有道理。我的版本是周日晚的一碗面。"],
+    },
+  },
+  mira: {
+    personBrief: {
+      en: "Mira is a ceramicist in Kyoto. Mornings at the wheel, afternoons in the woods. Doesn't fill silences — which sounds small until you sit across from her.",
+      zh: "Mira 是京都的陶艺师。上午在拉坯机前，下午去林子里。她不会去填补沉默——听起来是件小事，直到你坐在她对面。",
+    },
+    openerSuggestion: {
+      en: "Hi — a bowl I own from your city hasn't chipped in ten years. Ceramics or luck?",
+      zh: "嗨——我有个碗是你那边买的，用了十年没磕。是陶的问题还是运气？",
+    },
+    replyHints: {
+      en: ["Both, honestly.", "Curious what you're working on lately."],
+      zh: ["说实话两个都有点。", "有点好奇你最近在做什么。"],
+    },
+  },
+  hugo: {
+    personBrief: {
+      en: "Hugo is a documentary editor in Mexico City. Curious about strangers in the way that opens them up. Keeps a notebook of overheard sentences. Dances badly, on purpose.",
+      zh: "Hugo 是墨西哥城的纪录片剪辑。对陌生人好奇，好奇到对方愿意敞开。有个本子专门记偶然听到的句子。跳舞跳得很烂，故意的。",
+    },
+    openerSuggestion: {
+      en: "Hey — I want to know the last overheard sentence you wrote down.",
+      zh: "嘿——想知道你本子上最后一句偷听来的话是什么。",
+    },
+    replyHints: {
+      en: ["Oh, that's a good one.", "Ha — I'd have written it down too."],
+      zh: ["哦，这句真好。", "哈——我也会记下来。"],
+    },
+  },
+  noa: {
+    personBrief: {
+      en: "Noa is a pediatrician in Tel Aviv. Patient with people, impatient with bad design. Cries at the end of good novels and doesn't hide it. Steady, warm, not soft.",
+      zh: "Noa 是特拉维夫的儿科医生。对人有耐心，对粗糙的设计没耐心。读完好小说会哭也不掩饰。沉稳、温暖，但不软。",
+    },
+    openerSuggestion: {
+      en: "Hi — the 'one excellent knife' thing got me. What's the last thing you cooked with it?",
+      zh: "嗨——「只有一把真正好用的刀」这条打中我了。上一顿用它做的什么？",
+    },
+    replyHints: {
+      en: ["Solid choice.", "I want the recipe, actually."],
+      zh: ["选得不错。", "把菜谱给我吧。"],
+    },
+  },
+  soren: {
+    personBrief: {
+      en: "Søren owns a bike shop in Copenhagen and rides at dawn. Reads Tranströmer between customers. His good hours are earlier than most people's.",
+      zh: "Søren 在哥本哈根开自行车店，天没亮就骑车。在客人之间读特朗斯特罗姆。他的好时光比大多数人都早。",
+    },
+    openerSuggestion: {
+      en: "Hey — dawn-rider here too. What's the light like on your route this week?",
+      zh: "嘿——我也是清晨骑车的人。这周你的路线上光线怎么样？",
+    },
+    replyHints: {
+      en: ["That's the good hour.", "Would ride that one."],
+      zh: ["就是这个时段最好。", "这条路我也想骑。"],
+    },
+  },
+  amara: {
+    personBrief: {
+      en: "Amara is an illustrator in Lagos. Draws strangers on the train without them noticing. Hosts long dinners with too many candles. Makes life feel a bit bigger.",
+      zh: "Amara 是拉各斯的插画师。地铁上偷偷画陌生人。请客吃饭点太多蜡烛。会让生活感觉更大一些。",
+    },
+    openerSuggestion: {
+      en: "Hi — what's the most candles you've ever lit for a single dinner?",
+      zh: "嗨——你一顿饭点过最多多少支蜡烛？",
+    },
+    replyHints: {
+      en: ["Respect.", "That's a real number. What was the occasion?"],
+      zh: ["服。", "这数字真实。什么场合？"],
+    },
+  },
+  leo: {
+    personBrief: {
+      en: "Leo runs a bookstore in Buenos Aires and walks the dog under streetlamps at midnight. Recommends the book you didn't know you needed.",
+      zh: "Leo 在布宜诺斯艾利斯开书店，半夜在路灯下遛狗。总能推荐你不知道自己需要的那本书。",
+    },
+    openerSuggestion: {
+      en: "Hi — recommend me a book you'd only give someone at midnight.",
+      zh: "嗨——推荐一本你只会在半夜送人的书。",
+    },
+    replyHints: {
+      en: ["Adding it now.", "Ha — that's a midnight book."],
+      zh: ["马上加进书单。", "哈——这确实是本半夜的书。"],
+    },
+  },
+  wren: {
+    personBrief: {
+      en: "Wren is a climate researcher in Edinburgh. Earnest about the world without being heavy. Texts you the moon when it's full.",
+      zh: "Wren 是爱丁堡的气候研究员。认真对待这个世界但并不沉重。月圆时会发月亮给你。",
+    },
+    openerSuggestion: {
+      en: "Hi — is there a good moon this week where you are?",
+      zh: "嗨——你那边这周月亮怎么样？",
+    },
+    replyHints: {
+      en: ["Send a photo when it's up.", "I'll check mine tonight."],
+      zh: ["月亮起来给我拍一张。", "今晚我也看看这边的。"],
+    },
+  },
+  kai: {
+    personBrief: {
+      en: "Kai is a photographer in Vancouver. Hikes alone, eats with company — needs both, knows it. Shoots film because it makes him slow down.",
+      zh: "Kai 是温哥华的摄影师。独自爬山，结伴吃饭——两样都需要，也清楚。用胶片，因为这逼他慢下来。",
+    },
+    openerSuggestion: {
+      en: "Hi — last frame you shot on film, what was in it?",
+      zh: "嗨——你胶片上最后一张拍的是什么？",
+    },
+    replyHints: {
+      en: ["That's a keeper.", "Would want to see it."],
+      zh: ["这张要留着。", "想看看这张。"],
+    },
+  },
+  elena: {
+    personBrief: {
+      en: "Elena is a pastry chef in Rome who wakes before the city does. Thinks dessert is the most honest course. Reads poetry between batches.",
+      zh: "Elena 是罗马的甜点师，比城市醒得更早。觉得甜点是最诚实的一道菜。两炉之间读诗。",
+    },
+    openerSuggestion: {
+      en: "Hi — what's the honest dessert you're making today?",
+      zh: "嗨——你今天做的那道「诚实的甜点」是什么？",
+    },
+    replyHints: {
+      en: ["Sold.", "I'd eat that at 5am."],
+      zh: ["拿下。", "凌晨五点我也吃得下。"],
+    },
+  },
+};
+
 export const PEOPLE: Person[] = CORE.map((p) => ({
   ...p,
   activities: ACTIVITIES[p.id] ?? [],
@@ -369,6 +549,9 @@ export const PEOPLE: Person[] = CORE.map((p) => ({
   moments: MOMENTS[p.id] ?? [],
   oneWork: ONE_WORKS[p.id],
   whyPersonLine: WHY_PERSON[p.id],
+  personBrief: DEMO_CONTENT[p.id]?.personBrief,
+  openerSuggestion: DEMO_CONTENT[p.id]?.openerSuggestion,
+  replyHints: DEMO_CONTENT[p.id]?.replyHints,
 }));
 
 
