@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { ArrowUp, MessageCircle, Users, X, Undo2 } from "lucide-react";
+import { ArrowUp, MessageCircle, Pencil, Users, X, Undo2 } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
-import type { SideState, ChatMsg } from "@/lib/agents/side-by-side";
+import type { SideState, ChatMsg, LevelTier, WhenTier } from "@/lib/agents/side-by-side";
 import { currentView } from "@/lib/agents/side-by-side";
 import { getIntentById, type Intent } from "@/lib/intents";
 import type { ActivityKind } from "@/lib/types";
@@ -15,7 +15,9 @@ interface Props {
   onRevoke: () => void;
   onTryNearMiss: (intentId: string) => void;
   onSendChat: (text: string) => void;
+  onEditWish: (patch: { when?: WhenTier; level?: LevelTier; location?: string }) => void;
 }
+
 
 const KIND_EMOJI: Record<ActivityKind, string> = {
   tennis: "🎾", run: "🏃", climb: "🧗", cook: "🍳", exhibition: "🖼", bookstore: "📚", other: "✨",
