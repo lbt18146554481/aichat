@@ -316,7 +316,7 @@ function Tag({ children }: { children: React.ReactNode }) {
 
 // ---- No match — my published card + near-miss list ---------------------
 
-function NoMatchView({ state, onRevoke, onTryNearMiss }: Props) {
+function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
@@ -340,13 +340,14 @@ function NoMatchView({ state, onRevoke, onTryNearMiss }: Props) {
         <div className="mt-4 rounded-xl border border-border bg-card p-4">
           <IntentCard intent={mine} side="me" lang={lang} />
           <button
-            onClick={onRevoke}
+            onClick={exhausted ? onRevokeReshare : onRevoke}
             className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
           >
             <Undo2 className="w-3 h-3" />
             {exhausted ? t("intent.revoke_reshare") : t("intent.revoke")}
           </button>
         </div>
+
 
 
 
