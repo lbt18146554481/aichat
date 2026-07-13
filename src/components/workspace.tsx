@@ -64,13 +64,14 @@ export function Workspace({
   }
 
   // Only the last assistant message's chips are actionable.
-  let lastChipMsgIdx = -1;
+  let activeChips: ChipOption[] | undefined;
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === "assistant" && messages[i].chips && messages[i].chips!.length > 0) {
-      lastChipMsgIdx = i;
+      activeChips = messages[i].chips;
       break;
     }
   }
+
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -86,21 +87,12 @@ export function Workspace({
           <div ref={scrollRef} className="flex-1 overflow-y-auto">
             <div className="max-w-xl mx-auto px-5 py-6">
               <ul className="space-y-4">
-                {messages.map((m, i) => (
+                {messages.map((m) => (
                   <li key={m.id}>
                     {m.role === "user" ? (
                       <UserBubble text={m.text} />
                     ) : (
-                      <>
-                        <AssistantBubble text={m.text} />
-                        {m.chips && m.chips.length > 0 && (
-                          <ChipRow
-                            chips={m.chips}
-                            disabled={i !== lastChipMsgIdx || thinking}
-                            onPick={(a) => onChipClick?.(a)}
-                          />
-                        )}
-                      </>
+                      <AssistantBubble text={m.text} />
                     )}
                   </li>
                 ))}
@@ -111,6 +103,15 @@ export function Workspace({
 
           <div className="border-t border-border bg-background">
             <div className="max-w-xl mx-auto px-5 py-3">
+              {activeChips && activeChips.length > 0 && (
+                <div className="mb-2">
+                  <ChipRow
+                    chips={activeChips}
+                    disabled={thinking || composerDisabled}
+                    onPick={(a) => onChipClick?.(a)}
+                  />
+                </div>
+              )}
               <Composer
                 ref={inputRef}
                 value={input}
@@ -123,6 +124,7 @@ export function Workspace({
                 {t("chat.disclaimer")}
               </p>
             </div>
+
           </div>
         </section>
 
