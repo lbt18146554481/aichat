@@ -64,13 +64,14 @@ export function Workspace({
   }
 
   // Only the last assistant message's chips are actionable.
-  let lastChipMsgIdx = -1;
+  let activeChips: ChipOption[] | undefined;
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === "assistant" && messages[i].chips && messages[i].chips!.length > 0) {
-      lastChipMsgIdx = i;
+      activeChips = messages[i].chips;
       break;
     }
   }
+
 
   return (
     <div className="h-screen flex flex-col bg-background">
