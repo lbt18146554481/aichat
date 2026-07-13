@@ -195,10 +195,34 @@ function SideBySidePage() {
     const userText = bits.length ? t("intent.edited_user_msg", { changes: bits.join(" · ") }) : undefined;
     actWith((s) => editWish(s, patch), userText);
   }
+  function handleSkip() {
+    setThinking(true);
+    window.setTimeout(() => {
+      setState((s) => {
+        const next = skipMatch(s);
+        const line = next.matchIntentId
+          ? t("intent.narrate_next_match")
+          : t("intent.narrate_pool_exhausted");
+        return { ...next, messages: [...next.messages, msg("assistant", line)] };
+      });
+      setThinking(false);
+    }, 320);
+  }
+  function handleRevokeReshare() {
+    setThinking(true);
+    window.setTimeout(() => {
+      setState((s) => {
+        const next = revokeAndReset(s);
+        return { ...next, messages: [...next.messages, msg("assistant", t("intent.narrate_revoked"))] };
+      });
+      setThinking(false);
+    }, 320);
+  }
   function handleSendChat(text: string) {
     setState((s) => sendChatMessage(s, text));
     window.setTimeout(() => setState((s) => receiveSimulatedReply(s)), 900);
   }
+
 
 
   function handleReset() {
