@@ -9,6 +9,7 @@ import { getIntentById } from "@/lib/intents";
 import {
   EMPTY,
   currentView,
+  editWish,
   load,
   receiveSimulatedReply,
   refineLevel,
@@ -28,6 +29,7 @@ import {
   type SideState,
   type WhenTier,
 } from "@/lib/agents/side-by-side";
+
 
 export const Route = createFileRoute("/side-by-side")({
   component: SideBySidePage,
