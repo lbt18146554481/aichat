@@ -40,9 +40,13 @@ export interface Intent {
   whenAny?: boolean;
   /** True when the intent's `level` was unspecified — matches anyone. */
   levelAny?: boolean;
+  /** Optional user-typed location note. Doesn't filter matches — shown as a tag. */
+  location?: string;
+  location_zh?: string;
 
   createdAt: number;
 }
+
 
 // ---- Compatibility ------------------------------------------------------
 
