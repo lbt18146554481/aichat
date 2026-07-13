@@ -21,7 +21,26 @@
       "cta": "Set up profile · {{done}}/{{total}}"
     },
     "profile_nudge": "So the Agents can introduce you too —",
-    "profile_nudge_cta": "set up profile · {{done}}/{{total}}"
+    "profile_nudge_cta": "set up profile · {{done}}/{{total}}",
+    "banner": {
+      "waiting_title": "Still holding a wish for you",
+      "waiting_body": "{{summary}} · posted {{ago}}",
+      "waiting_hint": "I'll keep looking while you're away.",
+      "waiting_cta": "Check on it",
+      "matched_title": "Someone lined up with you",
+      "matched_body": "{{name}} · {{summary}}",
+      "matched_cta": "Go see",
+      "chat_title": "Chat with {{name}} in progress",
+      "chat_body": "{{summary}}",
+      "chat_cta": "Continue",
+      "cancel": "Cancel this wish"
+    },
+    "time": {
+      "just_now": "just now",
+      "minutes": "{{n}}m ago",
+      "hours": "{{n}}h ago",
+      "days": "{{n}}d ago"
+    }
   },
   "agents": {
     "matchmaker": {
