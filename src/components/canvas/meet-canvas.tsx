@@ -95,18 +95,19 @@ function MatchView({ state, onStartChat, onEditWish, onSkip, onRevokeReshare }: 
           <IntentCard intent={other} side="them" lang={lang} />
         </div>
 
-        <div className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3">
-          <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-emerald-700 dark:text-emerald-400">
+        <WhyPersonBox otherOwnerId={other.ownerId} lang={lang} />
+
+        <div className="mt-3 text-[11.5px] text-muted-foreground leading-relaxed">
+          <span className="uppercase tracking-[0.14em] font-mono text-[10px] mr-2 opacity-70">
             {t("intent.aligned_label")}
-          </div>
-          <p className="mt-1.5 text-[13px] text-foreground leading-relaxed">
-            {t("intent.aligned_body", {
-              kind: alignedKind,
-              when: alignedWhen,
-              level: alignedLevel,
-            })}
-          </p>
+          </span>
+          {t("intent.aligned_body", {
+            kind: alignedKind,
+            when: alignedWhen,
+            level: alignedLevel,
+          })}
         </div>
+
 
         <div className="mt-4 flex items-center gap-2">
           <button
