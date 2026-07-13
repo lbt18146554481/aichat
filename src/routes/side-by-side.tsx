@@ -167,6 +167,7 @@ function classify(text: string): Question {
 function SideBySidePage() {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const navigate = useNavigate();
 
   // Consume the homepage-seeded prompt exactly once. consumeSeed() removes the
   // value from sessionStorage on read, so we must not call it twice.
