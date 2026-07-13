@@ -217,6 +217,17 @@ export function refineLevel(state: SideState, level: LevelTier): SideState {
   return rematchAfterUpdate(state, state.myIntentId);
 }
 
+/** Edit my published wish (any subset of when/level/location) and rematch. */
+export function editWish(
+  state: SideState,
+  patch: { when?: WhenTier; level?: LevelTier; location?: string },
+): SideState {
+  if (!state.myIntentId) return state;
+  updateMyIntent(state.myIntentId, patch);
+  return rematchAfterUpdate(state, state.myIntentId);
+}
+
+
 /** Pivot my published wish to a near-miss person's slot and rematch. */
 export function tryNearMiss(state: SideState, intentId: string): SideState {
   const other = getIntentById(intentId);
