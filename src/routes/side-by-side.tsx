@@ -256,7 +256,10 @@ function SideBySidePage() {
           onTryNearMiss={handleTryNearMiss}
           onSendChat={handleSendChat}
           onEditWish={handleEditWish}
+          onSkip={handleSkip}
+          onRevokeReshare={handleRevokeReshare}
         />
+
 
       }
     />
