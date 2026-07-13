@@ -323,13 +323,19 @@ function NoMatchView({ state, onRevoke, onTryNearMiss }: Props) {
   if (!mine) return <EmptyCanvas />;
 
   const nears = state.nearMissIds.map((id) => getIntentById(id)).filter(Boolean) as Intent[];
+  const exhausted = state.triedIntentIds.length > 0;
 
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
       <div className="mx-auto max-w-lg">
         <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
-          {t("intent.published_label")}
+          {exhausted ? t("intent.pool_exhausted_label") : t("intent.published_label")}
         </div>
+        {exhausted && (
+          <p className="mt-2 text-[13px] text-foreground/85 leading-relaxed">
+            {t("intent.pool_exhausted_body")}
+          </p>
+        )}
 
         <div className="mt-4 rounded-xl border border-border bg-card p-4">
           <IntentCard intent={mine} side="me" lang={lang} />
@@ -338,9 +344,11 @@ function NoMatchView({ state, onRevoke, onTryNearMiss }: Props) {
             className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
           >
             <Undo2 className="w-3 h-3" />
-            {t("intent.revoke")}
+            {exhausted ? t("intent.revoke_reshare") : t("intent.revoke")}
           </button>
         </div>
+
+
 
         {nears.length > 0 && (
           <div className="mt-6">
