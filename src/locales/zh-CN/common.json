@@ -21,7 +21,26 @@
       "cta": "去填资料 · {{done}}/{{total}}"
     },
     "profile_nudge": "让 Agent 也能这样介绍你 ——",
-    "profile_nudge_cta": "完善资料 · {{done}}/{{total}}"
+    "profile_nudge_cta": "完善资料 · {{done}}/{{total}}",
+    "banner": {
+      "waiting_title": "还给你挂着一条心愿",
+      "waiting_body": "{{summary}} · {{ago}}发出",
+      "waiting_hint": "你不在的时候我会继续帮你留意。",
+      "waiting_cta": "去看看",
+      "matched_title": "有人和你排上了",
+      "matched_body": "{{name}} · {{summary}}",
+      "matched_cta": "去看看",
+      "chat_title": "和 {{name}} 的对话进行中",
+      "chat_body": "{{summary}}",
+      "chat_cta": "继续",
+      "cancel": "撤回这条心愿"
+    },
+    "time": {
+      "just_now": "刚刚",
+      "minutes": "{{n}} 分钟前",
+      "hours": "{{n}} 小时前",
+      "days": "{{n}} 天前"
+    }
   },
   "agents": {
     "matchmaker": {
@@ -169,6 +188,7 @@
     "narrate_matched": "已经把「{{summary}}」发到池子里，有人也在等这件事——看右边。",
     "narrate_nomatch": "已经把「{{summary}}」发到池子里，现在还没人对上。心愿先挂着——右边可以换个时段或撤回。",
     "narrate_nomatch_ask": "已经把「{{summary}}」发到池子里，暂时没人对上。{{ask}}",
+    "narrate_nomatch_wait": "「{{summary}}」已经挂在池子里了。暂时没人对上——你不在的时候它也会一直帮你留意。",
     "narrate_chat": "两边都在了。右边直接聊就行——需要我随时叫我。",
     "ask_when": "补一句大概什么时候方便，我更容易帮你对上：",
     "ask_level": "补一句水平如何，我更容易帮你对上：",
@@ -194,6 +214,9 @@
     "chip_new_type": "想要不一样的人",
     "chip_use_draft": "用这句发给 TA",
     "chip_start_with_draft": "用这句开始聊",
+    "chip_check_back": "先这样，回头再看",
+    "chip_switch": "换件别的",
+    "chip_try_near_miss": "看看差一点的人",
     "agent_ask_trait": "想遇到什么样的？一句话就行。",
     "agent_trait_saved": "记下了 —— 我换个看看。",
     "agent_opener_lead": "试试这句：",

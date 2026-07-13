@@ -21,7 +21,26 @@
       "cta": "Set up profile · {{done}}/{{total}}"
     },
     "profile_nudge": "So the Agents can introduce you too —",
-    "profile_nudge_cta": "set up profile · {{done}}/{{total}}"
+    "profile_nudge_cta": "set up profile · {{done}}/{{total}}",
+    "banner": {
+      "waiting_title": "Still holding a wish for you",
+      "waiting_body": "{{summary}} · posted {{ago}}",
+      "waiting_hint": "I'll keep looking while you're away.",
+      "waiting_cta": "Check on it",
+      "matched_title": "Someone lined up with you",
+      "matched_body": "{{name}} · {{summary}}",
+      "matched_cta": "Go see",
+      "chat_title": "Chat with {{name}} in progress",
+      "chat_body": "{{summary}}",
+      "chat_cta": "Continue",
+      "cancel": "Cancel this wish"
+    },
+    "time": {
+      "just_now": "just now",
+      "minutes": "{{n}}m ago",
+      "hours": "{{n}}h ago",
+      "days": "{{n}}d ago"
+    }
   },
   "agents": {
     "matchmaker": {
@@ -171,6 +190,7 @@
     "narrate_matched": "Published '{{summary}}'. Someone in the pool wants the same thing — see the right side.",
     "narrate_nomatch": "Published '{{summary}}'. Nobody in the pool lines up right now. It stays live — swap the time or take it back on the right.",
     "narrate_nomatch_ask": "Published '{{summary}}'. Nobody lines up yet. {{ask}}",
+    "narrate_nomatch_wait": "'{{summary}}' is live in the pool. Nobody lines up right now — it'll keep looking while you're away.",
     "narrate_chat": "You're both in. Talk on the right — I'll stay here if you want me for anything.",
     "ask_when": "Add roughly when you're free, I'll match you faster:",
     "ask_level": "Add roughly what level, I'll match you faster:",
@@ -196,6 +216,9 @@
     "chip_new_type": "Someone different",
     "chip_use_draft": "Use this in the chat",
     "chip_start_with_draft": "Start with this line",
+    "chip_check_back": "I'll check back later",
+    "chip_switch": "Try something else",
+    "chip_try_near_miss": "See someone almost matching",
     "agent_ask_trait": "What kind of person? Just one line.",
     "agent_trait_saved": "Got it — showing someone else.",
     "agent_opener_lead": "Try this:",

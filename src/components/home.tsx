@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ArrowUp, MessageCircle, UserSearch, Users, UserCircle } from "lucide-react";
 import { LangSwitcher } from "@/components/lang-switcher";
+import { ActiveWishBanner } from "@/components/active-wish-banner";
 import { routeIntent } from "@/lib/route-intent";
 import { setSeed, type AgentId } from "@/lib/seed";
 import { hasUnseen, list, rehydrate, subscribe } from "@/lib/connections";
@@ -99,6 +100,8 @@ export function Home() {
 
       <main className="flex-1 flex flex-col items-center justify-center px-6 pb-20">
         <div className="w-full max-w-2xl">
+          {mounted && <ActiveWishBanner />}
+
           <h1
             className="text-center text-[26px] sm:text-[32px] font-serif italic leading-tight text-foreground"
             suppressHydrationWarning

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -98,22 +98,41 @@ function narrate(state: SideState, prev: SideState, t: TFunction): SideMsg | nul
   if (view === "nomatch") {
     const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
     if (!mine) return null;
-    const chips: SideMsg["chips"] = [];
+    const refineChips: SideMsg["chips"] = [];
     if (mine.whenAny) {
-      chips.push(
+      refineChips.push(
         { id: "w-weekend",   label: t("meet.when.weekend"),   action: { type: "refine_when", value: "weekend" } },
         { id: "w-weeknight", label: t("meet.when.weeknight"), action: { type: "refine_when", value: "weeknight" } },
       );
     }
     if (mine.levelAny && (mine.kind === "tennis" || mine.kind === "climb")) {
-      chips.push(
+      refineChips.push(
         { id: "l-beginner",     label: t("meet.level.beginner"),     action: { type: "refine_level", value: "beginner" } },
         { id: "l-intermediate", label: t("meet.level.intermediate"), action: { type: "refine_level", value: "intermediate" } },
         { id: "l-advanced",     label: t("meet.level.advanced"),     action: { type: "refine_level", value: "advanced" } },
       );
     }
-    if (chips.length === 0) {
-      return msg("assistant", truncated + t("intent.narrate_nomatch", { summary: summarize(state.myIntentId, t) }));
+
+    // Fallback chips (always present in nomatch): "look at near-miss",
+    // "I'll check back later" (go home), "cancel this wish".
+    const fallbackChips: SideMsg["chips"] = [];
+    if (refineChips.length === 0 && state.nearMissIds.length > 0) {
+      fallbackChips.push({
+        id: "nm-" + state.nearMissIds[0],
+        label: t("intent.chip_try_near_miss"),
+        action: { type: "try_near_miss", intentId: state.nearMissIds[0] },
+      });
+    }
+    fallbackChips.push(
+      { id: "check-back", label: t("intent.chip_check_back"), action: { type: "check_back" } },
+      { id: "revoke",     label: t("intent.chip_switch"),     action: { type: "revoke" } },
+    );
+
+    const chips = [...refineChips, ...fallbackChips];
+    if (refineChips.length === 0) {
+      return msg("assistant",
+        truncated + t("intent.narrate_nomatch_wait", { summary: summarize(state.myIntentId, t) }),
+        chips);
     }
     const askKind = mine.whenAny ? "when" : "level";
     return msg("assistant",
@@ -148,6 +167,7 @@ function classify(text: string): Question {
 function SideBySidePage() {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const navigate = useNavigate();
 
   // Consume the homepage-seeded prompt exactly once. consumeSeed() removes the
   // value from sessionStorage on read, so we must not call it twice.
@@ -438,6 +458,11 @@ function SideBySidePage() {
         break;
       case "revoke":
         actWith((s) => revokeAndReset(s));
+        break;
+      case "check_back":
+        // Wish stays published; user goes back to home. Home banner will
+        // surface it (waiting or matched) on next visit.
+        void navigate({ to: "/" });
         break;
     }
   }

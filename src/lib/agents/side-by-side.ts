@@ -124,7 +124,8 @@ export type ChipAction =
   | { type: "ask_opener" }
   | { type: "request_new_type" }
   | { type: "try_near_miss"; intentId: string }
-  | { type: "revoke" };
+  | { type: "revoke" }
+  | { type: "check_back" };
 
 export interface SideMsg {
   id: string;
