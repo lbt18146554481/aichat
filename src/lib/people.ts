@@ -332,13 +332,45 @@ const CORE: PersonCore[] = [
   },
 ];
 
+// Demo copy: the "why is TA" one-liner shown on the side-by-side match card.
+// Each line is written to match that person's dominant signals + a callback to
+// something the user "told the Agent" earlier. Purely display — no algorithm.
+const WHY_PERSON: Record<string, { en: string; zh: string }> = {
+  isa:   { en: "She's also quiet and reads a lot — you told the Agent that's the person you want to meet.",
+           zh: "TA 也 安静、爱读书 —— 你告诉过 Agent，这是你想遇到的人。" },
+  june:  { en: "She's ambitious without being loud about it — you said you wanted someone who works hard but doesn't perform.",
+           zh: "TA 有野心，但从不张扬 —— 你说过想遇到努力但不表演的人。" },
+  theo:  { en: "He won't perform a feeling he doesn't have — you said you were tired of people who always say the right thing.",
+           zh: "TA 不会假装自己没有的感受 —— 你说过受够了那种总说漂亮话的人。" },
+  mira:  { en: "She doesn't fill silences — you said you wanted someone you can be quiet with.",
+           zh: "TA 不会去填补沉默 —— 你说过想遇到能和你一起安静下来的人。" },
+  hugo:  { en: "He's curious about strangers in the way that opens them up — you said you wanted someone who makes conversation go somewhere.",
+           zh: "TA 对陌生人好奇，好奇到对方愿意敞开 —— 你说过想遇到能把日常聊出花的人。" },
+  noa:   { en: "Steady and warm, but not soft — you said you wanted someone who feels safe without disappearing.",
+           zh: "TA 沉稳、温暖，但不软 —— 你说过想遇到让人安心又不消失的人。" },
+  soren: { en: "He has his own rhythm, and it's earlier than most — you said you wanted someone with their own pace.",
+           zh: "TA 有自己的节奏，而且比大多数人都早 —— 你说过想遇到有节奏感的人。" },
+  amara: { en: "She'll make life feel a bit bigger — you said you wanted someone who brings the everyday alive.",
+           zh: "TA 会让生活感觉更大一些 —— 你说过想遇到有生活热度的人。" },
+  leo:   { en: "His good hours are late — you told the Agent yours are too.",
+           zh: "TA 的好时光在深夜 —— 你告诉过 Agent，你也是。" },
+  wren:  { en: "She's earnest about the world without being heavy — you said you wanted someone with meaning who isn't grim.",
+           zh: "TA 认真对待世界，但并不沉重 —— 你说过想遇到有意义感但不压抑的人。" },
+  kai:   { en: "At home in his own head but glad you're around — you said you wanted someone who's neither clingy nor distant.",
+           zh: "TA 既能自处，也欢迎你在身边 —— 你说过想遇到不粘人也不冷淡的人。" },
+  elena: { en: "She wakes before the city does — you said you wanted someone with a real, grounded rhythm.",
+           zh: "TA 比城市醒得更早 —— 你说过想遇到生活节奏踏实的人。" },
+};
+
 export const PEOPLE: Person[] = CORE.map((p) => ({
   ...p,
   activities: ACTIVITIES[p.id] ?? [],
   reflections: REFLECTIONS[p.id] ?? [],
   moments: MOMENTS[p.id] ?? [],
   oneWork: ONE_WORKS[p.id],
+  whyPersonLine: WHY_PERSON[p.id],
 }));
+
 
 export function getPersonById(id: string): Person | undefined {
   return PEOPLE.find((p) => p.id === id);

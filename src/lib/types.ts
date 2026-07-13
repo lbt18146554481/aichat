@@ -68,4 +68,7 @@ export interface Person {
   reflections: Reflection[];
   moments: Moment[];
   oneWork?: OneWorkRef;
+  /** One-sentence "why is TA" line for the side-by-side match card. Demo copy. */
+  whyPersonLine?: { en: string; zh: string };
 }
+

@@ -1,69 +1,60 @@
-## 核心洞察
+## 定位调整
 
-你已经答清楚了两个边界——**聊天不介入**、**见面后不介入**。也就是说，产品能做事的窗口只剩一处：**匹配结果这一屏本身**。
+这是**演示 demo**，不做真实的信号交集算法。目标是让用户在匹配卡上**看到"为什么是 TA"的效果**，感受到产品把决策焦点从"事+时间"搬到了"人"。
 
-而你追问的「不满意想换一个 / 想做别的事」正好落在这里。目前这一屏是一个死胡同：只给了 `[开始聊]`，用户不满意时只能撤回整条心愿从头再来，成本太重。
-
-## 设计原则
-
-**匹配结果页 = 一个决策时刻，不是终点。**
-
-任何时候用户在这一屏，都要能清楚地看到三条出路，代价从低到高：
+## 卡片改版（视觉不变，数据造）
 
 ```text
-     ┌────────────────────────────────────┐
-     │   TA 的卡片 · 你的卡片 · 对齐说明   │
-     └────────────────────────────────────┘
-              ↓             ↓             ↓
-      [ 就是 TA ]    [ 看下一个 ]   [ 换/撤回心愿 ]
-       开始聊天       (跳过，保留心愿)   (改条件 或 完全重发)
-        主动作           次动作             三级动作
+┌────────────────────────────────┐
+│  TA 卡片 · 你卡片                │
+├────────────────────────────────┤
+│  ★ 为什么是 TA                  │  ← 新增，最显眼
+│  TA 也 安静、爱读书——你说过     │
+│  这是你想遇到的人。              │
+├────────────────────────────────┤
+│  对上的是 网球 · 周六上午        │  ← 原 aligned 框降级
+├────────────────────────────────┤
+│  [开始聊 TA]  [看下一个]         │
+└────────────────────────────────┘
 ```
 
-**三条路对应用户真实的三种情绪：**
-1. 「合适」→ 开始聊
-2. 「事想做，但不是 TA」→ 换个人，心愿继续挂着
-3. 「事本身也想变了」→ 编辑心愿 或 撤回重发
+信息层级：**人 > 事 > 时间**。
 
-## 关键交互
+## 演示怎么造
 
-### 1. 主动作：`[开始 TA]`（已有）
-保持不变，深色主按钮。
+**每个候选 Person 预挂一句 `whyPersonLine`**（写死在 `PEOPLE` 数据里，中英各一份），比如：
 
-### 2. 次动作：`[看下一个]`（新增）
-- 点击后：把当前 `matchIntentId` 加入 `triedIntentIds`（这个字段代码里已经有，只是从未被填充过），重新 `findMatch({ exclude })`，卡片切到下一位。
-- 卡片顶部加一行小字状态条：**「池子里还有 3 人可能对上」**（N = 剩余可匹配人数，不含已看过的）。让「下一个」有心理底气。
-- 池子看完了：这一屏自动切到 NoMatchView 的一个变体，标题改成**「你已经看过所有对得上的人」**，主 CTA 变成 `[改条件再找]` / `[撤回重发]`。
+| Person | whyPersonLine (zh) |
+|---|---|
+| Person A | 「TA 也 **安静**、**爱读书**——你说过这是你想遇到的人。」 |
+| Person B | 「TA 的节奏和你一样慢——你说过想遇到不赶时间的人。」 |
+| Person C | 「TA 和你告诉过 Agent 的偏好没有直接重叠——先看 TA 自己怎么说的。」下方引一句 TA 的 Moment |
 
-### 3. 三级动作：`[编辑心愿]`（已有）· `[撤回，重发]`（新增）
-- `[编辑心愿]` 展开面板改时间/水平/地点（已实现）。
-- `[撤回，重发]` = 现在 NoMatchView 里那个撤回按钮的语义，但在 MatchView 里也提供，让用户不必先没匹配才能撤回。链接样式，避免抢主动作视觉。
+演示时 `WhyPersonBox` 只做一件事：读 `person.whyPersonLine[locale]` 直接渲染。零算法。
 
-### 4.（可选，第二优先级）「不想看到 TA」软过滤
-若三次点 `[看下一个]` 都跳过了同一批人后再回到相同池子，仍旧排除他们（`triedIntentIds` 已持久化在 state 里，天然满足）。不做「拉黑」这种重量级动作——保持体面。
+**"看下一个"轮换** demo 效果：点一下换到下一个 Person，"为什么是 TA"整句跟着换 → 用户直接感受到"每个人有独立的匹配理由"这件事。
 
-## 文案（Agent 侧）
+**"完全没告诉过 Agent"这一态怎么演示：** 加一个 URL query `?fresh=1`（或首次进入检测 understanding 为空）时，`WhyPersonBox` 显示 fallback 态：
 
-Agent 只在关键节点插一句话，绝不打断聊天：
-- 用户点`[看下一个]`：**「换一个看看。这是新的一位。」**（切到新 TA 时）
-- 池子看完：**「池子里对得上的人你都看过了。要不要改改条件？」**
-- 用户点`[撤回，重发]`：**「好，这条撤了。你想做点别的？」**（回到 prompt 阶段）
+> 「Agent 还没听你说过想遇到什么样的人。」
+> [ 想遇到什么样的人？一句话就够 →]
 
-## 明确不做的（对齐你之前的答案）
+用户在小 input 里随便打一句、回车 → **假装**"Agent 听懂了" → 切换到正常的 `whyPersonLine`。内部不做 `digest()`，只 setState 一个 `hasTold = true`。
 
-- ❌ 不做「敲定见面卡 / 加日历 / 提醒」——聊天完全放手
-- ❌ 不做「见面后打卡 / 反馈 / 续约」——见面后不介入
-- ❌ 不做「举报 / 拉黑」——纯软过滤即可，保持体面
-- ❌ 不做「群约 / 拉第三人」——超出当前产品叙事
+## 明确不做
+
+- ❌ 不写 `buildPersonReason()` 交集算法
+- ❌ 不读 `understanding.positive/negative`
+- ❌ 不改 Matchmaker、不改匹配数据流
+- ❌ 不改匹配算法
 
 ## 技术改动清单
 
 | 文件 | 改动 |
 |---|---|
-| `src/lib/intents.ts` | 新增 `countAvailableMatches(mine, exclude): number`（复用 findMatch 的过滤逻辑，只 count 不排序）。 |
-| `src/lib/agents/side-by-side.ts` | 新增 `skipMatch(state)`：把 `matchIntentId` push 到 `triedIntentIds`，再调 `rematchAfterUpdate`。narrate 增加 skip / pool-exhausted 分支。 |
-| `src/components/canvas/meet-canvas.tsx` | `MatchView`：顶部剩余人数状态条；主按钮 `[开始聊]`、次按钮 `[看下一个]`（池子空时禁用）、三级链接 `[编辑心愿] · [撤回重发]`。池子看完时切到"已看完"变体（NoMatchView 复用+文案微调）。 |
-| `src/routes/side-by-side.tsx` | 新增 `handleSkip`，通过 props 传给 MeetCanvas。 |
-| `src/locales/*/common.json` | 新增 5-6 个 key：`intent.pool_remaining`、`intent.next_match`、`intent.revoke_reshare`、`intent.pool_exhausted_title/body`、agent narration 两条。 |
+| `src/lib/people.ts` | 每个 Person 加 `whyPersonLine: { en, zh }` 字段（3–5 个候选各写一句） |
+| `src/components/canvas/meet-canvas.tsx` | 新 `WhyPersonBox`：读 `person.whyPersonLine`，无则显示 fallback + 内联 input；原 aligned 框降级为一行灰字 |
+| `src/routes/side-by-side.tsx` | 加 `hasTold` state 支持 fallback→正常态的假切换 |
+| `src/locales/{en,zh-CN}/common.json` | `intent.why_person_title`、`intent.tell_agent_placeholder` 等 3–4 条文案 |
 
-改动集中在**匹配结果页这一屏**，其他流程（聊天、发布、编辑心愿）保持不动。类型校验会跑一次通过。
+改动集中在**匹配结果屏 + 数据文件挂几个演示句**，一天内可落地，演示效果和真实版一致。

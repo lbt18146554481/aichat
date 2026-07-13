@@ -7,7 +7,8 @@ import type { SideState, ChatMsg, LevelTier, WhenTier } from "@/lib/agents/side-
 import { currentView } from "@/lib/agents/side-by-side";
 import { countAvailableMatches, getIntentById, type Intent } from "@/lib/intents";
 import type { ActivityKind } from "@/lib/types";
-import { avatarUrl } from "@/lib/people";
+import { avatarUrl, getPersonById } from "@/lib/people";
+import { Sparkles } from "lucide-react";
 
 interface Props {
   state: SideState;
@@ -94,18 +95,19 @@ function MatchView({ state, onStartChat, onEditWish, onSkip, onRevokeReshare }: 
           <IntentCard intent={other} side="them" lang={lang} />
         </div>
 
-        <div className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3">
-          <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-emerald-700 dark:text-emerald-400">
+        <WhyPersonBox otherOwnerId={other.ownerId} lang={lang} />
+
+        <div className="mt-3 text-[11.5px] text-muted-foreground leading-relaxed">
+          <span className="uppercase tracking-[0.14em] font-mono text-[10px] mr-2 opacity-70">
             {t("intent.aligned_label")}
-          </div>
-          <p className="mt-1.5 text-[13px] text-foreground leading-relaxed">
-            {t("intent.aligned_body", {
-              kind: alignedKind,
-              when: alignedWhen,
-              level: alignedLevel,
-            })}
-          </p>
+          </span>
+          {t("intent.aligned_body", {
+            kind: alignedKind,
+            when: alignedWhen,
+            level: alignedLevel,
+          })}
         </div>
+
 
         <div className="mt-4 flex items-center gap-2">
           <button
@@ -156,6 +158,87 @@ function MatchView({ state, onStartChat, onEditWish, onSkip, onRevokeReshare }: 
           {t("intent.match_footnote")}
         </p>
       </div>
+    </div>
+  );
+}
+
+
+// ---- Why is TA (demo copy from PEOPLE.whyPersonLine) -------------------
+
+const TOLD_KEY = "kindred:told-agent-pref";
+
+function WhyPersonBox({ otherOwnerId, lang }: { otherOwnerId: string; lang: Lang }) {
+  const { t } = useTranslation();
+  const person = getPersonById(otherOwnerId);
+  const line = person?.whyPersonLine
+    ? (lang === "zh-CN" ? person.whyPersonLine.zh : person.whyPersonLine.en)
+    : null;
+
+  // Demo "fallback" state: user hasn't told the Agent yet.
+  // Triggered by `?fresh=1` in the URL. Once they type a line, we flip to told.
+  const [hasTold, setHasTold] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const fresh = new URLSearchParams(window.location.search).get("fresh") === "1";
+    if (!fresh) return true;
+    return window.localStorage.getItem(TOLD_KEY) === "1";
+  });
+  const [draft, setDraft] = useState("");
+  const [justSaved, setJustSaved] = useState(false);
+
+  function submit() {
+    const v = draft.trim();
+    if (!v) return;
+    try { window.localStorage.setItem(TOLD_KEY, "1"); } catch {}
+    setHasTold(true);
+    setJustSaved(true);
+  }
+
+  if (!hasTold) {
+    return (
+      <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3.5">
+        <div className="flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.14em] font-mono text-amber-700 dark:text-amber-400">
+          <Sparkles className="w-3 h-3" />
+          {t("intent.why_person_label")}
+        </div>
+        <p className="mt-1.5 text-[13px] text-foreground/85 leading-relaxed">
+          {t("intent.tell_agent_empty")}
+        </p>
+        <div className="mt-2.5 flex items-center gap-1.5">
+          <input
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+            placeholder={t("intent.tell_agent_placeholder")}
+            className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-[12.5px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-foreground/40"
+          />
+          <button
+            onClick={submit}
+            className="inline-flex items-center px-3 py-1.5 rounded-md bg-foreground text-background text-[12px] font-medium hover:opacity-90 transition-opacity"
+          >
+            {t("intent.tell_agent_submit")}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!line) return null;
+
+  return (
+    <div className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3.5">
+      <div className="flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.14em] font-mono text-emerald-700 dark:text-emerald-400">
+        <Sparkles className="w-3 h-3" />
+        {t("intent.why_person_label")}
+      </div>
+      <p className="mt-1.5 text-[14px] text-foreground leading-relaxed">
+        {line}
+      </p>
+      {justSaved && (
+        <p className="mt-2 text-[11.5px] text-emerald-700 dark:text-emerald-400">
+          {t("intent.tell_agent_thanks")}
+        </p>
+      )}
     </div>
   );
 }
