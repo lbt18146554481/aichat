@@ -7,7 +7,8 @@ import type { SideState, ChatMsg, LevelTier, WhenTier } from "@/lib/agents/side-
 import { currentView } from "@/lib/agents/side-by-side";
 import { countAvailableMatches, getIntentById, type Intent } from "@/lib/intents";
 import type { ActivityKind } from "@/lib/types";
-import { avatarUrl } from "@/lib/people";
+import { avatarUrl, getPersonById } from "@/lib/people";
+import { Sparkles } from "lucide-react";
 
 interface Props {
   state: SideState;
