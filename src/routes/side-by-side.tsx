@@ -110,16 +110,19 @@ function narrate(state: SideState, prev: SideState, t: TFunction): SideMsg | nul
 function SideBySidePage() {
   const { t } = useTranslation();
 
-  const [state, setState] = useState<SideState>(() => {
-    if (typeof window === "undefined") return EMPTY;
-    const seed = consumeSeed("sidebyside");
-    if (seed) { reset(); return start(); }
-    return load();
-  });
+  // Consume the homepage-seeded prompt exactly once. consumeSeed() removes the
+  // value from sessionStorage on read, so we must not call it twice.
   const [pendingSeed, setPendingSeed] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     return consumeSeed("sidebyside");
   });
+
+  const [state, setState] = useState<SideState>(() => {
+    if (typeof window === "undefined") return EMPTY;
+    if (pendingSeed) { reset(); return start(); }
+    return load();
+  });
+
   const [hydrated, setHydrated] = useState(false);
   const [thinking, setThinking] = useState(false);
 
