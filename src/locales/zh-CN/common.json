@@ -165,7 +165,16 @@
     "narrate_nomatch_ask": "已经把「{{summary}}」发到池子里，暂时没人对上。{{ask}}",
     "narrate_chat": "两边都在了。右边直接聊就行——需要我随时叫我。",
     "ask_when": "补一句大概什么时候方便，我更容易帮你对上：",
-    "ask_level": "补一句水平如何，我更容易帮你对上："
+    "ask_level": "补一句水平如何，我更容易帮你对上：",
+    "edit_wish": "编辑心愿",
+    "edit_close": "收起",
+    "edit_when": "什么时候",
+    "edit_level": "水平",
+    "edit_location": "在哪（可选）",
+    "edit_location_placeholder": "写个片区、球场、公园…",
+    "edit_apply": "保存并重新匹配",
+    "edited_user_msg": "改了下心愿 → {{changes}}"
+
   },
 
   "activity": {
