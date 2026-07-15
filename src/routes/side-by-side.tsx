@@ -213,6 +213,25 @@ function SideBySidePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
 
+  // Re-run match on mount — when the user returns from History, this is
+  // their "peek and see if someone showed up while I was gone". Only runs
+  // once per hydration for a still-waiting wish.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (state.stage !== "published" || state.matchIntentId) return;
+    if (!state.myIntentId) return;
+    const mine = getIntentById(state.myIntentId);
+    if (!mine) return;
+    const hit = findMatch(mine, { exclude: state.triedIntentIds });
+    if (hit) {
+      setState((s) => ({ ...s, matchIntentId: hit.id, nearMissIds: [] }));
+      return;
+    }
+    const nears = findNearMisses(mine, { exclude: state.triedIntentIds });
+    setState((s) => ({ ...s, nearMissIds: nears.map((n) => n.id) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
+
   // Consume the homepage-seeded prompt automatically.
   useEffect(() => {
     if (!hydrated || !pendingSeed) return;
