@@ -56,25 +56,29 @@ export function ActiveWishBanner() {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const [state, setState] = useState<SideState | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Load persisted state and try one more match on mount — the demo way
-    // to simulate "while you were away, someone showed up".
-    const s = loadSide();
+    // Read the most recent non-revoked do_something session.
+    const active = mostRecentActiveDoSomething();
+    if (!active) { setState(null); return; }
+    setSessionId(active.id);
+    const s = active.state as SideState;
+    // Try one more match on mount — the demo way to simulate "while you
+    // were away, someone showed up".
     if (s.stage === "published" && s.myIntentId && !s.matchIntentId) {
       const mine = getIntentById(s.myIntentId);
       if (mine) {
         const hit = findMatch(mine, { exclude: s.triedIntentIds });
         if (hit) {
           const next: SideState = { ...s, matchIntentId: hit.id, nearMissIds: [] };
-          saveSide(next);
+          updateSession(active.id, { state: next, status: deriveDoSomethingStatus(next) });
           setState(next);
           return;
         }
-        // Refresh near-miss list too (pool may have shifted between visits).
         const nears = findNearMisses(mine, { exclude: s.triedIntentIds });
         const next: SideState = { ...s, nearMissIds: nears.map((n) => n.id) };
-        saveSide(next);
+        updateSession(active.id, { state: next, status: deriveDoSomethingStatus(next) });
         setState(next);
         return;
       }
@@ -85,6 +89,8 @@ export function ActiveWishBanner() {
   if (!state) return null;
   const view = currentView(state);
   if (view === "empty") return null;
+
+  const linkSearch = sessionId ? { session: sessionId } : undefined;
 
   const summary = summarize(state.myIntentId, t);
 
