@@ -7,8 +7,8 @@ export const Route = createFileRoute("/sessions")({
   component: SessionsPage,
   head: () => ({
     meta: [
-      { title: "Everything you've said — Kindred" },
-      { name: "description", content: "Every wish you've started with Kindred." },
+      { title: "History — Kindred" },
+      { name: "description", content: "Every wish and conversation you've started with Kindred." },
     ],
   }),
 });
