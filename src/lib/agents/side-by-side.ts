@@ -333,14 +333,8 @@ const KEY = "kindred:sidebyside.v5";
 export function load(sessionId?: string | null): SideState {
   if (typeof window === "undefined") return EMPTY;
   if (sessionId) {
-    try {
-      // Dynamic import via require to avoid a static cycle (sessions.ts
-      // imports SideState from this file).
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const mod = require("@/lib/sessions") as typeof import("@/lib/sessions");
-      const s = mod.getSession(sessionId);
-      if (s) return { ...EMPTY, ...(s.state as Partial<SideState>) };
-    } catch { /* fallthrough to empty */ }
+    const s = getSession(sessionId);
+    if (s) return { ...EMPTY, ...(s.state as Partial<SideState>) };
     return EMPTY;
   }
   try {
@@ -353,11 +347,7 @@ export function load(sessionId?: string | null): SideState {
 export function save(s: SideState, sessionId?: string | null) {
   if (typeof window === "undefined") return;
   if (sessionId) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const mod = require("@/lib/sessions") as typeof import("@/lib/sessions");
-      mod.updateSession(sessionId, { state: s, status: mod.deriveDoSomethingStatus(s) });
-    } catch { /* noop */ }
+    updateSession(sessionId, { state: s, status: deriveDoSomethingStatus(s) });
     return;
   }
   try { window.localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* noop */ }
