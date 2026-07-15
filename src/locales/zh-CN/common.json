@@ -44,15 +44,20 @@
     }
   },
   "sessions": {
-    "title": "你说过的每一句",
+    "title": "历史",
     "view_all": "查看全部（{{n}}）→",
-    "page_title": "你说过的每一句",
-    "page_subtitle": "每一次你发起的心愿。随时回来，接着说。",
     "untitled": "（未命名）",
     "status_waiting": "挂着",
     "status_matched": "排上了",
     "status_chatting": "聊过",
     "status_revoked": "已撤回"
+  },
+  "history": {
+    "title": "历史",
+    "page_title": "历史",
+    "subtitle": "每一次你发起的心愿与对话，都在这里。随时回来，接着说。",
+    "empty": "还没有记录。回到首页说出一件事，它就会出现在这里。",
+    "view_all": "查看全部"
   },
   "agents": {
     "matchmaker": {
