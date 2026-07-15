@@ -183,18 +183,21 @@ function SideBySidePage() {
 
   const [state, setState] = useState<SideState>(() => {
     if (typeof window === "undefined") return EMPTY;
-    // With a session id, load THAT session (never the legacy blob).
-    // If it's a brand-new session (empty state), the seed will drive submitPrompt.
-    if (sessionId) return load(sessionId);
-    if (pendingSeed) { reset(); return start(); }
-    return load();
+    if (!sessionId) return EMPTY;
+    return load(sessionId);
   });
 
   const [hydrated, setHydrated] = useState(false);
   const [thinking, setThinking] = useState(false);
 
+  // Every side-by-side page must live under a session; no id → home.
+  useEffect(() => {
+    if (!sessionId) void navigate({ to: "/" });
+  }, [sessionId, navigate]);
+
   useEffect(() => { setHydrated(true); }, []);
-  useEffect(() => { if (hydrated) save(state, sessionId); }, [state, hydrated, sessionId]);
+  useEffect(() => { if (hydrated && sessionId) save(state, sessionId); }, [state, hydrated, sessionId]);
+
 
   // Opening message — if the Agent already remembers a preferred trait from a
   // previous activity, lead with it. Otherwise the plain opener.
