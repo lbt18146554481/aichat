@@ -5,7 +5,7 @@ import type { TFunction } from "i18next";
 import { Workspace, type AgentMsg } from "@/components/workspace";
 import { MeetCanvas } from "@/components/canvas/meet-canvas";
 import { consumeSeed } from "@/lib/seed";
-import { getIntentById } from "@/lib/intents";
+import { findMatch, findNearMisses, getIntentById } from "@/lib/intents";
 import { getPersonById } from "@/lib/people";
 import { lastTrait, rememberTrait } from "@/lib/agent-memory";
 import type { Lang } from "@/lib/i18n";
