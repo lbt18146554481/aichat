@@ -19,14 +19,14 @@ import {
   receiveSimulatedReply,
   refineLevel,
   refineWhen,
-  reset,
+  
   revokeAndReset,
   save,
   sendChatMessage,
   setAwaitingTrait,
   setPendingDraft,
   skipMatch,
-  start,
+  
   startChat,
   submitPrompt,
   tryNearMiss,
