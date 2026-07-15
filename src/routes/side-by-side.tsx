@@ -5,7 +5,7 @@ import type { TFunction } from "i18next";
 import { Workspace, type AgentMsg } from "@/components/workspace";
 import { MeetCanvas } from "@/components/canvas/meet-canvas";
 import { consumeSeed } from "@/lib/seed";
-import { getIntentById } from "@/lib/intents";
+import { findMatch, findNearMisses, getIntentById } from "@/lib/intents";
 import { getPersonById } from "@/lib/people";
 import { lastTrait, rememberTrait } from "@/lib/agent-memory";
 import type { Lang } from "@/lib/i18n";
@@ -210,6 +210,25 @@ function SideBySidePage() {
         : t("meet.opening");
       setState((s) => ({ ...s, messages: [msg("assistant", opening)] }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
+
+  // Re-run match on mount — when the user returns from History, this is
+  // their "peek and see if someone showed up while I was gone". Only runs
+  // once per hydration for a still-waiting wish.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (state.stage !== "published" || state.matchIntentId) return;
+    if (!state.myIntentId) return;
+    const mine = getIntentById(state.myIntentId);
+    if (!mine) return;
+    const hit = findMatch(mine, { exclude: state.triedIntentIds });
+    if (hit) {
+      setState((s) => ({ ...s, matchIntentId: hit.id, nearMissIds: [] }));
+      return;
+    }
+    const nears = findNearMisses(mine, { exclude: state.triedIntentIds });
+    setState((s) => ({ ...s, nearMissIds: nears.map((n) => n.id) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
 
@@ -471,8 +490,8 @@ function SideBySidePage() {
         actWith((s) => revokeAndReset(s));
         break;
       case "check_back":
-        // Wish stays published; user goes back to home. Home banner will
-        // surface it (waiting or matched) on next visit.
+        // Wish stays published; user goes back to home. The session stays
+        // in History — clicking it later re-runs the match on mount.
         void navigate({ to: "/" });
         break;
     }
