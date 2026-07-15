@@ -15,6 +15,8 @@ interface Props {
   limit?: number;
   /** When true, show a "view all" link that leads to /sessions. */
   showViewAll?: boolean;
+  /** When true, render without the section header/border (used inside the History drawer). */
+  embedded?: boolean;
 }
 
 function relTime(ts: number, t: TFunction): string {
