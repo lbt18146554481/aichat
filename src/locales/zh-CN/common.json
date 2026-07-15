@@ -15,6 +15,7 @@
     },
     "connections": "我的联系",
     "profile": "我",
+    "history": "历史",
     "gate": {
       "title": "Agent 需要先认识你。",
       "body": "Kindred 给别人看的是你亲手写下的字，不是我们替你归纳的标签。花五分钟把资料填完，然后再回来。",
