@@ -11,6 +11,8 @@ import { hasUnseen, list, rehydrate, subscribe } from "@/lib/connections";
 import { isProfileComplete, loadProfile, profileProgress } from "@/lib/profile";
 import { createSession } from "@/lib/sessions";
 import { EMPTY as EMPTY_SIDE } from "@/lib/agents/side-by-side";
+import { EMPTY as EMPTY_MATCHMAKER } from "@/lib/agents/matchmaker";
+
 
 
 interface Chip {
@@ -60,15 +62,17 @@ export function Home() {
     if (!body) return;
     const target: AgentId = selected ?? routeIntent(body);
     setSeed(target, body);
+    // Every submit — regardless of which Agent it routes to — creates one
+    // History row. New chat semantics: home = new conversation, always.
     if (target === "sidebyside") {
-      // Create a fresh session for this new wish — every submit is a new
-      // conversation, permanently stored in the sessions list.
       const s = createSession("do_something", body, EMPTY_SIDE);
       void navigate({ to: "/side-by-side", search: { session: s.id } });
       return;
     }
-    void navigate({ to: "/matchmaker" });
+    const s = createSession("introduce", body, EMPTY_MATCHMAKER);
+    void navigate({ to: "/matchmaker", search: { session: s.id } });
   }
+
 
   function autosize(el: HTMLTextAreaElement | null) {
     if (!el) return;
