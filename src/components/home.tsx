@@ -60,8 +60,14 @@ export function Home() {
     if (!body) return;
     const target: AgentId = selected ?? routeIntent(body);
     setSeed(target, body);
-    const to = target === "matchmaker" ? "/matchmaker" : "/side-by-side";
-    void navigate({ to });
+    if (target === "sidebyside") {
+      // Create a fresh session for this new wish — every submit is a new
+      // conversation, permanently stored in the sessions list.
+      const s = createSession("do_something", body, EMPTY_SIDE);
+      void navigate({ to: "/side-by-side", search: { session: s.id } });
+      return;
+    }
+    void navigate({ to: "/matchmaker" });
   }
 
   function autosize(el: HTMLTextAreaElement | null) {
