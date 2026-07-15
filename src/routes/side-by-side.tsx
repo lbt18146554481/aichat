@@ -41,6 +41,9 @@ import {
 
 
 export const Route = createFileRoute("/side-by-side")({
+  validateSearch: (raw: Record<string, unknown>) => ({
+    session: typeof raw.session === "string" ? raw.session : "",
+  }),
   component: SideBySidePage,
   head: () => ({
     meta: [
@@ -168,6 +171,8 @@ function SideBySidePage() {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
+  const search = Route.useSearch();
+  const sessionId = search.session || null;
 
   // Consume the homepage-seeded prompt exactly once. consumeSeed() removes the
   // value from sessionStorage on read, so we must not call it twice.
@@ -178,6 +183,9 @@ function SideBySidePage() {
 
   const [state, setState] = useState<SideState>(() => {
     if (typeof window === "undefined") return EMPTY;
+    // With a session id, load THAT session (never the legacy blob).
+    // If it's a brand-new session (empty state), the seed will drive submitPrompt.
+    if (sessionId) return load(sessionId);
     if (pendingSeed) { reset(); return start(); }
     return load();
   });
@@ -186,7 +194,7 @@ function SideBySidePage() {
   const [thinking, setThinking] = useState(false);
 
   useEffect(() => { setHydrated(true); }, []);
-  useEffect(() => { if (hydrated) save(state); }, [state, hydrated]);
+  useEffect(() => { if (hydrated) save(state, sessionId); }, [state, hydrated, sessionId]);
 
   // Opening message — if the Agent already remembers a preferred trait from a
   // previous activity, lead with it. Otherwise the plain opener.

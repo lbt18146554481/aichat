@@ -25,6 +25,7 @@ import {
   type LevelTier,
   type WhenTier,
 } from "../intents";
+import { getSession, updateSession, deriveDoSomethingStatus } from "../sessions";
 
 export type { LevelTier, WhenTier } from "../intents";
 
@@ -322,20 +323,36 @@ export function setAwaitingTrait(state: SideState, v: boolean): SideState {
 
 
 // ---- Persistence -------------------------------------------------------
+//
+// Two modes:
+//   - sessionId given  → read/write into the sessions store (new default)
+//   - no sessionId     → legacy single-blob key (BC + banner fallback)
 
 const KEY = "kindred:sidebyside.v5";
-export function load(): SideState {
+
+export function load(sessionId?: string | null): SideState {
   if (typeof window === "undefined") return EMPTY;
+  if (sessionId) {
+    const s = getSession(sessionId);
+    if (s) return { ...EMPTY, ...(s.state as Partial<SideState>) };
+    return EMPTY;
+  }
   try {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return EMPTY;
     return { ...EMPTY, ...(JSON.parse(raw) as Partial<SideState>) };
   } catch { return EMPTY; }
 }
-export function save(s: SideState) {
+
+export function save(s: SideState, sessionId?: string | null) {
   if (typeof window === "undefined") return;
+  if (sessionId) {
+    updateSession(sessionId, { state: s, status: deriveDoSomethingStatus(s) });
+    return;
+  }
   try { window.localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* noop */ }
 }
+
 export function reset(): SideState {
   if (typeof window !== "undefined") {
     try { window.localStorage.removeItem(KEY); } catch { /* noop */ }

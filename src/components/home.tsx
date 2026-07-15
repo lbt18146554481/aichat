@@ -4,10 +4,13 @@ import { useTranslation } from "react-i18next";
 import { ArrowUp, MessageCircle, UserSearch, Users, UserCircle } from "lucide-react";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { ActiveWishBanner } from "@/components/active-wish-banner";
+import { SessionList } from "@/components/session-list";
 import { routeIntent } from "@/lib/route-intent";
 import { setSeed, type AgentId } from "@/lib/seed";
 import { hasUnseen, list, rehydrate, subscribe } from "@/lib/connections";
 import { isProfileComplete, loadProfile, profileProgress } from "@/lib/profile";
+import { createSession } from "@/lib/sessions";
+import { EMPTY as EMPTY_SIDE } from "@/lib/agents/side-by-side";
 
 
 interface Chip {
@@ -57,8 +60,14 @@ export function Home() {
     if (!body) return;
     const target: AgentId = selected ?? routeIntent(body);
     setSeed(target, body);
-    const to = target === "matchmaker" ? "/matchmaker" : "/side-by-side";
-    void navigate({ to });
+    if (target === "sidebyside") {
+      // Create a fresh session for this new wish — every submit is a new
+      // conversation, permanently stored in the sessions list.
+      const s = createSession("do_something", body, EMPTY_SIDE);
+      void navigate({ to: "/side-by-side", search: { session: s.id } });
+      return;
+    }
+    void navigate({ to: "/matchmaker" });
   }
 
   function autosize(el: HTMLTextAreaElement | null) {
@@ -183,6 +192,8 @@ export function Home() {
           >
             {t("home.agents_footnote")}
           </p>
+
+          {mounted && <SessionList limit={5} showViewAll />}
         </div>
       </main>
     </div>

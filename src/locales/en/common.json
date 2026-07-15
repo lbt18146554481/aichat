@@ -42,6 +42,17 @@
       "days": "{{n}}d ago"
     }
   },
+  "sessions": {
+    "title": "Everything you've said",
+    "view_all": "View all ({{n}}) →",
+    "page_title": "Everything you've said",
+    "page_subtitle": "Every wish you've started. Pick one up where you left it.",
+    "untitled": "(no words)",
+    "status_waiting": "waiting",
+    "status_matched": "matched",
+    "status_chatting": "chatting",
+    "status_revoked": "closed"
+  },
   "agents": {
     "matchmaker": {
       "name": "Matchmaker",

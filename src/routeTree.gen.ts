@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SideBySideRouteImport } from './routes/side-by-side'
+import { Route as SessionsRouteImport } from './routes/sessions'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as MatchmakerRouteImport } from './routes/matchmaker'
 import { Route as ConnectionsRouteImport } from './routes/connections'
@@ -18,6 +19,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const SideBySideRoute = SideBySideRouteImport.update({
   id: '/side-by-side',
   path: '/side-by-side',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SessionsRoute = SessionsRouteImport.update({
+  id: '/sessions',
+  path: '/sessions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/profile': typeof ProfileRoute
+  '/sessions': typeof SessionsRoute
   '/side-by-side': typeof SideBySideRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/profile': typeof ProfileRoute
+  '/sessions': typeof SessionsRoute
   '/side-by-side': typeof SideBySideRoute
 }
 export interface FileRoutesById {
@@ -61,19 +69,33 @@ export interface FileRoutesById {
   '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/profile': typeof ProfileRoute
+  '/sessions': typeof SessionsRoute
   '/side-by-side': typeof SideBySideRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/connections' | '/matchmaker' | '/profile' | '/side-by-side'
+  fullPaths:
+    | '/'
+    | '/connections'
+    | '/matchmaker'
+    | '/profile'
+    | '/sessions'
+    | '/side-by-side'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/connections' | '/matchmaker' | '/profile' | '/side-by-side'
+  to:
+    | '/'
+    | '/connections'
+    | '/matchmaker'
+    | '/profile'
+    | '/sessions'
+    | '/side-by-side'
   id:
     | '__root__'
     | '/'
     | '/connections'
     | '/matchmaker'
     | '/profile'
+    | '/sessions'
     | '/side-by-side'
   fileRoutesById: FileRoutesById
 }
@@ -82,6 +104,7 @@ export interface RootRouteChildren {
   ConnectionsRoute: typeof ConnectionsRoute
   MatchmakerRoute: typeof MatchmakerRoute
   ProfileRoute: typeof ProfileRoute
+  SessionsRoute: typeof SessionsRoute
   SideBySideRoute: typeof SideBySideRoute
 }
 
@@ -92,6 +115,13 @@ declare module '@tanstack/react-router' {
       path: '/side-by-side'
       fullPath: '/side-by-side'
       preLoaderRoute: typeof SideBySideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sessions': {
+      id: '/sessions'
+      path: '/sessions'
+      fullPath: '/sessions'
+      preLoaderRoute: typeof SessionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -130,18 +160,9 @@ const rootRouteChildren: RootRouteChildren = {
   ConnectionsRoute: ConnectionsRoute,
   MatchmakerRoute: MatchmakerRoute,
   ProfileRoute: ProfileRoute,
+  SessionsRoute: SessionsRoute,
   SideBySideRoute: SideBySideRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
