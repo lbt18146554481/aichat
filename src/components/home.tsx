@@ -4,10 +4,13 @@ import { useTranslation } from "react-i18next";
 import { ArrowUp, MessageCircle, UserSearch, Users, UserCircle } from "lucide-react";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { ActiveWishBanner } from "@/components/active-wish-banner";
+import { SessionList } from "@/components/session-list";
 import { routeIntent } from "@/lib/route-intent";
 import { setSeed, type AgentId } from "@/lib/seed";
 import { hasUnseen, list, rehydrate, subscribe } from "@/lib/connections";
 import { isProfileComplete, loadProfile, profileProgress } from "@/lib/profile";
+import { createSession } from "@/lib/sessions";
+import { EMPTY as EMPTY_SIDE } from "@/lib/agents/side-by-side";
 
 
 interface Chip {
