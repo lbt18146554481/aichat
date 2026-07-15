@@ -1,13 +1,13 @@
 // ActiveWishBanner — the home page's "state center" card.
 //
-// Reads the persisted side-by-side state from localStorage and shows:
+// Reads the most recent non-revoked do_something session and shows:
 //   - nothing, if there's no live wish
 //   - a "waiting" card, if the wish is published but has no match
 //   - a "matched" card, if someone lined up
 //   - a "chat" card, if the user is mid-conversation
 //
-// The banner is the whole reason the user can close the tab and come back:
-// the home page tells them, at a glance, what's going on right now.
+// The banner is why the user can close the tab and come back: the home
+// page tells them, at a glance, what's going on right now.
 
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
@@ -15,12 +15,11 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { ArrowRight, Clock, Sparkles, MessageCircle } from "lucide-react";
 import {
-  load as loadSide,
-  save as saveSide,
   revokeAndReset,
   currentView,
   type SideState,
 } from "@/lib/agents/side-by-side";
+import { mostRecentActiveDoSomething, updateSession, deriveDoSomethingStatus, revokeSession } from "@/lib/sessions";
 import { findMatch, findNearMisses, getIntentById } from "@/lib/intents";
 import { getPersonById } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
