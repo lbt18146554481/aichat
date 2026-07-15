@@ -44,15 +44,20 @@
     }
   },
   "sessions": {
-    "title": "Everything you've said",
+    "title": "History",
     "view_all": "View all ({{n}}) →",
-    "page_title": "Everything you've said",
-    "page_subtitle": "Every wish you've started. Pick one up where you left it.",
     "untitled": "(no words)",
     "status_waiting": "waiting",
     "status_matched": "matched",
     "status_chatting": "chatting",
     "status_revoked": "closed"
+  },
+  "history": {
+    "title": "History",
+    "page_title": "History",
+    "subtitle": "Every wish and conversation you've started. Pick one up where you left it.",
+    "empty": "Nothing yet. Start a wish from the home page and it'll show up here.",
+    "view_all": "View all"
   },
   "agents": {
     "matchmaker": {
