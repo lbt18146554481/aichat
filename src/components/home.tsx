@@ -3,7 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ArrowUp, MessageCircle, UserSearch, Users, UserCircle } from "lucide-react";
 import { LangSwitcher } from "@/components/lang-switcher";
-import { ActiveWishBanner } from "@/components/active-wish-banner";
+
 import { HistoryTrigger } from "@/components/history-trigger";
 import { routeIntent } from "@/lib/route-intent";
 import { setSeed, type AgentId } from "@/lib/seed";
