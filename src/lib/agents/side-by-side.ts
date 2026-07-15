@@ -322,20 +322,46 @@ export function setAwaitingTrait(state: SideState, v: boolean): SideState {
 
 
 // ---- Persistence -------------------------------------------------------
+//
+// Two modes:
+//   - sessionId given  → read/write into the sessions store (new default)
+//   - no sessionId     → legacy single-blob key (BC + banner fallback)
 
 const KEY = "kindred:sidebyside.v5";
-export function load(): SideState {
+
+export function load(sessionId?: string | null): SideState {
   if (typeof window === "undefined") return EMPTY;
+  if (sessionId) {
+    try {
+      // Dynamic import via require to avoid a static cycle (sessions.ts
+      // imports SideState from this file).
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const mod = require("@/lib/sessions") as typeof import("@/lib/sessions");
+      const s = mod.getSession(sessionId);
+      if (s) return { ...EMPTY, ...(s.state as Partial<SideState>) };
+    } catch { /* fallthrough to empty */ }
+    return EMPTY;
+  }
   try {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return EMPTY;
     return { ...EMPTY, ...(JSON.parse(raw) as Partial<SideState>) };
   } catch { return EMPTY; }
 }
-export function save(s: SideState) {
+
+export function save(s: SideState, sessionId?: string | null) {
   if (typeof window === "undefined") return;
+  if (sessionId) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const mod = require("@/lib/sessions") as typeof import("@/lib/sessions");
+      mod.updateSession(sessionId, { state: s, status: mod.deriveDoSomethingStatus(s) });
+    } catch { /* noop */ }
+    return;
+  }
   try { window.localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* noop */ }
 }
+
 export function reset(): SideState {
   if (typeof window !== "undefined") {
     try { window.localStorage.removeItem(KEY); } catch { /* noop */ }
