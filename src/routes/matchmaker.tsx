@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Lang } from "@/lib/i18n";
@@ -10,7 +10,6 @@ import {
   actAnotherPerson,
   focusPerson,
   load,
-  reset,
   save,
   start,
   userTurn,
@@ -18,6 +17,9 @@ import {
 } from "@/lib/agents/matchmaker";
 
 export const Route = createFileRoute("/matchmaker")({
+  validateSearch: (raw: Record<string, unknown>) => ({
+    session: typeof raw.session === "string" ? raw.session : "",
+  }),
   component: MatchmakerPage,
   head: () => ({
     meta: [
@@ -30,15 +32,25 @@ export const Route = createFileRoute("/matchmaker")({
 function MatchmakerPage() {
   const { i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const navigate = useNavigate();
+  const search = Route.useSearch();
+  const sessionId = search.session || null;
+
+  // Every matchmaker page must live under a session; no sessionId → home.
+  useEffect(() => {
+    if (!sessionId) void navigate({ to: "/" });
+  }, [sessionId, navigate]);
+
+  // Consume any homepage-seeded prompt exactly once.
+  const [pendingSeed, setPendingSeed] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return consumeSeed("matchmaker");
+  });
 
   const [state, setState] = useState<MatchmakerState>(() => {
     if (typeof window === "undefined") return EMPTY;
-    const seed = consumeSeed("matchmaker");
-    if (seed) {
-      reset();
-      return userTurn(start(lang), seed, lang);
-    }
-    const loaded = load();
+    if (!sessionId) return EMPTY;
+    const loaded = load(sessionId);
     const base = loaded.messages.length === 0 ? start(lang) : loaded;
     const focusId = consumeFocusPerson();
     return focusId ? focusPerson(base, focusId) : base;
@@ -50,7 +62,18 @@ function MatchmakerPage() {
     setHydrated(true);
   }, []);
 
-  useEffect(() => { if (hydrated) save(state); }, [state, hydrated]);
+  useEffect(() => {
+    if (hydrated && sessionId) save(state, sessionId);
+  }, [state, hydrated, sessionId]);
+
+  // Consume the homepage-seeded prompt as the first user turn.
+  useEffect(() => {
+    if (!hydrated || !pendingSeed) return;
+    const text = pendingSeed;
+    setPendingSeed(null);
+    send(text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, pendingSeed]);
 
   function send(text: string) {
     setThinking(true);
@@ -62,7 +85,6 @@ function MatchmakerPage() {
 
   function handleReset() {
     if (!confirm("Start over?")) return;
-    reset();
     setState(start(lang));
   }
 
@@ -74,7 +96,7 @@ function MatchmakerPage() {
     }, 450);
   }
 
-  if (!hydrated) return <div className="h-screen bg-background" />;
+  if (!hydrated || !sessionId) return <div className="h-screen bg-background" />;
 
   const messages: AgentMsg[] = state.messages;
 
