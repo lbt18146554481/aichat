@@ -166,7 +166,7 @@ export function ActiveWishBanner() {
     e.preventDefault();
     e.stopPropagation();
     const next = revokeAndReset(state!);
-    saveSide(next);
+    if (sessionId) revokeSession(sessionId);
     setState(next);
   }
 
