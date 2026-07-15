@@ -102,6 +102,7 @@ export function ActiveWishBanner() {
     return (
       <Link
         to="/side-by-side"
+        search={linkSearch}
         className="group block mb-6 rounded-2xl border border-foreground/40 bg-foreground/[0.03] px-5 py-4 hover:border-foreground/70 hover:bg-foreground/[0.06] transition-colors"
       >
         <div className="flex items-start gap-3">
