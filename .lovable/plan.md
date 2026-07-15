@@ -1,110 +1,122 @@
 
-# "挂着等匹配"的完整产品闭环
+# Sessions：每一次对话都留下来
 
-## 一、先想清楚：这个产品的"等"到底是什么
+## 一、核心模型
 
-Kindred 不是即时匹配工具，本质更像**朋友圈里的一句"有人一起吗"**——发出去之后，你该干嘛干嘛，有人举手了再说。所以"挂着"不是一个功能，而是**产品的常态**。真正要设计的是：
+**一次对话 = 一条 session**。首页输入框提交 → 新建 session → 跳详情页带 id。之后所有该会话内的操作都写回这条 session。历史列表就是所有 sessions 按时间倒序。
 
-- 用户挂完之后，**去哪儿**？
-- 有人排上了，**怎么让他知道**？
-- 他再回来时，**第一眼看到什么**？
+用户心智：**"这个 app 记得我说过的每一句话，随时可以回去看看那句话现在怎么样了。"**
 
-## 二、完整流程（用户视角）
+## 二、页面布局
+
+### 首页 `/` 三层结构（一屏内）
 
 ```text
-① 说一句想做的事
-       ↓
-② Agent 发布 → 立刻尝试匹配
-       ↓
-   ┌───┴───┐
-   有匹配   没匹配
-   │        │
-   │        ③ "挂着"（默认状态，不是一个按钮）
-   │             ├─ 用户可以关掉页面走人
-   │             ├─ 也可以顺手补时间/水平 / 看差一点的人 / 换件事
-   │             ↓
-   │        ④ 匹配发生（后台，用户不在场）
-   │             ↓
-   │        ⑤ 用户下次回来 → 首页直接告诉他"有人排上了"
-   ↓             ↓
-   ⑥ 进入对话 ← 汇合
+┌─────────────────────────────────────┐
+│  workspace header                    │
+│                                      │
+│  ActiveWishBanner（最近一条活跃的）  │  ← 已有
+│                                      │
+│  [ 输入框 ]                          │  ← 已有
+│                                      │
+│  ───── 你之前说过的 ─────            │  ← 新增
+│  🎾 周末打网球         2 小时前 挂着 │
+│  👋 跟 Mia 打招呼      昨天    未回复│
+│  🏃 周中夜跑           3 天前  聊过  │
+│  ...（最多 5 条）                    │
+│  [ 查看全部 →   ]                    │
+└─────────────────────────────────────┘
 ```
 
-关键判断：**不要做推送通知**（demo 阶段做不了，真做了也吵）。改成**"回来即见"**——首页 = 状态中心。
+### 详情页复用现有
 
-## 三、四个页面/状态的分工（简洁版）
+- `/side-by-side?session=xxx` — Do Something 类
+- `/matchmaker?session=xxx` — Introduce 类
 
-### 1. 首页 `/`（改造成"状态中心"）
+session id 只是决定"加载哪一份 state"。页面本身完全不用改。
 
-用户每次打开 app 的第一屏。根据当前有没有挂着的 wish，显示不同内容：
+### `/sessions` 全部记录页（可选，本版先做）
 
-- **没挂任何 wish** → 现在的首页原样（输入框 + "想做点什么"）
-- **挂着 1 条 wish，还没匹配** → 顶部一张卡片：
-  ```
-  你还挂着：网球 · 周末
-  已经等了 2 小时 · 池子里还没人排上
-  [ 继续等 ]  [ 改一改 ]  [ 撤回 ]
-  ```
-- **挂着 1 条 wish，有人排上了** → 顶部一张**高亮**卡片：
-  ```
-  🎾 有人和你排上了
-  Sara · 周末打网球 · 一般水平
-  [ 去看看 ] （主按钮）
-  ```
-  点「去看看」= 现在的 `/side-by-side` match 态
+简单列表，同首页那 5 条的样式，但显示全部。空态提示"还没说过什么，去首页说一句吧"。
 
-**这一步是整个闭环的枢纽**——用户不需要记得回哪个页面，打开 app 就知道。
+## 三、数据设计
 
-### 2. `/side-by-side` 保持不变
+```ts
+// src/lib/sessions.ts (新增)
+export type SessionAgent = "do_something" | "introduce";
+export type SessionStatus = "waiting" | "matched" | "chatting" | "revoked";
 
-它是"这条 wish 的详情/操作页"，从首页卡片点进来。现在的 nomatch、match、chat 三态都保留。
+export interface Session {
+  id: string;
+  agent: SessionAgent;
+  createdAt: number;
+  updatedAt: number;
+  seed: string;              // 用户在首页说的原话，作为列表标题
+  status: SessionStatus;     // 从 state 派生并缓存，用于列表展示
+  state: unknown;            // SideState | MatchmakerState 的原样序列化
+}
 
-### 3. 「挂着」这个动作本身，不需要独立按钮
+// API
+listSessions(): Session[]                    // 按 updatedAt 倒序
+getSession(id): Session | null
+createSession(agent, seed, initialState): Session
+updateSession(id, patch: { state, status? }): void
+revokeSession(id): void                      // 标记 status = "revoked"，不删除
+```
 
-因为**发布 = 挂着**，已经是默认行为。用户在 nomatch 状态点了"补时间"或什么都不做，wish 都在池子里。所以：
+localStorage key: `kindred:sessions.v1`。
 
-- ❌ 不做「先挂着」chip（上一版计划里的 P1）——多余，等于让用户确认默认行为
-- ✅ 改做「返回首页」chip，文案：「先这样，回头再看」/ "I'll check back"
-  - 点了 → 跳回 `/`，wish 保持 published
-  - 传递的信号是"你可以走了，回来时我告诉你"
+**关键**：现有的 `kindred:sidebyside.v5` 单例存储改为"当前活跃 session 的镜像"——每次 save 时同步写到对应 session。老数据首次加载迁移为一条 session。
 
-### 4. 匹配结果如何"追上"用户
+## 四、路由与 state 加载
 
-Demo 里没有真后台，用两个假装的机制模拟"你不在时事情在发生"：
+- `/side-by-side` 支持 search param `?session=<id>`：
+  - 有 id：从 sessions 里加载 state
+  - 无 id：兼容旧行为（走 `kindred:sidebyside.v5`），或者跳回首页
+- 首页输入框提交时：
+  1. `createSession("do_something" | "introduce", text, EMPTY_STATE)`
+  2. 跳 `/side-by-side?session=<newId>`，页面挂载时执行 `submitPrompt(text)`（不再新建 session，只走匹配逻辑）
 
-- **时间流逝感**：wish 上记录 `publishedAt`，首页卡片显示"已经等了 X"
-- **回来时"刚好排上"**：如果用户 wish 已 published 且当前无 match，在**首页挂载时**跑一次 `findMatch`，若命中 → 显示"有人和你排上了"卡片。这在真实产品里就是后台 job + push，demo 里用"打开即算"来演。
+## 五、状态派生
 
-## 四、状态转换总表
+`status` 从 SideState 派生一次，写到 session：
 
-| 用户动作 | wish 状态 | 下次打开 app 看到 |
-|---|---|---|
-| 首页说了一句话，跳到 side-by-side，看到 nomatch | published, no match | 首页顶部"还挂着 X"卡片 |
-| 在 side-by-side 点「回头再看」 | published, no match | 同上 |
-| 在 side-by-side 点「撤回」/「换件别的」 | revoked | 首页原样（干净） |
-| 后台匹配上了（真产品：推送；demo：下次打开时判定） | matched, 未进 chat | 首页顶部"有人排上了"高亮卡片 |
-| 进入了 chat | in-chat | 首页顶部"和 Sara 的对话进行中"卡片，点进去回到 chat |
+| SideState | Session.status |
+|---|---|
+| stage = "prompt" | "waiting" |
+| stage = "published" & matchIntentId = null | "waiting" |
+| stage = "published" & matchIntentId != null | "matched" |
+| stage = "chat" | "chatting" |
+| 用户主动 revokeAndReset | "revoked" |
 
-## 五、这一版的最小实现范围（纯前端 demo）
+列表上根据 status 显示 chip：挂着 / 排上了 / 聊过 / 已撤回。
 
-1. **首页 `src/routes/index.tsx`** 顶部加一个 `<ActiveWishBanner />`
-   - 读 localStorage 里的 side-by-side state
-   - 三种态：no wish / waiting / matched / in-chat → 分别渲染不同卡片
-   - matched 态时，挂载时跑一次 `findMatch` 刷新
-2. **side-by-side nomatch chip 组** 改为：
-   - 主：补时间 / 补水平（原样）
-   - 次：`[看看差一点的人]`（有 near-miss 时）
-   - 兜底：`[回头再看]`（跳 `/`）+ `[换件别的]`（revoke）
-3. **intent 模型加 `publishedAt: number`**，首页卡片显示相对时间（"刚刚 / X 分钟前 / X 小时前"）
-4. i18n：新增 `home.banner_waiting_*`, `home.banner_matched_*`, `home.banner_chat_*`, `intent.chip_check_back` 若干
+## 六、实现清单
 
-## 六、不做的事（明确划线）
+| 文件 | 改动 |
+|---|---|
+| `src/lib/sessions.ts` | **新增**。CRUD + 首次加载时把旧 `kindred:sidebyside.v5` 迁移为一条 session。 |
+| `src/lib/agents/side-by-side.ts` | `save(state, sessionId?)`、`load(sessionId?)` 增加 sessionId 参数；无 id 时保持旧行为兼容。新增 `deriveStatus(state)`。 |
+| `src/routes/index.tsx` | 输入框提交逻辑：先 createSession，再跳 `/side-by-side?session=<id>`。 |
+| `src/routes/side-by-side.tsx` | 读 search param `session`；所有 setState 处调 `updateSession(id, { state, status })`。 |
+| `src/components/session-list.tsx` | **新增**。首页下半，最多 5 条 + "查看全部"。 |
+| `src/components/home.tsx` | 底部插入 `<SessionList limit={5} />`。 |
+| `src/routes/sessions.tsx` | **新增**。全部列表页，复用 `<SessionList />` 不限量。 |
+| `src/components/active-wish-banner.tsx` | 数据源从 `kindred:sidebyside.v5` 改为"最近一条非 revoked 的 session"。 |
+| `src/locales/{en,zh-CN}/common.json` | 新增 ~8 keys：`sessions.title`、`sessions.status_waiting/matched/chatting/revoked`、`sessions.empty`、`sessions.view_all`、`sessions.time_ago_*`。 |
 
-- ❌ 不做真的推送/邮件/通知——超出 demo，且吵
-- ❌ 不做「一次挂多条 wish」——一条已经够讲清楚故事；多条会让首页卡片变成列表，复杂度指数级上升
-- ❌ 不做倒计时/过期——真产品该做，demo 里没必要
-- ❌ 不在 side-by-side 页面里做"回到首页看别的 wish"这种入口——首页就是唯一状态中心，别设第二个
+## 七、明确不做
 
-## 七、一句话总结
+- ❌ session 标题不可编辑（用 seed 原话）
+- ❌ 不做筛选/搜索/tab 分类
+- ❌ 不做删除（只有 revoke，保留历史）
+- ❌ 不做详情快照页——点条目直接回到现有详情页
+- ❌ 不做 Matchmaker 的 session 化（这一版只做 do_something；introduce/matchmaker 走通了再照搬同一套 sessions 层）
 
-**"挂着"不是一个按钮，是产品的默认呼吸方式。用户不需要守着这个页面，他关掉走人，下次打开 app，首页告诉他现在是什么情况。**
+## 八、验收标准
+
+1. 首页说一句话 → 跳详情页 → 后退回首页 → 下方列表里能看到这条，状态正确。
+2. 再说一句新的话 → 又一条新 session，不覆盖上一条。
+3. 点列表里的旧条目 → 回到当时的详情页，左栏 Agent 对话、右栏状态和当时一致，可继续操作。
+4. 详情页里做任何操作（refine、chat、revoke）→ 返回首页看列表，updatedAt 和 status 已刷新。
+5. 刷新浏览器后所有 session 仍在。
