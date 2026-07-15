@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ArrowUp, MessageCircle, UserSearch, Users, UserCircle } from "lucide-react";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { ActiveWishBanner } from "@/components/active-wish-banner";
-import { SessionList } from "@/components/session-list";
+import { HistoryTrigger } from "@/components/history-trigger";
 import { routeIntent } from "@/lib/route-intent";
 import { setSeed, type AgentId } from "@/lib/seed";
 import { hasUnseen, list, rehydrate, subscribe } from "@/lib/connections";
@@ -85,6 +85,7 @@ export function Home() {
             <span className="text-[14px] font-semibold tracking-tight text-foreground">Kindred</span>
           </div>
           <div className="flex items-center gap-3">
+            {mounted && <HistoryTrigger />}
             {connCount > 0 && (
               <Link
                 to="/connections"
@@ -192,8 +193,6 @@ export function Home() {
           >
             {t("home.agents_footnote")}
           </p>
-
-          {mounted && <SessionList limit={5} showViewAll />}
         </div>
       </main>
     </div>
