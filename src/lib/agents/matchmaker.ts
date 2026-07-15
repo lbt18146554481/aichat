@@ -263,29 +263,39 @@ export function focusPerson(state: MatchmakerState, personId: string): Matchmake
 }
 
 // ---- Persistence ---------------------------------------------------------
+//
+// Two modes:
+//   - sessionId given → read/write into the sessions store (new default)
+//   - no sessionId    → no-op; the /matchmaker route redirects to "/" when
+//                        called without a session, so this path is only hit
+//                        by legacy code that hasn't been updated yet.
 
-const KEY = "kindred:matchmaker.v3";
+import { getSession, updateSession, deriveIntroduceStatus } from "../sessions";
 
-export function load(): MatchmakerState {
+export function load(sessionId?: string | null): MatchmakerState {
   if (typeof window === "undefined") return EMPTY;
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return EMPTY;
-    return { ...EMPTY, ...(JSON.parse(raw) as Partial<MatchmakerState>) };
-  } catch { return EMPTY; }
-}
-export function save(s: MatchmakerState) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(s));
-    saveUnderstanding(s.understanding);
-  } catch { /* noop */ }
-}
-export function reset(): MatchmakerState {
-  if (typeof window !== "undefined") {
-    try { window.localStorage.removeItem(KEY); } catch { /* noop */ }
+  if (sessionId) {
+    const s = getSession(sessionId);
+    if (s) return { ...EMPTY, ...(s.state as Partial<MatchmakerState>) };
+    return EMPTY;
   }
+  return EMPTY;
+}
+
+export function save(s: MatchmakerState, sessionId?: string | null) {
+  if (typeof window === "undefined") return;
+  if (sessionId) {
+    updateSession(sessionId, {
+      state: s,
+      status: deriveIntroduceStatus(s),
+    });
+  }
+  try { saveUnderstanding(s.understanding); } catch { /* noop */ }
+}
+
+export function reset(): MatchmakerState {
   return EMPTY;
 }
 // keep an unused export reference to avoid stale-import build noise
 export const _personRef = getPersonById;
+

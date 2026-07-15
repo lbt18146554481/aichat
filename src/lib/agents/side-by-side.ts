@@ -324,41 +324,30 @@ export function setAwaitingTrait(state: SideState, v: boolean): SideState {
 
 // ---- Persistence -------------------------------------------------------
 //
-// Two modes:
-//   - sessionId given  → read/write into the sessions store (new default)
-//   - no sessionId     → legacy single-blob key (BC + banner fallback)
-
-const KEY = "kindred:sidebyside.v5";
+// All state lives in the sessions store, keyed by sessionId. A caller
+// without a sessionId gets EMPTY on load and no-op on save — the route
+// (/side-by-side) redirects to "/" in that case, so this path should
+// never be hit in normal use.
 
 export function load(sessionId?: string | null): SideState {
   if (typeof window === "undefined") return EMPTY;
   if (sessionId) {
     const s = getSession(sessionId);
     if (s) return { ...EMPTY, ...(s.state as Partial<SideState>) };
-    return EMPTY;
   }
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return EMPTY;
-    return { ...EMPTY, ...(JSON.parse(raw) as Partial<SideState>) };
-  } catch { return EMPTY; }
+  return EMPTY;
 }
 
 export function save(s: SideState, sessionId?: string | null) {
   if (typeof window === "undefined") return;
-  if (sessionId) {
-    updateSession(sessionId, { state: s, status: deriveDoSomethingStatus(s) });
-    return;
-  }
-  try { window.localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* noop */ }
+  if (!sessionId) return;
+  updateSession(sessionId, { state: s, status: deriveDoSomethingStatus(s) });
 }
 
 export function reset(): SideState {
-  if (typeof window !== "undefined") {
-    try { window.localStorage.removeItem(KEY); } catch { /* noop */ }
-  }
   return EMPTY;
 }
+
 
 export const ALL_KINDS: ActivityKind[] = ["tennis", "run", "climb", "cook", "exhibition", "bookstore"];
 

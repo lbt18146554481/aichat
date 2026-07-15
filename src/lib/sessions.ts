@@ -1,15 +1,16 @@
 // Sessions — one row per "thing the user has started".
 //
 // Each time the user submits from the home composer, we create a new session
-// and navigate to the corresponding agent page carrying its id. The agent
-// page writes its state back into that session on every change.
+// (regardless of which Agent the intent gets routed to) and navigate to the
+// corresponding agent page carrying its id. The agent page writes its state
+// back into that session on every change.
 //
-// The session list on the home page is just `listSessions()` sorted by
-// updatedAt desc — a live inventory of everything the user has ever said.
-//
-// This is a demo store: pure localStorage, no cross-device, no expiration.
+// The History list is just `listSessions()` sorted by updatedAt desc — a
+// live inventory of everything the user has ever said. One home submit =
+// one row. No merging, no dedup, no "sessions of sessions".
 
 import type { SideState } from "@/lib/agents/side-by-side";
+import type { MatchmakerState } from "@/lib/agents/matchmaker";
 
 export type SessionAgent = "do_something" | "introduce";
 export type SessionStatus = "waiting" | "matched" | "chatting" | "revoked";
@@ -22,13 +23,18 @@ export interface Session {
   /** The original sentence the user typed on the home page. Used as title. */
   seed: string;
   status: SessionStatus;
-  /** Agent-specific state blob. For "do_something" this is SideState. */
+  /** Agent-specific state blob. */
   state: unknown;
 }
 
 const KEY = "kindred:sessions.v1";
 const LEGACY_SIDE_KEY = "kindred:sidebyside.v5";
-const MIGRATION_FLAG = "kindred:sessions.migrated.v1";
+const LEGACY_MATCHMAKER_KEY = "kindred:matchmaker.v3";
+// Bumped to v2: re-run the migration once so we also carry over the old
+// matchmaker blob, and clean up the legacy KEYs afterwards so they can't
+// spawn phantom state on future visits.
+const MIGRATION_FLAG = "kindred:sessions.migrated.v2";
+const OLD_MIGRATION_FLAG = "kindred:sessions.migrated.v1";
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -58,33 +64,76 @@ export function deriveDoSomethingStatus(state: SideState): SessionStatus {
   return "waiting";
 }
 
-/** One-time migration: bring the old single-session sidebyside.v5 blob into
- *  the new sessions list so nothing the user did before disappears. */
+/** Derive the current status of an introduce (matchmaker) session. */
+export function deriveIntroduceStatus(state: MatchmakerState): SessionStatus {
+  if (state.currentPersonId) return "matched";
+  return "waiting";
+}
+
+/** One-time migration: bring old single-blob agent state into the sessions
+ *  list, so nothing the user did before disappears; then delete the legacy
+ *  keys so they can't create phantom state next visit. */
 function ensureMigrated() {
   if (typeof window === "undefined") return;
   try {
     if (window.localStorage.getItem(MIGRATION_FLAG) === "1") return;
+
     const rows = readAll();
-    const raw = window.localStorage.getItem(LEGACY_SIDE_KEY);
-    if (raw && rows.length === 0) {
-      const parsed = JSON.parse(raw) as Partial<SideState>;
-      // Only migrate if there's an actual wish worth carrying over.
-      if (parsed && parsed.myIntentId) {
-        const seed = (parsed.messages ?? []).find((m) => m.role === "user")?.text ?? "";
-        const now = Date.now();
-        const state = parsed as SideState;
-        rows.push({
-          id: uid(),
-          agent: "do_something",
-          createdAt: now,
-          updatedAt: now,
-          seed,
-          status: deriveDoSomethingStatus(state),
-          state,
-        });
-        writeAll(rows);
-      }
+    const now = Date.now();
+
+    // --- side-by-side legacy blob -----------------------------------------
+    const sideRaw = window.localStorage.getItem(LEGACY_SIDE_KEY);
+    if (sideRaw) {
+      try {
+        const parsed = JSON.parse(sideRaw) as Partial<SideState>;
+        if (parsed && parsed.myIntentId) {
+          const seed =
+            (parsed.messages ?? []).find((m) => m.role === "user")?.text ?? "";
+          const state = parsed as SideState;
+          rows.push({
+            id: uid(),
+            agent: "do_something",
+            createdAt: now,
+            updatedAt: now,
+            seed,
+            status: deriveDoSomethingStatus(state),
+            state,
+          });
+        }
+      } catch { /* noop */ }
     }
+
+    // --- matchmaker legacy blob -------------------------------------------
+    const mmRaw = window.localStorage.getItem(LEGACY_MATCHMAKER_KEY);
+    if (mmRaw) {
+      try {
+        const parsed = JSON.parse(mmRaw) as Partial<MatchmakerState>;
+        if (parsed && (parsed.messages?.length ?? 0) > 0) {
+          const seed =
+            (parsed.messages ?? []).find((m) => m.role === "user")?.text ?? "";
+          if (seed) {
+            const state = parsed as MatchmakerState;
+            rows.push({
+              id: uid(),
+              agent: "introduce",
+              createdAt: now,
+              updatedAt: now,
+              seed,
+              status: deriveIntroduceStatus(state),
+              state,
+            });
+          }
+        }
+      } catch { /* noop */ }
+    }
+
+    writeAll(rows);
+
+    // Wipe legacy keys so the agent pages can never load them again.
+    try { window.localStorage.removeItem(LEGACY_SIDE_KEY); } catch { /* noop */ }
+    try { window.localStorage.removeItem(LEGACY_MATCHMAKER_KEY); } catch { /* noop */ }
+    try { window.localStorage.removeItem(OLD_MIGRATION_FLAG); } catch { /* noop */ }
+
     window.localStorage.setItem(MIGRATION_FLAG, "1");
   } catch { /* noop */ }
 }
