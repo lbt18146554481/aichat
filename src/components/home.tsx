@@ -193,8 +193,6 @@ export function Home() {
           >
             {t("home.agents_footnote")}
           </p>
-
-          {mounted && <SessionList limit={5} showViewAll />}
         </div>
       </main>
     </div>
