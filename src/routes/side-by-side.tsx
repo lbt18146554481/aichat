@@ -41,6 +41,9 @@ import {
 
 
 export const Route = createFileRoute("/side-by-side")({
+  validateSearch: (raw: Record<string, unknown>) => ({
+    session: typeof raw.session === "string" ? raw.session : "",
+  }),
   component: SideBySidePage,
   head: () => ({
     meta: [
