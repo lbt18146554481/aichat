@@ -9,7 +9,7 @@ import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Users, UserSearch } from "lucide-react";
-import { listSessions, type Session, type SessionStatus } from "@/lib/sessions";
+import { listSessions, type Session } from "@/lib/sessions";
 
 interface Props {
   limit?: number;
@@ -30,20 +30,6 @@ function relTime(ts: number, t: TFunction): string {
   return t("home.time.days", { n: days });
 }
 
-function statusChip(status: SessionStatus, t: TFunction) {
-  const map: Record<SessionStatus, { key: string; tone: string }> = {
-    waiting:  { key: "sessions.status_waiting",  tone: "bg-secondary text-foreground/70" },
-    matched:  { key: "sessions.status_matched",  tone: "bg-foreground text-background" },
-    chatting: { key: "sessions.status_chatting", tone: "bg-foreground/10 text-foreground" },
-    revoked:  { key: "sessions.status_revoked",  tone: "bg-transparent text-muted-foreground/70 border border-border" },
-  };
-  const c = map[status];
-  return (
-    <span className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium ${c.tone}`}>
-      {t(c.key)}
-    </span>
-  );
-}
 
 export function SessionList({ limit, showViewAll = false, embedded = false }: Props) {
   const { t } = useTranslation();
@@ -98,7 +84,7 @@ export function SessionList({ limit, showViewAll = false, embedded = false }: Pr
                   {relTime(s.updatedAt, t)}
                 </div>
               </div>
-              {statusChip(s.status, t)}
+              
             </Link>
           </li>
         );
