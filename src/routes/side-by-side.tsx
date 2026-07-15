@@ -490,8 +490,8 @@ function SideBySidePage() {
         actWith((s) => revokeAndReset(s));
         break;
       case "check_back":
-        // Wish stays published; user goes back to home. Home banner will
-        // surface it (waiting or matched) on next visit.
+        // Wish stays published; user goes back to home. The session stays
+        // in History — clicking it later re-runs the match on mount.
         void navigate({ to: "/" });
         break;
     }
