@@ -128,6 +128,7 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
               {t("header.reset")}
             </button>
           )}
+          <HistoryTrigger variant="compact" />
           <LangSwitcher />
         </div>
       </div>
