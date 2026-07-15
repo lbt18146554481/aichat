@@ -198,6 +198,7 @@ export function ActiveWishBanner() {
         </button>
         <Link
           to="/side-by-side"
+          search={linkSearch}
           className="inline-flex items-center gap-1 text-[12px] font-medium px-3 py-1 rounded-md bg-foreground text-background hover:opacity-90 transition-opacity"
         >
           {t("home.banner.waiting_cta")}
