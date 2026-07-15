@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, MessageCircle, RotateCcw, UserCircle } from "lucide-react";
 import { LangSwitcher } from "./lang-switcher";
+import { HistoryTrigger } from "./history-trigger";
 import { hasUnseen, list, subscribe, type Connection } from "@/lib/connections";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
