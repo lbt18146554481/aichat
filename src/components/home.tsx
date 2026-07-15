@@ -85,6 +85,7 @@ export function Home() {
             <span className="text-[14px] font-semibold tracking-tight text-foreground">Kindred</span>
           </div>
           <div className="flex items-center gap-3">
+            {mounted && <HistoryTrigger />}
             {connCount > 0 && (
               <Link
                 to="/connections"
