@@ -26,6 +26,12 @@ import {
   type WhenTier,
 } from "../intents";
 import { getSession, updateSession, deriveDoSomethingStatus } from "../sessions";
+import {
+  isSaved as isSavedGlobal,
+  removeSaved as removeSavedGlobal,
+  removeSavedForSession as removeSavedForSessionGlobal,
+  saveIntent as saveIntentGlobal,
+} from "../saved-intents";
 
 export type { LevelTier, WhenTier } from "../intents";
 
@@ -235,8 +241,9 @@ export function refineLevel(state: SideState, level: LevelTier): SideState {
 }
 
 /** Edit my published wish (any subset of when/level/location) and rematch.
- *  Editing shifts the pool the saved candidates belonged to, so we clear
- *  the saved bookmarks — keep the demo state legible. */
+ *  Editing shifts the candidate pool; keep the global Saved list untouched
+ *  (that's a cross-wish shelf), but reset the session-scoped mirror so the
+ *  card state stays consistent. */
 export function editWish(
   state: SideState,
   patch: { when?: WhenTier; level?: LevelTier; location?: string },
@@ -258,14 +265,23 @@ export function skipMatch(state: SideState): SideState {
 }
 
 /** Toggle: bookmark the currently shown match, or un-bookmark it if already saved.
+ *  Writes to the GLOBAL saved-intents store so it survives session changes,
+ *  chat, and page navigation. Session-scoped mirror kept for legacy readers.
  *  Does NOT advance to the next candidate — Save and See next are independent. */
-export function saveCurrent(state: SideState): SideState {
+export function saveCurrent(state: SideState, sessionId?: string | null): SideState {
   if (!state.myIntentId || !state.matchIntentId) return state;
   const id = state.matchIntentId;
-  const already = state.savedIntentIds.includes(id);
+  const already = isSavedGlobal(id);
+  if (already) {
+    removeSavedGlobal(id);
+  } else if (sessionId) {
+    saveIntentGlobal(id, sessionId);
+  }
   const saved = already
     ? state.savedIntentIds.filter((x) => x !== id)
-    : [...state.savedIntentIds, id];
+    : state.savedIntentIds.includes(id)
+      ? state.savedIntentIds
+      : [...state.savedIntentIds, id];
   return { ...state, savedIntentIds: saved };
 }
 
@@ -273,6 +289,7 @@ export function saveCurrent(state: SideState): SideState {
 /** Remove from saved list and put the person back into the pool as the
  *  current candidate (if nothing else is currently shown). */
 export function unsave(state: SideState, intentId: string): SideState {
+  removeSavedGlobal(intentId);
   const saved = state.savedIntentIds.filter((id) => id !== intentId);
   const tried = state.triedIntentIds.filter((id) => id !== intentId);
   const next: SideState = { ...state, savedIntentIds: saved, triedIntentIds: tried };
@@ -317,11 +334,15 @@ export function startChat(state: SideState, draft?: string): SideState {
   if (!other) return state;
   const opener = other.rawText_zh || other.rawText;
   const first: ChatMsg = { id: uid(), from: "them", text: opener, t: Date.now() };
+  // Starting a chat with TA removes just TA from the global saved shelf —
+  // other saved candidates remain across pages/sessions.
+  removeSavedGlobal(state.matchIntentId);
+  const remainingSaved = state.savedIntentIds.filter((x) => x !== state.matchIntentId);
   return {
     ...state,
     stage: "chat",
     chatMessages: [first],
-    savedIntentIds: [],
+    savedIntentIds: remainingSaved,
     ...(draft ? { pendingDraft: draft } : {}),
   };
 }
@@ -340,8 +361,10 @@ export function receiveSimulatedReply(state: SideState): SideState {
   return { ...state, chatMessages: [...state.chatMessages, reply] };
 }
 
-export function revokeAndReset(state: SideState): SideState {
+export function revokeAndReset(state: SideState, sessionId?: string | null): SideState {
   if (state.myIntentId) revokeMyIntent(state.myIntentId);
+  // Withdrawing the wish clears anything the user saved under it.
+  if (sessionId) removeSavedForSessionGlobal(sessionId);
   return { ...EMPTY, messages: state.messages };
 }
 

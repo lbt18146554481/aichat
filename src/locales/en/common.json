@@ -248,7 +248,7 @@
     "saved_review_hint": "Reopen someone you parked earlier.",
     "narrate_next_match": "Here's the next one who wants the same thing.",
     "narrate_pool_exhausted": "That was the last person matching this wish. Want to loosen it, or say something else?",
-    "narrate_saved": "Bookmarked. You'll find TA in the saved list at the top-right whenever you want to come back.",
+    "narrate_saved": "Bookmarked. You'll find TA under Saved in the top bar whenever you want to come back.",
     "narrate_unsaved": "Removed from saved.",
 
     "narrate_revoked": "Withdrawn. What would you rather do?",
@@ -391,5 +391,15 @@
     "brave": "honesty", "ambitious": "ambition", "city": "city life",
     "animals": "animals", "rain": "rainy days", "morning": "early mornings",
     "night": "late nights"
+  },
+  "saved": {
+    "header": "Saved · {{count}}",
+    "header_aria": "Open saved list",
+    "title": "Saved for later",
+    "subtitle": "People you parked while looking. They stay here across wishes until you start chatting or remove them.",
+    "empty": "Nothing saved yet.",
+    "from_wish": "From",
+    "start_chat": "Start chatting",
+    "remove": "Remove"
   }
 }

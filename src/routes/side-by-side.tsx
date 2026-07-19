@@ -9,6 +9,7 @@ import { findMatch, findNearMisses, getIntentById } from "@/lib/intents";
 import { getPersonById } from "@/lib/people";
 import { lastTrait, rememberTrait } from "@/lib/agent-memory";
 import type { Lang } from "@/lib/i18n";
+import { isSaved as isSavedGlobal } from "@/lib/saved-intents";
 import {
   EMPTY,
   backToCandidate,
@@ -45,6 +46,7 @@ import {
 export const Route = createFileRoute("/side-by-side")({
   validateSearch: (raw: Record<string, unknown>) => ({
     session: typeof raw.session === "string" ? raw.session : "",
+    chatWith: typeof raw.chatWith === "string" ? raw.chatWith : "",
   }),
   component: SideBySidePage,
   head: () => ({
@@ -175,6 +177,7 @@ function SideBySidePage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const sessionId = search.session || null;
+  const chatWithId = search.chatWith || "";
 
   // Consume the homepage-seeded prompt exactly once. consumeSeed() removes the
   // value from sessionStorage on read, so we must not call it twice.
@@ -242,6 +245,19 @@ function SideBySidePage() {
     handleSend(text);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, pendingSeed]);
+
+  // Deep-link from the global Saved drawer: open TA chat directly.
+  useEffect(() => {
+    if (!hydrated || !chatWithId) return;
+    setState((s) => chatWithSaved(s, chatWithId));
+    // Strip the param after consuming so a refresh doesn't re-fire it.
+    void navigate({
+      to: "/side-by-side",
+      search: { session: sessionId ?? "" } as any,
+      replace: true,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, chatWithId]);
 
   function actWith(mutate: (s: SideState) => SideState, userText?: string) {
     setThinking(true);
@@ -401,7 +417,7 @@ function SideBySidePage() {
     setThinking(true);
     window.setTimeout(() => {
       setState((s) => {
-        const cleared = revokeAndReset(s);
+        const cleared = revokeAndReset(s, sessionId);
         const trait = lastTrait();
         const line = trait
           ? t("intent.narrate_new_activity_with_memory", { trait })
@@ -489,7 +505,7 @@ function SideBySidePage() {
         actWith((s) => tryNearMiss(s, a.intentId));
         break;
       case "revoke":
-        actWith((s) => revokeAndReset(s));
+        actWith((s) => revokeAndReset(s, sessionId));
         break;
       case "check_back":
         // Wish stays published; user goes back to home. The session stays
@@ -500,15 +516,16 @@ function SideBySidePage() {
   }
 
   function handleStartChat() { actWith((s) => startChat(s)); }
-  function handleRevoke()    { actWith((s) => revokeAndReset(s)); }
+  function handleRevoke()    { actWith((s) => revokeAndReset(s, sessionId)); }
   function handleTryNearMiss(intentId: string) { actWith((s) => tryNearMiss(s, intentId)); }
   function handleSave() {
     setThinking(true);
     window.setTimeout(() => {
       setState((s) => {
         const currentId = s.matchIntentId;
-        const wasSaved = currentId ? s.savedIntentIds.includes(currentId) : false;
-        const next = saveCurrent(s);
+        // Read from global before the toggle happens inside saveCurrent.
+        const wasSaved = currentId ? isSavedGlobal(currentId) : false;
+        const next = saveCurrent(s, sessionId);
         const line = wasSaved
           ? t("intent.narrate_unsaved")
           : t("intent.narrate_saved");
@@ -549,7 +566,7 @@ function SideBySidePage() {
     setThinking(true);
     window.setTimeout(() => {
       setState((s) => {
-        const next = revokeAndReset(s);
+        const next = revokeAndReset(s, sessionId);
         return { ...next, messages: [...next.messages, msg("assistant", t("intent.narrate_revoked"))] };
       });
       setThinking(false);

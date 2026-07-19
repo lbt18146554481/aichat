@@ -246,7 +246,7 @@
     "saved_review_hint": "重新看看你先收起来的人。",
     "narrate_next_match": "换一个看看，这是新的一位。",
     "narrate_pool_exhausted": "这是最后一位。要不要放宽条件，或者换件别的事？",
-    "narrate_saved": "已收藏。右上角随时能找到 TA。",
+    "narrate_saved": "已收藏。顶部「收藏」里随时找得到 TA。",
     "narrate_unsaved": "已从收藏移出。",
 
     "narrate_revoked": "好，这条撤了。你想做点别的？",
@@ -385,5 +385,15 @@
     "curious": "好奇心", "funny": "幽默", "kind": "善良",
     "brave": "诚实", "ambitious": "有野心", "city": "城市生活",
     "animals": "动物", "rain": "下雨天", "morning": "清晨", "night": "深夜"
+  },
+  "saved": {
+    "header": "收藏 · {{count}}",
+    "header_aria": "打开收藏",
+    "title": "先收藏起来",
+    "subtitle": "你在挑人时先收藏起来的人。跨心愿保留，直到你开始聊 TA 或手动移出。",
+    "empty": "暂无收藏。",
+    "from_wish": "来自",
+    "start_chat": "开始聊",
+    "remove": "移出"
   }
 }
