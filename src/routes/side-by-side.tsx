@@ -560,11 +560,14 @@ function SideBySidePage() {
   function handleChatWithSaved(intentId: string) {
     actWith((s) => chatWithSaved(s, intentId));
   }
-  function handleEditWish(patch: { when?: WhenTier; level?: LevelTier; location?: string }) {
+  function handleEditWish(patch: { when?: WhenTier; level?: LevelTier; city?: string }) {
     const bits: string[] = [];
     if (patch.when) bits.push(t(`meet.when.${patch.when}`));
     if (patch.level) bits.push(t(`meet.level.${patch.level}`));
-    if (patch.location !== undefined && patch.location.trim()) bits.push(patch.location.trim());
+    if (patch.city !== undefined) {
+      const label = patch.city.trim() || loadProfile().city;
+      if (label) bits.push(label);
+    }
     const userText = bits.length ? t("intent.edited_user_msg", { changes: bits.join(" · ") }) : undefined;
     actWith((s) => editWish(s, patch), userText);
   }
