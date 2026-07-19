@@ -116,13 +116,45 @@ function findLevel(text: string): LevelTier | undefined {
   return undefined;
 }
 
+/** Known city labels — must line up with the seed people's cities so we
+ *  don't accept a city the pool has zero coverage for. Each entry gives
+ *  the English + Chinese label plus the trigger words we accept. Order
+ *  matters for substring matching: longer/more-specific first. */
+const CITY_DICT: Array<{ en: string; zh: string; triggers: string[] }> = [
+  { en: "New York",     zh: "纽约",         triggers: ["new york", "nyc", "manhattan", "brooklyn", "布鲁克林", "纽约"] },
+  { en: "Mexico City",  zh: "墨西哥城",     triggers: ["mexico city", "cdmx", "墨西哥城"] },
+  { en: "Tel Aviv",     zh: "特拉维夫",     triggers: ["tel aviv", "特拉维夫"] },
+  { en: "Buenos Aires", zh: "布宜诺斯艾利斯", triggers: ["buenos aires", "布宜诺斯艾利斯"] },
+  { en: "Lisbon",       zh: "里斯本",       triggers: ["lisbon", "lisboa", "里斯本"] },
+  { en: "Berlin",       zh: "柏林",         triggers: ["berlin", "柏林"] },
+  { en: "Kyoto",        zh: "京都",         triggers: ["kyoto", "京都"] },
+  { en: "Copenhagen",   zh: "哥本哈根",     triggers: ["copenhagen", "哥本哈根"] },
+  { en: "Lagos",        zh: "拉各斯",       triggers: ["lagos", "拉各斯"] },
+  { en: "Edinburgh",    zh: "爱丁堡",       triggers: ["edinburgh", "爱丁堡"] },
+  { en: "Vancouver",    zh: "温哥华",       triggers: ["vancouver", "温哥华"] },
+  { en: "Rome",         zh: "罗马",         triggers: ["rome", "roma", "罗马"] },
+];
+
+function findCity(text: string): { en: string; zh: string } | undefined {
+  for (const c of CITY_DICT) {
+    for (const w of c.triggers) {
+      if (text.includes(w)) return { en: c.en, zh: c.zh };
+    }
+  }
+  return undefined;
+}
+
 export function parseIntent(raw: string): ParseResult {
   const truncated = raw.length > MAX_INPUT_CHARS;
   const text = normalize(truncated ? raw.slice(0, MAX_INPUT_CHARS) : raw);
   const kind = findKindHit(text) ?? "other";
   const when = findWhen(text);
   const level = LEVEL_KINDS.includes(kind) ? findLevel(text) : undefined;
-  return { kind, when, level, truncated };
+  const cityHit = findCity(text);
+  return {
+    kind, when, level, truncated,
+    ...(cityHit ? { city: cityHit.en, city_zh: cityHit.zh } : {}),
+  };
 }
 
 // ---- Messages / state ---------------------------------------------------
