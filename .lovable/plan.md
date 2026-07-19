@@ -1,108 +1,44 @@
-## 我的判断（先说结论）
+## 我发现的三个问题
 
-你的直觉是对的，当前 Saved 有两个真问题：
+**1. Save 按钮点击后不"变黑"**
+`meet-canvas.tsx` 的 Saved 态用的是 `border-foreground/60 bg-secondary`，是很淡的灰底，你之前指的"变黑"（`bg-foreground text-background`）没了。视觉上根本看不出被收藏。
 
-1. **位置错了**：它浮在右侧匹配画布右上角，是「页面内控件」而不是「一个我能随时回来的地方」。视觉像小徽章，心智却承担"收藏夹"角色，错位。
-2. **生命周期错了**：一开始聊天就清空整份 Saved，用户会觉得东西丢了。收藏本来就是"我以后再看"，不该被"和某一个人开始聊"这个动作牵连。
+**2. 对话框上方看不到 Saved 入口**
+`SavedTrigger` 只在 `count > 0` 时渲染，逻辑没错。但如果 Header 上确实一直不显示，最可能的原因是 `sessionId` 为空导致 `saveCurrent` 里 `saveIntentGlobal(id, sessionId)` 那个分支不执行——`saveCurrent` 只在 `sessionId` 存在时才写全局 store（`else if (sessionId)`），所以在没有 session 上下文的匹配下点收藏，Header 就永远不会亮起。这是个静默失败的 bug。
 
-我的方案是：**把 Saved 提升为全局对象**，跨 session、跨页面存在；匹配卡只保留"加入/移出"按钮，入口统一放到顶部 Header。
+**3. "1 more waiting" 没实际用处**
+它只是在匹配卡右上角挂个数字，既不引导下一步、也不代表状态；"看下一个"按钮本身就承担了池子的语义。留着只是噪音。
 
-我明确不做的事：不做永久收藏夹、不做分组/标签/搜索、不跨到 Matchmaker。它只服务一个场景——"这个人可以，但我想先看下一个，之后回来找 TA"。加任何东西都会让它变重。
+## 修复方案
 
----
+### A. Save 按钮回到"变黑"
+`MatchView` 里 Save 按钮的样式改成两态清晰对比：
+- 未收藏：白底描边（保持不变）。
+- 已收藏（`isSaved` 为 true）：`bg-foreground text-background border-foreground`，图标切到 `BookmarkCheck`，文案 `Saved / 已收藏`。
+和"开始聊"的主按钮同样是黑色，用户一眼看到"这个已经收进去了"。
 
-## 产品设计
+### B. Saved 全局写入不再依赖 sessionId
+`src/lib/agents/side-by-side.ts` 的 `saveCurrent`：
+- 收藏时即使 `sessionId` 缺失也要写入全局 store，用空串或 `state.myIntentId` 作为回退标识，保证 Header 的 count 一定会 +1。
+- 抽屉里"来自哪条心愿"在 `sessionId` 缺失时优雅隐藏（不显示那行小字），不阻塞主流程。
 
-### 1. 匹配卡：只承担决策，不承担入口
+再顺手确认：`SavedTrigger` 已经挂在 `WorkspaceHeader` 和 `home.tsx` 上，`side-by-side` 页面走的是 `WorkspaceHeader`，所以 Header 入口的渲染路径没问题——修完 A/B 后就会出现。
 
-底部三个动作并列，含义完全独立：
+### C. 移除"1 more waiting"
+在 `MatchView` 里删掉 `remaining` 展示区块（含 `intent.pool_remaining` 文案调用）。
+"看下一个"按钮保留 `disabled={remaining === 0}` 的禁用逻辑（池子空时不能继续），但不再显示数字。
+从 `en / zh-CN` locale 删除 `intent.pool_remaining` key。
 
-```text
-[开始聊]   [♡ 收藏 / ✓ 已收藏]   [看下一个 →]
-```
+### D. 顺手校对 Save 之后的引导
+Save 之后 assistant 那句 `intent.narrate_saved` 之前提到过"去顶部看"，确认文案在中英文里都还是"顶部 Saved 里能找到"，用户点完能感知到入口在哪里。
 
-- 收藏 = 纯 toggle，把当前 TA 放进/移出全局 Saved，不换人、不重匹配。
-- 看下一个 = 只换人，不影响收藏。
-- 删除右上角浮动的 Saved pill。匹配卡回归"看一个人、做一个决定"的干净状态。
+## 变更文件
 
-### 2. Header：新增全局 Saved 入口
+- `src/components/canvas/meet-canvas.tsx`：Save 按钮样式两态；删除 `remaining` chip。
+- `src/lib/agents/side-by-side.ts`：`saveCurrent` 无 sessionId 时也写全局。
+- `src/components/saved-trigger.tsx`：抽屉里 `wishSummary` 缺失时不渲染那行。
+- `src/locales/en/common.json`、`src/locales/zh-CN/common.json`：删除 `intent.pool_remaining`；确认 `intent.narrate_saved` 文案指向顶部。
 
-顶部 Header（History 旁）加一个轻量入口：
+## 不动的部分
 
-```text
-♡ Saved · 2
-```
-
-- 计数 > 0 才显示，不占用首页视觉。
-- 在 do something 页、聊天页、History、Profile 等所有 Workspace 页面都可见。
-- 点击打开右侧抽屉。
-- 首页不再加 Banner/卡片——用户想找收藏就上顶部，一个地方，永远在。
-
-### 3. Saved 抽屉：极简列表
-
-每条只显示最有用的四件事：
-
-- 头像 + 名字 + 城市/职业
-- TA 当时发布的原话
-- 当初是从哪条心愿收藏的（如"来自：周末网球"）
-- 两个动作：`开始聊` / `移出`
-
-不做筛选、不做排序、不做搜索。
-
-### 4. 生命周期：不再被"开始聊"清空
-
-新规则更符合直觉：
-
-- **开始聊 TA**：只把 TA 一个人从 Saved 移出。
-- **撤回心愿**：只移出这条心愿关联的收藏。
-- **回首页/切页面/关抽屉**：Saved 完全不动。
-- **手动"移出"**：显式操作，彻底清一个。
-
-### 5. No Match 场景闭环
-
-池子空了时，如果还有 Saved：
-
-```text
-暂时没有新的人了。你先前收藏了 2 位，可以回去看看，也可以放宽心愿。
-```
-
-不再另做独立入口，就一句提示 + 复用顶部 Saved。
-
----
-
-## 用户完整流程
-
-```text
-匹配卡看到 A       → 觉得可能可以 → 点♡收藏 → 顶部 Saved 变 1
-点看下一个 → 卡 B  → 不合适       → 跳过
-点看下一个 → 卡 C  → 决定就是 TA  → 点开始聊
-                                  → C 从 Saved 移出，A 仍在
-聊到一半退出到首页 → 顶部依然看到 Saved · 1
-过两天回来点开    → 抽屉里 A 还在，可直接开聊或移出
-```
-
-任何时候用户都知道去哪找收藏：**顶部**，一次也不会因为切页面/开始聊而丢。
-
----
-
-## 技术改动
-
-- 新建 `src/lib/saved-intents.ts`：全局 localStorage store，字段 `{ intentId, sessionId, savedAt }`；提供 list/toggle/remove/subscribe。
-- 新建 `src/components/saved-trigger.tsx`：Header 入口按钮 + 抽屉（复用 shadcn Sheet）。抽屉内容用 `getIntentById` + `getSession` 拼装。
-- `src/components/workspace-header.tsx`：在 History 旁挂 `<SavedTrigger />`。
-- `src/lib/agents/side-by-side.ts`：
-  - `saveCurrent` 改为写入全局 store；`state.savedIntentIds` 保留但读取以全局为准。
-  - `startChat` 不再清空 `savedIntentIds`，改为只从全局 Saved 移除当前 `matchIntentId`。
-  - `revokeAndReset` 只清理关联该 `myIntentId` 的 Saved 记录。
-- `src/components/canvas/meet-canvas.tsx`：删除右上角浮动 pill；删除 NoMatch 内独立收藏卡；匹配卡底部保留 Save toggle 并读全局状态。
-- 文案：更新 `intent.narrate_saved` / `intent.saved_hint`，去掉"开始聊会清空"的旧暗示。
-
----
-
-## 请你确认一件事
-
-Saved 是否也要在 Matchmaker（介绍一个人）复用？
-
-**我建议不共用。** Matchmaker 是"一次一个人、带理由"的引荐流，本来不鼓励收集；共用会把它拉向收藏夹方向，反而变重。Saved 只服务 Do Something。
-
-同意这个边界我就按上面做；若你希望是跨 Agent 全局收藏夹，请说，那第 2、3 步会改。
+- Saved store 结构、Header 入口渲染逻辑、生命周期规则都保持上一轮方案。这次只做视觉纠正、bug 修复和减法。
