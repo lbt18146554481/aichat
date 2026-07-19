@@ -292,11 +292,12 @@ export function saveCurrent(state: SideState, sessionId?: string | null): SideSt
     // used as an optional back-link for the drawer, never a gate.
     saveIntentGlobal(id, sessionId || state.myIntentId || id);
   }
+  const currentSaved = state.savedIntentIds ?? [];
   const saved = already
-    ? state.savedIntentIds.filter((x) => x !== id)
-    : state.savedIntentIds.includes(id)
-      ? state.savedIntentIds
-      : [...state.savedIntentIds, id];
+    ? currentSaved.filter((x) => x !== id)
+    : currentSaved.includes(id)
+      ? currentSaved
+      : [...currentSaved, id];
   return { ...state, savedIntentIds: saved };
 }
 
@@ -305,7 +306,7 @@ export function saveCurrent(state: SideState, sessionId?: string | null): SideSt
  *  current candidate (if nothing else is currently shown). */
 export function unsave(state: SideState, intentId: string): SideState {
   removeSavedGlobal(intentId);
-  const saved = state.savedIntentIds.filter((id) => id !== intentId);
+  const saved = (state.savedIntentIds ?? []).filter((id) => id !== intentId);
   const target = getIntentById(intentId);
   const tried = (state.triedIntentIds ?? []).filter((id) => id !== intentId);
   const triedOwners = target
@@ -356,7 +357,7 @@ export function startChat(state: SideState, draft?: string): SideState {
   // Starting a chat with TA removes just TA from the global saved shelf —
   // other saved candidates remain across pages/sessions.
   removeSavedGlobal(state.matchIntentId);
-  const remainingSaved = state.savedIntentIds.filter((x) => x !== state.matchIntentId);
+  const remainingSaved = (state.savedIntentIds ?? []).filter((x) => x !== state.matchIntentId);
   return {
     ...state,
     stage: "chat",
