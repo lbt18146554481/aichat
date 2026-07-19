@@ -21,11 +21,16 @@ export const ACTIVITIES: Record<string, Activity[]> = {
   theo: [
     { kind: "cook", level: "advanced", area: "Kreuzberg", area_zh: "克罗伊茨贝格",
       slots: [{ day: "tue", window: "evening" }], venue: "Markthalle Neun", venue_zh: "九号市场" },
+    { kind: "exhibition", level: "intermediate", area: "Mitte", area_zh: "米特",
+      slots: [{ day: "sat", window: "evening" }], venue: "Hamburger Bahnhof", venue_zh: "汉堡车站美术馆" },
   ],
   mira: [
     { kind: "run", level: "intermediate", area: "Higashiyama", area_zh: "东山",
       slots: [{ day: "sat", window: "morning" }, { day: "wed", window: "morning" }],
       venue: "Kamogawa riverside", venue_zh: "鸭川河岸" },
+    { kind: "tennis", level: "beginner", area: "Sakyō", area_zh: "左京",
+      slots: [{ day: "sun", window: "evening" }],
+      venue: "Takano public courts", venue_zh: "高野公共球场" },
   ],
   hugo: [
     { kind: "exhibition", level: "intermediate", area: "Roma Norte", area_zh: "罗马北区",
