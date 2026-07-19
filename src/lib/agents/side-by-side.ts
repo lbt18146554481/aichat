@@ -198,12 +198,18 @@ export function uid(): string { return Math.random().toString(36).slice(2, 10); 
 function rematchAfterUpdate(state: SideState, intentId: string): SideState {
   const mine = getIntentById(intentId);
   if (!mine) return state;
-  const match = findMatch(mine, {
+  const pick = pickNextCandidate(mine, {
     exclude: state.triedIntentIds ?? [],
     excludeOwnerIds: state.triedOwnerIds ?? [],
   });
-  if (match) {
-    return { ...state, stage: "published", matchIntentId: match.id, nearMissIds: [] };
+  if (pick) {
+    return {
+      ...state,
+      stage: "published",
+      matchIntentId: pick.intent.id,
+      matchQuality: pick.quality,
+      nearMissIds: [],
+    };
   }
   const nears = findNearMisses(mine, {
     exclude: state.triedIntentIds ?? [],
@@ -213,6 +219,7 @@ function rematchAfterUpdate(state: SideState, intentId: string): SideState {
     ...state,
     stage: "published",
     matchIntentId: null,
+    matchQuality: undefined,
     nearMissIds: nears.map((n) => n.id),
   };
 }
