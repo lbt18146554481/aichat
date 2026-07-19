@@ -438,7 +438,7 @@ function WhyPersonBox({ otherOwnerId, lang }: { otherOwnerId: string; lang: Lang
     );
   }
 
-  if (!line) return null;
+  const fallback = !line ? t("intent.why_person_fallback") : null;
 
   return (
     <div className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3.5">
@@ -447,7 +447,7 @@ function WhyPersonBox({ otherOwnerId, lang }: { otherOwnerId: string; lang: Lang
         {t("intent.why_person_label")}
       </div>
       <p className="mt-1.5 text-[14px] text-foreground leading-relaxed">
-        {line}
+        {line ?? fallback}
       </p>
       {justSaved && (
         <p className="mt-2 text-[11.5px] text-emerald-700 dark:text-emerald-400">
