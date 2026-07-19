@@ -1,32 +1,65 @@
+## 诊断（已验证）
+
+在预览里复现了你说的"See next 又不用了"：
+
+- 当前会话的心愿是 `tennis / 任何时间 / 任何水平`，`triedOwnerIds = []`。
+- 调用 `findAllMatches(mine, {})` 实际只返回 **1 个人**（June）。
+- 因此 `MatchView` 里 `remaining = countAvailableMatches(排除 June)` = **0**，"看下一个"按钮被 `disabled`，鼠标悬停显示"池子里暂时没有别的人了"。
+
+也就是说：按钮的代码逻辑是对的，但**种子池里同一个活动的候选人太少**，一旦出现第一个匹配，"看下一个"就立刻死掉，从用户视角看就是"按钮不能用"。这在跑步、攀岩等其它活动上也会同样发生。
+
+再加一层问题：即便有多个同类候选人，我们目前对 `when` / `level` 是**硬过滤**的——只要用户勾了具体时间/水平，跨过一格立刻被剔除；这会让"看下一个"经常在第 2、3 次点击后就没人了。
+
 ## 目标
-把 Do something together 里的两个核心操作修到稳定、可理解：
-- 点 `Save` 后按钮立即变成黑色 `Saved / 已收藏`，顶部全局 `Saved` 入口立即出现。
-- 点 `See next` 后必须换成视觉上不同的人；如果没有新的人，明确进入“没有更多人”的状态，而不是看起来没反应。
 
-## 当前已确认的问题
-1. `Save` 的全局入口依赖本地存储订阅与当前页面状态同时刷新，容易出现按钮已点但 Header 入口没立即出现的体验。
-2. `See next` 现在只排除当前 `intentId`。同一个人如果有多条匹配 intent，下一次可能仍然匹配到同一个 `ownerId`，用户看到头像/名字不变，会感觉“没有换人”。
-3. `Save` 和 `See next` 都通过延迟 `setTimeout` 修改状态，连续点击或状态还没落盘时容易产生不一致反馈。
+让"看下一个"变成一个**永远能推进**的动作，同时保持匹配质量的诚实标注：先给严格匹配，用完了自动降级到近似匹配，并明确告诉用户"这是近似的"。彻底禁用只作为最后手段。
 
-## 修复方案
-### 1. Save：改成明确、同步、全局可见
-- 保留 `Save` 与 `See next` 独立，不自动跳到下一个。
-- `saveCurrent` 继续写全局 Saved store，但把 session 回退值改得更稳：优先 `sessionId`，没有时用当前 wish id，避免空 session 记录导致抽屉回链失败。
-- `SavedTrigger` 增强：除监听自定义订阅外，也在打开/渲染时重新读取一次全局 store，确保 Header 入口马上出现。
-- `Save` 按钮状态以全局 saved store 为准，点后立即刷新为：黑底、`BookmarkCheck`、`Saved / 已收藏`。
+## 方案
 
-### 2. See next：按“人”而不是按“intent”跳过
-- 在 `skipMatch` 中跳过当前人的所有 intents，而不是只跳过当前 intent。
-- 扩展匹配函数支持 `excludeOwnerIds`，`findAllMatches / findMatch / countAvailableMatches / findNearMisses` 都能排除已看过的人。
-- 在 `SideState` 增加或复用一个稳定的“已看过 owner”集合，确保下一位一定是不同的人。
-- `remaining` 的禁用逻辑也按“剩余不同的人”计算，避免按钮可点但结果还是同一个人。
+### 1. 扩充种子池，覆盖每个活动至少 3 人
 
-### 3. 避免状态竞态
-- `handleSave` 与 `handleSkip` 保持短反馈，但避免重复写入造成多条无意义提示。
-- 点击 Save 时只追加一次“已收藏 / 已取消收藏”的 Agent 消息。
-- 点击 See next 时，如果真的没有下一位，右侧进入 pool exhausted / no match，而不是留在同一张卡。
+`src/lib/people.ts` / `people-extras.ts` 里给现有活动补齐候选人，保证 `tennis / run / climb / cook / exhibition / bookstore` 每个 kind 至少 3 个不同的人，覆盖不同时间段和水平。这解决"根本没人"的根因。
 
-### 4. 验证
-- 用浏览器实际跑一遍：发布一个能匹配的心愿 → 点 Save → 确认按钮变黑、Header 出现 Saved → 打开 Saved 抽屉看到该人。
-- 点 See next → 确认头像/名字变化；连续点直到没有更多人 → 确认按钮禁用或进入无更多人的文案。
-- 检查没有 Vite overlay / 控制台错误。
+### 2. 匹配引擎：严格→近似的自动降级
+
+改造 `src/lib/intents.ts`：
+
+- `findAllMatches(mine, opts)` 保持现在的"严格匹配"语义。
+- 新增 `findRelaxedMatches(mine, opts)`：放开 `when` 或 `level` 之一（不同时都放）返回的候选人，并给每条打上 `relaxed: 'when' | 'level'` 标签。
+- 新增 `pickNextCandidate(mine, opts)`：先看 `findAllMatches`；如果空了再退到 `findRelaxedMatches`；两者都空才返回 `null`。返回值除了 `Intent` 还带 `matchQuality: 'exact' | 'relaxed-when' | 'relaxed-level'`。
+
+### 3. 状态机：`skipMatch` 用新的取候选人逻辑
+
+`src/lib/agents/side-by-side.ts`：
+
+- `rematchAfterUpdate` 和 `skipMatch` 内部改用 `pickNextCandidate`。
+- `SideState` 增加 `matchQuality?: 'exact' | 'relaxed-when' | 'relaxed-level'` 字段。
+- `countAvailableMatches` 计入 relaxed，作为按钮 `remaining` 的口径。
+
+### 4. UI：诚实地展示"这是近似匹配"
+
+`src/components/canvas/meet-canvas.tsx`：
+
+- 顶部 "MATCH" 标签，当 `matchQuality !== 'exact'` 时改为 "CLOSE MATCH / 接近匹配"，并在 aligned 行末尾加一句解释（例如"时间没完全对上，TA 通常周日下午"）。
+- 只有当严格 + 近似都为 0 才走 `NoMatchView`，此时才 `disabled` 看下一个。
+- 移除"池子里暂时没有别的人了"这句悬停提示（当真到穷尽时按钮本来就消失/进入 NoMatchView，没必要再写）。
+
+### 5. i18n
+
+在 `src/locales/{en,zh-CN}/common.json` 加：
+
+- `intent.match_label_close` — "CLOSE MATCH" / "接近匹配"
+- `intent.close_reason_when` / `intent.close_reason_level` — 一句话解释
+
+## 交付验证
+
+- 用当前"我想找个人一起打网球"的会话，连续点"看下一个"至少能走完 3 位候选人，其中 1-2 位标为"接近匹配"。
+- 严格匹配没走完前，标签仍是 "MATCH"。
+- 全部人都试过后，进入 `NoMatchView`，而不是把 "See next" 挂在那里灰着。
+
+## 技术细节
+
+- 不改变 Save 的行为；`unsave` 里对 `triedOwnerIds` 的清理也保留。
+- `pickNextCandidate` 一层薄壳，避免调用点各自拼装 exact/relaxed，防止未来遗漏。
+- Relaxed 匹配只放开一个维度，同时放开会让"接近"变得毫无意义。
+- 种子池扩充只加数据，不改 `Intent` 结构，无迁移问题。
