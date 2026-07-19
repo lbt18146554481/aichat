@@ -506,15 +506,18 @@ function SideBySidePage() {
     setThinking(true);
     window.setTimeout(() => {
       setState((s) => {
+        const currentId = s.matchIntentId;
+        const wasSaved = currentId ? s.savedIntentIds.includes(currentId) : false;
         const next = saveCurrent(s);
-        const line = next.matchIntentId
-          ? t("intent.narrate_saved_next")
-          : t("intent.narrate_saved_exhausted");
+        const line = wasSaved
+          ? t("intent.narrate_unsaved")
+          : t("intent.narrate_saved");
         return { ...next, messages: [...next.messages, msg("assistant", line)] };
       });
       setThinking(false);
-    }, 320);
+    }, 220);
   }
+
   function handleUnsave(intentId: string) {
     setState((s) => unsave(s, intentId));
   }
