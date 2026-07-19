@@ -151,6 +151,8 @@ export function seedPool(): Intent[] {
           ownerName_zh: p.name_zh,
           ownerCity: p.city,
           ownerCity_zh: p.city_zh,
+          city: p.city,
+          city_zh: p.city_zh,
           kind: act.kind,
           level: act.level,
           day: slot.day,
