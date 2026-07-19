@@ -109,14 +109,28 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
     otherOccupation,
   ].filter((s) => s && s.trim().length > 0);
 
+  const quality = state.matchQuality ?? "exact";
+  const labelKey =
+    quality === "exact" ? "intent.match_label" : "intent.match_label_close";
+  const closeReasonKey =
+    quality === "relaxed-when" ? "intent.close_reason_when"
+    : quality === "relaxed-level" ? "intent.close_reason_level"
+    : null;
+
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
       <div className="mx-auto max-w-lg">
         <div className="flex items-center gap-3">
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
-            {t("intent.match_label")}
+            {t(labelKey)}
           </div>
         </div>
+        {closeReasonKey && (
+          <p className="mt-1.5 text-[12px] text-muted-foreground leading-relaxed">
+            {t(closeReasonKey)}
+          </p>
+        )}
+
 
         {/* Identity row — the whole block is a button that opens the profile sheet. */}
         <button

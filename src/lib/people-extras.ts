@@ -21,11 +21,16 @@ export const ACTIVITIES: Record<string, Activity[]> = {
   theo: [
     { kind: "cook", level: "advanced", area: "Kreuzberg", area_zh: "克罗伊茨贝格",
       slots: [{ day: "tue", window: "evening" }], venue: "Markthalle Neun", venue_zh: "九号市场" },
+    { kind: "exhibition", level: "intermediate", area: "Mitte", area_zh: "米特",
+      slots: [{ day: "sat", window: "evening" }], venue: "Hamburger Bahnhof", venue_zh: "汉堡车站美术馆" },
   ],
   mira: [
     { kind: "run", level: "intermediate", area: "Higashiyama", area_zh: "东山",
       slots: [{ day: "sat", window: "morning" }, { day: "wed", window: "morning" }],
       venue: "Kamogawa riverside", venue_zh: "鸭川河岸" },
+    { kind: "tennis", level: "beginner", area: "Sakyō", area_zh: "左京",
+      slots: [{ day: "sun", window: "evening" }],
+      venue: "Takano public courts", venue_zh: "高野公共球场" },
   ],
   hugo: [
     { kind: "exhibition", level: "intermediate", area: "Roma Norte", area_zh: "罗马北区",
@@ -62,6 +67,13 @@ export const ACTIVITIES: Record<string, Activity[]> = {
       slots: [{ day: "sun", window: "evening" }], venue: "Mercato di Testaccio", venue_zh: "特斯塔乔市场" },
     { kind: "bookstore", level: "intermediate", area: "Monti", area_zh: "蒙提",
       slots: [{ day: "thu", window: "evening" }], venue: "Libreria Altroquando", venue_zh: "Altroquando 书店" },
+  ],
+  amara: [
+    { kind: "tennis", level: "intermediate", area: "Lekki", area_zh: "莱基",
+      slots: [{ day: "sat", window: "morning" }, { day: "wed", window: "evening" }],
+      venue: "Lekki Tennis Club", venue_zh: "莱基网球俱乐部" },
+    { kind: "exhibition", level: "intermediate", area: "Ikoyi", area_zh: "伊科伊",
+      slots: [{ day: "fri", window: "evening" }], venue: "Nike Art Gallery", venue_zh: "Nike 艺术画廊" },
   ],
 };
 

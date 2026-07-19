@@ -180,6 +180,9 @@
   },
   "intent": {
     "match_label": "Both sides published — this is the match",
+    "match_label_close": "Close match — not exact, but worth a look",
+    "close_reason_when": "Different time — but the activity and level line up.",
+    "close_reason_level": "Different level — but the activity and time line up.",
     "published_label": "You've published this",
     "near_label": "Same thing, different time or level",
     "near_hint": "Nobody exactly on your slot right now. These people already put down a wish that overlaps — tap one to shift your published wish to match.",

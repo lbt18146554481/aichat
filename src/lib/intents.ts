@@ -305,31 +305,61 @@ function kindsCompatible(mine: Intent, other: Intent): boolean {
 
 type MatchOpts = { exclude?: string[]; excludeOwnerIds?: string[] };
 
-/** All compatible partners (sorted best-first), one best intent per person. */
-export function findAllMatches(mine: Intent, opts?: MatchOpts): Intent[] {
+/** How well a candidate matches the user's wish. Drives the label on the card. */
+export type MatchQuality = "exact" | "relaxed-when" | "relaxed-level";
+
+/** Group compatible candidates into exact / relaxed-when / relaxed-level buckets.
+ *  A person offered as `exact` is never also offered as relaxed. */
+export function findCandidatesTiered(mine: Intent, opts?: MatchOpts): {
+  exact: Intent[];
+  relaxedWhen: Intent[];
+  relaxedLevel: Intent[];
+} {
   const excluded = new Set(opts?.exclude ?? []);
   const excludedOwners = new Set(opts?.excludeOwnerIds ?? []);
   const mineWhen: WhenTier | undefined = mine.whenAny ? undefined : slotToWhen(mine.day, mine.window);
   const mineLevel: LevelTier | undefined = mine.levelAny ? undefined : mine.level;
+
   const pool = [...seedPool(), ...loadMyIntents().filter((it) => it.id !== mine.id)]
     .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id) && !excludedOwners.has(it.ownerId))
-    .filter((it) => kindsCompatible(mine, it))
-    .filter((it) => {
-      const theirWhen: WhenTier = it.whenAny ? "any" : slotToWhen(it.day, it.window);
-      return whenCompatible(mineWhen, theirWhen);
-    })
-    .filter((it) => {
-      const kind = mine.kind !== "other" ? mine.kind : it.kind;
-      const theirLevel: LevelTier | undefined = it.levelAny ? undefined : it.level;
-      return levelCompatible(kind, mineLevel, theirLevel ?? "intermediate");
-    });
-  pool.sort((a, b) => score(mine, b) - score(mine, a));
-  const seenOwners = new Set<string>();
-  return pool.filter((it) => {
-    if (seenOwners.has(it.ownerId)) return false;
-    seenOwners.add(it.ownerId);
-    return true;
-  });
+    .filter((it) => kindsCompatible(mine, it));
+
+  const buckets: { exact: Intent[]; when: Intent[]; level: Intent[] } = { exact: [], when: [], level: [] };
+  for (const it of pool) {
+    const theirWhen: WhenTier = it.whenAny ? "any" : slotToWhen(it.day, it.window);
+    const kind = mine.kind !== "other" ? mine.kind : it.kind;
+    const theirLevel: LevelTier | undefined = it.levelAny ? undefined : it.level;
+    const whenOk = whenCompatible(mineWhen, theirWhen);
+    const levelOk = levelCompatible(kind, mineLevel, theirLevel ?? "intermediate");
+    if (whenOk && levelOk) buckets.exact.push(it);
+    else if (!whenOk && levelOk) buckets.when.push(it);
+    else if (whenOk && !levelOk) buckets.level.push(it);
+    // both off → drop
+  }
+
+  const finalize = (arr: Intent[], skipOwners: Set<string>) => {
+    arr.sort((a, b) => score(mine, b) - score(mine, a));
+    const seen = new Set<string>(skipOwners);
+    const out: Intent[] = [];
+    for (const it of arr) {
+      if (seen.has(it.ownerId)) continue;
+      seen.add(it.ownerId);
+      out.push(it);
+    }
+    return out;
+  };
+
+  const exact = finalize(buckets.exact, new Set());
+  const exactOwners = new Set(exact.map((i) => i.ownerId));
+  const relaxedWhen = finalize(buckets.when, exactOwners);
+  const relaxedOwners = new Set([...exactOwners, ...relaxedWhen.map((i) => i.ownerId)]);
+  const relaxedLevel = finalize(buckets.level, relaxedOwners);
+  return { exact, relaxedWhen, relaxedLevel };
+}
+
+/** All exact-match partners (sorted best-first), one best intent per person. */
+export function findAllMatches(mine: Intent, opts?: MatchOpts): Intent[] {
+  return findCandidatesTiered(mine, opts).exact;
 }
 
 /** Look through seed pool + other users' intents for a compatible partner. */
@@ -337,9 +367,23 @@ export function findMatch(mine: Intent, opts?: MatchOpts): Intent | null {
   return findAllMatches(mine, opts)[0] ?? null;
 }
 
-/** Count remaining compatible partners not yet in `exclude`. */
+/** Pick the next candidate to show — falls back to relaxed matches when the
+ *  exact pool is exhausted so "See next" keeps producing people. */
+export function pickNextCandidate(
+  mine: Intent,
+  opts?: MatchOpts,
+): { intent: Intent; quality: MatchQuality } | null {
+  const t = findCandidatesTiered(mine, opts);
+  if (t.exact.length) return { intent: t.exact[0], quality: "exact" };
+  if (t.relaxedWhen.length) return { intent: t.relaxedWhen[0], quality: "relaxed-when" };
+  if (t.relaxedLevel.length) return { intent: t.relaxedLevel[0], quality: "relaxed-level" };
+  return null;
+}
+
+/** Count remaining candidates across exact + relaxed buckets. */
 export function countAvailableMatches(mine: Intent, opts?: MatchOpts): number {
-  return findAllMatches(mine, opts).length;
+  const t = findCandidatesTiered(mine, opts);
+  return t.exact.length + t.relaxedWhen.length + t.relaxedLevel.length;
 }
 
 

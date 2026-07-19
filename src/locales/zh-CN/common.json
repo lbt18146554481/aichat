@@ -178,6 +178,9 @@
   },
   "intent": {
     "match_label": "两边都发布了——这就是匹配",
+    "match_label_close": "接近匹配——不完全对上，但值得一看",
+    "close_reason_when": "时间没完全对上，但活动和水平吻合。",
+    "close_reason_level": "水平差一格，但活动和时间对得上。",
     "published_label": "你已发布的心愿",
     "near_label": "同一件事，但时间或水平不同",
     "near_hint": "现在没人正好和你对上。这些人已经发布过相近的心愿——点一个就把你的心愿改到这个时段重新匹配。",

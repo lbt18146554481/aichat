@@ -13,9 +13,9 @@
 
 import type { ActivityKind, Weekday } from "../types";
 import {
-  findMatch,
   findNearMisses,
   getIntentById,
+  pickNextCandidate,
   publishMyIntent,
   revokeMyIntent,
   seedPool,
@@ -23,6 +23,7 @@ import {
   updateMyIntent,
   type Intent,
   type LevelTier,
+  type MatchQuality,
   type WhenTier,
 } from "../intents";
 import { getSession, updateSession, deriveDoSomethingStatus } from "../sessions";
@@ -150,6 +151,9 @@ export interface SideState {
   stage: Stage;
   myIntentId: string | null;
   matchIntentId: string | null;
+  /** How closely the current match lines up with the wish. Undefined when
+   *  no candidate is on screen. Drives the "CLOSE MATCH" label + reason. */
+  matchQuality?: MatchQuality;
   nearMissIds: string[];
   triedIntentIds: string[];
   /** People already skipped for this wish. See-next must change the person, not just the slot. */
@@ -197,12 +201,18 @@ export function uid(): string { return Math.random().toString(36).slice(2, 10); 
 function rematchAfterUpdate(state: SideState, intentId: string): SideState {
   const mine = getIntentById(intentId);
   if (!mine) return state;
-  const match = findMatch(mine, {
+  const pick = pickNextCandidate(mine, {
     exclude: state.triedIntentIds ?? [],
     excludeOwnerIds: state.triedOwnerIds ?? [],
   });
-  if (match) {
-    return { ...state, stage: "published", matchIntentId: match.id, nearMissIds: [] };
+  if (pick) {
+    return {
+      ...state,
+      stage: "published",
+      matchIntentId: pick.intent.id,
+      matchQuality: pick.quality,
+      nearMissIds: [],
+    };
   }
   const nears = findNearMisses(mine, {
     exclude: state.triedIntentIds ?? [],
@@ -212,6 +222,7 @@ function rematchAfterUpdate(state: SideState, intentId: string): SideState {
     ...state,
     stage: "published",
     matchIntentId: null,
+    matchQuality: undefined,
     nearMissIds: nears.map((n) => n.id),
   };
 }
