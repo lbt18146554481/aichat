@@ -45,6 +45,7 @@ import {
 export const Route = createFileRoute("/side-by-side")({
   validateSearch: (raw: Record<string, unknown>) => ({
     session: typeof raw.session === "string" ? raw.session : "",
+    chatWith: typeof raw.chatWith === "string" ? raw.chatWith : "",
   }),
   component: SideBySidePage,
   head: () => ({
@@ -175,6 +176,7 @@ function SideBySidePage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const sessionId = search.session || null;
+  const chatWithId = search.chatWith || "";
 
   // Consume the homepage-seeded prompt exactly once. consumeSeed() removes the
   // value from sessionStorage on read, so we must not call it twice.
