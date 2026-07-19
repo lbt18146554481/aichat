@@ -257,23 +257,18 @@ export function skipMatch(state: SideState): SideState {
   return rematchAfterUpdate(next, state.myIntentId);
 }
 
-/** Bookmark the currently shown match for later; then advance to the next. */
+/** Toggle: bookmark the currently shown match, or un-bookmark it if already saved.
+ *  Does NOT advance to the next candidate — Save and See next are independent. */
 export function saveCurrent(state: SideState): SideState {
   if (!state.myIntentId || !state.matchIntentId) return state;
-  const saved = state.savedIntentIds.includes(state.matchIntentId)
-    ? state.savedIntentIds
-    : [...state.savedIntentIds, state.matchIntentId];
-  const tried = state.triedIntentIds.includes(state.matchIntentId)
-    ? state.triedIntentIds
-    : [...state.triedIntentIds, state.matchIntentId];
-  const next: SideState = {
-    ...state,
-    savedIntentIds: saved,
-    triedIntentIds: tried,
-    matchIntentId: null,
-  };
-  return rematchAfterUpdate(next, state.myIntentId);
+  const id = state.matchIntentId;
+  const already = state.savedIntentIds.includes(id);
+  const saved = already
+    ? state.savedIntentIds.filter((x) => x !== id)
+    : [...state.savedIntentIds, id];
+  return { ...state, savedIntentIds: saved };
 }
+
 
 /** Remove from saved list and put the person back into the pool as the
  *  current candidate (if nothing else is currently shown). */
