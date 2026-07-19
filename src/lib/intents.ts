@@ -444,7 +444,7 @@ export function findNearMisses(mine: Intent, opts?: MatchOpts): Intent[] {
   const mineWhen = slotToWhen(mine.day, mine.window);
   const seenOwners = new Set<string>();
   return seedPool()
-    .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id) && !excludedOwners.has(it.ownerId) && kindsCompatible(mine, it))
+    .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id) && !excludedOwners.has(it.ownerId) && sameCity(mine, it) && kindsCompatible(mine, it))
     .filter((it) =>
       !whenCompatible(mineWhen, slotToWhen(it.day, it.window)) ||
       !levelCompatible(mine.kind !== "other" ? mine.kind : it.kind, mine.level, it.level),
