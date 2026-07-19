@@ -92,7 +92,10 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
   // Remaining candidates = everyone still matchable minus the current TA.
   const remaining = Math.max(
     0,
-    countAvailableMatches(mine, { exclude: state.triedIntentIds }) - 1,
+    countAvailableMatches(mine, {
+      exclude: state.triedIntentIds ?? [],
+      excludeOwnerIds: [other.ownerId, ...(state.triedOwnerIds ?? [])],
+    }),
   );
   const isSaved = useIsSaved(other.id);
 
