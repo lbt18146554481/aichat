@@ -146,6 +146,9 @@ export interface SideState {
   matchIntentId: string | null;
   nearMissIds: string[];
   triedIntentIds: string[];
+  /** Candidates the user parked as "look again later". Session-scoped;
+   *  cleared when the wish is revoked, edited, or chat starts. */
+  savedIntentIds: string[];
   truncated: boolean;
   messages: SideMsg[];
   chatMessages: ChatMsg[];
@@ -163,6 +166,7 @@ export const EMPTY: SideState = {
   matchIntentId: null,
   nearMissIds: [],
   triedIntentIds: [],
+  savedIntentIds: [],
   truncated: false,
   messages: [],
   chatMessages: [],
@@ -230,14 +234,17 @@ export function refineLevel(state: SideState, level: LevelTier): SideState {
   return rematchAfterUpdate(state, state.myIntentId);
 }
 
-/** Edit my published wish (any subset of when/level/location) and rematch. */
+/** Edit my published wish (any subset of when/level/location) and rematch.
+ *  Editing shifts the pool the saved candidates belonged to, so we clear
+ *  the saved bookmarks — keep the demo state legible. */
 export function editWish(
   state: SideState,
   patch: { when?: WhenTier; level?: LevelTier; location?: string },
 ): SideState {
   if (!state.myIntentId) return state;
   updateMyIntent(state.myIntentId, patch);
-  return rematchAfterUpdate(state, state.myIntentId);
+  const cleared: SideState = { ...state, savedIntentIds: [] };
+  return rematchAfterUpdate(cleared, state.myIntentId);
 }
 
 /** Skip the currently shown match — add to triedIntentIds and re-run findMatch. */
@@ -249,6 +256,48 @@ export function skipMatch(state: SideState): SideState {
   const next: SideState = { ...state, triedIntentIds: tried, matchIntentId: null };
   return rematchAfterUpdate(next, state.myIntentId);
 }
+
+/** Bookmark the currently shown match for later; then advance to the next. */
+export function saveCurrent(state: SideState): SideState {
+  if (!state.myIntentId || !state.matchIntentId) return state;
+  const saved = state.savedIntentIds.includes(state.matchIntentId)
+    ? state.savedIntentIds
+    : [...state.savedIntentIds, state.matchIntentId];
+  const tried = state.triedIntentIds.includes(state.matchIntentId)
+    ? state.triedIntentIds
+    : [...state.triedIntentIds, state.matchIntentId];
+  const next: SideState = {
+    ...state,
+    savedIntentIds: saved,
+    triedIntentIds: tried,
+    matchIntentId: null,
+  };
+  return rematchAfterUpdate(next, state.myIntentId);
+}
+
+/** Remove from saved list and put the person back into the pool as the
+ *  current candidate (if nothing else is currently shown). */
+export function unsave(state: SideState, intentId: string): SideState {
+  const saved = state.savedIntentIds.filter((id) => id !== intentId);
+  const tried = state.triedIntentIds.filter((id) => id !== intentId);
+  const next: SideState = { ...state, savedIntentIds: saved, triedIntentIds: tried };
+  if (!state.myIntentId) return next;
+  // If no candidate is on screen right now, surface this one immediately.
+  if (!state.matchIntentId) {
+    return { ...rematchAfterUpdate(next, state.myIntentId), matchIntentId: intentId };
+  }
+  return next;
+}
+
+/** Start chatting with a specific saved candidate. */
+export function chatWithSaved(state: SideState, intentId: string, draft?: string): SideState {
+  const target = getIntentById(intentId);
+  if (!target) return state;
+  const armed: SideState = { ...state, stage: "published", matchIntentId: intentId };
+  return startChat(armed, draft);
+}
+
+
 
 
 
@@ -277,6 +326,7 @@ export function startChat(state: SideState, draft?: string): SideState {
     ...state,
     stage: "chat",
     chatMessages: [first],
+    savedIntentIds: [],
     ...(draft ? { pendingDraft: draft } : {}),
   };
 }

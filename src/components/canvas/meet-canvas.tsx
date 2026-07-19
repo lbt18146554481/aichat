@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { ArrowUp, ArrowLeft, MessageCircle, SkipForward, Users, X, ChevronRight } from "lucide-react";
+import { ArrowUp, ArrowLeft, MessageCircle, SkipForward, Users, X, ChevronRight, Bookmark, BookmarkCheck } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
 import type { SideState, ChatMsg, LevelTier, WhenTier } from "@/lib/agents/side-by-side";
 import { currentView } from "@/lib/agents/side-by-side";
@@ -21,6 +21,12 @@ interface Props {
   onEditWish: (patch: { when?: WhenTier; level?: LevelTier; location?: string }) => void;
   onSkip: () => void;
   onRevokeReshare: () => void;
+  /** Bookmark the current match candidate. */
+  onSave?: () => void;
+  /** Remove someone from the saved list. */
+  onUnsave?: (intentId: string) => void;
+  /** Start a chat directly with a saved candidate. */
+  onChatWithSaved?: (intentId: string) => void;
   /** Return from the TA chat back to the candidate card without ending the wish. */
   onBackToCandidate?: () => void;
   /** Called after the composer has consumed state.pendingDraft. */
@@ -65,12 +71,13 @@ function EmptyCanvas() {
 
 // ---- Match — two intent cards side by side + [start chat] --------------
 
-function MatchView({ state, onStartChat, onSkip }: Props) {
+function MatchView({ state, onStartChat, onSkip, onSave, onUnsave, onChatWithSaved }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
   const other = state.matchIntentId ? getIntentById(state.matchIntentId) : null;
   const [openProfile, setOpenProfile] = useState(false);
+  const [openSaved, setOpenSaved] = useState(false);
 
   if (!mine || !other) return <EmptyCanvas />;
 
@@ -82,6 +89,7 @@ function MatchView({ state, onStartChat, onSkip }: Props) {
     0,
     countAvailableMatches(mine, { exclude: state.triedIntentIds }) - 1,
   );
+  const savedCount = state.savedIntentIds.length;
 
   const person = getPersonById(other.ownerId);
   const otherName = lang === "zh-CN" ? other.ownerName_zh : other.ownerName;
@@ -97,15 +105,28 @@ function MatchView({ state, onStartChat, onSkip }: Props) {
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
       <div className="mx-auto max-w-lg">
-        <div className="flex items-baseline justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
             {t("intent.match_label")}
           </div>
-          {remaining > 0 && (
-            <div className="text-[11px] text-muted-foreground">
-              {t("intent.pool_remaining", { count: remaining })}
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {savedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setOpenSaved(true)}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-border bg-secondary text-[11px] text-foreground/80 hover:border-foreground/40 transition-colors"
+                aria-label={t("intent.saved_open")}
+              >
+                <BookmarkCheck className="w-3 h-3" />
+                {t("intent.saved_count", { count: savedCount })}
+              </button>
+            )}
+            {remaining > 0 && (
+              <div className="text-[11px] text-muted-foreground">
+                {t("intent.pool_remaining", { count: remaining })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Identity row — the whole block is a button that opens the profile sheet. */}
@@ -174,6 +195,16 @@ function MatchView({ state, onStartChat, onSkip }: Props) {
             <MessageCircle className="w-3.5 h-3.5" />
             {t("intent.start_chat")}
           </button>
+          {onSave && (
+            <button
+              onClick={onSave}
+              title={t("intent.save_hint")}
+              className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md border border-border text-[13px] text-foreground/85 hover:bg-secondary transition-colors"
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              {t("intent.save")}
+            </button>
+          )}
           <button
             onClick={onSkip}
             disabled={remaining === 0}
@@ -201,9 +232,19 @@ function MatchView({ state, onStartChat, onSkip }: Props) {
           onStartChat();
         }}
       />
+
+      <SavedDrawer
+        open={openSaved}
+        onOpenChange={setOpenSaved}
+        savedIntentIds={state.savedIntentIds}
+        lang={lang}
+        onChat={(id) => { setOpenSaved(false); onChatWithSaved?.(id); }}
+        onUnsave={(id) => onUnsave?.(id)}
+      />
     </div>
   );
 }
+
 
 // ---- Person profile sheet (opened from the identity row) ---------------
 
@@ -627,14 +668,16 @@ function Tag({ children }: { children: React.ReactNode }) {
 
 // ---- No match — my published card + near-miss list ---------------------
 
-function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare }: Props) {
+function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare, onUnsave, onChatWithSaved }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
+  const [openSaved, setOpenSaved] = useState(false);
   if (!mine) return <EmptyCanvas />;
 
   const nears = state.nearMissIds.map((id) => getIntentById(id)).filter(Boolean) as Intent[];
   const exhausted = state.triedIntentIds.length > 0;
+  const savedCount = state.savedIntentIds.length;
 
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
@@ -644,7 +687,7 @@ function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare }: Props)
         </div>
         {exhausted && (
           <p className="mt-2 text-[13px] text-foreground/85 leading-relaxed">
-            {t("intent.pool_exhausted_body")}
+            {savedCount > 0 ? t("intent.pool_exhausted_body_with_saved") : t("intent.pool_exhausted_body")}
           </p>
         )}
 
@@ -659,8 +702,26 @@ function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare }: Props)
           </button>
         </div>
 
-
-
+        {savedCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setOpenSaved(true)}
+            className="mt-4 w-full flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:border-foreground/40 transition-colors text-left"
+          >
+            <div className="flex items-center gap-2">
+              <BookmarkCheck className="w-4 h-4 text-foreground/70" />
+              <div>
+                <div className="text-[13px] text-foreground/90">
+                  {t("intent.saved_count", { count: savedCount })}
+                </div>
+                <div className="text-[11.5px] text-muted-foreground">
+                  {t("intent.saved_review_hint")}
+                </div>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </button>
+        )}
 
         {nears.length > 0 && (
           <div className="mt-6">
@@ -700,9 +761,105 @@ function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare }: Props)
           </div>
         )}
       </div>
+
+      <SavedDrawer
+        open={openSaved}
+        onOpenChange={setOpenSaved}
+        savedIntentIds={state.savedIntentIds}
+        lang={lang}
+        onChat={(id) => { setOpenSaved(false); onChatWithSaved?.(id); }}
+        onUnsave={(id) => onUnsave?.(id)}
+      />
     </div>
   );
 }
+
+// ---- Saved drawer — session-scoped bookmarks ---------------------------
+
+function SavedDrawer({
+  open,
+  onOpenChange,
+  savedIntentIds,
+  lang,
+  onChat,
+  onUnsave,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  savedIntentIds: string[];
+  lang: Lang;
+  onChat: (intentId: string) => void;
+  onUnsave: (intentId: string) => void;
+}) {
+  const { t } = useTranslation();
+  const items = savedIntentIds
+    .map((id) => getIntentById(id))
+    .filter(Boolean) as Intent[];
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
+        <div className="px-6 py-5 border-b border-border">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
+            {t("intent.saved_title")}
+          </div>
+          <p className="mt-1 text-[12px] text-muted-foreground leading-relaxed">
+            {t("intent.saved_hint")}
+          </p>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {items.length === 0 ? (
+            <p className="text-[13px] text-muted-foreground">{t("intent.saved_empty")}</p>
+          ) : (
+            <ul className="space-y-3">
+              {items.map((it) => {
+                const person = getPersonById(it.ownerId);
+                const name = lang === "zh-CN" ? it.ownerName_zh : it.ownerName;
+                const city = lang === "zh-CN" ? it.ownerCity_zh : it.ownerCity;
+                const occ = person ? (lang === "zh-CN" ? person.occupation_zh : person.occupation) : "";
+                const meta = [city, occ].filter((s) => s && s.trim().length > 0).join(" · ");
+                return (
+                  <li key={it.id} className="rounded-lg border border-border bg-card p-4">
+                    <div className="flex items-center gap-3">
+                      <img src={avatarUrl(it.ownerId)} alt="" className="w-10 h-10 rounded-full border border-border" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[14px] font-medium text-foreground truncate">
+                          {name}
+                          {person?.age ? <span className="text-muted-foreground font-normal">, {person.age}</span> : null}
+                        </div>
+                        {meta && <div className="text-[11.5px] text-muted-foreground truncate">{meta}</div>}
+                      </div>
+                    </div>
+                    <p className="mt-2 text-[12.5px] text-foreground/85 leading-relaxed">
+                      "{lang === "zh-CN" ? it.rawText_zh : it.rawText}"
+                    </p>
+                    <div className="mt-3 flex items-center gap-2">
+                      <button
+                        onClick={() => onChat(it.id)}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-foreground text-background text-[12.5px] font-medium hover:opacity-90 transition-opacity"
+                      >
+                        <MessageCircle className="w-3 h-3" />
+                        {t("intent.start_chat")}
+                      </button>
+                      <button
+                        onClick={() => onUnsave(it.id)}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-[12.5px] text-foreground/85 hover:bg-secondary transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                        {t("intent.unsave")}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 
 // ---- Chat view (in-canvas) ---------------------------------------------
 
