@@ -576,6 +576,9 @@ function SideBySidePage() {
           onSendChat={handleSendChat}
           onEditWish={handleEditWish}
           onSkip={handleSkip}
+          onSave={handleSave}
+          onUnsave={handleUnsave}
+          onChatWithSaved={handleChatWithSaved}
           onRevokeReshare={handleRevokeReshare}
           onBackToCandidate={handleBackToCandidate}
           onDraftConsumed={handleDraftConsumed}
