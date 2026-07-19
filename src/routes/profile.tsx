@@ -43,6 +43,7 @@ function ProfilePage() {
     try {
       back = window.sessionStorage.getItem("kindred:profile:return");
       window.sessionStorage.removeItem("kindred:profile:return");
+      window.sessionStorage.removeItem("kindred:profile:focus");
     } catch { /* noop */ }
     if (back === "/matchmaker") void navigate({ to: "/matchmaker" });
     else if (back === "/side-by-side") void navigate({ to: "/side-by-side" });
