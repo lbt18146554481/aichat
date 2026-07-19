@@ -84,7 +84,7 @@ function ProfilePage() {
       {returnTo && (
         <div className="border-b border-border bg-secondary/40">
           <div className="max-w-3xl mx-auto px-5 py-2 text-[12px] text-muted-foreground">
-            {t("hello.gate.return_hint")}
+            {needCity ? t("profile.gate.need_city") : t("hello.gate.return_hint")}
           </div>
         </div>
       )}
