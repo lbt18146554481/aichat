@@ -1,72 +1,122 @@
+
 ## 判断
 
-首页那张 "someone lined up with you / waiting…" 卡片确实是多余的：
+你的意思很清楚：**默认匹配卡不变**（保留一句话 "why is TA"，保留活动摘要，保留主 CTA），只是**多一个明显的入口**让愿意深入的人可以主动看更多。这跟真实社交节奏一致：先扫一眼决定要不要深入，感兴趣再点开看。
 
-- 首页的职责是**开始一段新对话**（问候语 + 输入框 + 两个 chip），塞一张状态卡片会把注意力从"想说什么"拉走。
-- 它展示的所有信息（等待中 / 匹配到了 / 聊天中），点开 History 里对应那条记录就能看到，本来就是一条路径。
-- 它还会引发歧义：用户以为首页会自己刷新出匹配，实际上 rematch 只在挂载那一刻跑一次，容易觉得"产品有点鬼"。
+所以这一版**只做加法**：加一个入口 + 一个抽屉。不动主卡片布局，不改按钮层级，不改文案 hierarchy。
 
-所以拆掉它，让首页回到最干净的样子。同时把"没匹配到"这个尴尬状态的闭环，收进 `/side-by-side` 页面本身，让 History 成为唯一"回到未完成事情"的入口。
+## 入口放哪里
 
-## 产品流程（改后）
+有三个候选位置，我选 **B**：
+
+- A. 独立按钮 `[了解更多 TA]` 放在 CTA 旁边 → **不选**：三个按钮平级，视觉上主 CTA 被稀释，反而不简洁。
+- **B. 让身份行本身可点** → 头像 + 姓名的整行做成可点区域，右侧带一个小 `chevron`（›）图标 + 极小字 "更多"。这是最轻的入口——想看就点头像/名字，符合直觉（社交产品里点头像看资料是通用心智）；不想看的人视觉上几乎无干扰。**选这个。**
+- C. WhyPerson 那一句话下面加一个 text link "查看 TA 的更多" → **不选**：把 "why" 那句变成引子，读起来像广告，破坏它的分量。
+
+## 产品结构
 
 ```text
-首页 ─(输入 + 一起做点什么)─▶ /side-by-side?session=xxx
-                                        │
-                    ┌───────────────────┼───────────────────┐
-                    ▼                   ▼                   ▼
-                匹配到               没匹配到              点开聊天
-              (match 卡)         (nomatch 卡)            (chat 视图)
-                    │                   │                   │
-                    │        ┌──────────┼──────────┐        │
-                    │        ▼          ▼          ▼        │
-                    │     调整心愿   试试近似人  先保存着     │
-                    │    (when/level) (near-miss)  ▼        │
-                    │        │          │      回到首页      │
-                    │        └────┬─────┘   (session 留在    │
-                    │             ▼          History，状态    │
-                    └──▶  History 一行 ◀──── 是"等待中")    ◀┘
-```
+右侧 MatchView（保持现状，只加一个可点区）
+┌──────────────────────────────┐
+│ MATCH ─────────  还有 3 位候选     │
+│                                │
+│ ┌──────────────────────────┐ │  ← 整块可点（hover 有轻底色）
+│ │ [头像]  June, 28           │ │
+│ │        上海 · 独立设计师   › │ │  ← 尾部小箭头 + 极小 "更多"
+│ └──────────────────────────┘ │
+│                                │
+│ ✦ 为什么是 TA                     │
+│ TA 也安静、爱读书，周末常在美术馆…      │  ← 保持不动
+│                                │
+│ 🎾 网球 · 周六早上 · 中级            │  ← 保持不动
+│                                │
+│ [   开始聊 TA   ]                │  ← 保持不动
+│    [看下一个]                     │
+│  不合适？告诉左边的 Agent            │
+└──────────────────────────────┘
 
-关键点：**History 那一行本身就是"这件事还没完"的载体**。用户点回来时，页面挂载会自动 rematch 一次——如果这段时间有新人进来，直接跳到 match 视图；没有就继续 nomatch。这个"回来一看有没有新人"的动作从首页 banner 挪到了 History 的点击行为里，语义反而更顺——是用户"主动去看"，不是首页替他"操心"。
+点身份行 → 右侧 Sheet 抽屉滑入
+┌────────────────────────────┐
+│  ✕                          │
+│  [大头像]                     │
+│  June, 28                   │
+│  上海 · 独立设计师              │
+│  ────────────────────────   │
+│                              │
+│  TA 是谁                     │
+│  "两年前从北京搬到上海……"        │  ← personBrief
+│                              │
+│  最近在读                     │
+│  📖 《房思琪的初恋乐园》         │  ← oneWork
+│  "读到一半停不下来……"          │
+│                              │
+│  TA 分享过的瞬间               │  ← moments 前 3 条
+│  • 上周六在明珠美术馆待了一下午    │
+│  • 学生时代打过网球队…          │
+│  • 一个人做饭时会放播客         │
+│                              │
+│  你们要一起做的事              │
+│  你说 "想找人打网球"            │  ← 两条 intent 原话
+│  TA 说 "想找搭子长期打"         │
+│                              │
+│  ─── 底部粘性 ───             │
+│  [ 开始聊 TA ]                │  ← 看完立即行动，无需回上层
+└────────────────────────────┘
+```
 
 ## 改动
 
-### 1. `src/components/home.tsx`
-- 删掉 `<ActiveWishBanner />` 的渲染和它的 import。
-- 顺手删掉页面里其它已经用不到的 import（如果有）。
-- 其余布局不动。
+### 1. `src/components/canvas/meet-canvas.tsx`
 
-### 2. `src/components/active-wish-banner.tsx`
-- 整个文件删除。它不再被任何地方引用。
+**`MatchView`：**
+- 把现有身份 block（头像 + 姓名 + `age · city · occupation`）包成一个 `<button>`（或 `role="button"` 的 div），加：
+  - `hover:bg-muted/40` 过渡
+  - 尾部一个 `ChevronRight` 图标（`w-4 h-4 text-muted-foreground`）
+  - 图标下面/右边一个极小 uppercase 标 "更多 / More"（`text-[10px] font-mono tracking-wide text-muted-foreground`）
+- 无障碍：`aria-label={t("intent.open_profile", { name })}`。
+- 主卡片其它一切保持不变（why 段、activity 行、按钮组、footnote）。
+- 顶部本地 state `const [openProfile, setOpenProfile] = useState(false)`。
 
-### 3. `/side-by-side` 的 nomatch 视图（`src/components/canvas/*` 里对应的卡片）
-只做一个小的收尾，让闭环显式：
+**新增内嵌组件 `<PersonProfileSheet person, mine, other, lang, onStartChat, open, onOpenChange>`：**
+- 用 shadcn `Sheet`：`side="right"`，`className="w-full sm:max-w-md p-0 flex flex-col"`。
+- Header（不粘）：关闭 × + 大头像（`w-16 h-16 rounded-full`）+ 姓名 + `age · city · occupation`。
+- 中间滚动区（`overflow-y-auto flex-1`），四个 section 顺序：
+  1. **TA 是谁** → `person.personBrief[lang]`，缺失则整段隐藏。
+  2. **最近在读** → `person.oneWork`（emoji by kind + title + why），缺失则整段隐藏。
+  3. **TA 分享过的瞬间** → `person.moments` 前 3 条 `answer_zh|answer`，`<ul>` 圆点列表；不足 3 条按实际数量展示；一条都没有则整段隐藏。
+  4. **你们要一起做的事** → 复用现有 `intent.you_said` / `intent.they_said` 引号块 + 一行 aligned tag。
+- 底部粘性区（`border-t p-4 bg-background`）：`[开始聊 TA]` 主按钮，点了先 `onOpenChange(false)` 再 `onStartChat()`。
+- fallback 态（`?fresh=1`）：section 1 变成琥珀色 "告诉 Agent 你想找什么样的人" 输入框（复用 `WhyPersonBox` 的 fallback UI 或提取共用），其余 section 照常从数据渲染。
 
-- 保留现有的两条路径：**调整心愿**（when / level chips）、**试试近似人**（near-miss）。
-- 补一个次要按钮 **"先保存着"**：点了就 `navigate({ to: "/" })`，session 不 revoke，状态留在 History。
-- 文案上把"我们还在替你留意"这类"后台在跑"的暗示去掉，改成明确的"目前没有匹配的人。你可以调整心愿、试试相近的人，或者先放着以后再看。"——不再暗示产品会主动通知。
+**装配：**
+- 在 `MatchView` 里渲染 `<PersonProfileSheet open={openProfile} onOpenChange={setOpenProfile} ... />`。
+- 身份行 `onClick={() => setOpenProfile(true)}`。
 
-（如果现有 nomatch 卡已经有这三个动作，就只调文案；不新增视觉层次。）
+### 2. i18n keys（新增到 `src/locales/{en,zh-CN}/common.json`）
 
-### 4. History 行为
-不改代码，只是**在心里确认**这条链路已经成立：
+- `intent.open_profile` — "了解更多 {{name}} / More about {{name}}"（aria-label + tooltip 用）
+- `intent.more_hint` — "更多 / More"（身份行尾部小字）
+- `intent.sheet.about_ta` — "TA 是谁 / About TA"
+- `intent.sheet.one_work` — "最近在读 · 看 · 听 / Into right now"
+- `intent.sheet.moments` — "TA 分享过的瞬间 / Moments TA shared"
+- `intent.sheet.aligning` — "你们要一起做的事 / What you're aligning on"
+- `intent.sheet.start_chat_here` — "开始聊 TA / Start chatting"（Sheet 底部 CTA；也可直接复用现有 `intent.match_start_chat`）
 
-- `/side-by-side` 页面挂载时，`load(sessionId)` 恢复 state → 如果 `stage === "published" && !matchIntentId`，`useEffect` 里跑一次 `findMatch`（这段逻辑目前在 `ActiveWishBanner` 里，需要**搬到 `/side-by-side` 的 mount effect**，如果那边还没有的话）。
-- 这样"从 History 点回来 = 顺便再看看有没有新人"的语义就闭合了。
+### 3. 不做的事
 
-（这条如果 side-by-side 页面已经在做 rematch 就跳过；否则加一段 12 行左右的 effect。）
-
-## 不做的事
-
-- 不动 `sessions.ts` 的 status 字段——History 列表已经不显示状态胶囊了，但底层字段留着不清理。
-- 不动 i18n key（`home.banner.*` 保留不删，避免顺手改乱）。
-- 不动 matchmaker 侧的任何东西。
-- 不加"通知"/"提醒"这类能让人误以为有推送的功能——这是 demo，不承诺后台行为。
+- **不动**主卡片的 why 一句话、活动摘要、主/次按钮、footnote 文案。
+- **不新增路由**，不改 `Person` 类型（`personBrief` / `moments` / `oneWork` 已有）。
+- **不改** NoMatch / Chat / Empty / EditWishPanel 视图。
+- **不加** "喜欢/举报/收藏" 等无意义边角动作。
+- **不改** 左侧 Agent 对话与分派逻辑；Sheet 打开时 Agent 依然可见可用。
+- History 抽屉、workspace-header、home 完全不动。
 
 ## 验收
 
-- 首页：只有问候语、输入框、两个 chip、页脚一行小字。没有任何状态卡片。
-- 提交一个"一起做点什么"、没匹配到 → 落到 nomatch 卡 → 三个动作齐全：调整、试近似、先保存着。
-- 点"先保存着"回到首页，首页干净；打开 History，那条 session 还在，点回去能继续。
-- 如果这期间池子里出现了匹配（demo 里可以通过手动跑 seed 触发），点 History 回去时页面直接进入 match 视图。
+1. 打开一个已匹配的 session，右侧看到的匹配卡跟之前完全一样（头像 / 姓名 / 一句话 why / 活动行 / CTA），唯一新增：身份行 hover 时有轻底色，尾部有 `›` 加极小 "更多" 字样。
+2. 点身份行任意位置（头像 / 名字 / 尾部箭头）→ 右侧滑入 Sheet，能看到 personBrief、oneWork、3 条 moments、双方 intent 原话 + 活动 tag。
+3. Sheet 底部按钮 `[开始聊 TA]` = 主卡片 `[开始聊 TA]`，都进入右侧 chat 视图；进入时 Sheet 自动关闭。
+4. 按 Esc 或点遮罩关闭 Sheet，主卡片状态无变化。
+5. 点 `[看下一个]` 换人后再打开 Sheet，显示的是新的那个人的资料；点 `[编辑心愿]` 也不影响。
+6. 缺 personBrief / oneWork / moments 中任何一项的候选人，对应 section 静默隐藏，Sheet 不出现空块。
+7. 语言切 zh ↔ en，Sheet 内所有字段随之切换。
