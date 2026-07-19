@@ -1,93 +1,59 @@
+## 设计原则
 
-## 判断
+- 收藏只是**延迟决策的临时书签**，不是关系管理工具。
+- **只在当前心愿（session）内有效**：心愿撤回或找到聊天对象则清空。收藏与 History 不重叠，各司其职（History = 心愿维度，收藏 = 候选人维度）。
+- 不新增页面、不新增全局入口、不出现在首页。所有操作都在 Side-by-Side 右侧画布内完成。
 
-你说得对。当前主卡把两条原话（"你说 X"、"TA 说 Y"）整个搬进 Sheet 了，主卡只剩一行结构化 tag（`🎾 网球 · 周六早上 · 中级`）。问题是：
-
-- 结构化 tag 是系统解析的结果，缺少"人味"。看到 "TA 说：想找个搭子长期打" 才有那种"哦，池子里真的有人在想这件事"的实感。
-- 现在要点开 Sheet 才能看到，等于把关键说服信息藏了一层。
-- 这跟"简洁"不矛盾——那两条引号本身就短，不占几行。
-
-**结论**：把双方原话作为一个轻量摘要恢复到主卡上，跟结构化 tag 一起承担"事"的说明；Sheet 里同样的内容作为详情备份保留。
-
-## 主卡摘要长什么样
-
-不做回原来那两张并排 `IntentCard`（太重、有头像/标签栏）。改成**紧凑双行引号**：
+## 用户流程
 
 ```text
-┌──────────────────────────────┐
-│ [头像]  June, 28              │
-│        上海 · 独立设计师   › 更多 │
-├──────────────────────────────┤
-│ ✦ 为什么是 TA                    │
-│ TA 也安静、爱读书……              │
-├──────────────────────────────┤
-│ 为什么对上 · 你们都想 🎾 网球 · 周六早上 │   ← 现有 aligned 行
-│                                │
-│  ┌─ 你说 ────────────┐         │   ← 新增：紧凑双行
-│  │ "想找人打网球"       │         │
-│  └───────────────────┘         │
-│  ┌─ TA 说 ───────────┐         │
-│  │ "想找搭子长期打"     │         │
-│  └───────────────────┘         │
-├──────────────────────────────┤
-│ [   开始聊 TA   ]  [看下一个]      │
-└──────────────────────────────┘
+匹配卡 ──[♡ 收藏]──▶ 收藏成功（卡片替换为下一位候选）
+   │                        │
+   │                        ▼
+   ├──[Start chat]        顶部出现 "已收藏 N 位" 小徽章
+   ├──[See next]                 │
+   └──[Withdraw]                 ▼
+                          点击徽章 → 打开右侧抽屉
+                                  │
+                       ┌──────────┼──────────┐
+                       ▼          ▼          ▼
+                    再看资料    发起聊天    取消收藏
+                    (打开 Profile Sheet)  (回到匹配池)
 ```
 
-排版细节：
-- 每条一行：极小的 uppercase 标签（`你说 / TA 说`）+ 一行引号原话。文本超长时截断 `line-clamp-2`。
-- 两行卡竖排（不并排）——竖排在窄容器下更稳，视觉重量小于原来的两张 IntentCard，也不抢主 CTA。
-- 底色沿用 `bg-secondary/40` 或 `border-border bg-card`，比 Sheet 里的引号更 subtle。
-- 不显示 tag pill 组（`🎾 网球` `周六 早上`）——这些已经在 aligned 行里说了，主卡不重复。
+关键决策：
+1. **♡ 收藏 = 软性 See next**：点击后当前候选进入“收藏”，画布自动展示下一位；不会再作为“主匹配”出现，避免重复打扰。
+2. **收藏后能做什么**（帮用户决定）：
+   - 再次查看资料（复用现有 Profile Sheet，无新 UI）。
+   - 直接 Start chat（与主卡等价，聊天开启后本 session 收藏全部清空——已经进入沟通阶段，暂存池失去意义）。
+   - 取消收藏（该候选人回到匹配池顶部，可再次成为主匹配）。
+3. **匹配池耗尽时**：NoMatch 视图顶部显示“你还收藏了 N 位”，引导用户回看已收藏的人，形成闭环，避免“没人了”的死胡同。
+4. **撤回心愿 / 编辑心愿并重匹**：收藏清空（候选前提已变），保持逻辑一致。
 
-放置位置：**紧接在 aligned 行下方**（`intent.aligned_body` 之后、CTA 之前）。理由：
-1. "为什么对上" 先给系统总结，紧跟其后是双方原话作为证据支撑，读起来是"因为 → 所以"的顺序。
-2. 靠近 CTA，用户下决定前最后看到的就是"TA 真的说过这句话"，说服力最强。
+## UI 变化（都在 `meet-canvas.tsx`）
 
-## 改动
+- MatchView 顶部操作区：`[Start chat] [♡ Save] [See next] [Withdraw]`。`♡ Save` 为次要按钮样式。
+- MatchView 顶部右上角（仅当收藏 ≥1）：小徽章 `♡ 3` → 点击展开右侧“已收藏”抽屉。
+- 抽屉内每行：头像 + 名字 + 一句 whyPersonLine + `[查看] [开始聊天] [取消收藏]`。
+- NoMatchView：若有收藏，在池耗尽/等待区加一行“先回看你收藏的 N 位 →”按钮，打开同一抽屉。
 
-### `src/components/canvas/meet-canvas.tsx` — 只改 `MatchView`
+## 技术改动
 
-在 aligned block（约 149-158 行）和按钮组之间插入紧凑引号摘要：
+- `src/lib/agents/side-by-side.ts`
+  - `SideState` 增加 `savedIntentIds: string[]`。
+  - 新增 action：`saveCurrent(s)`、`unsave(s, intentId)`、`chatWithSaved(s, intentId)`。
+  - `saveCurrent`：把当前 `matchIntentId` 推入 `savedIntentIds` 与 `triedIntentIds`，然后走 `skipMatch` 找下一位。
+  - `unsave`：从 `savedIntentIds` 与 `triedIntentIds` 移除，再触发一次 `findMatch`（若当前无 match 则把它设为 match）。
+  - `revokeAndReset` / `editWish` / `startChat` 内清空 `savedIntentIds`。
+- `src/components/canvas/meet-canvas.tsx`
+  - MatchView 加 `♡ Save` 按钮 + 收藏徽章。
+  - 新增 `SavedDrawer`（复用 shadcn `Sheet`），列表项复用现有头像与 whyPersonLine 排版。
+  - NoMatchView 显示 “已收藏 N 位” 入口。
+- `src/routes/side-by-side.tsx`：把三个新 handler 透传给 `MeetCanvas`。
+- `src/locales/{en,zh-CN}/common.json`：新增 `meet.save`、`meet.saved_count`、`meet.saved_title`、`meet.saved_empty`、`meet.unsave`、`meet.review_saved` 等文案。
 
-```tsx
-{/* Their own words + yours — the human evidence backing the aligned tag. */}
-<div className="mt-3 space-y-1.5">
-  <QuoteLine label={t("intent.you_said")} text={lang === "zh-CN" ? mine.rawText_zh : mine.rawText} />
-  <QuoteLine label={t("intent.they_said")} text={lang === "zh-CN" ? other.rawText_zh : other.rawText} />
-</div>
-```
+## 不做
 
-新增本文件内部的 `QuoteLine`：
-
-```tsx
-function QuoteLine({ label, text }: { label: string; text: string }) {
-  return (
-    <div className="rounded-lg border border-border/70 bg-secondary/40 px-3 py-2">
-      <div className="text-[9.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">
-        {label}
-      </div>
-      <p className="mt-0.5 text-[12.5px] text-foreground/90 leading-snug line-clamp-2">
-        "{text}"
-      </p>
-    </div>
-  );
-}
-```
-
-Sheet 里的"你们要一起做的事"section 保留不变（作为详情备份，含 aligned tag）。
-
-### 不做的事
-
-- 不动身份行、WhyPersonBox、aligned 行、CTA、footnote、Sheet。
-- 不加 tag pill、活动图标（避免和 aligned 行重复）。
-- 不改 NoMatch / Chat / Empty / EditWishPanel。
-- 不改 i18n（复用已有的 `intent.you_said` / `intent.they_said`）。
-
-## 验收
-
-1. 匹配卡从上到下：MATCH 头 → 身份行（可点开 Sheet）→ WhyPersonBox → aligned 行 → **两条紧凑引号（新）** → CTA → footnote。
-2. 引号里显示的正是双方 intent 的原话（zh 或 en 跟随语言）。
-3. 长文本被截到 2 行内，不撑破布局。
-4. 主 CTA `[开始聊 TA]` 依然是最下方最粗的按钮，视觉重量仍最大。
-5. 点身份行打开 Sheet，"你们要一起做的事" section 里还能看到同样两条引号 + aligned tag（作为详情备份）。
+- 不做全局“收藏夹”页面（会与 History 职责重叠）。
+- 不做跨 session 的持久收藏（收藏本质是当前心愿下的候选池，心愿变则失效）。
+- 不给收藏加备注、标签、排序（复杂度收益比过低）。
