@@ -24,6 +24,12 @@ export interface Intent {
   ownerCity: string;
   ownerCity_zh: string;
 
+  /** Hard filter for matching. Same value as ownerCity for seed people;
+   *  for "me" it comes from Profile.city (or a per-wish override typed in
+   *  the raw text like "in Tokyo"). We match same-city only. */
+  city: string;
+  city_zh: string;
+
   kind: ActivityKind;
   level: LevelTier;
   day: Weekday;
@@ -40,11 +46,26 @@ export interface Intent {
   whenAny?: boolean;
   /** True when the intent's `level` was unspecified — matches anyone. */
   levelAny?: boolean;
-  /** Optional user-typed location note. Doesn't filter matches — shown as a tag. */
+  /** Legacy: free-text location note. No longer filters matches; kept
+   *  only so old localStorage state stays readable. Use `city` instead. */
   location?: string;
   location_zh?: string;
 
   createdAt: number;
+}
+
+/** Compare two city labels tolerantly — trims, case-insensitive, and
+ *  matches either the English or Chinese label on both sides. */
+export function sameCity(a: Intent, b: Intent): boolean {
+  const norm = (s: string) => s.trim().toLowerCase();
+  const aEn = norm(a.city || a.ownerCity || "");
+  const aZh = norm(a.city_zh || a.ownerCity_zh || "");
+  const bEn = norm(b.city || b.ownerCity || "");
+  const bZh = norm(b.city_zh || b.ownerCity_zh || "");
+  if ((!aEn && !aZh) || (!bEn && !bZh)) return false;
+  if (aEn && (aEn === bEn || aEn === bZh)) return true;
+  if (aZh && (aZh === bEn || aZh === bZh)) return true;
+  return false;
 }
 
 
@@ -130,6 +151,8 @@ export function seedPool(): Intent[] {
           ownerName_zh: p.name_zh,
           ownerCity: p.city,
           ownerCity_zh: p.city_zh,
+          city: p.city,
+          city_zh: p.city_zh,
           kind: act.kind,
           level: act.level,
           day: slot.day,
@@ -184,14 +207,22 @@ export function publishMyIntent(input: {
   when?: WhenTier;      // undefined means "any"
   level?: LevelTier;    // undefined means "any"
   rawText: string;
+  /** Required for real matching: the city this wish is scoped to.
+   *  Callers pass Profile.city, or a per-wish override parsed from the raw
+   *  text ("in Tokyo"). Pass ""/undefined only for tests. */
+  city?: string;
+  city_zh?: string;
 }): Intent {
   const when: WhenTier = input.when ?? "any";
   const { day, window } = whenToSlot(when, input.kind);
+  const city = (input.city ?? "").trim();
+  const city_zh = (input.city_zh ?? "").trim() || city;
   const intent: Intent = {
     id: `me:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
     ownerId: "me",
     ownerName: "You", ownerName_zh: "你",
-    ownerCity: "", ownerCity_zh: "",
+    ownerCity: city, ownerCity_zh: city_zh,
+    city, city_zh,
     kind: input.kind,
     level: input.level ?? "intermediate",
     day, window,
@@ -208,7 +239,18 @@ export function publishMyIntent(input: {
 }
 
 /** Update fields on my intent — returns the new intent, or null if not found. */
-export function updateMyIntent(id: string, patch: { when?: WhenTier; level?: LevelTier; location?: string }): Intent | null {
+export function updateMyIntent(
+  id: string,
+  patch: {
+    when?: WhenTier;
+    level?: LevelTier;
+    location?: string;
+    /** Per-wish city override. Empty string clears it — caller should then
+     *  fall back to Profile.city on the next publish. */
+    city?: string;
+    city_zh?: string;
+  },
+): Intent | null {
   const list = loadMyIntents();
   const idx = list.findIndex((i) => i.id === id);
   if (idx < 0) return null;
@@ -225,6 +267,13 @@ export function updateMyIntent(id: string, patch: { when?: WhenTier; level?: Lev
     const v = patch.location.trim();
     next.location = v || undefined;
     next.location_zh = v || undefined;
+  }
+  if (patch.city !== undefined) {
+    const v = patch.city.trim();
+    next.city = v;
+    next.city_zh = (patch.city_zh ?? v).trim() || v;
+    next.ownerCity = v;
+    next.ownerCity_zh = next.city_zh;
   }
   const nextList = [...list];
   nextList[idx] = next;
@@ -322,6 +371,7 @@ export function findCandidatesTiered(mine: Intent, opts?: MatchOpts): {
 
   const pool = [...seedPool(), ...loadMyIntents().filter((it) => it.id !== mine.id)]
     .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id) && !excludedOwners.has(it.ownerId))
+    .filter((it) => sameCity(mine, it))
     .filter((it) => kindsCompatible(mine, it));
 
   const buckets: { exact: Intent[]; when: Intent[]; level: Intent[] } = { exact: [], when: [], level: [] };
@@ -394,7 +444,7 @@ export function findNearMisses(mine: Intent, opts?: MatchOpts): Intent[] {
   const mineWhen = slotToWhen(mine.day, mine.window);
   const seenOwners = new Set<string>();
   return seedPool()
-    .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id) && !excludedOwners.has(it.ownerId) && kindsCompatible(mine, it))
+    .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id) && !excludedOwners.has(it.ownerId) && sameCity(mine, it) && kindsCompatible(mine, it))
     .filter((it) =>
       !whenCompatible(mineWhen, slotToWhen(it.day, it.window)) ||
       !levelCompatible(mine.kind !== "other" ? mine.kind : it.kind, mine.level, it.level),

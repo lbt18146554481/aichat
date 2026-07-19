@@ -8,6 +8,7 @@ import { consumeSeed } from "@/lib/seed";
 import { findMatch, findNearMisses, getIntentById } from "@/lib/intents";
 import { getPersonById } from "@/lib/people";
 import { lastTrait, rememberTrait } from "@/lib/agent-memory";
+import { loadProfile } from "@/lib/profile";
 import type { Lang } from "@/lib/i18n";
 import { isSaved as isSavedGlobal } from "@/lib/saved-intents";
 import {
@@ -199,8 +200,20 @@ function SideBySidePage() {
   useEffect(() => { stateRef.current = state; }, [state]);
 
   // Every side-by-side page must live under a session; no id → home.
+  // Also: matching is city-scoped, so we hard-require Profile.city before
+  // any wish can be published. Missing → detour to /profile?need=city and
+  // remember to come back here.
   useEffect(() => {
-    if (!sessionId) void navigate({ to: "/" });
+    if (!sessionId) { void navigate({ to: "/" }); return; }
+    if (typeof window === "undefined") return;
+    const city = loadProfile().city.trim();
+    if (!city) {
+      try {
+        window.sessionStorage.setItem("kindred:profile:return", "/side-by-side");
+        window.sessionStorage.setItem("kindred:profile:focus", "city");
+      } catch {}
+      void navigate({ to: "/profile" });
+    }
   }, [sessionId, navigate]);
 
   useEffect(() => { setHydrated(true); }, []);
@@ -550,11 +563,14 @@ function SideBySidePage() {
   function handleChatWithSaved(intentId: string) {
     actWith((s) => chatWithSaved(s, intentId));
   }
-  function handleEditWish(patch: { when?: WhenTier; level?: LevelTier; location?: string }) {
+  function handleEditWish(patch: { when?: WhenTier; level?: LevelTier; city?: string }) {
     const bits: string[] = [];
     if (patch.when) bits.push(t(`meet.when.${patch.when}`));
     if (patch.level) bits.push(t(`meet.level.${patch.level}`));
-    if (patch.location !== undefined && patch.location.trim()) bits.push(patch.location.trim());
+    if (patch.city !== undefined) {
+      const label = patch.city.trim() || loadProfile().city;
+      if (label) bits.push(label);
+    }
     const userText = bits.length ? t("intent.edited_user_msg", { changes: bits.join(" · ") }) : undefined;
     actWith((s) => editWish(s, patch), userText);
   }

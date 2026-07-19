@@ -224,8 +224,11 @@
     "edit_close": "收起",
     "edit_when": "什么时候",
     "edit_level": "水平",
-    "edit_location": "在哪（可选）",
-    "edit_location_placeholder": "写个片区、球场、公园…",
+    "edit_city": "城市",
+    "edit_city_profile": "资料：{{city}}",
+    "edit_city_placeholder": "留空则用 {{city}}",
+    "edit_city_hint": "匹配只发生在同城之间。留空使用你在资料里的城市。",
+    "city_override_badge": "本次",
     "edit_apply": "保存并重新匹配",
     "edited_user_msg": "改了下心愿 → {{changes}}",
     
@@ -299,6 +302,9 @@
     "wants": "想要", "avoids": "避免", "notes": "你的原话", "remove": "移除"
   },
   "profile": {
+    "gate": {
+      "need_city": "Kindred 只在同城之间匹配。填一下你的城市再继续。"
+    },
     "heading_setup": "完善你的资料",
     "heading_edit": "你的资料",
     "subhead": "别人看到的就是这一页，原文一字不改。短句、具体、真实——胜过任何漂亮话。Agent 只会读这些，绝不会替你编。",

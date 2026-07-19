@@ -24,11 +24,13 @@ function ProfilePage() {
   const [progress, setProgress] = useState({ done: 0, total: 3 });
   const [hydrated, setHydrated] = useState(false);
   const [returnTo, setReturnTo] = useState<string | null>(null);
+  const [needCity, setNeedCity] = useState(false);
 
   useEffect(() => {
     setProgress(profileProgress(loadProfile()));
     try {
       setReturnTo(window.sessionStorage.getItem("kindred:profile:return"));
+      setNeedCity(window.sessionStorage.getItem("kindred:profile:focus") === "city");
     } catch { /* noop */ }
     setHydrated(true);
     const onFocus = () => setProgress(profileProgress(loadProfile()));
@@ -41,6 +43,7 @@ function ProfilePage() {
     try {
       back = window.sessionStorage.getItem("kindred:profile:return");
       window.sessionStorage.removeItem("kindred:profile:return");
+      window.sessionStorage.removeItem("kindred:profile:focus");
     } catch { /* noop */ }
     if (back === "/matchmaker") void navigate({ to: "/matchmaker" });
     else if (back === "/side-by-side") void navigate({ to: "/side-by-side" });
@@ -81,7 +84,7 @@ function ProfilePage() {
       {returnTo && (
         <div className="border-b border-border bg-secondary/40">
           <div className="max-w-3xl mx-auto px-5 py-2 text-[12px] text-muted-foreground">
-            {t("hello.gate.return_hint")}
+            {needCity ? t("profile.gate.need_city") : t("hello.gate.return_hint")}
           </div>
         </div>
       )}
