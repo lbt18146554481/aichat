@@ -152,6 +152,20 @@ function MatchView({ state, onStartChat, onSkip }: Props) {
           })}
         </div>
 
+        {/* Their own words + yours — human evidence backing the aligned tag. */}
+        <div className="mt-3 space-y-1.5">
+          <QuoteLine
+            label={t("intent.you_said")}
+            text={lang === "zh-CN" ? mine.rawText_zh : mine.rawText}
+          />
+          <QuoteLine
+            label={t("intent.they_said")}
+            text={lang === "zh-CN" ? other.rawText_zh : other.rawText}
+          />
+        </div>
+
+
+
         <div className="mt-4 flex items-center gap-2">
           <button
             onClick={onStartChat}
@@ -587,6 +601,19 @@ function IntentCard({ intent, side, lang }: { intent: Intent; side: "me" | "them
 
       </div>
     </article>
+  );
+}
+
+function QuoteLine({ label, text }: { label: string; text: string }) {
+  return (
+    <div className="rounded-lg border border-border/70 bg-secondary/40 px-3 py-2">
+      <div className="text-[9.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">
+        {label}
+      </div>
+      <p className="mt-0.5 text-[12.5px] text-foreground/90 leading-snug line-clamp-2">
+        "{text}"
+      </p>
+    </div>
   );
 }
 
