@@ -274,8 +274,10 @@ export function saveCurrent(state: SideState, sessionId?: string | null): SideSt
   const already = isSavedGlobal(id);
   if (already) {
     removeSavedGlobal(id);
-  } else if (sessionId) {
-    saveIntentGlobal(id, sessionId);
+  } else {
+    // Always write globally so the Header entry lights up — sessionId is only
+    // used as an optional back-link for the drawer, never a gate.
+    saveIntentGlobal(id, sessionId ?? "");
   }
   const saved = already
     ? state.savedIntentIds.filter((x) => x !== id)

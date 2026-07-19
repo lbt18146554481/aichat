@@ -114,11 +114,6 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
             {t("intent.match_label")}
           </div>
-          {remaining > 0 && (
-            <div className="ml-auto text-[11px] text-muted-foreground">
-              {t("intent.pool_remaining", { count: remaining })}
-            </div>
-          )}
         </div>
 
         {/* Identity row — the whole block is a button that opens the profile sheet. */}
@@ -193,7 +188,7 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
               className={
                 "inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md border text-[13px] transition-colors " +
                 (isSaved
-                  ? "border-foreground/60 bg-secondary text-foreground"
+                  ? "bg-foreground text-background border-foreground hover:opacity-90"
                   : "border-border text-foreground/85 hover:bg-secondary")
               }
             >

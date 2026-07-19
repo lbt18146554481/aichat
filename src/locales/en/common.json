@@ -227,7 +227,7 @@
     "edit_location_placeholder": "A neighborhood, court, park…",
     "edit_apply": "Save & rematch",
     "edited_user_msg": "Edited my wish → {{changes}}",
-    "pool_remaining": "{{count}} more waiting",
+    
     "pool_empty_hint": "No one else in the pool right now",
     "next_match": "See next",
     "revoke_reshare": "Withdraw & rewrite",
