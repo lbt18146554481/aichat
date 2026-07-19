@@ -13,9 +13,9 @@
 
 import type { ActivityKind, Weekday } from "../types";
 import {
-  findMatch,
   findNearMisses,
   getIntentById,
+  pickNextCandidate,
   publishMyIntent,
   revokeMyIntent,
   seedPool,
@@ -23,6 +23,7 @@ import {
   updateMyIntent,
   type Intent,
   type LevelTier,
+  type MatchQuality,
   type WhenTier,
 } from "../intents";
 import { getSession, updateSession, deriveDoSomethingStatus } from "../sessions";
