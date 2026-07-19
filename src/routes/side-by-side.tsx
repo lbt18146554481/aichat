@@ -245,6 +245,19 @@ function SideBySidePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, pendingSeed]);
 
+  // Deep-link from the global Saved drawer: open TA chat directly.
+  useEffect(() => {
+    if (!hydrated || !chatWithId) return;
+    setState((s) => chatWithSaved(s, chatWithId));
+    // Strip the param after consuming so a refresh doesn't re-fire it.
+    void navigate({
+      to: "/side-by-side",
+      search: { session: sessionId ?? "" } as any,
+      replace: true,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, chatWithId]);
+
   function actWith(mutate: (s: SideState) => SideState, userText?: string) {
     setThinking(true);
     window.setTimeout(() => {
