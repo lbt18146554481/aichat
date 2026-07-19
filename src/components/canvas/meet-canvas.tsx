@@ -71,12 +71,13 @@ function EmptyCanvas() {
 
 // ---- Match — two intent cards side by side + [start chat] --------------
 
-function MatchView({ state, onStartChat, onSkip }: Props) {
+function MatchView({ state, onStartChat, onSkip, onSave, onUnsave, onChatWithSaved }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
   const other = state.matchIntentId ? getIntentById(state.matchIntentId) : null;
   const [openProfile, setOpenProfile] = useState(false);
+  const [openSaved, setOpenSaved] = useState(false);
 
   if (!mine || !other) return <EmptyCanvas />;
 
@@ -88,6 +89,7 @@ function MatchView({ state, onStartChat, onSkip }: Props) {
     0,
     countAvailableMatches(mine, { exclude: state.triedIntentIds }) - 1,
   );
+  const savedCount = state.savedIntentIds.length;
 
   const person = getPersonById(other.ownerId);
   const otherName = lang === "zh-CN" ? other.ownerName_zh : other.ownerName;
@@ -103,15 +105,28 @@ function MatchView({ state, onStartChat, onSkip }: Props) {
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
       <div className="mx-auto max-w-lg">
-        <div className="flex items-baseline justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
             {t("intent.match_label")}
           </div>
-          {remaining > 0 && (
-            <div className="text-[11px] text-muted-foreground">
-              {t("intent.pool_remaining", { count: remaining })}
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {savedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setOpenSaved(true)}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-border bg-secondary text-[11px] text-foreground/80 hover:border-foreground/40 transition-colors"
+                aria-label={t("intent.saved_open")}
+              >
+                <BookmarkCheck className="w-3 h-3" />
+                {t("intent.saved_count", { count: savedCount })}
+              </button>
+            )}
+            {remaining > 0 && (
+              <div className="text-[11px] text-muted-foreground">
+                {t("intent.pool_remaining", { count: remaining })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Identity row — the whole block is a button that opens the profile sheet. */}
@@ -180,6 +195,16 @@ function MatchView({ state, onStartChat, onSkip }: Props) {
             <MessageCircle className="w-3.5 h-3.5" />
             {t("intent.start_chat")}
           </button>
+          {onSave && (
+            <button
+              onClick={onSave}
+              title={t("intent.save_hint")}
+              className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md border border-border text-[13px] text-foreground/85 hover:bg-secondary transition-colors"
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              {t("intent.save")}
+            </button>
+          )}
           <button
             onClick={onSkip}
             disabled={remaining === 0}
@@ -207,9 +232,19 @@ function MatchView({ state, onStartChat, onSkip }: Props) {
           onStartChat();
         }}
       />
+
+      <SavedDrawer
+        open={openSaved}
+        onOpenChange={setOpenSaved}
+        savedIntentIds={state.savedIntentIds}
+        lang={lang}
+        onChat={(id) => { setOpenSaved(false); onChatWithSaved?.(id); }}
+        onUnsave={(id) => onUnsave?.(id)}
+      />
     </div>
   );
 }
+
 
 // ---- Person profile sheet (opened from the identity row) ---------------
 
