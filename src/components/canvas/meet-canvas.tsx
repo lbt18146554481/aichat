@@ -652,6 +652,22 @@ function IntentCard({ intent, side, lang }: { intent: Intent; side: "me" | "them
       <p className="mt-2.5 text-[13px] text-foreground leading-relaxed">"{raw}"</p>
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         <Tag>{KIND_EMOJI[intent.kind]} {t(`activity.kind.${intent.kind}`)}</Tag>
+        {(() => {
+          const cityLabel = lang === "zh-CN" ? (intent.city_zh || intent.city) : (intent.city || intent.city_zh);
+          if (!cityLabel) return null;
+          // "This wish" badge only on my own card, when the wish city differs
+          // from my profile city.
+          const profile = side === "me" ? loadProfileCity() : "";
+          const overridden = side === "me" && !!profile && cityLabel.trim().toLowerCase() !== profile.trim().toLowerCase();
+          return (
+            <Tag>
+              📍 {cityLabel}
+              {overridden && (
+                <span className="ml-1 text-muted-foreground">· {t("intent.city_override_badge")}</span>
+              )}
+            </Tag>
+          );
+        })()}
         {!intent.whenAny && (
           <Tag>{t(`activity.day.${intent.day}`)} {t(`activity.window.${intent.window}`)}</Tag>
         )}
@@ -659,8 +675,6 @@ function IntentCard({ intent, side, lang }: { intent: Intent; side: "me" | "them
           <Tag>{t(`activity.level.${intent.level}`)}</Tag>
         )}
         {intent.whenAny && <Tag>{t("meet.when.any")}</Tag>}
-        {side === "me" && intent.location && <Tag>📍 {intent.location}</Tag>}
-
       </div>
     </article>
   );
