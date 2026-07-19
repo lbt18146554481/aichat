@@ -43,6 +43,10 @@ export interface ParseResult {
   kind: ActivityKind;
   when?: WhenTier;
   level?: LevelTier;
+  /** English city label when the user typed one explicitly (e.g. "in Tokyo").
+   *  Empty when no city was mentioned — caller falls back to Profile.city. */
+  city?: string;
+  city_zh?: string;
   truncated?: boolean;
 }
 
