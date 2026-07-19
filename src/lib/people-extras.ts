@@ -68,6 +68,13 @@ export const ACTIVITIES: Record<string, Activity[]> = {
     { kind: "bookstore", level: "intermediate", area: "Monti", area_zh: "蒙提",
       slots: [{ day: "thu", window: "evening" }], venue: "Libreria Altroquando", venue_zh: "Altroquando 书店" },
   ],
+  amara: [
+    { kind: "tennis", level: "intermediate", area: "Lekki", area_zh: "莱基",
+      slots: [{ day: "sat", window: "morning" }, { day: "wed", window: "evening" }],
+      venue: "Lekki Tennis Club", venue_zh: "莱基网球俱乐部" },
+    { kind: "exhibition", level: "intermediate", area: "Ikoyi", area_zh: "伊科伊",
+      slots: [{ day: "fri", window: "evening" }], venue: "Nike Art Gallery", venue_zh: "Nike 艺术画廊" },
+  ],
 };
 
 export const REFLECTIONS: Record<string, Reflection[]> = {
