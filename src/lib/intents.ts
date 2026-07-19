@@ -207,14 +207,22 @@ export function publishMyIntent(input: {
   when?: WhenTier;      // undefined means "any"
   level?: LevelTier;    // undefined means "any"
   rawText: string;
+  /** Required for real matching: the city this wish is scoped to.
+   *  Callers pass Profile.city, or a per-wish override parsed from the raw
+   *  text ("in Tokyo"). Pass ""/undefined only for tests. */
+  city?: string;
+  city_zh?: string;
 }): Intent {
   const when: WhenTier = input.when ?? "any";
   const { day, window } = whenToSlot(when, input.kind);
+  const city = (input.city ?? "").trim();
+  const city_zh = (input.city_zh ?? "").trim() || city;
   const intent: Intent = {
     id: `me:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
     ownerId: "me",
     ownerName: "You", ownerName_zh: "你",
-    ownerCity: "", ownerCity_zh: "",
+    ownerCity: city, ownerCity_zh: city_zh,
+    city, city_zh,
     kind: input.kind,
     level: input.level ?? "intermediate",
     day, window,
