@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { ArrowUp, ArrowLeft, MessageCircle, SkipForward, Users, X, ChevronRight, Bookmark, BookmarkCheck } from "lucide-react";
