@@ -307,6 +307,9 @@
     "remove": "remove"
   },
   "profile": {
+    "gate": {
+      "need_city": "Kindred matches people in the same city. Add your city to keep going."
+    },
     "heading_setup": "Set up your profile",
     "heading_edit": "Your profile",
     "subhead": "This is exactly how others see you. Write it in your own words — short, specific, true. The Agents read this, they never invent it.",
