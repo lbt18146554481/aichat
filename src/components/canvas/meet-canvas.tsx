@@ -11,6 +11,7 @@ import { avatarUrl, getPersonById } from "@/lib/people";
 import { Sparkles } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useIsSaved } from "@/components/saved-trigger";
+import { loadProfile } from "@/lib/profile";
 
 
 interface Props {
