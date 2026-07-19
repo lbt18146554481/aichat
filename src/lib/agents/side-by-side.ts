@@ -335,11 +335,15 @@ export function startChat(state: SideState, draft?: string): SideState {
   if (!other) return state;
   const opener = other.rawText_zh || other.rawText;
   const first: ChatMsg = { id: uid(), from: "them", text: opener, t: Date.now() };
+  // Starting a chat with TA removes just TA from the global saved shelf —
+  // other saved candidates remain across pages/sessions.
+  removeSavedGlobal(state.matchIntentId);
+  const remainingSaved = state.savedIntentIds.filter((x) => x !== state.matchIntentId);
   return {
     ...state,
     stage: "chat",
     chatMessages: [first],
-    savedIntentIds: [],
+    savedIntentIds: remainingSaved,
     ...(draft ? { pendingDraft: draft } : {}),
   };
 }
@@ -358,8 +362,10 @@ export function receiveSimulatedReply(state: SideState): SideState {
   return { ...state, chatMessages: [...state.chatMessages, reply] };
 }
 
-export function revokeAndReset(state: SideState): SideState {
+export function revokeAndReset(state: SideState, sessionId?: string | null): SideState {
   if (state.myIntentId) revokeMyIntent(state.myIntentId);
+  // Withdrawing the wish clears anything the user saved under it.
+  if (sessionId) removeSavedForSessionGlobal(sessionId);
   return { ...EMPTY, messages: state.messages };
 }
 
