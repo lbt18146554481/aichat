@@ -10,6 +10,7 @@ import type { ActivityKind } from "@/lib/types";
 import { avatarUrl, getPersonById } from "@/lib/people";
 import { Sparkles } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useIsSaved } from "@/components/saved-trigger";
 
 
 interface Props {
@@ -42,70 +43,14 @@ const KIND_EMOJI: Record<ActivityKind, string> = {
 
 export function MeetCanvas(props: Props) {
   const view = currentView(props.state);
-  const { t, i18n } = useTranslation();
-  const lang = (i18n.resolvedLanguage as Lang) ?? "en";
-  const [openSaved, setOpenSaved] = useState(false);
-  const savedCount = props.state.savedIntentIds.length;
-
-  // Pulse the pill whenever the count grows — visual anchor for "it went here".
-  const [pulseKey, setPulseKey] = useState(0);
-  const prevCountRef = useRef(savedCount);
-  useEffect(() => {
-    if (savedCount > prevCountRef.current) setPulseKey((k) => k + 1);
-    prevCountRef.current = savedCount;
-  }, [savedCount]);
-
-  // Only render the persistent pill once a wish is active.
-  const showPill = view !== "empty";
 
   let content: React.ReactNode;
   if (view === "chat") content = <ChatView {...props} />;
   else if (view === "match") content = <MatchView {...props} />;
-  else if (view === "nomatch") content = <NoMatchView {...props} onOpenSaved={() => setOpenSaved(true)} />;
+  else if (view === "nomatch") content = <NoMatchView {...props} />;
   else content = <EmptyCanvas />;
 
-
-  const pillEnabled = savedCount > 0;
-
-  return (
-    <div className="relative h-full">
-      {showPill && (
-        <button
-          type="button"
-          onClick={() => pillEnabled && setOpenSaved(true)}
-          disabled={!pillEnabled}
-          aria-label={t("intent.saved_open")}
-          className={
-            "absolute top-3 right-3 z-10 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11.5px] font-medium transition-colors " +
-            (pillEnabled
-              ? "border-border bg-card text-foreground/90 hover:border-foreground/40 hover:bg-secondary cursor-pointer shadow-sm"
-              : "border-border/60 bg-card/60 text-muted-foreground/70 cursor-default")
-          }
-        >
-          <span
-            key={pulseKey}
-            className={pulseKey > 0 ? "inline-flex items-center gap-1.5 animate-scale-in" : "inline-flex items-center gap-1.5"}
-          >
-            {pillEnabled ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
-            {pillEnabled
-              ? t("intent.saved_count", { count: savedCount })
-              : t("intent.saved_pill_empty")}
-          </span>
-        </button>
-      )}
-
-      {content}
-
-      <SavedDrawer
-        open={openSaved}
-        onOpenChange={setOpenSaved}
-        savedIntentIds={props.state.savedIntentIds}
-        lang={lang}
-        onChat={(id) => { setOpenSaved(false); props.onChatWithSaved?.(id); }}
-        onUnsave={(id) => props.onUnsave?.(id)}
-      />
-    </div>
-  );
+  return <div className="relative h-full">{content}</div>;
 }
 
 
