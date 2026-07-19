@@ -342,7 +342,7 @@ export function tryNearMiss(state: SideState, intentId: string): SideState {
     : "any";
   updateMyIntent(state.myIntentId, { when: mineWhen, level: other.level });
   return rematchAfterUpdate(
-    { ...state, triedIntentIds: [...state.triedIntentIds] },
+    { ...state, triedIntentIds: [...(state.triedIntentIds ?? [])], triedOwnerIds: [...(state.triedOwnerIds ?? [])] },
     state.myIntentId,
   );
 }
