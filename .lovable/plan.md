@@ -1,65 +1,91 @@
-## 诊断（已验证）
+## 我的独立判断：**你的方案更好**
 
-在预览里复现了你说的"See next 又不用了"：
+我上一版另起炉灶做"Do Sth Together 专属的 onboarding 卡片"，是错的。原因：
 
-- 当前会话的心愿是 `tennis / 任何时间 / 任何水平`，`triedOwnerIds = []`。
-- 调用 `findAllMatches(mine, {})` 实际只返回 **1 个人**（June）。
-- 因此 `MatchView` 里 `remaining = countAvailableMatches(排除 June)` = **0**，"看下一个"按钮被 `disabled`，鼠标悬停显示"池子里暂时没有别的人了"。
+1. **数据早就有了**。`src/lib/profile.ts` 里 `Profile.city` 是 L1 vitals 字段，`isVitalsComplete` 已经把 city 当成必填校验的一部分。我再造一个 `user-profile.ts` 就是重复轮子。
+2. **城市是"你是谁"，不是"你想做什么"**。放在 Profile 才是正确归属，Do Sth Together 只是**读者**。
+3. **允许覆盖（"想去东京打网球"）** 让方案能兼顾常驻 + 出差/旅行场景，代价接近零——解析器加一个词表就够。
 
-也就是说：按钮的代码逻辑是对的，但**种子池里同一个活动的候选人太少**，一旦出现第一个匹配，"看下一个"就立刻死掉，从用户视角看就是"按钮不能用"。这在跑步、攀岩等其它活动上也会同样发生。
+所以采纳你的方案。下面是把它落到最简的具体设计。
 
-再加一层问题：即便有多个同类候选人，我们目前对 `when` / `level` 是**硬过滤**的——只要用户勾了具体时间/水平，跨过一格立刻被剔除；这会让"看下一个"经常在第 2、3 次点击后就没人了。
+## 最终设计
 
-## 目标
+### 1. Profile：city 是硬门槛
 
-让"看下一个"变成一个**永远能推进**的动作，同时保持匹配质量的诚实标注：先给严格匹配，用完了自动降级到近似匹配，并明确告诉用户"这是近似的"。彻底禁用只作为最后手段。
+Profile 里 city 现在就在必填校验里，只是**没被强制**——用户可以跳过 Profile 直接进 Do Sth Together。改成：
 
-## 方案
+- 首次进入 Do Sth Together 时，如果 `profile.city` 为空 → 路由拦截跳到 `/profile`，顶部加一条明确提示："先告诉我你在哪座城市，Do Sth Together 只帮你找同城的人。"
+- Profile 页里 city 字段加红点/必填标记，跳到 Do Sth Together 的返回按钮在填完 city 后才亮起。
+- Matchmaker 板块不做这个拦截（跨城异地相亲合理）。
 
-### 1. 扩充种子池，覆盖每个活动至少 3 人
+### 2. 匹配默认用 profile.city
 
-`src/lib/people.ts` / `people-extras.ts` 里给现有活动补齐候选人，保证 `tennis / run / climb / cook / exhibition / bookstore` 每个 kind 至少 3 个不同的人，覆盖不同时间段和水平。这解决"根本没人"的根因。
+许愿文本里没提城市 → 池子按 `profile.city` 硬过滤。
 
-### 2. 匹配引擎：严格→近似的自动降级
+### 3. 许愿里可覆盖：一次性
 
-改造 `src/lib/intents.ts`：
+用户输入 "想周末在东京打网球" → 解析出 `city: 'tokyo'` → 本次心愿用东京做过滤，**不改 Profile**。
 
-- `findAllMatches(mine, opts)` 保持现在的"严格匹配"语义。
-- 新增 `findRelaxedMatches(mine, opts)`：放开 `when` 或 `level` 之一（不同时都放）返回的候选人，并给每条打上 `relaxed: 'when' | 'level'` 标签。
-- 新增 `pickNextCandidate(mine, opts)`：先看 `findAllMatches`；如果空了再退到 `findRelaxedMatches`；两者都空才返回 `null`。返回值除了 `Intent` 还带 `matchQuality: 'exact' | 'relaxed-when' | 'relaxed-level'`。
+- 在 `parseIntent` 里加一个 `findCity(text)` 词表：种子池里出现过的城市中英双语（Lisbon/里斯本、Tokyo/东京、NYC/纽约、Berlin/柏林……只识别有候选人的城市，避免解析出无人城市）。
+- `Intent` 新增 `city: string`（必填，缺省 = `profile.city`）。
+- 卡片顶部显示 `📍 Tokyo (this wish only)` / `📍 东京（本次）`，与 profile 城市不同时高亮一下，让用户看到自己被理解了。
+- 编辑心愿面板里把 location 字段升级为城市下拉/输入，可改。
 
-### 3. 状态机：`skipMatch` 用新的取候选人逻辑
+### 4. 空池：诚实
 
-`src/lib/agents/side-by-side.ts`：
+`profile.city = Lisbon` 的用户想打网球，但里斯本没网球候选人 → 卡片显示：
 
-- `rematchAfterUpdate` 和 `skipMatch` 内部改用 `pickNextCandidate`。
-- `SideState` 增加 `matchQuality?: 'exact' | 'relaxed-when' | 'relaxed-level'` 字段。
-- `countAvailableMatches` 计入 relaxed，作为按钮 `remaining` 的口径。
+> Lisbon 暂时没有人想打网球。  
+> [收藏这个心愿] · [看看其他城市的人（不同城）]
 
-### 4. UI：诚实地展示"这是近似匹配"
+次要按钮"看看其他城市的人"临时放开城市过滤（继续走已有的 exact/relaxed 分档），但顶部标签明确写 **CROSS-CITY / 不同城**，让用户知道见不了面。
 
-`src/components/canvas/meet-canvas.tsx`：
+### 5. 页眉不需要城市芯片
 
-- 顶部 "MATCH" 标签，当 `matchQuality !== 'exact'` 时改为 "CLOSE MATCH / 接近匹配"，并在 aligned 行末尾加一句解释（例如"时间没完全对上，TA 通常周日下午"）。
-- 只有当严格 + 近似都为 0 才走 `NoMatchView`，此时才 `disabled` 看下一个。
-- 移除"池子里暂时没有别的人了"这句悬停提示（当真到穷尽时按钮本来就消失/进入 NoMatchView，没必要再写）。
+因为 city 在 Profile 页可改，Profile 入口已经在页眉。不加重复入口。
 
-### 5. i18n
+## 用户旅程
 
-在 `src/locales/{en,zh-CN}/common.json` 加：
+```text
+首次打开 Do Sth Together
+  → 检测 profile.city 空
+  → 路由跳 /profile + 顶部提示条
+  → 用户填 Lisbon，回到 Do Sth Together
 
-- `intent.match_label_close` — "CLOSE MATCH" / "接近匹配"
-- `intent.close_reason_when` / `intent.close_reason_level` — 一句话解释
+许愿："想周末打网球"
+  → 池 = Lisbon + 网球 + 周末 → 找到 Isa
 
-## 交付验证
+许愿："想去东京打网球"
+  → 解析 city=Tokyo（覆盖）
+  → 池 = Tokyo + 网球 → 找到 June
+  → 卡片提示"本次心愿"，profile 不变
 
-- 用当前"我想找个人一起打网球"的会话，连续点"看下一个"至少能走完 3 位候选人，其中 1-2 位标为"接近匹配"。
-- 严格匹配没走完前，标签仍是 "MATCH"。
-- 全部人都试过后，进入 `NoMatchView`，而不是把 "See next" 挂在那里灰着。
+搬家：/profile 改 city → 下一次许愿自动跟随
+```
 
-## 技术细节
+## 为什么这是最简
 
-- 不改变 Save 的行为；`unsave` 里对 `triedOwnerIds` 的清理也保留。
-- `pickNextCandidate` 一层薄壳，避免调用点各自拼装 exact/relaxed，防止未来遗漏。
-- Relaxed 匹配只放开一个维度，同时放开会让"接近"变得毫无意义。
-- 种子池扩充只加数据，不改 `Intent` 结构，无迁移问题。
+- **零新表**：复用 `profile.city`。
+- **零新 UI 组件**：Profile 页 + 拦截提示条 + 卡片顶部一个 city 标签，都在既有骨架里。
+- **一句话规则**：**"心愿里说了就听心愿，没说就按 Profile。"** ——用户和开发都好记。
+- **默认无需思考**：99% 时间用户不用输入城市，就是同城匹配。
+
+## 需要你拍板一件事
+
+**空池时，"看看其他城市的人"次要入口要不要保留？**
+
+- 保留：demo 更少空状态，但引入"匹到不能见面的人"的可能。
+- 去掉：更纯粹诚实——"同城没人 = 收藏等人加入 / 换个活动"两条路。
+
+我倾向**去掉**，因为你反复强调的就是"没有地点、跨全球没意义"。加了这个逃生舱等于在自相矛盾。
+
+## 技术改动清单（等你确认后再动手）
+
+- `src/lib/intents.ts`：`Intent` 加 `city: string`；`findCandidatesTiered` 在最外层按 city 过滤。
+- `src/lib/agents/side-by-side.ts`：`parseIntent` 加 `findCity(text)`；`publishMyIntent` 若解析无 city 则用 `profile.city`。
+- `src/routes/side-by-side.tsx`：`beforeLoad` / mount 里检查 city 空则 `redirect('/profile?need=city')`。
+- `src/routes/profile.tsx` + `src/components/profile-form.tsx`：city 加必填标记；根据 `?need=city` 显示提示条。
+- `src/components/canvas/meet-canvas.tsx`：卡片顶部渲染 `📍 city`；覆盖情况加"本次"标签；空池文案；去掉旧 `location` 显示（或降级为"具体区域备注"）。
+- `EditWishPanel`：`location` 输入改成城市（可选，只影响本次）。
+- i18n：约 6-8 条键。
+- 种子人物已有 `city` / `city_zh`，无数据改动。
