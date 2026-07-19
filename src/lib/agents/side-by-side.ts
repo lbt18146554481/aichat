@@ -152,6 +152,8 @@ export interface SideState {
   matchIntentId: string | null;
   nearMissIds: string[];
   triedIntentIds: string[];
+  /** People already skipped for this wish. See-next must change the person, not just the slot. */
+  triedOwnerIds: string[];
   /** Candidates the user parked as "look again later". Session-scoped;
    *  cleared when the wish is revoked, edited, or chat starts. */
   savedIntentIds: string[];
@@ -172,6 +174,7 @@ export const EMPTY: SideState = {
   matchIntentId: null,
   nearMissIds: [],
   triedIntentIds: [],
+  triedOwnerIds: [],
   savedIntentIds: [],
   truncated: false,
   messages: [],
