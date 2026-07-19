@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { ArrowUp, ArrowLeft, MessageCircle, SkipForward, Users, X, ChevronRight } from "lucide-react";
+import { ArrowUp, ArrowLeft, MessageCircle, SkipForward, Users, X, ChevronRight, Bookmark, BookmarkCheck } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
 import type { SideState, ChatMsg, LevelTier, WhenTier } from "@/lib/agents/side-by-side";
 import { currentView } from "@/lib/agents/side-by-side";
@@ -21,6 +21,12 @@ interface Props {
   onEditWish: (patch: { when?: WhenTier; level?: LevelTier; location?: string }) => void;
   onSkip: () => void;
   onRevokeReshare: () => void;
+  /** Bookmark the current match candidate. */
+  onSave?: () => void;
+  /** Remove someone from the saved list. */
+  onUnsave?: (intentId: string) => void;
+  /** Start a chat directly with a saved candidate. */
+  onChatWithSaved?: (intentId: string) => void;
   /** Return from the TA chat back to the candidate card without ending the wish. */
   onBackToCandidate?: () => void;
   /** Called after the composer has consumed state.pendingDraft. */
