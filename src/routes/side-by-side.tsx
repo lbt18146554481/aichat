@@ -9,6 +9,7 @@ import { findMatch, findNearMisses, getIntentById } from "@/lib/intents";
 import { getPersonById } from "@/lib/people";
 import { lastTrait, rememberTrait } from "@/lib/agent-memory";
 import type { Lang } from "@/lib/i18n";
+import { isSaved as isSavedGlobal } from "@/lib/saved-intents";
 import {
   EMPTY,
   backToCandidate,
@@ -522,7 +523,8 @@ function SideBySidePage() {
     window.setTimeout(() => {
       setState((s) => {
         const currentId = s.matchIntentId;
-        const wasSaved = currentId ? s.savedIntentIds.includes(currentId) : false;
+        // Read from global before the toggle happens inside saveCurrent.
+        const wasSaved = currentId ? isSavedGlobal(currentId) : false;
         const next = saveCurrent(s, sessionId);
         const line = wasSaved
           ? t("intent.narrate_unsaved")
