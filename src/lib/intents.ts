@@ -371,6 +371,7 @@ export function findCandidatesTiered(mine: Intent, opts?: MatchOpts): {
 
   const pool = [...seedPool(), ...loadMyIntents().filter((it) => it.id !== mine.id)]
     .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id) && !excludedOwners.has(it.ownerId))
+    .filter((it) => sameCity(mine, it))
     .filter((it) => kindsCompatible(mine, it));
 
   const buckets: { exact: Intent[]; when: Intent[]; level: Intent[] } = { exact: [], when: [], level: [] };
