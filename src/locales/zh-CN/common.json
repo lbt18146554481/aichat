@@ -225,7 +225,7 @@
     "edit_location_placeholder": "写个片区、球场、公园…",
     "edit_apply": "保存并重新匹配",
     "edited_user_msg": "改了下心愿 → {{changes}}",
-    "pool_remaining": "池子里还有 {{count}} 人",
+    
     "pool_empty_hint": "池子里暂时没有别的人了",
     "next_match": "看下一个",
     "revoke_reshare": "撤回，重发一条",
