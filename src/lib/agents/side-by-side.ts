@@ -26,6 +26,13 @@ import {
   type WhenTier,
 } from "../intents";
 import { getSession, updateSession, deriveDoSomethingStatus } from "../sessions";
+import {
+  isSaved as isSavedGlobal,
+  listSaved as listSavedGlobal,
+  removeSaved as removeSavedGlobal,
+  removeSavedForSession as removeSavedForSessionGlobal,
+  saveIntent as saveIntentGlobal,
+} from "../saved-intents";
 
 export type { LevelTier, WhenTier } from "../intents";
 
@@ -235,8 +242,9 @@ export function refineLevel(state: SideState, level: LevelTier): SideState {
 }
 
 /** Edit my published wish (any subset of when/level/location) and rematch.
- *  Editing shifts the pool the saved candidates belonged to, so we clear
- *  the saved bookmarks — keep the demo state legible. */
+ *  Editing shifts the candidate pool; keep the global Saved list untouched
+ *  (that's a cross-wish shelf), but reset the session-scoped mirror so the
+ *  card state stays consistent. */
 export function editWish(
   state: SideState,
   patch: { when?: WhenTier; level?: LevelTier; location?: string },
@@ -258,14 +266,23 @@ export function skipMatch(state: SideState): SideState {
 }
 
 /** Toggle: bookmark the currently shown match, or un-bookmark it if already saved.
+ *  Writes to the GLOBAL saved-intents store so it survives session changes,
+ *  chat, and page navigation. Session-scoped mirror kept for legacy readers.
  *  Does NOT advance to the next candidate — Save and See next are independent. */
-export function saveCurrent(state: SideState): SideState {
+export function saveCurrent(state: SideState, sessionId?: string | null): SideState {
   if (!state.myIntentId || !state.matchIntentId) return state;
   const id = state.matchIntentId;
-  const already = state.savedIntentIds.includes(id);
+  const already = isSavedGlobal(id);
+  if (already) {
+    removeSavedGlobal(id);
+  } else if (sessionId) {
+    saveIntentGlobal(id, sessionId);
+  }
   const saved = already
     ? state.savedIntentIds.filter((x) => x !== id)
-    : [...state.savedIntentIds, id];
+    : state.savedIntentIds.includes(id)
+      ? state.savedIntentIds
+      : [...state.savedIntentIds, id];
   return { ...state, savedIntentIds: saved };
 }
 
@@ -273,6 +290,7 @@ export function saveCurrent(state: SideState): SideState {
 /** Remove from saved list and put the person back into the pool as the
  *  current candidate (if nothing else is currently shown). */
 export function unsave(state: SideState, intentId: string): SideState {
+  removeSavedGlobal(intentId);
   const saved = state.savedIntentIds.filter((id) => id !== intentId);
   const tried = state.triedIntentIds.filter((id) => id !== intentId);
   const next: SideState = { ...state, savedIntentIds: saved, triedIntentIds: tried };
