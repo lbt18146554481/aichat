@@ -661,8 +661,7 @@ function NoMatchView({
   onRevoke,
   onTryNearMiss,
   onRevokeReshare,
-  onOpenSaved,
-}: Props & { onOpenSaved: () => void }) {
+}: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
@@ -670,18 +669,16 @@ function NoMatchView({
 
   const nears = state.nearMissIds.map((id) => getIntentById(id)).filter(Boolean) as Intent[];
   const exhausted = state.triedIntentIds.length > 0;
-  const savedCount = state.savedIntentIds.length;
 
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
       <div className="mx-auto max-w-lg">
-        {/* Leave right-side room for the persistent Saved pill (rendered by MeetCanvas). */}
-        <div className="pr-28 text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
           {exhausted ? t("intent.pool_exhausted_label") : t("intent.published_label")}
         </div>
         {exhausted && (
           <p className="mt-2 text-[13px] text-foreground/85 leading-relaxed">
-            {savedCount > 0 ? t("intent.pool_exhausted_body_with_saved") : t("intent.pool_exhausted_body")}
+            {t("intent.pool_exhausted_body")}
           </p>
         )}
 
@@ -696,26 +693,6 @@ function NoMatchView({
           </button>
         </div>
 
-        {savedCount > 0 && (
-          <button
-            type="button"
-            onClick={onOpenSaved}
-            className="mt-4 w-full flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:border-foreground/40 transition-colors text-left"
-          >
-            <div className="flex items-center gap-2">
-              <BookmarkCheck className="w-4 h-4 text-foreground/70" />
-              <div>
-                <div className="text-[13px] text-foreground/90">
-                  {t("intent.saved_count", { count: savedCount })}
-                </div>
-                <div className="text-[11.5px] text-muted-foreground">
-                  {t("intent.saved_review_hint")}
-                </div>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          </button>
-        )}
 
         {nears.length > 0 && (
           <div className="mt-6">
