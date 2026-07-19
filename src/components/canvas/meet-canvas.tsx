@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { ArrowUp, ArrowLeft, MessageCircle, SkipForward, Users, X, ChevronRight, Bookmark, BookmarkCheck } from "lucide-react";
@@ -42,11 +42,72 @@ const KIND_EMOJI: Record<ActivityKind, string> = {
 
 export function MeetCanvas(props: Props) {
   const view = currentView(props.state);
-  if (view === "chat") return <ChatView {...props} />;
-  if (view === "match") return <MatchView {...props} />;
-  if (view === "nomatch") return <NoMatchView {...props} />;
-  return <EmptyCanvas />;
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const [openSaved, setOpenSaved] = useState(false);
+  const savedCount = props.state.savedIntentIds.length;
+
+  // Pulse the pill whenever the count grows — visual anchor for "it went here".
+  const [pulseKey, setPulseKey] = useState(0);
+  const prevCountRef = useRef(savedCount);
+  useEffect(() => {
+    if (savedCount > prevCountRef.current) setPulseKey((k) => k + 1);
+    prevCountRef.current = savedCount;
+  }, [savedCount]);
+
+  // Only render the persistent pill once a wish is active.
+  const showPill = view !== "empty";
+
+  let content: React.ReactNode;
+  if (view === "chat") content = <ChatView {...props} />;
+  else if (view === "match") content = <MatchView {...props} />;
+  else if (view === "nomatch") content = <NoMatchView {...props} onOpenSaved={() => setOpenSaved(true)} />;
+  else content = <EmptyCanvas />;
+
+
+  const pillEnabled = savedCount > 0;
+
+  return (
+    <div className="relative h-full">
+      {showPill && (
+        <button
+          type="button"
+          onClick={() => pillEnabled && setOpenSaved(true)}
+          disabled={!pillEnabled}
+          aria-label={t("intent.saved_open")}
+          className={
+            "absolute top-3 right-3 z-10 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11.5px] font-medium transition-colors " +
+            (pillEnabled
+              ? "border-border bg-card text-foreground/90 hover:border-foreground/40 hover:bg-secondary cursor-pointer shadow-sm"
+              : "border-border/60 bg-card/60 text-muted-foreground/70 cursor-default")
+          }
+        >
+          <span
+            key={pulseKey}
+            className={pulseKey > 0 ? "inline-flex items-center gap-1.5 animate-scale-in" : "inline-flex items-center gap-1.5"}
+          >
+            {pillEnabled ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+            {pillEnabled
+              ? t("intent.saved_count", { count: savedCount })
+              : t("intent.saved_pill_empty")}
+          </span>
+        </button>
+      )}
+
+      {content}
+
+      <SavedDrawer
+        open={openSaved}
+        onOpenChange={setOpenSaved}
+        savedIntentIds={props.state.savedIntentIds}
+        lang={lang}
+        onChat={(id) => { setOpenSaved(false); props.onChatWithSaved?.(id); }}
+        onUnsave={(id) => props.onUnsave?.(id)}
+      />
+    </div>
+  );
 }
+
 
 // ---- Empty ---------------------------------------------------------------
 
@@ -71,13 +132,12 @@ function EmptyCanvas() {
 
 // ---- Match — two intent cards side by side + [start chat] --------------
 
-function MatchView({ state, onStartChat, onSkip, onSave, onUnsave, onChatWithSaved }: Props) {
+function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
   const other = state.matchIntentId ? getIntentById(state.matchIntentId) : null;
   const [openProfile, setOpenProfile] = useState(false);
-  const [openSaved, setOpenSaved] = useState(false);
 
   if (!mine || !other) return <EmptyCanvas />;
 
@@ -89,7 +149,7 @@ function MatchView({ state, onStartChat, onSkip, onSave, onUnsave, onChatWithSav
     0,
     countAvailableMatches(mine, { exclude: state.triedIntentIds }) - 1,
   );
-  const savedCount = state.savedIntentIds.length;
+  const isSaved = state.savedIntentIds.includes(other.id);
 
   const person = getPersonById(other.ownerId);
   const otherName = lang === "zh-CN" ? other.ownerName_zh : other.ownerName;
@@ -105,28 +165,16 @@ function MatchView({ state, onStartChat, onSkip, onSave, onUnsave, onChatWithSav
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
       <div className="mx-auto max-w-lg">
-        <div className="flex items-center justify-between gap-3">
+        {/* Leave right-side room for the persistent Saved pill (rendered by MeetCanvas). */}
+        <div className="flex items-center gap-3 pr-28">
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
             {t("intent.match_label")}
           </div>
-          <div className="flex items-center gap-2">
-            {savedCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setOpenSaved(true)}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-border bg-secondary text-[11px] text-foreground/80 hover:border-foreground/40 transition-colors"
-                aria-label={t("intent.saved_open")}
-              >
-                <BookmarkCheck className="w-3 h-3" />
-                {t("intent.saved_count", { count: savedCount })}
-              </button>
-            )}
-            {remaining > 0 && (
-              <div className="text-[11px] text-muted-foreground">
-                {t("intent.pool_remaining", { count: remaining })}
-              </div>
-            )}
-          </div>
+          {remaining > 0 && (
+            <div className="ml-auto text-[11px] text-muted-foreground">
+              {t("intent.pool_remaining", { count: remaining })}
+            </div>
+          )}
         </div>
 
         {/* Identity row — the whole block is a button that opens the profile sheet. */}
@@ -185,8 +233,6 @@ function MatchView({ state, onStartChat, onSkip, onSave, onUnsave, onChatWithSav
           />
         </div>
 
-
-
         <div className="mt-4 flex items-center gap-2">
           <button
             onClick={onStartChat}
@@ -198,11 +244,17 @@ function MatchView({ state, onStartChat, onSkip, onSave, onUnsave, onChatWithSav
           {onSave && (
             <button
               onClick={onSave}
-              title={t("intent.save_hint")}
-              className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md border border-border text-[13px] text-foreground/85 hover:bg-secondary transition-colors"
+              aria-pressed={isSaved}
+              title={isSaved ? t("intent.unsave") : t("intent.save_hint")}
+              className={
+                "inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md border text-[13px] transition-colors " +
+                (isSaved
+                  ? "border-foreground/60 bg-secondary text-foreground"
+                  : "border-border text-foreground/85 hover:bg-secondary")
+              }
             >
-              <Bookmark className="w-3.5 h-3.5" />
-              {t("intent.save")}
+              {isSaved ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+              {isSaved ? t("intent.saved") : t("intent.save")}
             </button>
           )}
           <button
@@ -232,18 +284,10 @@ function MatchView({ state, onStartChat, onSkip, onSave, onUnsave, onChatWithSav
           onStartChat();
         }}
       />
-
-      <SavedDrawer
-        open={openSaved}
-        onOpenChange={setOpenSaved}
-        savedIntentIds={state.savedIntentIds}
-        lang={lang}
-        onChat={(id) => { setOpenSaved(false); onChatWithSaved?.(id); }}
-        onUnsave={(id) => onUnsave?.(id)}
-      />
     </div>
   );
 }
+
 
 
 // ---- Person profile sheet (opened from the identity row) ---------------
@@ -668,11 +712,16 @@ function Tag({ children }: { children: React.ReactNode }) {
 
 // ---- No match — my published card + near-miss list ---------------------
 
-function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare, onUnsave, onChatWithSaved }: Props) {
+function NoMatchView({
+  state,
+  onRevoke,
+  onTryNearMiss,
+  onRevokeReshare,
+  onOpenSaved,
+}: Props & { onOpenSaved: () => void }) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
-  const [openSaved, setOpenSaved] = useState(false);
   if (!mine) return <EmptyCanvas />;
 
   const nears = state.nearMissIds.map((id) => getIntentById(id)).filter(Boolean) as Intent[];
@@ -682,7 +731,8 @@ function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare, onUnsave
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
       <div className="mx-auto max-w-lg">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
+        {/* Leave right-side room for the persistent Saved pill (rendered by MeetCanvas). */}
+        <div className="pr-28 text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
           {exhausted ? t("intent.pool_exhausted_label") : t("intent.published_label")}
         </div>
         {exhausted && (
@@ -705,7 +755,7 @@ function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare, onUnsave
         {savedCount > 0 && (
           <button
             type="button"
-            onClick={() => setOpenSaved(true)}
+            onClick={onOpenSaved}
             className="mt-4 w-full flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:border-foreground/40 transition-colors text-left"
           >
             <div className="flex items-center gap-2">
@@ -761,18 +811,10 @@ function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare, onUnsave
           </div>
         )}
       </div>
-
-      <SavedDrawer
-        open={openSaved}
-        onOpenChange={setOpenSaved}
-        savedIntentIds={state.savedIntentIds}
-        lang={lang}
-        onChat={(id) => { setOpenSaved(false); onChatWithSaved?.(id); }}
-        onUnsave={(id) => onUnsave?.(id)}
-      />
     </div>
   );
 }
+
 
 // ---- Saved drawer — session-scoped bookmarks ---------------------------
 
