@@ -326,6 +326,7 @@ export function startChat(state: SideState, draft?: string): SideState {
     ...state,
     stage: "chat",
     chatMessages: [first],
+    savedIntentIds: [],
     ...(draft ? { pendingDraft: draft } : {}),
   };
 }
