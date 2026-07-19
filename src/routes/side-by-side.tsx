@@ -416,7 +416,7 @@ function SideBySidePage() {
     setThinking(true);
     window.setTimeout(() => {
       setState((s) => {
-        const cleared = revokeAndReset(s);
+        const cleared = revokeAndReset(s, sessionId);
         const trait = lastTrait();
         const line = trait
           ? t("intent.narrate_new_activity_with_memory", { trait })
@@ -504,7 +504,7 @@ function SideBySidePage() {
         actWith((s) => tryNearMiss(s, a.intentId));
         break;
       case "revoke":
-        actWith((s) => revokeAndReset(s));
+        actWith((s) => revokeAndReset(s, sessionId));
         break;
       case "check_back":
         // Wish stays published; user goes back to home. The session stays
@@ -515,7 +515,7 @@ function SideBySidePage() {
   }
 
   function handleStartChat() { actWith((s) => startChat(s)); }
-  function handleRevoke()    { actWith((s) => revokeAndReset(s)); }
+  function handleRevoke()    { actWith((s) => revokeAndReset(s, sessionId)); }
   function handleTryNearMiss(intentId: string) { actWith((s) => tryNearMiss(s, intentId)); }
   function handleSave() {
     setThinking(true);
@@ -523,7 +523,7 @@ function SideBySidePage() {
       setState((s) => {
         const currentId = s.matchIntentId;
         const wasSaved = currentId ? s.savedIntentIds.includes(currentId) : false;
-        const next = saveCurrent(s);
+        const next = saveCurrent(s, sessionId);
         const line = wasSaved
           ? t("intent.narrate_unsaved")
           : t("intent.narrate_saved");
@@ -564,7 +564,7 @@ function SideBySidePage() {
     setThinking(true);
     window.setTimeout(() => {
       setState((s) => {
-        const next = revokeAndReset(s);
+        const next = revokeAndReset(s, sessionId);
         return { ...next, messages: [...next.messages, msg("assistant", t("intent.narrate_revoked"))] };
       });
       setThinking(false);
