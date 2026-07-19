@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Workspace, type AgentMsg } from "@/components/workspace";
@@ -194,6 +194,9 @@ function SideBySidePage() {
 
   const [hydrated, setHydrated] = useState(false);
   const [thinking, setThinking] = useState(false);
+  const stateRef = useRef(state);
+
+  useEffect(() => { stateRef.current = state; }, [state]);
 
   // Every side-by-side page must live under a session; no id → home.
   useEffect(() => {
@@ -227,12 +230,18 @@ function SideBySidePage() {
     if (!state.myIntentId) return;
     const mine = getIntentById(state.myIntentId);
     if (!mine) return;
-    const hit = findMatch(mine, { exclude: state.triedIntentIds });
+    const hit = findMatch(mine, {
+      exclude: state.triedIntentIds ?? [],
+      excludeOwnerIds: state.triedOwnerIds ?? [],
+    });
     if (hit) {
       setState((s) => ({ ...s, matchIntentId: hit.id, nearMissIds: [] }));
       return;
     }
-    const nears = findNearMisses(mine, { exclude: state.triedIntentIds });
+    const nears = findNearMisses(mine, {
+      exclude: state.triedIntentIds ?? [],
+      excludeOwnerIds: state.triedOwnerIds ?? [],
+    });
     setState((s) => ({ ...s, nearMissIds: nears.map((n) => n.id) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
@@ -521,16 +530,16 @@ function SideBySidePage() {
   function handleSave() {
     setThinking(true);
     window.setTimeout(() => {
-      setState((s) => {
-        const currentId = s.matchIntentId;
-        // Read from global before the toggle happens inside saveCurrent.
-        const wasSaved = currentId ? isSavedGlobal(currentId) : false;
-        const next = saveCurrent(s, sessionId);
-        const line = wasSaved
-          ? t("intent.narrate_unsaved")
-          : t("intent.narrate_saved");
-        return { ...next, messages: [...next.messages, msg("assistant", line)] };
-      });
+      const current = stateRef.current;
+      const currentId = current.matchIntentId;
+      // Global saved writes are side effects; run them once outside React's
+      // state updater so StrictMode cannot double-toggle Save.
+      const wasSaved = currentId ? isSavedGlobal(currentId) : false;
+      const next = saveCurrent(current, sessionId);
+      const line = wasSaved
+        ? t("intent.narrate_unsaved")
+        : t("intent.narrate_saved");
+      setState({ ...next, messages: [...next.messages, msg("assistant", line)] });
       setThinking(false);
     }, 220);
   }

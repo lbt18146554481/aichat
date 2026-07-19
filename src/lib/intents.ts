@@ -303,13 +303,16 @@ function kindsCompatible(mine: Intent, other: Intent): boolean {
   return mine.kind === other.kind;
 }
 
-/** All compatible partners (sorted best-first), excluding any IDs in opts.exclude. */
-export function findAllMatches(mine: Intent, opts?: { exclude?: string[] }): Intent[] {
+type MatchOpts = { exclude?: string[]; excludeOwnerIds?: string[] };
+
+/** All compatible partners (sorted best-first), one best intent per person. */
+export function findAllMatches(mine: Intent, opts?: MatchOpts): Intent[] {
   const excluded = new Set(opts?.exclude ?? []);
+  const excludedOwners = new Set(opts?.excludeOwnerIds ?? []);
   const mineWhen: WhenTier | undefined = mine.whenAny ? undefined : slotToWhen(mine.day, mine.window);
   const mineLevel: LevelTier | undefined = mine.levelAny ? undefined : mine.level;
   const pool = [...seedPool(), ...loadMyIntents().filter((it) => it.id !== mine.id)]
-    .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id))
+    .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id) && !excludedOwners.has(it.ownerId))
     .filter((it) => kindsCompatible(mine, it))
     .filter((it) => {
       const theirWhen: WhenTier = it.whenAny ? "any" : slotToWhen(it.day, it.window);
@@ -321,30 +324,42 @@ export function findAllMatches(mine: Intent, opts?: { exclude?: string[] }): Int
       return levelCompatible(kind, mineLevel, theirLevel ?? "intermediate");
     });
   pool.sort((a, b) => score(mine, b) - score(mine, a));
-  return pool;
+  const seenOwners = new Set<string>();
+  return pool.filter((it) => {
+    if (seenOwners.has(it.ownerId)) return false;
+    seenOwners.add(it.ownerId);
+    return true;
+  });
 }
 
 /** Look through seed pool + other users' intents for a compatible partner. */
-export function findMatch(mine: Intent, opts?: { exclude?: string[] }): Intent | null {
+export function findMatch(mine: Intent, opts?: MatchOpts): Intent | null {
   return findAllMatches(mine, opts)[0] ?? null;
 }
 
 /** Count remaining compatible partners not yet in `exclude`. */
-export function countAvailableMatches(mine: Intent, opts?: { exclude?: string[] }): number {
+export function countAvailableMatches(mine: Intent, opts?: MatchOpts): number {
   return findAllMatches(mine, opts).length;
 }
 
 
 /** Same kind, but when/level don't line up — useful "you might want to shift" hints. */
-export function findNearMisses(mine: Intent, opts?: { exclude?: string[] }): Intent[] {
+export function findNearMisses(mine: Intent, opts?: MatchOpts): Intent[] {
   const excluded = new Set(opts?.exclude ?? []);
+  const excludedOwners = new Set(opts?.excludeOwnerIds ?? []);
   const mineWhen = slotToWhen(mine.day, mine.window);
+  const seenOwners = new Set<string>();
   return seedPool()
-    .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id) && kindsCompatible(mine, it))
+    .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id) && !excludedOwners.has(it.ownerId) && kindsCompatible(mine, it))
     .filter((it) =>
       !whenCompatible(mineWhen, slotToWhen(it.day, it.window)) ||
       !levelCompatible(mine.kind !== "other" ? mine.kind : it.kind, mine.level, it.level),
     )
+    .filter((it) => {
+      if (seenOwners.has(it.ownerId)) return false;
+      seenOwners.add(it.ownerId);
+      return true;
+    })
     .slice(0, 3);
 }
 

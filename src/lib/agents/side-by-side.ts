@@ -152,6 +152,8 @@ export interface SideState {
   matchIntentId: string | null;
   nearMissIds: string[];
   triedIntentIds: string[];
+  /** People already skipped for this wish. See-next must change the person, not just the slot. */
+  triedOwnerIds: string[];
   /** Candidates the user parked as "look again later". Session-scoped;
    *  cleared when the wish is revoked, edited, or chat starts. */
   savedIntentIds: string[];
@@ -172,6 +174,7 @@ export const EMPTY: SideState = {
   matchIntentId: null,
   nearMissIds: [],
   triedIntentIds: [],
+  triedOwnerIds: [],
   savedIntentIds: [],
   truncated: false,
   messages: [],
@@ -194,11 +197,17 @@ export function uid(): string { return Math.random().toString(36).slice(2, 10); 
 function rematchAfterUpdate(state: SideState, intentId: string): SideState {
   const mine = getIntentById(intentId);
   if (!mine) return state;
-  const match = findMatch(mine, { exclude: state.triedIntentIds });
+  const match = findMatch(mine, {
+    exclude: state.triedIntentIds ?? [],
+    excludeOwnerIds: state.triedOwnerIds ?? [],
+  });
   if (match) {
     return { ...state, stage: "published", matchIntentId: match.id, nearMissIds: [] };
   }
-  const nears = findNearMisses(mine, { exclude: state.triedIntentIds });
+  const nears = findNearMisses(mine, {
+    exclude: state.triedIntentIds ?? [],
+    excludeOwnerIds: state.triedOwnerIds ?? [],
+  });
   return {
     ...state,
     stage: "published",
@@ -257,10 +266,14 @@ export function editWish(
 /** Skip the currently shown match — add to triedIntentIds and re-run findMatch. */
 export function skipMatch(state: SideState): SideState {
   if (!state.myIntentId || !state.matchIntentId) return state;
-  const tried = state.triedIntentIds.includes(state.matchIntentId)
-    ? state.triedIntentIds
-    : [...state.triedIntentIds, state.matchIntentId];
-  const next: SideState = { ...state, triedIntentIds: tried, matchIntentId: null };
+  const other = getIntentById(state.matchIntentId);
+  const tried = (state.triedIntentIds ?? []).includes(state.matchIntentId)
+    ? (state.triedIntentIds ?? [])
+    : [...(state.triedIntentIds ?? []), state.matchIntentId];
+  const triedOwners = other && !(state.triedOwnerIds ?? []).includes(other.ownerId)
+    ? [...(state.triedOwnerIds ?? []), other.ownerId]
+    : (state.triedOwnerIds ?? []);
+  const next: SideState = { ...state, triedIntentIds: tried, triedOwnerIds: triedOwners, matchIntentId: null };
   return rematchAfterUpdate(next, state.myIntentId);
 }
 
@@ -277,13 +290,14 @@ export function saveCurrent(state: SideState, sessionId?: string | null): SideSt
   } else {
     // Always write globally so the Header entry lights up — sessionId is only
     // used as an optional back-link for the drawer, never a gate.
-    saveIntentGlobal(id, sessionId ?? "");
+    saveIntentGlobal(id, sessionId || state.myIntentId || id);
   }
+  const currentSaved = state.savedIntentIds ?? [];
   const saved = already
-    ? state.savedIntentIds.filter((x) => x !== id)
-    : state.savedIntentIds.includes(id)
-      ? state.savedIntentIds
-      : [...state.savedIntentIds, id];
+    ? currentSaved.filter((x) => x !== id)
+    : currentSaved.includes(id)
+      ? currentSaved
+      : [...currentSaved, id];
   return { ...state, savedIntentIds: saved };
 }
 
@@ -292,9 +306,13 @@ export function saveCurrent(state: SideState, sessionId?: string | null): SideSt
  *  current candidate (if nothing else is currently shown). */
 export function unsave(state: SideState, intentId: string): SideState {
   removeSavedGlobal(intentId);
-  const saved = state.savedIntentIds.filter((id) => id !== intentId);
-  const tried = state.triedIntentIds.filter((id) => id !== intentId);
-  const next: SideState = { ...state, savedIntentIds: saved, triedIntentIds: tried };
+  const saved = (state.savedIntentIds ?? []).filter((id) => id !== intentId);
+  const target = getIntentById(intentId);
+  const tried = (state.triedIntentIds ?? []).filter((id) => id !== intentId);
+  const triedOwners = target
+    ? (state.triedOwnerIds ?? []).filter((id) => id !== target.ownerId)
+    : (state.triedOwnerIds ?? []);
+  const next: SideState = { ...state, savedIntentIds: saved, triedIntentIds: tried, triedOwnerIds: triedOwners };
   if (!state.myIntentId) return next;
   // If no candidate is on screen right now, surface this one immediately.
   if (!state.matchIntentId) {
@@ -325,7 +343,7 @@ export function tryNearMiss(state: SideState, intentId: string): SideState {
     : "any";
   updateMyIntent(state.myIntentId, { when: mineWhen, level: other.level });
   return rematchAfterUpdate(
-    { ...state, triedIntentIds: [...state.triedIntentIds] },
+    { ...state, triedIntentIds: [...(state.triedIntentIds ?? [])], triedOwnerIds: [...(state.triedOwnerIds ?? [])] },
     state.myIntentId,
   );
 }
@@ -339,7 +357,7 @@ export function startChat(state: SideState, draft?: string): SideState {
   // Starting a chat with TA removes just TA from the global saved shelf —
   // other saved candidates remain across pages/sessions.
   removeSavedGlobal(state.matchIntentId);
-  const remainingSaved = state.savedIntentIds.filter((x) => x !== state.matchIntentId);
+  const remainingSaved = (state.savedIntentIds ?? []).filter((x) => x !== state.matchIntentId);
   return {
     ...state,
     stage: "chat",

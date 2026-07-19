@@ -31,23 +31,17 @@ interface Props {
 }
 
 function useSavedList(): SavedRecord[] {
-  return useSyncExternalStore(
+  const snapshot = useSyncExternalStore(
     subscribeSaved,
     () => JSON.stringify(listSaved()),
     () => "[]",
-  ) as unknown as SavedRecord[] & string extends never ? never : any; // placeholder — unused
-}
-
-// Simpler: keep our own effect-based state to avoid stringify tricks.
-function useSaved(): SavedRecord[] {
-  const [items, setItems] = useState<SavedRecord[]>(() =>
-    typeof window === "undefined" ? [] : listSaved(),
   );
-  useEffect(() => {
-    setItems(listSaved());
-    return subscribeSaved(() => setItems(listSaved()));
-  }, []);
-  return items;
+  try {
+    const parsed = JSON.parse(snapshot) as SavedRecord[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 export function SavedTrigger({ variant = "default" }: Props) {
@@ -55,7 +49,7 @@ export function SavedTrigger({ variant = "default" }: Props) {
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const saved = useSaved();
+  const saved = useSavedList();
   const count = saved.length;
 
   if (count === 0) return null;
@@ -194,5 +188,3 @@ export function useIsSaved(intentId: string | null | undefined): boolean {
   return flag;
 }
 
-// Suppress unused (kept only for potential future stringify-based hook).
-export const _KeepUnusedSavedListHook = useSavedList;

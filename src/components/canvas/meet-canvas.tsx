@@ -83,6 +83,7 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
   const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
   const other = state.matchIntentId ? getIntentById(state.matchIntentId) : null;
   const [openProfile, setOpenProfile] = useState(false);
+  const isSaved = useIsSaved(other?.id);
 
   if (!mine || !other) return <EmptyCanvas />;
 
@@ -92,10 +93,11 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
   // Remaining candidates = everyone still matchable minus the current TA.
   const remaining = Math.max(
     0,
-    countAvailableMatches(mine, { exclude: state.triedIntentIds }) - 1,
+    countAvailableMatches(mine, {
+      exclude: state.triedIntentIds ?? [],
+      excludeOwnerIds: [other.ownerId, ...(state.triedOwnerIds ?? [])],
+    }),
   );
-  const isSaved = useIsSaved(other.id);
-
   const person = getPersonById(other.ownerId);
   const otherName = lang === "zh-CN" ? other.ownerName_zh : other.ownerName;
   const otherCity = lang === "zh-CN" ? other.ownerCity_zh : other.ownerCity;
