@@ -507,28 +507,35 @@ function EditWishPanel({
 }: {
   intent: Intent;
   showLevel: boolean;
-  onApply: (patch: { when?: WhenTier; level?: LevelTier; location?: string }) => void;
+  onApply: (patch: { when?: WhenTier; level?: LevelTier; city?: string }) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language as Lang;
   const currentWhen: WhenTier = intent.whenAny
     ? "any"
     : intent.day === "sat" || intent.day === "sun" ? "weekend"
     : intent.window === "evening" ? "weeknight" : "any";
   const [when, setWhen] = useState<WhenTier>(currentWhen);
   const [level, setLevel] = useState<LevelTier | "any">(intent.levelAny ? "any" : intent.level);
-  const [location, setLocation] = useState<string>(intent.location ?? "");
+  // City is anchored to Profile; the panel only exposes a per-wish override.
+  // Empty string here means "use my profile city" — which the reducer resolves.
+  const profileCity = (typeof window !== "undefined" ? loadProfileCity() : "");
+  const initialCity = intent.city || intent.ownerCity || "";
+  const isOverride = !!profileCity && !!initialCity && initialCity.trim().toLowerCase() !== profileCity.trim().toLowerCase();
+  const [city, setCity] = useState<string>(isOverride ? initialCity : "");
 
   const whenOptions: WhenTier[] = ["weekend", "weeknight", "any"];
   const levelOptions: (LevelTier | "any")[] = ["beginner", "intermediate", "advanced", "any"];
 
   function apply() {
-    const patch: { when?: WhenTier; level?: LevelTier; location?: string } = {};
+    const patch: { when?: WhenTier; level?: LevelTier; city?: string } = {};
     if (when !== currentWhen) patch.when = when;
     if (showLevel) {
       const cur = intent.levelAny ? "any" : intent.level;
       if (level !== cur && level !== "any") patch.level = level as LevelTier;
     }
-    if ((intent.location ?? "") !== location) patch.location = location;
+    const currentEffective = isOverride ? initialCity : "";
+    if (city.trim() !== currentEffective.trim()) patch.city = city.trim();
     onApply(patch);
   }
 
@@ -581,16 +588,26 @@ function EditWishPanel({
       )}
 
       <div>
-        <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">
-          {t("intent.edit_location")}
+        <div className="flex items-center justify-between">
+          <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">
+            {t("intent.edit_city")}
+          </div>
+          {profileCity && (
+            <div className="text-[10.5px] font-mono text-muted-foreground">
+              {t("intent.edit_city_profile", { city: profileCity })}
+            </div>
+          )}
         </div>
         <input
           type="text"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder={t("intent.edit_location_placeholder")}
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          placeholder={t("intent.edit_city_placeholder", { city: profileCity || "—" })}
           className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-foreground/40"
         />
+        <p className="mt-1.5 text-[11px] text-muted-foreground">
+          {t("intent.edit_city_hint")}
+        </p>
       </div>
 
       <button
@@ -601,6 +618,16 @@ function EditWishPanel({
       </button>
     </div>
   );
+}
+
+/** Small helper so the panel can read the current Profile city without
+ *  importing the whole module at module load in tests. */
+function loadProfileCity(): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const m = require("@/lib/profile") as typeof import("@/lib/profile");
+    return m.loadProfile().city || "";
+  } catch { return ""; }
 }
 
 
