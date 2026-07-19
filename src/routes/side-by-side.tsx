@@ -208,8 +208,11 @@ function SideBySidePage() {
     if (typeof window === "undefined") return;
     const city = loadProfile().city.trim();
     if (!city) {
-      try { window.sessionStorage.setItem("kindred:profile:return", "/side-by-side"); } catch {}
-      void navigate({ to: "/profile", search: { need: "city" } as any });
+      try {
+        window.sessionStorage.setItem("kindred:profile:return", "/side-by-side");
+        window.sessionStorage.setItem("kindred:profile:focus", "city");
+      } catch {}
+      void navigate({ to: "/profile" });
     }
   }, [sessionId, navigate]);
 
