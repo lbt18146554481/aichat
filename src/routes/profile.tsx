@@ -24,11 +24,13 @@ function ProfilePage() {
   const [progress, setProgress] = useState({ done: 0, total: 3 });
   const [hydrated, setHydrated] = useState(false);
   const [returnTo, setReturnTo] = useState<string | null>(null);
+  const [needCity, setNeedCity] = useState(false);
 
   useEffect(() => {
     setProgress(profileProgress(loadProfile()));
     try {
       setReturnTo(window.sessionStorage.getItem("kindred:profile:return"));
+      setNeedCity(window.sessionStorage.getItem("kindred:profile:focus") === "city");
     } catch { /* noop */ }
     setHydrated(true);
     const onFocus = () => setProgress(profileProgress(loadProfile()));
