@@ -227,12 +227,18 @@ function SideBySidePage() {
     if (!state.myIntentId) return;
     const mine = getIntentById(state.myIntentId);
     if (!mine) return;
-    const hit = findMatch(mine, { exclude: state.triedIntentIds });
+    const hit = findMatch(mine, {
+      exclude: state.triedIntentIds ?? [],
+      excludeOwnerIds: state.triedOwnerIds ?? [],
+    });
     if (hit) {
       setState((s) => ({ ...s, matchIntentId: hit.id, nearMissIds: [] }));
       return;
     }
-    const nears = findNearMisses(mine, { exclude: state.triedIntentIds });
+    const nears = findNearMisses(mine, {
+      exclude: state.triedIntentIds ?? [],
+      excludeOwnerIds: state.triedOwnerIds ?? [],
+    });
     setState((s) => ({ ...s, nearMissIds: nears.map((n) => n.id) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
