@@ -151,6 +151,9 @@ export interface SideState {
   stage: Stage;
   myIntentId: string | null;
   matchIntentId: string | null;
+  /** How closely the current match lines up with the wish. Undefined when
+   *  no candidate is on screen. Drives the "CLOSE MATCH" label + reason. */
+  matchQuality?: MatchQuality;
   nearMissIds: string[];
   triedIntentIds: string[];
   /** People already skipped for this wish. See-next must change the person, not just the slot. */
