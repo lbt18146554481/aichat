@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { ArrowUp, ArrowLeft, MessageCircle, SkipForward, Users, X } from "lucide-react";
+import { ArrowUp, ArrowLeft, MessageCircle, SkipForward, Users, X, ChevronRight } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
 import type { SideState, ChatMsg, LevelTier, WhenTier } from "@/lib/agents/side-by-side";
 import { currentView } from "@/lib/agents/side-by-side";
@@ -9,6 +9,8 @@ import { countAvailableMatches, getIntentById, type Intent } from "@/lib/intents
 import type { ActivityKind } from "@/lib/types";
 import { avatarUrl, getPersonById } from "@/lib/people";
 import { Sparkles } from "lucide-react";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+
 
 interface Props {
   state: SideState;
