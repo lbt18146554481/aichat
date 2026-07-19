@@ -114,11 +114,6 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
             {t("intent.match_label")}
           </div>
-          {remaining > 0 && (
-            <div className="ml-auto text-[11px] text-muted-foreground">
-              {t("intent.pool_remaining", { count: remaining })}
-            </div>
-          )}
         </div>
 
         {/* Identity row — the whole block is a button that opens the profile sheet. */}
