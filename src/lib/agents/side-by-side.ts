@@ -270,11 +270,18 @@ export function submitPrompt(state: SideState, text: string): SideState {
   // Revoke any prior wish — one active wish at a time keeps the demo legible.
   if (state.myIntentId) revokeMyIntent(state.myIntentId);
   const parsed = parseIntent(text);
+  // City precedence: explicit override in the raw text > Profile.city.
+  // The route guards on Profile.city being non-empty before we get here.
+  const profile = loadProfile();
+  const cityEn = parsed.city ?? profile.city;
+  const cityZh = parsed.city_zh ?? profile.city;
   const mine = publishMyIntent({
     kind: parsed.kind,
     when: parsed.when,
     level: parsed.level,
     rawText: text,
+    city: cityEn,
+    city_zh: cityZh,
   });
   const base: SideState = {
     ...EMPTY,
@@ -297,16 +304,25 @@ export function refineLevel(state: SideState, level: LevelTier): SideState {
   return rematchAfterUpdate(state, state.myIntentId);
 }
 
-/** Edit my published wish (any subset of when/level/location) and rematch.
+/** Edit my published wish (any subset of when/level/city) and rematch.
  *  Editing shifts the candidate pool; keep the global Saved list untouched
  *  (that's a cross-wish shelf), but reset the session-scoped mirror so the
- *  card state stays consistent. */
+ *  card state stays consistent. Empty-string city → fall back to Profile.city. */
 export function editWish(
   state: SideState,
-  patch: { when?: WhenTier; level?: LevelTier; location?: string },
+  patch: { when?: WhenTier; level?: LevelTier; city?: string },
 ): SideState {
   if (!state.myIntentId) return state;
-  updateMyIntent(state.myIntentId, patch);
+  const applied: { when?: WhenTier; level?: LevelTier; city?: string; city_zh?: string } = {};
+  if (patch.when !== undefined) applied.when = patch.when;
+  if (patch.level !== undefined) applied.level = patch.level;
+  if (patch.city !== undefined) {
+    const trimmed = patch.city.trim();
+    const target = trimmed || loadProfile().city;
+    applied.city = target;
+    applied.city_zh = target;
+  }
+  updateMyIntent(state.myIntentId, applied);
   const cleared: SideState = { ...state, savedIntentIds: [] };
   return rematchAfterUpdate(cleared, state.myIntentId);
 }
