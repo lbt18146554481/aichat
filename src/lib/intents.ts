@@ -24,6 +24,12 @@ export interface Intent {
   ownerCity: string;
   ownerCity_zh: string;
 
+  /** Hard filter for matching. Same value as ownerCity for seed people;
+   *  for "me" it comes from Profile.city (or a per-wish override typed in
+   *  the raw text like "in Tokyo"). We match same-city only. */
+  city: string;
+  city_zh: string;
+
   kind: ActivityKind;
   level: LevelTier;
   day: Weekday;
@@ -40,11 +46,26 @@ export interface Intent {
   whenAny?: boolean;
   /** True when the intent's `level` was unspecified — matches anyone. */
   levelAny?: boolean;
-  /** Optional user-typed location note. Doesn't filter matches — shown as a tag. */
+  /** Legacy: free-text location note. No longer filters matches; kept
+   *  only so old localStorage state stays readable. Use `city` instead. */
   location?: string;
   location_zh?: string;
 
   createdAt: number;
+}
+
+/** Compare two city labels tolerantly — trims, case-insensitive, and
+ *  matches either the English or Chinese label on both sides. */
+export function sameCity(a: Intent, b: Intent): boolean {
+  const norm = (s: string) => s.trim().toLowerCase();
+  const aEn = norm(a.city || a.ownerCity || "");
+  const aZh = norm(a.city_zh || a.ownerCity_zh || "");
+  const bEn = norm(b.city || b.ownerCity || "");
+  const bZh = norm(b.city_zh || b.ownerCity_zh || "");
+  if ((!aEn && !aZh) || (!bEn && !bZh)) return false;
+  if (aEn && (aEn === bEn || aEn === bZh)) return true;
+  if (aZh && (aZh === bEn || aZh === bZh)) return true;
+  return false;
 }
 
 
