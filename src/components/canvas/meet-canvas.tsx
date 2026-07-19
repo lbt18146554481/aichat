@@ -19,7 +19,7 @@ interface Props {
   onRevoke: () => void;
   onTryNearMiss: (intentId: string) => void;
   onSendChat: (text: string) => void;
-  onEditWish: (patch: { when?: WhenTier; level?: LevelTier; location?: string }) => void;
+  onEditWish: (patch: { when?: WhenTier; level?: LevelTier; city?: string }) => void;
   onSkip: () => void;
   onRevokeReshare: () => void;
   /** Bookmark the current match candidate. */
