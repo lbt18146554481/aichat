@@ -1,56 +1,108 @@
-## 问题诊断
+## 我的判断（先说结论）
 
-上一版里「已收藏」的入口只在匹配卡右上角一个 chip，而且只在 `savedCount ≥ 1` 时出现。用户的顾虑合理：
+你的直觉是对的，当前 Saved 有两个真问题：
 
-- 关掉抽屉、或者一直点 See next 翻下一位，那个 chip 一直在，但视觉太弱，用户会怀疑「东西是不是丢了」。
-- 一旦 See next 把池子翻空进入 NoMatch，Match 卡上的 chip 就消失了；NoMatch 里虽然有大块入口，但两处样式不一致，用户脑子里没有「一个固定的收藏抽屉入口」这个模型。
-- Save 一次性 toast 3 秒后消失，之后再想回想「我按过收藏吗」没有痕迹。
+1. **位置错了**：它浮在右侧匹配画布右上角，是「页面内控件」而不是「一个我能随时回来的地方」。视觉像小徽章，心智却承担"收藏夹"角色，错位。
+2. **生命周期错了**：一开始聊天就清空整份 Saved，用户会觉得东西丢了。收藏本来就是"我以后再看"，不该被"和某一个人开始聊"这个动作牵连。
 
-核心问题不是「加更多入口」，而是**让收藏入口在整个 do-something-together 画布里成为一个恒定、始终可见、位置固定的元素**，无论当前是 Match / NoMatch / Chat 的哪个视图，无论 See next 翻了几次，它都在同一个位置、同一种样式。
+我的方案是：**把 Saved 提升为全局对象**，跨 session、跨页面存在；匹配卡只保留"加入/移出"按钮，入口统一放到顶部 Header。
 
-## 交互设计（简化后的完整流程）
+我明确不做的事：不做永久收藏夹、不做分组/标签/搜索、不跨到 Matchmaker。它只服务一个场景——"这个人可以，但我想先看下一个，之后回来找 TA"。加任何东西都会让它变重。
 
-**画布右上角常驻一个「Saved · N」胶囊按钮**，位置固定在 `MeetCanvas` 顶部，脱离具体子视图。规则：
+---
 
-1. **一直可见**：只要当前 wish 还活着（stage ≠ prompt），胶囊就在，`N = 0` 时显示为 disabled 的浅色态、文案「Saved」，不可点击但占位——让用户建立「这里就是收藏的家」的空间记忆。
-2. **计数即时更新**：Save 时数字 +1 并做一次 250ms 的 pulse 动画，作为「东西进这里了」的视觉锚点，替代原来的 toast。取消 toast，不再有一次性提示。
-3. **点击打开抽屉**：任何视图下都打开同一个 `SavedDrawer`，内容和操作不变（查看资料 / 开始聊天 / 取消收藏）。
-4. **See next / 翻页无关**：胶囊不属于候选卡，翻卡时不会重渲染、不会消失。
-5. **Chat 视图也保留**：进入聊天后本 session 收藏会被清空（既有逻辑），胶囊自然回到 disabled 态，用户能看到「收藏在聊天开始后归零」，符合心智。
+## 产品设计
 
-底部三按钮设计沿用上一版：`[Start chat] [♡ Save / ✓ Saved] [See next →]`，Save 是 toggle，与 See next 完全解耦。
+### 1. 匹配卡：只承担决策，不承担入口
 
-## 关键流程回放
+底部三个动作并列，含义完全独立：
 
 ```text
-用户看卡 A
-   ├─ 点 ♡ Save     → A 进入收藏，按钮变 ✓ Saved，右上角胶囊 0→1 pulse，卡片不动
-   ├─ 点 See next   → 换到卡 B，胶囊仍在，数字仍是 1
-   ├─ 卡 B 也 Save  → 胶囊 1→2 pulse
-   ├─ 池子翻完      → NoMatch 视图，胶囊仍在同一位置，另有一行醒目引导「先回看你收藏的 2 位」
-   └─ 点胶囊或引导 → 打开同一个抽屉，查看 / 聊天 / 取消收藏
+[开始聊]   [♡ 收藏 / ✓ 已收藏]   [看下一个 →]
 ```
 
-关闭抽屉后回到卡面 → 胶囊仍在原位 → 用户永远知道去哪找。
+- 收藏 = 纯 toggle，把当前 TA 放进/移出全局 Saved，不换人、不重匹配。
+- 看下一个 = 只换人，不影响收藏。
+- 删除右上角浮动的 Saved pill。匹配卡回归"看一个人、做一个决定"的干净状态。
+
+### 2. Header：新增全局 Saved 入口
+
+顶部 Header（History 旁）加一个轻量入口：
+
+```text
+♡ Saved · 2
+```
+
+- 计数 > 0 才显示，不占用首页视觉。
+- 在 do something 页、聊天页、History、Profile 等所有 Workspace 页面都可见。
+- 点击打开右侧抽屉。
+- 首页不再加 Banner/卡片——用户想找收藏就上顶部，一个地方，永远在。
+
+### 3. Saved 抽屉：极简列表
+
+每条只显示最有用的四件事：
+
+- 头像 + 名字 + 城市/职业
+- TA 当时发布的原话
+- 当初是从哪条心愿收藏的（如"来自：周末网球"）
+- 两个动作：`开始聊` / `移出`
+
+不做筛选、不做排序、不做搜索。
+
+### 4. 生命周期：不再被"开始聊"清空
+
+新规则更符合直觉：
+
+- **开始聊 TA**：只把 TA 一个人从 Saved 移出。
+- **撤回心愿**：只移出这条心愿关联的收藏。
+- **回首页/切页面/关抽屉**：Saved 完全不动。
+- **手动"移出"**：显式操作，彻底清一个。
+
+### 5. No Match 场景闭环
+
+池子空了时，如果还有 Saved：
+
+```text
+暂时没有新的人了。你先前收藏了 2 位，可以回去看看，也可以放宽心愿。
+```
+
+不再另做独立入口，就一句提示 + 复用顶部 Saved。
+
+---
+
+## 用户完整流程
+
+```text
+匹配卡看到 A       → 觉得可能可以 → 点♡收藏 → 顶部 Saved 变 1
+点看下一个 → 卡 B  → 不合适       → 跳过
+点看下一个 → 卡 C  → 决定就是 TA  → 点开始聊
+                                  → C 从 Saved 移出，A 仍在
+聊到一半退出到首页 → 顶部依然看到 Saved · 1
+过两天回来点开    → 抽屉里 A 还在，可直接开聊或移出
+```
+
+任何时候用户都知道去哪找收藏：**顶部**，一次也不会因为切页面/开始聊而丢。
+
+---
 
 ## 技术改动
 
-`src/components/canvas/meet-canvas.tsx`
-- 把「Saved 胶囊」和 `SavedDrawer` 提升到 `MeetCanvas` 顶层组件，用一个 `useState` 管 `openSaved`；从 `MatchView` 和 `NoMatchView` 中移除各自的 chip 与抽屉副本。
-- 胶囊定位：`MeetCanvas` 用一个 `relative` 外壳，胶囊 `absolute top-3 right-3`，`z-10`；`N=0` 时 `opacity-50 pointer-events-none`。
-- Pulse 用 `useEffect` 监听 `savedIntentIds.length` 的自增，触发一次 250ms 的 scale 动画（`transition-transform` + `key` 变化 或 tailwind `animate-[pulse_0.25s]`）。
-- 移除 `MatchView` 里的一次性 toast（`justSaved` state + 相关 JSX），改由胶囊 pulse 承担反馈。
-- `NoMatchView` 内保留大块「先回看你收藏的 N 位」引导（点击后打开同一个 `openSaved` 状态）。
+- 新建 `src/lib/saved-intents.ts`：全局 localStorage store，字段 `{ intentId, sessionId, savedAt }`；提供 list/toggle/remove/subscribe。
+- 新建 `src/components/saved-trigger.tsx`：Header 入口按钮 + 抽屉（复用 shadcn Sheet）。抽屉内容用 `getIntentById` + `getSession` 拼装。
+- `src/components/workspace-header.tsx`：在 History 旁挂 `<SavedTrigger />`。
+- `src/lib/agents/side-by-side.ts`：
+  - `saveCurrent` 改为写入全局 store；`state.savedIntentIds` 保留但读取以全局为准。
+  - `startChat` 不再清空 `savedIntentIds`，改为只从全局 Saved 移除当前 `matchIntentId`。
+  - `revokeAndReset` 只清理关联该 `myIntentId` 的 Saved 记录。
+- `src/components/canvas/meet-canvas.tsx`：删除右上角浮动 pill；删除 NoMatch 内独立收藏卡；匹配卡底部保留 Save toggle 并读全局状态。
+- 文案：更新 `intent.narrate_saved` / `intent.saved_hint`，去掉"开始聊会清空"的旧暗示。
 
-`src/lib/agents/side-by-side.ts`
-- 无改动。`saveCurrent` 仍是纯 toggle（上一版已定）。
+---
 
-`src/locales/{en,zh-CN}/common.json`
-- 复用 `intent.saved_count`、`intent.saved_open`、`intent.saved_title`；删除上一版新加的 `intent.saved_first_hint`（不再需要 toast 文案）。
+## 请你确认一件事
 
-## 不做
+Saved 是否也要在 Matchmaker（介绍一个人）复用？
 
-- 不加浮层提示、气泡、tooltip——胶囊自身就是提示。
-- 不给胶囊做拖拽 / 展开预览。抽屉已经够快。
-- 不改 Chat 视图布局；那里胶囊是 disabled 态，纯占位。
-- 不把 Saved 入口放到左侧 Agent 对话框里。收藏是「右侧候选池」的行为，跨到左边只会让心智更乱。
+**我建议不共用。** Matchmaker 是"一次一个人、带理由"的引荐流，本来不鼓励收集；共用会把它拉向收藏夹方向，反而变重。Saved 只服务 Do Something。
+
+同意这个边界我就按上面做；若你希望是跨 Agent 全局收藏夹，请说，那第 2、3 步会改。
