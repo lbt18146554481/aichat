@@ -5,6 +5,7 @@ import { ArrowUp, MessageCircle, UserSearch, Users, UserCircle } from "lucide-re
 import { LangSwitcher } from "@/components/lang-switcher";
 
 import { HistoryTrigger } from "@/components/history-trigger";
+import { SavedTrigger } from "@/components/saved-trigger";
 import { routeIntent } from "@/lib/route-intent";
 import { setSeed, type AgentId } from "@/lib/seed";
 import { hasUnseen, list, rehydrate, subscribe } from "@/lib/connections";
@@ -89,6 +90,7 @@ export function Home() {
             <span className="text-[14px] font-semibold tracking-tight text-foreground">Kindred</span>
           </div>
           <div className="flex items-center gap-3">
+            {mounted && <SavedTrigger />}
             {mounted && <HistoryTrigger />}
             {connCount > 0 && (
               <Link
