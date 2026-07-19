@@ -193,7 +193,7 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
               className={
                 "inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md border text-[13px] transition-colors " +
                 (isSaved
-                  ? "border-foreground/60 bg-secondary text-foreground"
+                  ? "bg-foreground text-background border-foreground hover:opacity-90"
                   : "border-border text-foreground/85 hover:bg-secondary")
               }
             >
