@@ -1,59 +1,56 @@
-## 设计原则
+## 问题诊断
 
-- 收藏只是**延迟决策的临时书签**，不是关系管理工具。
-- **只在当前心愿（session）内有效**：心愿撤回或找到聊天对象则清空。收藏与 History 不重叠，各司其职（History = 心愿维度，收藏 = 候选人维度）。
-- 不新增页面、不新增全局入口、不出现在首页。所有操作都在 Side-by-Side 右侧画布内完成。
+上一版里「已收藏」的入口只在匹配卡右上角一个 chip，而且只在 `savedCount ≥ 1` 时出现。用户的顾虑合理：
 
-## 用户流程
+- 关掉抽屉、或者一直点 See next 翻下一位，那个 chip 一直在，但视觉太弱，用户会怀疑「东西是不是丢了」。
+- 一旦 See next 把池子翻空进入 NoMatch，Match 卡上的 chip 就消失了；NoMatch 里虽然有大块入口，但两处样式不一致，用户脑子里没有「一个固定的收藏抽屉入口」这个模型。
+- Save 一次性 toast 3 秒后消失，之后再想回想「我按过收藏吗」没有痕迹。
+
+核心问题不是「加更多入口」，而是**让收藏入口在整个 do-something-together 画布里成为一个恒定、始终可见、位置固定的元素**，无论当前是 Match / NoMatch / Chat 的哪个视图，无论 See next 翻了几次，它都在同一个位置、同一种样式。
+
+## 交互设计（简化后的完整流程）
+
+**画布右上角常驻一个「Saved · N」胶囊按钮**，位置固定在 `MeetCanvas` 顶部，脱离具体子视图。规则：
+
+1. **一直可见**：只要当前 wish 还活着（stage ≠ prompt），胶囊就在，`N = 0` 时显示为 disabled 的浅色态、文案「Saved」，不可点击但占位——让用户建立「这里就是收藏的家」的空间记忆。
+2. **计数即时更新**：Save 时数字 +1 并做一次 250ms 的 pulse 动画，作为「东西进这里了」的视觉锚点，替代原来的 toast。取消 toast，不再有一次性提示。
+3. **点击打开抽屉**：任何视图下都打开同一个 `SavedDrawer`，内容和操作不变（查看资料 / 开始聊天 / 取消收藏）。
+4. **See next / 翻页无关**：胶囊不属于候选卡，翻卡时不会重渲染、不会消失。
+5. **Chat 视图也保留**：进入聊天后本 session 收藏会被清空（既有逻辑），胶囊自然回到 disabled 态，用户能看到「收藏在聊天开始后归零」，符合心智。
+
+底部三按钮设计沿用上一版：`[Start chat] [♡ Save / ✓ Saved] [See next →]`，Save 是 toggle，与 See next 完全解耦。
+
+## 关键流程回放
 
 ```text
-匹配卡 ──[♡ 收藏]──▶ 收藏成功（卡片替换为下一位候选）
-   │                        │
-   │                        ▼
-   ├──[Start chat]        顶部出现 "已收藏 N 位" 小徽章
-   ├──[See next]                 │
-   └──[Withdraw]                 ▼
-                          点击徽章 → 打开右侧抽屉
-                                  │
-                       ┌──────────┼──────────┐
-                       ▼          ▼          ▼
-                    再看资料    发起聊天    取消收藏
-                    (打开 Profile Sheet)  (回到匹配池)
+用户看卡 A
+   ├─ 点 ♡ Save     → A 进入收藏，按钮变 ✓ Saved，右上角胶囊 0→1 pulse，卡片不动
+   ├─ 点 See next   → 换到卡 B，胶囊仍在，数字仍是 1
+   ├─ 卡 B 也 Save  → 胶囊 1→2 pulse
+   ├─ 池子翻完      → NoMatch 视图，胶囊仍在同一位置，另有一行醒目引导「先回看你收藏的 2 位」
+   └─ 点胶囊或引导 → 打开同一个抽屉，查看 / 聊天 / 取消收藏
 ```
 
-关键决策：
-1. **♡ 收藏 = 软性 See next**：点击后当前候选进入“收藏”，画布自动展示下一位；不会再作为“主匹配”出现，避免重复打扰。
-2. **收藏后能做什么**（帮用户决定）：
-   - 再次查看资料（复用现有 Profile Sheet，无新 UI）。
-   - 直接 Start chat（与主卡等价，聊天开启后本 session 收藏全部清空——已经进入沟通阶段，暂存池失去意义）。
-   - 取消收藏（该候选人回到匹配池顶部，可再次成为主匹配）。
-3. **匹配池耗尽时**：NoMatch 视图顶部显示“你还收藏了 N 位”，引导用户回看已收藏的人，形成闭环，避免“没人了”的死胡同。
-4. **撤回心愿 / 编辑心愿并重匹**：收藏清空（候选前提已变），保持逻辑一致。
-
-## UI 变化（都在 `meet-canvas.tsx`）
-
-- MatchView 顶部操作区：`[Start chat] [♡ Save] [See next] [Withdraw]`。`♡ Save` 为次要按钮样式。
-- MatchView 顶部右上角（仅当收藏 ≥1）：小徽章 `♡ 3` → 点击展开右侧“已收藏”抽屉。
-- 抽屉内每行：头像 + 名字 + 一句 whyPersonLine + `[查看] [开始聊天] [取消收藏]`。
-- NoMatchView：若有收藏，在池耗尽/等待区加一行“先回看你收藏的 N 位 →”按钮，打开同一抽屉。
+关闭抽屉后回到卡面 → 胶囊仍在原位 → 用户永远知道去哪找。
 
 ## 技术改动
 
-- `src/lib/agents/side-by-side.ts`
-  - `SideState` 增加 `savedIntentIds: string[]`。
-  - 新增 action：`saveCurrent(s)`、`unsave(s, intentId)`、`chatWithSaved(s, intentId)`。
-  - `saveCurrent`：把当前 `matchIntentId` 推入 `savedIntentIds` 与 `triedIntentIds`，然后走 `skipMatch` 找下一位。
-  - `unsave`：从 `savedIntentIds` 与 `triedIntentIds` 移除，再触发一次 `findMatch`（若当前无 match 则把它设为 match）。
-  - `revokeAndReset` / `editWish` / `startChat` 内清空 `savedIntentIds`。
-- `src/components/canvas/meet-canvas.tsx`
-  - MatchView 加 `♡ Save` 按钮 + 收藏徽章。
-  - 新增 `SavedDrawer`（复用 shadcn `Sheet`），列表项复用现有头像与 whyPersonLine 排版。
-  - NoMatchView 显示 “已收藏 N 位” 入口。
-- `src/routes/side-by-side.tsx`：把三个新 handler 透传给 `MeetCanvas`。
-- `src/locales/{en,zh-CN}/common.json`：新增 `meet.save`、`meet.saved_count`、`meet.saved_title`、`meet.saved_empty`、`meet.unsave`、`meet.review_saved` 等文案。
+`src/components/canvas/meet-canvas.tsx`
+- 把「Saved 胶囊」和 `SavedDrawer` 提升到 `MeetCanvas` 顶层组件，用一个 `useState` 管 `openSaved`；从 `MatchView` 和 `NoMatchView` 中移除各自的 chip 与抽屉副本。
+- 胶囊定位：`MeetCanvas` 用一个 `relative` 外壳，胶囊 `absolute top-3 right-3`，`z-10`；`N=0` 时 `opacity-50 pointer-events-none`。
+- Pulse 用 `useEffect` 监听 `savedIntentIds.length` 的自增，触发一次 250ms 的 scale 动画（`transition-transform` + `key` 变化 或 tailwind `animate-[pulse_0.25s]`）。
+- 移除 `MatchView` 里的一次性 toast（`justSaved` state + 相关 JSX），改由胶囊 pulse 承担反馈。
+- `NoMatchView` 内保留大块「先回看你收藏的 N 位」引导（点击后打开同一个 `openSaved` 状态）。
+
+`src/lib/agents/side-by-side.ts`
+- 无改动。`saveCurrent` 仍是纯 toggle（上一版已定）。
+
+`src/locales/{en,zh-CN}/common.json`
+- 复用 `intent.saved_count`、`intent.saved_open`、`intent.saved_title`；删除上一版新加的 `intent.saved_first_hint`（不再需要 toast 文案）。
 
 ## 不做
 
-- 不做全局“收藏夹”页面（会与 History 职责重叠）。
-- 不做跨 session 的持久收藏（收藏本质是当前心愿下的候选池，心愿变则失效）。
-- 不给收藏加备注、标签、排序（复杂度收益比过低）。
+- 不加浮层提示、气泡、tooltip——胶囊自身就是提示。
+- 不给胶囊做拖拽 / 展开预览。抽屉已经够快。
+- 不改 Chat 视图布局；那里胶囊是 disabled 态，纯占位。
+- 不把 Saved 入口放到左侧 Agent 对话框里。收藏是「右侧候选池」的行为，跨到左边只会让心智更乱。
