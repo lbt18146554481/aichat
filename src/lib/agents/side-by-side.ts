@@ -28,7 +28,6 @@ import {
 import { getSession, updateSession, deriveDoSomethingStatus } from "../sessions";
 import {
   isSaved as isSavedGlobal,
-  listSaved as listSavedGlobal,
   removeSaved as removeSavedGlobal,
   removeSavedForSession as removeSavedForSessionGlobal,
   saveIntent as saveIntentGlobal,
