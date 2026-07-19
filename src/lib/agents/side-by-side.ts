@@ -297,12 +297,7 @@ export function chatWithSaved(state: SideState, intentId: string, draft?: string
   return startChat(armed, draft);
 }
 
-  const tried = state.triedIntentIds.includes(state.matchIntentId)
-    ? state.triedIntentIds
-    : [...state.triedIntentIds, state.matchIntentId];
-  const next: SideState = { ...state, triedIntentIds: tried, matchIntentId: null };
-  return rematchAfterUpdate(next, state.myIntentId);
-}
+
 
 
 
