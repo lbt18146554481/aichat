@@ -111,6 +111,7 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
               {unseen && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-foreground" />}
             </Link>
           ) : null}
+          <SavedTrigger variant="compact" />
           <Link
             to="/profile"
             aria-label={t("header.profile")}
@@ -129,7 +130,6 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
               {t("header.reset")}
             </button>
           )}
-          <SavedTrigger variant="compact" />
           <HistoryTrigger variant="compact" />
           <LangSwitcher />
         </div>
