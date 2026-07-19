@@ -248,8 +248,9 @@
     "saved_review_hint": "Reopen someone you parked earlier.",
     "narrate_next_match": "Here's the next one who wants the same thing.",
     "narrate_pool_exhausted": "That was the last person matching this wish. Want to loosen it, or say something else?",
-    "narrate_saved_next": "Saved. Here's the next person — the saved ones are waiting in the top-right.",
-    "narrate_saved_exhausted": "Saved. That was the last new candidate; open the saved list when you're ready.",
+    "narrate_saved": "Bookmarked. You'll find TA in the saved list at the top-right whenever you want to come back.",
+    "narrate_unsaved": "Removed from saved.",
+
     "narrate_revoked": "Withdrawn. What would you rather do?",
     "chip_about_person": "Who is TA",
     "chip_ask_opener": "Draft me an opener",
