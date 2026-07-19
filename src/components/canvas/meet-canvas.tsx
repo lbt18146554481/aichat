@@ -152,6 +152,20 @@ function MatchView({ state, onStartChat, onSkip }: Props) {
           })}
         </div>
 
+        {/* Their own words + yours — human evidence backing the aligned tag. */}
+        <div className="mt-3 space-y-1.5">
+          <QuoteLine
+            label={t("intent.you_said")}
+            text={lang === "zh-CN" ? mine.rawText_zh : mine.rawText}
+          />
+          <QuoteLine
+            label={t("intent.they_said")}
+            text={lang === "zh-CN" ? other.rawText_zh : other.rawText}
+          />
+        </div>
+
+
+
         <div className="mt-4 flex items-center gap-2">
           <button
             onClick={onStartChat}
