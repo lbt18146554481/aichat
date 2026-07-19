@@ -246,8 +246,9 @@
     "saved_review_hint": "重新看看你先收起来的人。",
     "narrate_next_match": "换一个看看，这是新的一位。",
     "narrate_pool_exhausted": "这是最后一位。要不要放宽条件，或者换件别的事？",
-    "narrate_saved_next": "收好了。这是下一位，收藏的人在右上角。",
-    "narrate_saved_exhausted": "收好了。这已经是最后一位新面孔；想看时打开收藏就好。",
+    "narrate_saved": "已收藏。右上角随时能找到 TA。",
+    "narrate_unsaved": "已从收藏移出。",
+
     "narrate_revoked": "好，这条撤了。你想做点别的？",
     "chip_about_person": "TA 是什么样的人",
     "chip_ask_opener": "帮我想句开场白",
