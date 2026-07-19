@@ -195,6 +195,14 @@
     "tell_agent_submit": "告诉 Agent",
     "tell_agent_thanks": "好，Agent 记下了，之后会用它帮你看人。",
     "start_chat": "开始聊",
+    "open_profile": "了解更多 {{name}}",
+    "more_hint": "更多",
+    "sheet": {
+      "about_ta": "TA 是谁",
+      "one_work": "最近在读 · 看 · 听",
+      "moments": "TA 分享过的瞬间",
+      "aligning": "你们要一起做的事"
+    },
     "match_footnote": "聊天就发生在这里。不用等 TA 回应——你们把心愿发到池子里，就等于都点了头。",
     "revoke": "撤回这条心愿",
     "level_similar": "水平相近",
