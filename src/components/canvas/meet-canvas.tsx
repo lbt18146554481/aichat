@@ -604,6 +604,19 @@ function IntentCard({ intent, side, lang }: { intent: Intent; side: "me" | "them
   );
 }
 
+function QuoteLine({ label, text }: { label: string; text: string }) {
+  return (
+    <div className="rounded-lg border border-border/70 bg-secondary/40 px-3 py-2">
+      <div className="text-[9.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">
+        {label}
+      </div>
+      <p className="mt-0.5 text-[12.5px] text-foreground/90 leading-snug line-clamp-2">
+        "{text}"
+      </p>
+    </div>
+  );
+}
+
 function Tag({ children }: { children: React.ReactNode }) {
   return (
     <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary border border-border text-[11px] text-foreground/80">
