@@ -311,7 +311,7 @@ export function unsave(state: SideState, intentId: string): SideState {
   const triedOwners = target
     ? (state.triedOwnerIds ?? []).filter((id) => id !== target.ownerId)
     : (state.triedOwnerIds ?? []);
-  const next: SideState = { ...state, savedIntentIds: saved, triedIntentIds: tried, triedOwnerIds };
+  const next: SideState = { ...state, savedIntentIds: saved, triedIntentIds: tried, triedOwnerIds: triedOwners };
   if (!state.myIntentId) return next;
   // If no candidate is on screen right now, surface this one immediately.
   if (!state.matchIntentId) {
