@@ -94,7 +94,7 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
     0,
     countAvailableMatches(mine, { exclude: state.triedIntentIds }) - 1,
   );
-  const isSaved = state.savedIntentIds.includes(other.id);
+  const isSaved = useIsSaved(other.id);
 
   const person = getPersonById(other.ownerId);
   const otherName = lang === "zh-CN" ? other.ownerName_zh : other.ownerName;
@@ -110,8 +110,7 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
       <div className="mx-auto max-w-lg">
-        {/* Leave right-side room for the persistent Saved pill (rendered by MeetCanvas). */}
-        <div className="flex items-center gap-3 pr-28">
+        <div className="flex items-center gap-3">
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
             {t("intent.match_label")}
           </div>
