@@ -114,7 +114,7 @@ export function SavedTrigger({ variant = "default" }: Props) {
                 const meta = [city, occ].filter((s) => s && s.trim()).join(" · ");
                 const raw = lang === "zh-CN" ? intent.rawText_zh : intent.rawText;
                 const session = getSession(rec.sessionId);
-                const wishSummary = session?.rawInput ?? "";
+                const wishSummary = session?.seed ?? "";
 
                 return (
                   <li key={rec.intentId} className="rounded-lg border border-border bg-card p-4">
