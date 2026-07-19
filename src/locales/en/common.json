@@ -197,6 +197,14 @@
     "tell_agent_submit": "Tell the Agent",
     "tell_agent_thanks": "Got it — the Agent will use that from now on.",
     "start_chat": "Start chatting",
+    "open_profile": "More about {{name}}",
+    "more_hint": "More",
+    "sheet": {
+      "about_ta": "About TA",
+      "one_work": "Into right now",
+      "moments": "Moments TA shared",
+      "aligning": "What you're aligning on"
+    },
     "match_footnote": "The chat happens right here. No name gate, no waiting on a reply — you both already said yes by publishing.",
     "revoke": "Take this wish back",
     "level_similar": "similar level",
