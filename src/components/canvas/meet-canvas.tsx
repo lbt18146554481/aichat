@@ -621,14 +621,8 @@ function EditWishPanel({
   );
 }
 
-/** Small helper so the panel can read the current Profile city without
- *  importing the whole module at module load in tests. */
 function loadProfileCity(): string {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const m = require("@/lib/profile") as typeof import("@/lib/profile");
-    return m.loadProfile().city || "";
-  } catch { return ""; }
+  try { return loadProfile().city || ""; } catch { return ""; }
 }
 
 
