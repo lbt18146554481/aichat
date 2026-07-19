@@ -12,6 +12,7 @@
 // and compatible, that's the match.
 
 import type { ActivityKind, Weekday } from "../types";
+import { loadProfile } from "../profile";
 import {
   findNearMisses,
   getIntentById,
