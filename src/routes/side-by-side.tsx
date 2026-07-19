@@ -502,6 +502,25 @@ function SideBySidePage() {
   function handleStartChat() { actWith((s) => startChat(s)); }
   function handleRevoke()    { actWith((s) => revokeAndReset(s)); }
   function handleTryNearMiss(intentId: string) { actWith((s) => tryNearMiss(s, intentId)); }
+  function handleSave() {
+    setThinking(true);
+    window.setTimeout(() => {
+      setState((s) => {
+        const next = saveCurrent(s);
+        const line = next.matchIntentId
+          ? t("intent.narrate_saved_next")
+          : t("intent.narrate_saved_exhausted");
+        return { ...next, messages: [...next.messages, msg("assistant", line)] };
+      });
+      setThinking(false);
+    }, 320);
+  }
+  function handleUnsave(intentId: string) {
+    setState((s) => unsave(s, intentId));
+  }
+  function handleChatWithSaved(intentId: string) {
+    actWith((s) => chatWithSaved(s, intentId));
+  }
   function handleEditWish(patch: { when?: WhenTier; level?: LevelTier; location?: string }) {
     const bits: string[] = [];
     if (patch.when) bits.push(t(`meet.when.${patch.when}`));
