@@ -70,6 +70,8 @@ function MatchView({ state, onStartChat, onSkip }: Props) {
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
   const other = state.matchIntentId ? getIntentById(state.matchIntentId) : null;
+  const [openProfile, setOpenProfile] = useState(false);
+
   if (!mine || !other) return <EmptyCanvas />;
 
   const alignedKind = t(`activity.kind.${mine.kind}`);
@@ -80,6 +82,17 @@ function MatchView({ state, onStartChat, onSkip }: Props) {
     0,
     countAvailableMatches(mine, { exclude: state.triedIntentIds }) - 1,
   );
+
+  const person = getPersonById(other.ownerId);
+  const otherName = lang === "zh-CN" ? other.ownerName_zh : other.ownerName;
+  const otherCity = lang === "zh-CN" ? other.ownerCity_zh : other.ownerCity;
+  const otherOccupation = person
+    ? (lang === "zh-CN" ? person.occupation_zh : person.occupation)
+    : "";
+  const identityMetaParts = [
+    otherCity,
+    otherOccupation,
+  ].filter((s) => s && s.trim().length > 0);
 
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
@@ -95,10 +108,36 @@ function MatchView({ state, onStartChat, onSkip }: Props) {
           )}
         </div>
 
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <IntentCard intent={mine} side="me" lang={lang} />
-          <IntentCard intent={other} side="them" lang={lang} />
-        </div>
+        {/* Identity row — the whole block is a button that opens the profile sheet. */}
+        <button
+          type="button"
+          onClick={() => setOpenProfile(true)}
+          aria-label={t("intent.open_profile", { name: otherName })}
+          className="mt-4 w-full flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left hover:bg-muted/40 hover:border-foreground/25 transition-colors"
+        >
+          <img
+            src={avatarUrl(other.ownerId)}
+            alt=""
+            className="w-12 h-12 rounded-full border border-border shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="text-[15px] font-medium text-foreground truncate">
+              {otherName}
+              {person?.age ? <span className="text-muted-foreground font-normal">, {person.age}</span> : null}
+            </div>
+            {identityMetaParts.length > 0 && (
+              <div className="text-[12px] text-muted-foreground truncate">
+                {identityMetaParts.join(" · ")}
+              </div>
+            )}
+          </div>
+          <div className="shrink-0 flex flex-col items-end gap-0.5 text-muted-foreground">
+            <span className="text-[9.5px] font-mono uppercase tracking-[0.14em]">
+              {t("intent.more_hint")}
+            </span>
+            <ChevronRight className="w-4 h-4" />
+          </div>
+        </button>
 
         <WhyPersonBox otherOwnerId={other.ownerId} lang={lang} />
 
@@ -112,7 +151,6 @@ function MatchView({ state, onStartChat, onSkip }: Props) {
             level: alignedLevel,
           })}
         </div>
-
 
         <div className="mt-4 flex items-center gap-2">
           <button
@@ -133,17 +171,197 @@ function MatchView({ state, onStartChat, onSkip }: Props) {
           </button>
         </div>
 
-        {/* Editing / withdrawing lives in the left Agent chat now — right pane
-            stays focused on the person. */}
-
-
         <p className="mt-4 text-[11.5px] text-muted-foreground leading-relaxed text-center">
           {t("intent.match_footnote")}
         </p>
       </div>
+
+      <PersonProfileSheet
+        open={openProfile}
+        onOpenChange={setOpenProfile}
+        mine={mine}
+        other={other}
+        lang={lang}
+        onStartChat={() => {
+          setOpenProfile(false);
+          onStartChat();
+        }}
+      />
     </div>
   );
 }
+
+// ---- Person profile sheet (opened from the identity row) ---------------
+
+const ONE_WORK_EMOJI: Record<string, string> = {
+  book: "📖", film: "🎬", music: "🎵", exhibition: "🖼", food: "🍜", other: "✨",
+};
+
+function PersonProfileSheet({
+  open,
+  onOpenChange,
+  mine,
+  other,
+  lang,
+  onStartChat,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  mine: Intent;
+  other: Intent;
+  lang: Lang;
+  onStartChat: () => void;
+}) {
+  const { t } = useTranslation();
+  const person = getPersonById(other.ownerId);
+
+  const name = lang === "zh-CN" ? other.ownerName_zh : other.ownerName;
+  const city = lang === "zh-CN" ? other.ownerCity_zh : other.ownerCity;
+  const occupation = person
+    ? (lang === "zh-CN" ? person.occupation_zh : person.occupation)
+    : "";
+  const metaParts = [city, occupation].filter((s) => s && s.trim().length > 0);
+
+  const brief = person?.personBrief
+    ? (lang === "zh-CN" ? person.personBrief.zh : person.personBrief.en)
+    : "";
+  const oneWork = person?.oneWork;
+  const oneWorkTitle = oneWork
+    ? (lang === "zh-CN" && oneWork.title_zh ? oneWork.title_zh : oneWork.title)
+    : "";
+  const oneWorkWhy = oneWork
+    ? (lang === "zh-CN" ? oneWork.why_zh : oneWork.why)
+    : "";
+  const moments = (person?.moments ?? [])
+    .slice(0, 3)
+    .map((m) => (lang === "zh-CN" ? m.answer_zh : m.answer))
+    .filter((s) => s && s.trim().length > 0);
+
+  const rawMine = lang === "zh-CN" ? mine.rawText_zh : mine.rawText;
+  const rawTheirs = lang === "zh-CN" ? other.rawText_zh : other.rawText;
+
+  const alignedTag = `${KIND_EMOJI[mine.kind]} ${t(`activity.kind.${mine.kind}`)}${
+    mine.whenAny ? "" : ` · ${t(`activity.day.${mine.day}`)} ${t(`activity.window.${mine.window}`)}`
+  }${
+    !mine.levelAny && (mine.kind === "tennis" || mine.kind === "climb")
+      ? ` · ${t(`activity.level.${mine.level}`)}`
+      : ""
+  }`;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
+        {/* Header */}
+        <div className="px-6 pt-8 pb-5 border-b border-border">
+          <div className="flex items-center gap-4">
+            <img
+              src={avatarUrl(other.ownerId)}
+              alt=""
+              className="w-16 h-16 rounded-full border border-border shrink-0"
+            />
+            <div className="min-w-0">
+              <div className="text-[18px] font-medium text-foreground leading-tight truncate">
+                {name}
+                {person?.age ? <span className="text-muted-foreground font-normal">, {person.age}</span> : null}
+              </div>
+              {metaParts.length > 0 && (
+                <div className="mt-1 text-[13px] text-muted-foreground truncate">
+                  {metaParts.join(" · ")}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Scroll body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          {brief && (
+            <section>
+              <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">
+                {t("intent.sheet.about_ta")}
+              </div>
+              <p className="mt-2 text-[13.5px] text-foreground/90 leading-relaxed">
+                {brief}
+              </p>
+            </section>
+          )}
+
+          {oneWork && oneWorkTitle && (
+            <section>
+              <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">
+                {t("intent.sheet.one_work")}
+              </div>
+              <div className="mt-2 rounded-lg border border-border bg-card px-3.5 py-3">
+                <div className="text-[13.5px] text-foreground">
+                  <span className="mr-1.5">{ONE_WORK_EMOJI[oneWork.kind] ?? "✨"}</span>
+                  {oneWorkTitle}
+                </div>
+                {oneWorkWhy && (
+                  <p className="mt-1.5 text-[12.5px] text-muted-foreground leading-relaxed italic">
+                    "{oneWorkWhy}"
+                  </p>
+                )}
+              </div>
+            </section>
+          )}
+
+          {moments.length > 0 && (
+            <section>
+              <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">
+                {t("intent.sheet.moments")}
+              </div>
+              <ul className="mt-2 space-y-2">
+                {moments.map((m, i) => (
+                  <li key={i} className="flex gap-2 text-[13px] text-foreground/85 leading-relaxed">
+                    <span className="text-muted-foreground/70 shrink-0">•</span>
+                    <span>{m}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <section>
+            <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">
+              {t("intent.sheet.aligning")}
+            </div>
+            <div className="mt-2 space-y-2">
+              <div className="rounded-lg border border-border bg-card px-3.5 py-2.5">
+                <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">
+                  {t("intent.you_said")}
+                </div>
+                <p className="mt-1 text-[13px] text-foreground leading-relaxed">"{rawMine}"</p>
+              </div>
+              <div className="rounded-lg border border-border bg-card px-3.5 py-2.5">
+                <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">
+                  {t("intent.they_said")}
+                </div>
+                <p className="mt-1 text-[13px] text-foreground leading-relaxed">"{rawTheirs}"</p>
+              </div>
+              <div className="pt-1">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary border border-border text-[11px] text-foreground/80">
+                  {alignedTag}
+                </span>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {/* Sticky CTA */}
+        <div className="border-t border-border bg-background px-6 py-4">
+          <button
+            onClick={onStartChat}
+            className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-md bg-foreground text-background text-[13.5px] font-medium hover:opacity-90 transition-opacity"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            {t("intent.start_chat")}
+          </button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 
 
 // ---- Why is TA (demo copy from PEOPLE.whyPersonLine) -------------------
