@@ -712,11 +712,16 @@ function Tag({ children }: { children: React.ReactNode }) {
 
 // ---- No match — my published card + near-miss list ---------------------
 
-function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare, onUnsave, onChatWithSaved }: Props) {
+function NoMatchView({
+  state,
+  onRevoke,
+  onTryNearMiss,
+  onRevokeReshare,
+  onOpenSaved,
+}: Props & { onOpenSaved: () => void }) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
-  const [openSaved, setOpenSaved] = useState(false);
   if (!mine) return <EmptyCanvas />;
 
   const nears = state.nearMissIds.map((id) => getIntentById(id)).filter(Boolean) as Intent[];
@@ -726,7 +731,8 @@ function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare, onUnsave
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
       <div className="mx-auto max-w-lg">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
+        {/* Leave right-side room for the persistent Saved pill (rendered by MeetCanvas). */}
+        <div className="pr-28 text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
           {exhausted ? t("intent.pool_exhausted_label") : t("intent.published_label")}
         </div>
         {exhausted && (
@@ -749,7 +755,7 @@ function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare, onUnsave
         {savedCount > 0 && (
           <button
             type="button"
-            onClick={() => setOpenSaved(true)}
+            onClick={onOpenSaved}
             className="mt-4 w-full flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:border-foreground/40 transition-colors text-left"
           >
             <div className="flex items-center gap-2">
@@ -805,18 +811,10 @@ function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare, onUnsave
           </div>
         )}
       </div>
-
-      <SavedDrawer
-        open={openSaved}
-        onOpenChange={setOpenSaved}
-        savedIntentIds={state.savedIntentIds}
-        lang={lang}
-        onChat={(id) => { setOpenSaved(false); onChatWithSaved?.(id); }}
-        onUnsave={(id) => onUnsave?.(id)}
-      />
     </div>
   );
 }
+
 
 // ---- Saved drawer — session-scoped bookmarks ---------------------------
 
