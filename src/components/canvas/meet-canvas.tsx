@@ -58,11 +58,12 @@ export function MeetCanvas(props: Props) {
   // Only render the persistent pill once a wish is active.
   const showPill = view !== "empty";
 
-  let content: JSX.Element;
+  let content: React.ReactNode;
   if (view === "chat") content = <ChatView {...props} />;
   else if (view === "match") content = <MatchView {...props} />;
   else if (view === "nomatch") content = <NoMatchView {...props} onOpenSaved={() => setOpenSaved(true)} />;
   else content = <EmptyCanvas />;
+
 
   const pillEnabled = savedCount > 0;
 
