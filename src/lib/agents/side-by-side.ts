@@ -146,6 +146,9 @@ export interface SideState {
   matchIntentId: string | null;
   nearMissIds: string[];
   triedIntentIds: string[];
+  /** Candidates the user parked as "look again later". Session-scoped;
+   *  cleared when the wish is revoked, edited, or chat starts. */
+  savedIntentIds: string[];
   truncated: boolean;
   messages: SideMsg[];
   chatMessages: ChatMsg[];
@@ -163,6 +166,7 @@ export const EMPTY: SideState = {
   matchIntentId: null,
   nearMissIds: [],
   triedIntentIds: [],
+  savedIntentIds: [],
   truncated: false,
   messages: [],
   chatMessages: [],
