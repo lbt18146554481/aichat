@@ -226,8 +226,11 @@
     "edit_close": "Close",
     "edit_when": "When",
     "edit_level": "Level",
-    "edit_location": "Where (optional)",
-    "edit_location_placeholder": "A neighborhood, court, park…",
+    "edit_city": "City",
+    "edit_city_profile": "Profile: {{city}}",
+    "edit_city_placeholder": "Leave blank for {{city}}",
+    "edit_city_hint": "Matches only pair people in the same city. Leave blank to use your profile city.",
+    "city_override_badge": "this wish",
     "edit_apply": "Save & rematch",
     "edited_user_msg": "Edited my wish → {{changes}}",
     
