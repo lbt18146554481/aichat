@@ -239,7 +239,18 @@ export function publishMyIntent(input: {
 }
 
 /** Update fields on my intent — returns the new intent, or null if not found. */
-export function updateMyIntent(id: string, patch: { when?: WhenTier; level?: LevelTier; location?: string }): Intent | null {
+export function updateMyIntent(
+  id: string,
+  patch: {
+    when?: WhenTier;
+    level?: LevelTier;
+    location?: string;
+    /** Per-wish city override. Empty string clears it — caller should then
+     *  fall back to Profile.city on the next publish. */
+    city?: string;
+    city_zh?: string;
+  },
+): Intent | null {
   const list = loadMyIntents();
   const idx = list.findIndex((i) => i.id === id);
   if (idx < 0) return null;
@@ -256,6 +267,13 @@ export function updateMyIntent(id: string, patch: { when?: WhenTier; level?: Lev
     const v = patch.location.trim();
     next.location = v || undefined;
     next.location_zh = v || undefined;
+  }
+  if (patch.city !== undefined) {
+    const v = patch.city.trim();
+    next.city = v;
+    next.city_zh = (patch.city_zh ?? v).trim() || v;
+    next.ownerCity = v;
+    next.ownerCity_zh = next.city_zh;
   }
   const nextList = [...list];
   nextList[idx] = next;
