@@ -126,6 +126,35 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     saveDraft(person.id, { composing, picked: draftPicked, reply: draftReply });
   }, [person, composing, draftPicked, draftReply]);
 
+  // Persist + restore the right-pane scroll position per person, so leaving
+  // to /connections ("Check progress") and returning lands the user back
+  // where they were.
+  const scrollRestoredRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!person) return;
+    const el = getScrollParent();
+    if (!el) return;
+    // Restore once per person visit, after layout settles.
+    if (scrollRestoredRef.current !== person.id) {
+      scrollRestoredRef.current = person.id;
+      try {
+        const raw = window.sessionStorage.getItem(scrollKey(person.id));
+        const top = raw ? parseInt(raw, 10) : NaN;
+        if (!Number.isNaN(top)) {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => { el.scrollTo({ top }); });
+          });
+        }
+      } catch { /* noop */ }
+    }
+    const onScroll = () => {
+      try { window.sessionStorage.setItem(scrollKey(person.id), String(el.scrollTop)); } catch { /* noop */ }
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => { el.removeEventListener("scroll", onScroll); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [person?.id, conn?.status]);
+
   if (!person) {
     return (
       <div className="h-full grid place-items-center px-8 py-12">
