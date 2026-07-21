@@ -11,6 +11,7 @@ import {
   focusPerson,
   load,
   save,
+  seeNextPerson,
   start,
   userTurn,
   type MatchmakerState,
