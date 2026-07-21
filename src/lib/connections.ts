@@ -41,6 +41,9 @@ export interface Connection {
   connectedAt?: number;
   fadedAt?: number;
   lastSeenAt?: number;
+  /** The matchmaker session this hello originated from. Lets
+   *  "← Back to <name>" return to the exact session + person. */
+  originSessionId?: string;
   fromMe?: HelloFromMe;
   fromThem?: HelloFromThem;
   messages: ChatMsg[];
