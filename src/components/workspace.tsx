@@ -46,6 +46,7 @@ export function Workspace({
   composerDisabled,
   placeholderOverride,
   onChipClick,
+  suggestions,
 }: Props) {
   const { t } = useTranslation();
   const [input, setInput] = useState("");
