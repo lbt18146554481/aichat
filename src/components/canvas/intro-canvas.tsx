@@ -178,7 +178,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   const moments = person.moments;
   const work = person.oneWork;
 
-  function requestSayHello() {
+  function requestSayHello(opts?: { pickedMomentId?: string | null; draftReply?: string }) {
     const p = loadProfile();
     if (!hasName(p) || !isVitalsComplete(p)) {
       try {
@@ -189,6 +189,8 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     }
     const el = getScrollParent();
     if (el) savedScrollRef.current = { el, top: el.scrollTop };
+    if (opts?.pickedMomentId !== undefined) setDraftPicked(opts.pickedMomentId);
+    if (opts?.draftReply !== undefined) setDraftReply(opts.draftReply);
     setComposing(true);
   }
 
