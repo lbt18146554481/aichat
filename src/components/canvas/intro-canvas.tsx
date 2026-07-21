@@ -18,8 +18,10 @@ import { BookmarkPlus, BookmarkCheck } from "lucide-react";
 
 interface Props {
   state: MatchmakerState;
+  sessionId: string;
   onAnotherPerson: () => void;
-  onPass: () => void;
+  /** Kept for back-compat; unused by the new Save-first flow. */
+  onPass?: () => void;
 }
 
 // Per-person composer draft — survives a jump to /profile and back so the
