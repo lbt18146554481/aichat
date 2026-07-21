@@ -5,7 +5,7 @@ import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
 import type { MatchmakerState } from "@/lib/agents/matchmaker";
-import { pickBestAngle, sharedSignals } from "@/lib/agents/matchmaker";
+import { pickBestAngle, pickBestMoment } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
 import { hasName, isVitalsComplete, loadProfile } from "@/lib/profile";
@@ -220,13 +220,46 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
 
 
   const bestAngle = pickBestAngle(person, state.understanding);
-  const shared = sharedSignals(person, state.understanding).slice(0, 3);
-  const signalChips = shared.length > 0 ? shared : person.signals.slice(0, 3);
-  const chipsLabelKey = shared.length > 0 ? "intro.shared_signals_label" : "intro.their_signals_label";
-  const brief = person.personBrief
-    ? (lang === "zh-CN" ? person.personBrief.zh : person.personBrief.en)
-    : null;
+  const signalChips = person.signals.slice(0, 5);
   const angleText = bestAngle ? (lang === "zh-CN" ? bestAngle.text_zh : bestAngle.text) : null;
+  const bestMoment = pickBestMoment(person, state.understanding);
+
+  function renderMoment(m: NonNullable<typeof bestMoment>, opts: { clickable: boolean }) {
+    const prompt = getMomentPromptById(m.promptId);
+    const active = composing && draftPicked === m.id;
+    const content = (
+      <>
+        {prompt && (
+          <div className="text-[11px] text-muted-foreground italic leading-snug mb-1">
+            {localizedMomentPrompt(prompt, lang)}
+          </div>
+        )}
+        <p className="text-[14.5px] leading-[1.65] text-foreground">
+          {lang === "zh-CN" ? m.answer_zh : m.answer}
+        </p>
+      </>
+    );
+    if (opts.clickable) {
+      return (
+        <button
+          key={m.id}
+          type="button"
+          onClick={() => setDraftPicked(active ? null : m.id)}
+          className={[
+            "block w-full text-left border-l-2 pl-3 transition-colors",
+            active ? "border-foreground" : "border-border hover:border-foreground/50",
+          ].join(" ")}
+        >
+          {content}
+        </button>
+      );
+    }
+    return (
+      <article key={m.id} className="border-l-2 border-border pl-3">
+        {content}
+      </article>
+    );
+  }
 
   return (
     <div ref={rootRef} className="h-full px-8 py-10">
@@ -260,23 +293,22 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
             <p className="mt-0.5 text-[12.5px] text-muted-foreground">
               {loc.occupation} · {loc.city}
             </p>
-            <span className="mt-1 inline-block text-[11px] text-muted-foreground/80 group-hover:text-foreground transition-colors underline underline-offset-2 decoration-dotted">
-              {t("intro.view_profile")}
-            </span>
+            {loc.portrait && (
+              <p className="mt-1.5 text-[12.5px] text-muted-foreground leading-relaxed">
+                {loc.portrait}
+              </p>
+            )}
           </div>
         </button>
 
-        {/* Why I thought of you — match highlight */}
-        {(angleText || signalChips.length > 0 || brief) && (
+        {/* Who they are — signals + agent's footnote */}
+        {(signalChips.length > 0 || angleText) && (
           <div className="mt-6 rounded-lg border border-border bg-card px-3.5 py-3">
-            <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
-              {t("intro.why_them_label")}
+            <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2.5">
+              {t("intro.who_they_are_label")}
             </div>
             {signalChips.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2.5">
-                <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground/80 self-center mr-0.5">
-                  {t(chipsLabelKey)}
-                </span>
+              <div className="flex flex-wrap gap-1.5">
                 {signalChips.map((s) => (
                   <span
                     key={s}
@@ -288,66 +320,39 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
               </div>
             )}
             {angleText && (
-              <p className="text-[13.5px] text-foreground leading-relaxed">
-                {angleText}
-              </p>
-            )}
-            {brief && (
-              <p className="mt-2 pt-2 border-t border-border text-[12.5px] text-muted-foreground leading-relaxed">
-                {brief}
-              </p>
+              <div className={signalChips.length > 0 ? "mt-3 pt-3 border-t border-border" : ""}>
+                <div className="text-[9.5px] uppercase tracking-[0.16em] font-mono text-muted-foreground/80 mb-1">
+                  {t("intro.agent_note_prefix")}
+                </div>
+                <p className="text-[13px] text-muted-foreground leading-relaxed italic">
+                  {angleText}
+                </p>
+              </div>
             )}
           </div>
         )}
 
 
-        {/* Moments — clickable while composing to attach an optional quote */}
-        <div className="mt-7 space-y-4">
-          <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
+        {/* Moments — 1 preview when browsing, full list when composing */}
+        {moments.length > 0 && (
+          <div className="mt-7 space-y-4">
+            <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
+              {composing ? t("moment.compose_hint") : t("moment.about_them")}
+            </div>
             {composing
-              ? t("moment.compose_hint")
-              : t("moment.about_them", { name: loc.name })}
+              ? moments.map((m) => renderMoment(m, { clickable: true }))
+              : bestMoment && renderMoment(bestMoment, { clickable: false })}
+            {!composing && moments.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setProfileOpen(true)}
+                className="text-[11.5px] text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2 decoration-dotted"
+              >
+                {t("intro.see_all_moments")}
+              </button>
+            )}
           </div>
-          {moments.length === 0 && (
-            <p className="text-[13px] text-muted-foreground italic">{loc.portrait}</p>
-          )}
-          {moments.map((m) => {
-            const prompt = getMomentPromptById(m.promptId);
-            const active = composing && draftPicked === m.id;
-            const content = (
-              <>
-                {prompt && (
-                  <div className="text-[11px] text-muted-foreground italic leading-snug mb-1">
-                    {localizedMomentPrompt(prompt, lang)}
-                  </div>
-                )}
-                <p className="text-[14.5px] leading-[1.65] text-foreground">
-                  {lang === "zh-CN" ? m.answer_zh : m.answer}
-                </p>
-              </>
-            );
-            if (composing) {
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setDraftPicked(active ? null : m.id)}
-                  className={[
-                    "block w-full text-left border-l-2 pl-3 transition-colors",
-                    active ? "border-foreground" : "border-border hover:border-foreground/50",
-                  ].join(" ")}
-                >
-                  {content}
-                </button>
-              );
-            }
-            return (
-              <article key={m.id} className="border-l-2 border-border pl-3">
-                {content}
-              </article>
-            );
-          })}
-        </div>
+        )}
 
         {/* One Work */}
         {work && (

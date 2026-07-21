@@ -138,6 +138,26 @@ export function sharedSignals(person: Person, u: UserUnderstanding): string[] {
   return person.signals.filter((s) => pos.has(s));
 }
 
+// Pick the single moment most likely to trigger a "I want to say hello" —
+// scores each moment's answer text against the user's positives + notes.
+// Falls back to the first moment when there's no overlap.
+export function pickBestMoment(
+  person: Person,
+  u: UserUnderstanding,
+): Person["moments"][number] | null {
+  if (person.moments.length === 0) return null;
+  const userText = [...u.positive, ...u.notes].join(" ");
+  if (!userText.trim()) return person.moments[0];
+  const ut = tokens(userText);
+  let best = person.moments[0];
+  let bestScore = -1;
+  for (const m of person.moments) {
+    const score = jaccard(ut, tokens(m.answer)) + jaccard(ut, tokens(m.answer_zh));
+    if (score > bestScore) { bestScore = score; best = m; }
+  }
+  return best;
+}
+
 function reflectionAffinity(p: Person, u: UserUnderstanding): number {
   if (p.reflections.length === 0) return 0;
   const userText = u.notes.join(" ");
