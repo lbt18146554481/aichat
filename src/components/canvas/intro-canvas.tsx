@@ -8,6 +8,13 @@ import type { MatchmakerState } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, undoFadedFor, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
 import { hasName, isVitalsComplete, loadProfile } from "@/lib/profile";
+import {
+  isPersonSaved,
+  removeSavedPerson,
+  savePerson,
+  subscribeSavedPeople,
+} from "@/lib/saved-people";
+import { BookmarkPlus, BookmarkCheck } from "lucide-react";
 
 interface Props {
   state: MatchmakerState;
