@@ -341,15 +341,16 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
         )}
 
 
-        {/* Moments — 1 preview when browsing, full list when composing */}
+        {/* Moments — 1 preview when browsing (clickable → quote & compose),
+            full list when composing (clickable → toggle quote). */}
         {moments.length > 0 && (
-          <div className="mt-7 space-y-4">
+          <div className="mt-6 space-y-4">
             <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
               {composing ? t("moment.compose_hint") : t("moment.about_them")}
             </div>
             {composing
-              ? moments.map((m) => renderMoment(m, { clickable: true }))
-              : bestMoment && renderMoment(bestMoment, { clickable: false })}
+              ? moments.map((m) => renderMoment(m, { clickable: true, mode: "select" }))
+              : bestMoment && renderMoment(bestMoment, { clickable: true, mode: "quoteAndCompose" })}
             {!composing && moments.length > 1 && (
               <button
                 type="button"
@@ -362,29 +363,42 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
           </div>
         )}
 
-        {/* One Work */}
-        {work && (
-          <div className="mt-7 rounded-lg border border-border bg-card px-3.5 py-3">
-            <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
-              {t("intro.one_work_label", { kind: t(`profile.kind.${work.kind}`) })}
-            </div>
-            <div className="text-[14px] font-medium text-foreground leading-snug">
-              {lang === "zh-CN" && work.title_zh ? work.title_zh : work.title}
-            </div>
-            <p className="mt-1 text-[12.5px] text-muted-foreground leading-relaxed">
-              {lang === "zh-CN" ? work.why_zh : work.why}
-            </p>
-          </div>
-        )}
+        {/* One Work — single-line clickable card that pre-fills the composer
+            with a starter that references this work. */}
+        {work && (() => {
+          const title = lang === "zh-CN" && work.title_zh ? work.title_zh : work.title;
+          const kindLabel = t(`profile.kind.${work.kind}`);
+          const opener = t("intro.one_work_opener", { kind: kindLabel, title });
+          return (
+            <button
+              type="button"
+              onClick={() => !composing && !conn && requestSayHello({ draftReply: opener })}
+              disabled={composing || !!conn}
+              className="mt-6 w-full text-left rounded-lg border border-border bg-card px-3.5 py-2.5 hover:border-foreground/40 transition-colors disabled:cursor-default disabled:hover:border-border"
+            >
+              <div className="flex items-baseline gap-2">
+                <span className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono shrink-0">
+                  {kindLabel}
+                </span>
+                <span className="text-[13.5px] font-medium text-foreground leading-snug truncate">
+                  {title}
+                </span>
+              </div>
+              <p className="mt-1 text-[12.5px] text-muted-foreground leading-relaxed line-clamp-2">
+                {lang === "zh-CN" ? work.why_zh : work.why}
+              </p>
+            </button>
+          );
+        })()}
 
         {/* Primary closed-loop actions — Say hello / Save side by side,
-            with a soft "see someone else" link below. */}
+            with a soft "see someone else" link. */}
         <div className="mt-7 pt-5 border-t border-border">
           {!conn && !composing && (
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <button
-                  onClick={requestSayHello}
+                  onClick={() => requestSayHello()}
                   className="flex-1 sm:flex-none px-4 py-2.5 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
                 >
                   {t("connection.say_hello")}
