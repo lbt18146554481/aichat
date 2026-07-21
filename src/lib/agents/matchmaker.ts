@@ -115,6 +115,29 @@ export function reflectionQuestionText(r: Reflection, lang: "en" | "zh-CN"): str
   return lang === "zh-CN" ? q.text_zh : q.text;
 }
 
+// Pick the angle that best matches what we know the user is looking for.
+// Falls back to the person's first angle when there's no overlap.
+export function pickBestAngle(
+  person: Person,
+  u: UserUnderstanding,
+): Person["angles"][number] | null {
+  if (person.angles.length === 0) return null;
+  const pos = new Set(u.positive);
+  let best = person.angles[0];
+  let bestScore = -1;
+  for (const a of person.angles) {
+    const overlap = a.signals.filter((s) => pos.has(s)).length;
+    if (overlap > bestScore) { bestScore = overlap; best = a; }
+  }
+  return best;
+}
+
+// Signals this person shares with what the user has told us they want.
+export function sharedSignals(person: Person, u: UserUnderstanding): string[] {
+  const pos = new Set(u.positive);
+  return person.signals.filter((s) => pos.has(s));
+}
+
 function reflectionAffinity(p: Person, u: UserUnderstanding): number {
   if (p.reflections.length === 0) return 0;
   const userText = u.notes.join(" ");

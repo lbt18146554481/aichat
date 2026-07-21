@@ -5,6 +5,7 @@ import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
 import type { MatchmakerState } from "@/lib/agents/matchmaker";
+import { pickBestAngle, sharedSignals } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
 import { hasName, isVitalsComplete, loadProfile } from "@/lib/profile";
@@ -14,7 +15,8 @@ import {
   savePerson,
   subscribeSavedPeople,
 } from "@/lib/saved-people";
-import { BookmarkPlus, BookmarkCheck } from "lucide-react";
+import { PublicProfileSheet } from "@/components/public-profile-sheet";
+import { BookmarkPlus, BookmarkCheck, Eye } from "lucide-react";
 
 interface Props {
   state: MatchmakerState;
@@ -63,6 +65,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   const [draftPicked, setDraftPicked] = useState<string | null>(null);
   const [draftReply, setDraftReply] = useState("");
   const [saved, setSaved] = useState<boolean>(() => (person ? isPersonSaved(person.id) : false));
+  const [profileOpen, setProfileOpen] = useState(false);
   const restoredRef = useRef<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   // Scroll position on the right-pane scroll container, captured when
@@ -216,16 +219,35 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   }
 
 
+  const bestAngle = pickBestAngle(person, state.understanding);
+  const shared = sharedSignals(person, state.understanding).slice(0, 3);
+  const signalChips = shared.length > 0 ? shared : person.signals.slice(0, 3);
+  const chipsLabelKey = shared.length > 0 ? "intro.shared_signals_label" : "intro.their_signals_label";
+  const brief = person.personBrief
+    ? (lang === "zh-CN" ? person.personBrief.zh : person.personBrief.en)
+    : null;
+  const angleText = bestAngle ? (lang === "zh-CN" ? bestAngle.text_zh : bestAngle.text) : null;
+
   return (
     <div ref={rootRef} className="h-full px-8 py-10">
       <div className="mx-auto max-w-md">
-        {/* Header */}
-        <div className="flex items-start gap-4">
-          <img
-            src={avatarUrl(person.id)}
-            alt={loc.name}
-            className="w-16 h-16 rounded-full border border-border bg-secondary shrink-0"
-          />
+        {/* Header — clickable identity opens the public profile sheet */}
+        <button
+          type="button"
+          onClick={() => setProfileOpen(true)}
+          aria-label={t("intro.view_profile_of", { name: loc.name })}
+          className="group w-full flex items-start gap-4 text-left rounded-lg -mx-2 px-2 py-1 hover:bg-secondary/60 transition-colors"
+        >
+          <div className="relative shrink-0">
+            <img
+              src={avatarUrl(person.id)}
+              alt={loc.name}
+              className="w-16 h-16 rounded-full border border-border bg-secondary"
+            />
+            <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full border border-border bg-background grid place-items-center opacity-70 group-hover:opacity-100 transition-opacity">
+              <Eye className="w-3 h-3 text-muted-foreground" strokeWidth={1.75} />
+            </span>
+          </div>
           <div className="flex-1 min-w-0 pt-1">
             <div className="flex items-baseline gap-2 flex-wrap">
               <h2 className="text-[19px] font-semibold tracking-tight text-foreground">
@@ -238,8 +260,46 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
             <p className="mt-0.5 text-[12.5px] text-muted-foreground">
               {loc.occupation} · {loc.city}
             </p>
+            <span className="mt-1 inline-block text-[11px] text-muted-foreground/80 group-hover:text-foreground transition-colors underline underline-offset-2 decoration-dotted">
+              {t("intro.view_profile")}
+            </span>
           </div>
-        </div>
+        </button>
+
+        {/* Why I thought of you — match highlight */}
+        {(angleText || signalChips.length > 0 || brief) && (
+          <div className="mt-6 rounded-lg border border-border bg-card px-3.5 py-3">
+            <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
+              {t("intro.why_them_label")}
+            </div>
+            {signalChips.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2.5">
+                <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground/80 self-center mr-0.5">
+                  {t(chipsLabelKey)}
+                </span>
+                {signalChips.map((s) => (
+                  <span
+                    key={s}
+                    className="inline-flex items-center px-2 py-0.5 rounded-full border border-border bg-secondary text-[11px] text-foreground/85"
+                  >
+                    {t(`signal.${s}`, { defaultValue: s })}
+                  </span>
+                ))}
+              </div>
+            )}
+            {angleText && (
+              <p className="text-[13.5px] text-foreground leading-relaxed">
+                {angleText}
+              </p>
+            )}
+            {brief && (
+              <p className="mt-2 pt-2 border-t border-border text-[12.5px] text-muted-foreground leading-relaxed">
+                {brief}
+              </p>
+            )}
+          </div>
+        )}
+
 
         {/* Moments — clickable while composing to attach an optional quote */}
         <div className="mt-7 space-y-4">
@@ -466,6 +526,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
           )}
         </div>
       </div>
+      <PublicProfileSheet person={person} open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
   );
 }
