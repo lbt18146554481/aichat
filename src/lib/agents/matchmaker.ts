@@ -158,6 +158,61 @@ export function pickBestMoment(
   return best;
 }
 
+// ---- Suggestion chips (input-box prefill) --------------------------------
+// Context-aware one-tap phrases rendered above the left composer. They only
+// pre-fill the textarea — nothing is sent until the user presses enter.
+
+const SUGGEST = {
+  clarifying: {
+    en: [
+      "Someone quieter, who listens more than they perform.",
+      "Not someone too intense — I want easy company.",
+      "Someone who takes their own work seriously.",
+      "Roughly my rhythm — slow mornings, long walks.",
+    ],
+    zh: [
+      "想认识安静一点的、更爱听不爱表演的人。",
+      "不想要太用力的——想要松弛的相处。",
+      "希望对方认真对待自己在做的事。",
+      "节奏和我差不多——慢早晨、爱走路。",
+    ],
+  },
+  introducing: {
+    en: [
+      "Tell me more about them.",
+      "Show me someone with different energy.",
+      "Anyone more at ease than this?",
+      "One more like them, but a bit softer.",
+    ],
+    zh: [
+      "多说说 TA。",
+      "换一个感觉不一样的人。",
+      "有没有比 TA 更松弛一点的？",
+      "再来一个类似的，但稍微柔和些。",
+    ],
+  },
+  empty: {
+    en: [
+      "Let me loosen one of my conditions.",
+      "Try a quality I haven't mentioned yet.",
+      "I'll come back later — hold my place.",
+    ],
+    zh: [
+      "放宽我之前提过的一个条件。",
+      "换一个我还没提过的特质。",
+      "我先想想，稍后再回来。",
+    ],
+  },
+};
+
+export function suggestChips(state: MatchmakerState, lang: "en" | "zh-CN"): string[] {
+  const zh = lang === "zh-CN";
+  if (state.phase === "clarifying") return zh ? SUGGEST.clarifying.zh : SUGGEST.clarifying.en;
+  // Introducing phase — check if pool is exhausted (no currentPerson signals nothing left).
+  if (!state.currentPersonId) return zh ? SUGGEST.empty.zh : SUGGEST.empty.en;
+  return zh ? SUGGEST.introducing.zh : SUGGEST.introducing.en;
+}
+
 function reflectionAffinity(p: Person, u: UserUnderstanding): number {
   if (p.reflections.length === 0) return 0;
   const userText = u.notes.join(" ");
