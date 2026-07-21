@@ -44,7 +44,7 @@ function clearDraft(personId: string) {
   try { window.sessionStorage.removeItem(draftKey(personId)); } catch { /* noop */ }
 }
 
-export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
+export function IntroCanvas({ state, sessionId, onAnotherPerson }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
