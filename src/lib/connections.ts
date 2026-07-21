@@ -85,7 +85,11 @@ export function get(personId: string): Connection | null {
 
 // ---- Outgoing: I say hello ----------------------------------------------
 
-export function sayHello(personId: string, fromMe: HelloFromMe): Connection {
+export function sayHello(
+  personId: string,
+  fromMe: HelloFromMe,
+  originSessionId?: string,
+): Connection {
   const state = read();
   const existing = state[personId];
   // Allow re-hello after a faded outcome — the plan explicitly keeps the
@@ -97,6 +101,7 @@ export function sayHello(personId: string, fromMe: HelloFromMe): Connection {
     status: "sent",
     initiatedBy: "me",
     helloAt: Date.now(),
+    originSessionId,
     fromMe,
     messages: [],
   };
