@@ -8,6 +8,7 @@ import { getPersonById, PEOPLE } from "../people";
 import { getQuestionById } from "../questions";
 import type { Person, Reflection } from "../types";
 import { loadProfile } from "../profile";
+import { get as getConnection } from "../connections";
 import {
   digest,
   loadUnderstanding,
