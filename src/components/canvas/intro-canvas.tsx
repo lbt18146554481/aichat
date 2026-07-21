@@ -151,6 +151,8 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
       void navigate({ to: "/profile" });
       return;
     }
+    const el = getScrollParent();
+    if (el) savedScrollRef.current = { el, top: el.scrollTop };
     setComposing(true);
   }
 
@@ -160,6 +162,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     setDraftPicked(null);
     setDraftReply("");
     clearDraft(person!.id);
+    savedScrollRef.current = null;
   }
 
   function handleCancel() {
@@ -167,7 +170,18 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     setDraftPicked(null);
     setDraftReply("");
     clearDraft(person!.id);
+    const snap = savedScrollRef.current;
+    savedScrollRef.current = null;
+    if (snap) {
+      // Restore after the layout settles from leaving composing mode.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          snap.el.scrollTo({ top: snap.top });
+        });
+      });
+    }
   }
+
 
   return (
     <div className="h-full px-8 py-10">
