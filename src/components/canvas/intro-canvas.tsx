@@ -5,7 +5,7 @@ import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
 import type { MatchmakerState } from "@/lib/agents/matchmaker";
-import { get, sayHello, subscribe, undoFadedFor, type Connection } from "@/lib/connections";
+import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
 import { hasName, isVitalsComplete, loadProfile } from "@/lib/profile";
 import {
@@ -244,23 +244,19 @@ export function IntroCanvas({ state, sessionId, onAnotherPerson }: Props) {
         <div className="mt-7 pt-5 border-t border-border">
           {!conn && !composing && (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={requestSayHello}
                   disabled={moments.length === 0}
-                  className="px-4 py-2.5 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
+                  className="flex-1 sm:flex-none px-4 py-2.5 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
                 >
                   {t("connection.say_hello")}
                 </button>
                 <button
                   onClick={() => {
                     if (!person) return;
-                    if (saved) {
-                      removeSavedPerson(person.id);
-                    } else {
-                      savePerson(person.id, sessionId);
-                      onAnotherPerson();
-                    }
+                    if (saved) removeSavedPerson(person.id);
+                    else savePerson(person.id, sessionId);
                   }}
                   aria-pressed={saved}
                   className={[
@@ -282,20 +278,19 @@ export function IntroCanvas({ state, sessionId, onAnotherPerson }: Props) {
                     </>
                   )}
                 </button>
-              </div>
-              <p className="text-[11.5px] text-muted-foreground leading-snug">
-                {saved ? t("connection.save_hint_saved") : t("connection.save_hint")}
-              </p>
-              <div className="pt-1">
                 <button
                   onClick={onAnotherPerson}
-                  className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+                  className="px-3 py-2.5 rounded-md text-[13px] text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {t("intro.see_someone_else")}
                 </button>
               </div>
+              <p className="text-[11.5px] text-muted-foreground leading-snug">
+                {saved ? t("connection.save_hint_saved") : t("connection.save_hint")}
+              </p>
             </div>
           )}
+
 
 
           {!conn && composing && (
@@ -363,24 +358,13 @@ export function IntroCanvas({ state, sessionId, onAnotherPerson }: Props) {
           )}
 
           {conn?.status === "faded" && (
-            <div className="space-y-3">
-              <p className="text-[12.5px] text-muted-foreground leading-relaxed">
-                {t("hello.faded_hint")}
-              </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  onClick={onAnotherPerson}
-                  className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
-                >
-                  {t("intro.next_person_after")}
-                </button>
-                <button
-                  onClick={() => { undoFadedFor(person!.id); setComposing(true); }}
-                  className="px-3 py-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {t("intro.hello_again")}
-                </button>
-              </div>
+            <div>
+              <button
+                onClick={onAnotherPerson}
+                className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
+              >
+                {t("intro.see_someone_else")}
+              </button>
             </div>
           )}
         </div>
