@@ -417,6 +417,8 @@
     "open_person": "Open",
     "section_people": "People",
     "section_wishes": "Wishes",
+    "people_empty": "Nothing saved yet from introductions.",
+    "wishes_empty": "No wishes kept for later.",
     "remove": "Remove"
   }
 }
