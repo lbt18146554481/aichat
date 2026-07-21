@@ -115,6 +115,24 @@ export function Workspace({
                   />
                 </div>
               )}
+              {!activeChips && suggestions && suggestions.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      disabled={thinking || composerDisabled}
+                      onClick={() => {
+                        setInput(s);
+                        inputRef.current?.focus();
+                      }}
+                      className="px-2.5 py-1 rounded-full border border-border bg-card text-[11.5px] text-muted-foreground hover:border-foreground/40 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
               <Composer
                 ref={inputRef}
                 value={input}
