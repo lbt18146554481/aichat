@@ -111,6 +111,7 @@ function MatchmakerPage() {
       thinking={thinking}
       onSend={send}
       onReset={handleReset}
+      suggestions={suggestChips(state, lang)}
       rightPane={
         <IntroCanvas
           state={state}
