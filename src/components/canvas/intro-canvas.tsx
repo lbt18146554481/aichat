@@ -19,9 +19,12 @@ import { BookmarkPlus, BookmarkCheck } from "lucide-react";
 interface Props {
   state: MatchmakerState;
   sessionId: string;
-  onAnotherPerson: () => void;
-  /** Kept for back-compat; unused by the new Save-first flow. */
-  onPass?: () => void;
+  /** Mark current person as passed and advance. Used for the neutral browse
+   *  action before any hello has been sent. */
+  onPassAndNext: () => void;
+  /** Advance to the next person WITHOUT marking current as passed. Used
+   *  after Say hello / connected / faded — the user isn't rejecting them. */
+  onSeeNextPerson: () => void;
 }
 
 // Per-person composer draft — survives a jump to /profile and back so the
@@ -44,7 +47,7 @@ function clearDraft(personId: string) {
   try { window.sessionStorage.removeItem(draftKey(personId)); } catch { /* noop */ }
 }
 
-export function IntroCanvas({ state, sessionId, onAnotherPerson }: Props) {
+export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
