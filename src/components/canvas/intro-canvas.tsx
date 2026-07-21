@@ -226,7 +226,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   const angleText = bestAngle ? (lang === "zh-CN" ? bestAngle.text_zh : bestAngle.text) : null;
   const bestMoment = pickBestMoment(person, state.understanding);
 
-  function renderMoment(m: NonNullable<typeof bestMoment>, opts: { clickable: boolean }) {
+  function renderMoment(m: NonNullable<typeof bestMoment>, opts: { clickable: boolean; mode: "select" | "quoteAndCompose" }) {
     const prompt = getMomentPromptById(m.promptId);
     const active = composing && draftPicked === m.id;
     const content = (
@@ -246,7 +246,13 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
         <button
           key={m.id}
           type="button"
-          onClick={() => setDraftPicked(active ? null : m.id)}
+          onClick={() => {
+            if (opts.mode === "quoteAndCompose") {
+              requestSayHello({ pickedMomentId: m.id });
+            } else {
+              setDraftPicked(active ? null : m.id);
+            }
+          }}
           className={[
             "block w-full text-left border-l-2 pl-3 transition-colors",
             active ? "border-foreground" : "border-border hover:border-foreground/50",
