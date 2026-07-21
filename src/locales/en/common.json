@@ -96,7 +96,8 @@
     "next_person_after": "See someone else",
     "check_progress": "Check progress",
     "hello_again": "Say it another way",
-    "while_you_chat": "See someone else"
+    "while_you_chat": "See someone else",
+    "see_someone_else": "See someone else →"
   },
   "moment": {
     "about_them": "Three small things about {{name}}",
