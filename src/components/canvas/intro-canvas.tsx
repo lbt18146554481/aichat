@@ -60,6 +60,21 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   const [draftReply, setDraftReply] = useState("");
   const [saved, setSaved] = useState<boolean>(() => (person ? isPersonSaved(person.id) : false));
   const restoredRef = useRef<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  // Scroll position on the right-pane scroll container, captured when
+  // entering the composer so "← Back" restores exactly where the user was.
+  const savedScrollRef = useRef<{ el: HTMLElement; top: number } | null>(null);
+
+  function getScrollParent(): HTMLElement | null {
+    let el: HTMLElement | null = rootRef.current?.parentElement ?? null;
+    while (el) {
+      const style = window.getComputedStyle(el);
+      if (/(auto|scroll)/.test(style.overflowY)) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+
 
   // Track saved state for the current person; auto-remove once a real
   // connection begins — Save is a pre-decision holding pattern only.
