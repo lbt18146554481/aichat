@@ -259,6 +259,13 @@ export function actAnotherPerson(s: MatchmakerState, lang: "en" | "zh-CN") {
   return userTurn(s, lang === "zh-CN" ? "换一个吧。" : "Show me someone else.", lang);
 }
 
+// See the next candidate WITHOUT marking the current one as passed. Used
+// after Say hello / when in a live connection — the user isn't rejecting
+// this person, they just want to keep browsing.
+export function seeNextPerson(state: MatchmakerState, lang: "en" | "zh-CN"): MatchmakerState {
+  return introduce(state, lang);
+}
+
 // Focus a specific person as the current intro (used when the user comes
 // back from Connections' "waiting" list). Non-mutating on the passed state
 // aside from currentPersonId / shownIds bookkeeping.
