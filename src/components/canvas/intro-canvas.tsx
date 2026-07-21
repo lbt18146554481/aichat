@@ -65,6 +65,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   const [draftPicked, setDraftPicked] = useState<string | null>(null);
   const [draftReply, setDraftReply] = useState("");
   const [saved, setSaved] = useState<boolean>(() => (person ? isPersonSaved(person.id) : false));
+  const [profileOpen, setProfileOpen] = useState(false);
   const restoredRef = useRef<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   // Scroll position on the right-pane scroll container, captured when
