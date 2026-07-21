@@ -60,6 +60,21 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   const [draftReply, setDraftReply] = useState("");
   const [saved, setSaved] = useState<boolean>(() => (person ? isPersonSaved(person.id) : false));
   const restoredRef = useRef<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  // Scroll position on the right-pane scroll container, captured when
+  // entering the composer so "← Back" restores exactly where the user was.
+  const savedScrollRef = useRef<{ el: HTMLElement; top: number } | null>(null);
+
+  function getScrollParent(): HTMLElement | null {
+    let el: HTMLElement | null = rootRef.current?.parentElement ?? null;
+    while (el) {
+      const style = window.getComputedStyle(el);
+      if (/(auto|scroll)/.test(style.overflowY)) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+
 
   // Track saved state for the current person; auto-remove once a real
   // connection begins — Save is a pre-decision holding pattern only.
@@ -136,6 +151,8 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
       void navigate({ to: "/profile" });
       return;
     }
+    const el = getScrollParent();
+    if (el) savedScrollRef.current = { el, top: el.scrollTop };
     setComposing(true);
   }
 
@@ -145,6 +162,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     setDraftPicked(null);
     setDraftReply("");
     clearDraft(person!.id);
+    savedScrollRef.current = null;
   }
 
   function handleCancel() {
@@ -152,10 +170,21 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     setDraftPicked(null);
     setDraftReply("");
     clearDraft(person!.id);
+    const snap = savedScrollRef.current;
+    savedScrollRef.current = null;
+    if (snap) {
+      // Restore after the layout settles from leaving composing mode.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          snap.el.scrollTo({ top: snap.top });
+        });
+      });
+    }
   }
 
+
   return (
-    <div className="h-full px-8 py-10">
+    <div ref={rootRef} className="h-full px-8 py-10">
       <div className="mx-auto max-w-md">
         {/* Header */}
         <div className="flex items-start gap-4">
