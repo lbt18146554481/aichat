@@ -526,6 +526,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
           )}
         </div>
       </div>
+      <PublicProfileSheet person={person} open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
   );
 }
