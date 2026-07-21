@@ -110,7 +110,8 @@
     "public_profile_title": "公开资料",
     "about_them": "关于 TA",
     "signals_label": "关键词",
-    "what_they_do": "TA 平时在做的"
+    "what_they_do": "TA 平时在做的",
+    "one_work_opener": "关于那{{kind}}——《{{title}}》，是什么打动了你？"
   },
   "moment": {
     "about_them": "TA 是这样说的",

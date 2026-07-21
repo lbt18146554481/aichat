@@ -110,7 +110,8 @@
     "public_profile_title": "Public profile",
     "about_them": "About them",
     "signals_label": "Signals",
-    "what_they_do": "What they do"
+    "what_they_do": "What they do",
+    "one_work_opener": "About that {{kind}} — {{title}}. What drew you in?"
   },
   "moment": {
     "about_them": "In their own words",
