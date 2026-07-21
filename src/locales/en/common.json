@@ -410,10 +410,13 @@
     "header": "Saved · {{count}}",
     "header_aria": "Open saved list",
     "title": "Saved for later",
-    "subtitle": "People you parked while looking. They stay here across wishes until you start chatting or remove them.",
+    "subtitle": "People and wishes you parked. They stay here until you take action or remove them.",
     "empty": "Nothing saved yet.",
     "from_wish": "From",
     "start_chat": "Start chatting",
+    "open_person": "Open",
+    "section_people": "People",
+    "section_wishes": "Wishes",
     "remove": "Remove"
   }
 }
