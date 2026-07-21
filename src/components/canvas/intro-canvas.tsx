@@ -427,9 +427,6 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
                   {t("intro.check_progress")}
                 </Link>
               </div>
-              <p className="text-[11.5px] text-muted-foreground leading-snug">
-                {t("intro.after_hello_hint")}
-              </p>
             </div>
           )}
 
