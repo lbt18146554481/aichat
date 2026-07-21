@@ -55,7 +55,23 @@ export function IntroCanvas({ state, sessionId, onAnotherPerson }: Props) {
   const [composing, setComposing] = useState(false);
   const [draftPicked, setDraftPicked] = useState<string | null>(null);
   const [draftReply, setDraftReply] = useState("");
+  const [saved, setSaved] = useState<boolean>(() => (person ? isPersonSaved(person.id) : false));
   const restoredRef = useRef<string | null>(null);
+
+  // Track saved state for the current person; auto-remove once a real
+  // connection begins — Save is a pre-decision holding pattern only.
+  useEffect(() => {
+    if (!person) { setSaved(false); return; }
+    const check = () => setSaved(isPersonSaved(person.id));
+    check();
+    return subscribeSavedPeople(check);
+  }, [person?.id]);
+
+  useEffect(() => {
+    if (person && conn && conn.status !== "faded" && isPersonSaved(person.id)) {
+      removeSavedPerson(person.id);
+    }
+  }, [person?.id, conn?.status]);
 
   useEffect(() => {
     setConn(person ? get(person.id) : null);
