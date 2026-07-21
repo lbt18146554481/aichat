@@ -47,6 +47,10 @@ function clearDraft(personId: string) {
   try { window.sessionStorage.removeItem(draftKey(personId)); } catch { /* noop */ }
 }
 
+// Per-person scroll position on the right-pane scroller — persists across a
+// jump to /connections so "back to intro" lands where the user left off.
+const scrollKey = (personId: string) => `kindred:intro:scroll:${personId}`;
+
 export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
