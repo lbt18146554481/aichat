@@ -5,6 +5,7 @@ import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
 import type { MatchmakerState } from "@/lib/agents/matchmaker";
+import { pickBestAngle, sharedSignals } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
 import { hasName, isVitalsComplete, loadProfile } from "@/lib/profile";
@@ -14,7 +15,8 @@ import {
   savePerson,
   subscribeSavedPeople,
 } from "@/lib/saved-people";
-import { BookmarkPlus, BookmarkCheck } from "lucide-react";
+import { PublicProfileSheet } from "@/components/public-profile-sheet";
+import { BookmarkPlus, BookmarkCheck, Eye } from "lucide-react";
 
 interface Props {
   state: MatchmakerState;
