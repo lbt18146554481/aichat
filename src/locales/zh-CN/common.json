@@ -71,7 +71,9 @@
       "desc": "告诉 Agent 你常做什么——网球、跑步、攀岩、周六的书店。每周一次，它会提议一次真实的见面。双方同意才成立，任一方拒绝，对方永远不会知道。"
     }
   },
-  "nav": { "home": "返回首页" },
+  "nav": {
+    "home": "返回首页"
+  },
   "header": {
     "reset": "+ 新一件事",
     "subtitle": "AI Agent",
@@ -90,14 +92,22 @@
     "empty_hint": "不是列表——一次一个人，带着理由。在左边告诉我你想找的人。",
     "another_person": "换一个人",
     "one_work_label": "TA 在意的一件{{kind}}",
-    
     "next_person_after": "看下一个人",
     "check_progress": "去看进展",
     "hello_again": "换个方式再说一次",
     "while_you_chat": "继续看下一个",
     "see_someone_else": "看下一个人 →",
     "back_to_actions": "← 返回",
-    "faded_note": "这次没有回音。这很正常——我不会再把 TA 推给你。"
+    "faded_note": "这次没有回音。这很正常——我不会再把 TA 推给你。",
+    "why_them_label": "我为什么想到 TA",
+    "shared_signals_label": "共同点",
+    "their_signals_label": "TA 的关键词",
+    "view_profile": "查看完整资料",
+    "view_profile_of": "查看 {{name}} 的资料",
+    "public_profile_title": "公开资料",
+    "about_them": "关于 TA",
+    "signals_label": "关键词",
+    "what_they_do": "TA 平时在做的"
   },
   "moment": {
     "about_them": "关于 {{name}} 的三件小事",
@@ -168,9 +178,6 @@
     "replied": "{{name}} 回你了",
     "new_hello": "{{name}} 想认识你"
   },
-
-
-
   "meet": {
     "opening": "这周想做点什么，又想找个人一起？用自己的话跟我说就行——池子里如果有人也在等这件事，我就把你们对上。",
     "empty_title": "双向匹配，一次一个。",
@@ -181,8 +188,17 @@
     "fallback_intro": "我目前只在这几件事上认识人。挑一个，我接着找。",
     "ask_when": "{{kind}}大概什么时候方便？",
     "ask_level": "{{kind}}大概什么水平？",
-    "when": { "weekend": "这个周末", "weeknight": "工作日晚上", "any": "都行" },
-    "level": { "beginner": "新手", "intermediate": "会一点", "advanced": "打得不错", "any": "无所谓" }
+    "when": {
+      "weekend": "这个周末",
+      "weeknight": "工作日晚上",
+      "any": "都行"
+    },
+    "level": {
+      "beginner": "新手",
+      "intermediate": "会一点",
+      "advanced": "打得不错",
+      "any": "无所谓"
+    }
   },
   "intent": {
     "match_label": "两边都发布了——这就是匹配",
@@ -239,7 +255,6 @@
     "city_override_badge": "本次",
     "edit_apply": "保存并重新匹配",
     "edited_user_msg": "改了下心愿 → {{changes}}",
-    
     "pool_empty_hint": "池子里暂时没有别的人了",
     "next_match": "看下一个",
     "revoke_reshare": "撤回，重发一条",
@@ -253,7 +268,6 @@
     "saved_count": "已收藏 {{count}}",
     "saved_open": "打开收藏",
     "saved_pill_empty": "还没收藏",
-
     "saved_title": "先收藏",
     "saved_hint": "这条心愿里你先存起来的人。开始聊天或撤回后会清空。",
     "saved_empty": "还没有收藏的人。",
@@ -262,7 +276,6 @@
     "narrate_pool_exhausted": "这是最后一位。要不要放宽条件，或者换件别的事？",
     "narrate_saved": "已收藏。顶部「收藏」里随时找得到 TA。",
     "narrate_unsaved": "已从收藏移出。",
-
     "narrate_revoked": "好，这条撤了。你想做点别的？",
     "chip_about_person": "TA 是什么样的人",
     "chip_ask_opener": "帮我想句开场白",
@@ -286,28 +299,52 @@
     "left_placeholder_match": "问我关于 TA 的事，或者说想换个人…",
     "left_placeholder_chat": "问我怎么回，或者让我想句话…"
   },
-
   "activity": {
     "kind": {
-      "tennis": "网球", "run": "跑步", "climb": "攀岩",
-      "cook": "做饭", "exhibition": "看展", "bookstore": "逛书店",
+      "tennis": "网球",
+      "run": "跑步",
+      "climb": "攀岩",
+      "cook": "做饭",
+      "exhibition": "看展",
+      "bookstore": "逛书店",
       "other": "这件事"
     },
-    "level": { "beginner": "新手", "intermediate": "中级", "advanced": "进阶" },
+    "level": {
+      "beginner": "新手",
+      "intermediate": "中级",
+      "advanced": "进阶"
+    },
     "day": {
-      "mon": "周一", "tue": "周二", "wed": "周三",
-      "thu": "周四", "fri": "周五", "sat": "周六", "sun": "周日"
+      "mon": "周一",
+      "tue": "周二",
+      "wed": "周三",
+      "thu": "周四",
+      "fri": "周五",
+      "sat": "周六",
+      "sun": "周日"
     },
     "day_short": {
-      "mon": "一", "tue": "二", "wed": "三",
-      "thu": "四", "fri": "五", "sat": "六", "sun": "日"
+      "mon": "一",
+      "tue": "二",
+      "wed": "三",
+      "thu": "四",
+      "fri": "五",
+      "sat": "六",
+      "sun": "日"
     },
-    "window": { "morning": "早上", "midday": "中午", "evening": "傍晚" }
+    "window": {
+      "morning": "早上",
+      "midday": "中午",
+      "evening": "傍晚"
+    }
   },
   "understanding": {
     "title": "我对你了解到的",
     "empty": "随便聊几句，我会在这里记下来。",
-    "wants": "想要", "avoids": "避免", "notes": "你的原话", "remove": "移除"
+    "wants": "想要",
+    "avoids": "避免",
+    "notes": "你的原话",
+    "remove": "移除"
   },
   "profile": {
     "gate": {
@@ -376,8 +413,12 @@
       "work_why_placeholder": "一句话。不是书评。"
     },
     "kind": {
-      "book": "书", "film": "电影", "music": "音乐",
-      "exhibition": "展览", "food": "食物", "other": "其他"
+      "book": "书",
+      "film": "电影",
+      "music": "音乐",
+      "exhibition": "展览",
+      "food": "食物",
+      "other": "其他"
     },
     "moment": {
       "placeholder": "点这里开始写……",
@@ -391,17 +432,38 @@
     "autosaved_status": "已自动保存 · 随时可离开",
     "preview_label": "别人看到的你",
     "preview_hint": "这正是 Matchmaker 引荐给你的人，在右侧画面上会看到的样子。"
-
   },
-  "lang": { "label": "语言", "en": "English", "zh-CN": "中文" },
-  "notfound": { "title": "页面未找到", "body": "这里没有这一页。", "home": "返回" },
+  "lang": {
+    "label": "语言",
+    "en": "English",
+    "zh-CN": "中文"
+  },
+  "notfound": {
+    "title": "页面未找到",
+    "body": "这里没有这一页。",
+    "home": "返回"
+  },
   "signal": {
-    "reading": "读书", "music": "音乐", "film": "电影", "art": "艺术",
-    "writing": "写作", "travel": "旅行", "outdoors": "户外",
-    "cooking": "做饭", "coffee": "咖啡", "quiet": "安静的夜晚",
-    "curious": "好奇心", "funny": "幽默", "kind": "善良",
-    "brave": "诚实", "ambitious": "有野心", "city": "城市生活",
-    "animals": "动物", "rain": "下雨天", "morning": "清晨", "night": "深夜"
+    "reading": "读书",
+    "music": "音乐",
+    "film": "电影",
+    "art": "艺术",
+    "writing": "写作",
+    "travel": "旅行",
+    "outdoors": "户外",
+    "cooking": "做饭",
+    "coffee": "咖啡",
+    "quiet": "安静的夜晚",
+    "curious": "好奇心",
+    "funny": "幽默",
+    "kind": "善良",
+    "brave": "诚实",
+    "ambitious": "有野心",
+    "city": "城市生活",
+    "animals": "动物",
+    "rain": "下雨天",
+    "morning": "清晨",
+    "night": "深夜"
   },
   "saved": {
     "header": "收藏 · {{count}}",

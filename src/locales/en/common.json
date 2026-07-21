@@ -92,14 +92,22 @@
     "empty_hint": "Not a list — one person at a time, with a reason. Tell me what you're looking for on the left.",
     "another_person": "Someone else",
     "one_work_label": "One {{kind}} that matters to them",
-    
     "next_person_after": "See someone else",
     "check_progress": "Check progress",
     "hello_again": "Say it another way",
     "while_you_chat": "See someone else",
     "see_someone_else": "See someone else →",
     "back_to_actions": "← Back",
-    "faded_note": "This one didn't land. It happens — I won't recommend them again."
+    "faded_note": "This one didn't land. It happens — I won't recommend them again.",
+    "why_them_label": "Why I thought of you",
+    "shared_signals_label": "SHARED",
+    "their_signals_label": "THEIR SIGNALS",
+    "view_profile": "View full profile",
+    "view_profile_of": "View {{name}}'s profile",
+    "public_profile_title": "Public profile",
+    "about_them": "About them",
+    "signals_label": "Signals",
+    "what_they_do": "What they do"
   },
   "moment": {
     "about_them": "Three small things about {{name}}",
@@ -170,9 +178,6 @@
     "replied": "{{name}} wrote back",
     "new_hello": "{{name}} said hello"
   },
-
-
-
   "meet": {
     "opening": "What do you want to do this week — and want company for? Just say it in your own words. If someone in the pool is waiting on the same thing, I'll match you two.",
     "empty_title": "Two-way match, one person at a time.",
@@ -183,8 +188,17 @@
     "fallback_intro": "I only know people around a few things. Pick one and I'll keep going.",
     "ask_when": "When roughly for {{kind}}?",
     "ask_level": "About what level of {{kind}}?",
-    "when": { "weekend": "This weekend", "weeknight": "A weeknight", "any": "I'm flexible" },
-    "level": { "beginner": "Beginner", "intermediate": "Casual", "advanced": "Pretty serious", "any": "Doesn't matter" }
+    "when": {
+      "weekend": "This weekend",
+      "weeknight": "A weeknight",
+      "any": "I'm flexible"
+    },
+    "level": {
+      "beginner": "Beginner",
+      "intermediate": "Casual",
+      "advanced": "Pretty serious",
+      "any": "Doesn't matter"
+    }
   },
   "intent": {
     "match_label": "Both sides published — this is the match",
@@ -241,7 +255,6 @@
     "city_override_badge": "this wish",
     "edit_apply": "Save & rematch",
     "edited_user_msg": "Edited my wish → {{changes}}",
-    
     "pool_empty_hint": "No one else in the pool right now",
     "next_match": "See next",
     "revoke_reshare": "Withdraw & rewrite",
@@ -255,7 +268,6 @@
     "saved_count": "{{count}} saved",
     "saved_open": "Open saved list",
     "saved_pill_empty": "Nothing saved",
-
     "saved_title": "Saved for later",
     "saved_hint": "People you parked from this wish. They stay here until you chat or start over.",
     "saved_empty": "Nothing saved yet.",
@@ -264,7 +276,6 @@
     "narrate_pool_exhausted": "That was the last person matching this wish. Want to loosen it, or say something else?",
     "narrate_saved": "Bookmarked. You'll find TA under Saved in the top bar whenever you want to come back.",
     "narrate_unsaved": "Removed from saved.",
-
     "narrate_revoked": "Withdrawn. What would you rather do?",
     "chip_about_person": "Who is TA",
     "chip_ask_opener": "Draft me an opener",
@@ -288,23 +299,44 @@
     "left_placeholder_match": "Ask me about TA, or say you want someone different…",
     "left_placeholder_chat": "Ask me what to say, or draft a line…"
   },
-
   "activity": {
     "kind": {
-      "tennis": "Tennis", "run": "Running", "climb": "Climbing",
-      "cook": "Cooking", "exhibition": "Exhibitions", "bookstore": "Bookstores",
+      "tennis": "Tennis",
+      "run": "Running",
+      "climb": "Climbing",
+      "cook": "Cooking",
+      "exhibition": "Exhibitions",
+      "bookstore": "Bookstores",
       "other": "this"
     },
-    "level": { "beginner": "Beginner", "intermediate": "Intermediate", "advanced": "Advanced" },
+    "level": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced"
+    },
     "day": {
-      "mon": "Monday", "tue": "Tuesday", "wed": "Wednesday",
-      "thu": "Thursday", "fri": "Friday", "sat": "Saturday", "sun": "Sunday"
+      "mon": "Monday",
+      "tue": "Tuesday",
+      "wed": "Wednesday",
+      "thu": "Thursday",
+      "fri": "Friday",
+      "sat": "Saturday",
+      "sun": "Sunday"
     },
     "day_short": {
-      "mon": "Mon", "tue": "Tue", "wed": "Wed",
-      "thu": "Thu", "fri": "Fri", "sat": "Sat", "sun": "Sun"
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat",
+      "sun": "Sun"
     },
-    "window": { "morning": "Morning", "midday": "Midday", "evening": "Evening" }
+    "window": {
+      "morning": "Morning",
+      "midday": "Midday",
+      "evening": "Evening"
+    }
   },
   "understanding": {
     "title": "What I've learned about you",
@@ -381,8 +413,12 @@
       "work_why_placeholder": "One sentence. Not a review."
     },
     "kind": {
-      "book": "Book", "film": "Film", "music": "Music",
-      "exhibition": "Exhibition", "food": "Food", "other": "Other"
+      "book": "Book",
+      "film": "Film",
+      "music": "Music",
+      "exhibition": "Exhibition",
+      "food": "Food",
+      "other": "Other"
     },
     "moment": {
       "placeholder": "Tap to write…",
@@ -396,17 +432,37 @@
     "autosaved_status": "Autosaved · leave anytime",
     "preview_label": "How others see you",
     "preview_hint": "This is exactly what someone the Matchmaker introduces will see on the right pane."
-
   },
-  "lang": { "label": "Language", "en": "English", "zh-CN": "中文" },
-  "notfound": { "title": "Not found", "body": "That page isn't here.", "home": "Back" },
+  "lang": {
+    "label": "Language",
+    "en": "English",
+    "zh-CN": "中文"
+  },
+  "notfound": {
+    "title": "Not found",
+    "body": "That page isn't here.",
+    "home": "Back"
+  },
   "signal": {
-    "reading": "reading", "music": "music", "film": "film", "art": "art",
-    "writing": "writing", "travel": "travel", "outdoors": "the outdoors",
-    "cooking": "cooking", "coffee": "coffee", "quiet": "quiet evenings",
-    "curious": "curiosity", "funny": "humor", "kind": "kindness",
-    "brave": "honesty", "ambitious": "ambition", "city": "city life",
-    "animals": "animals", "rain": "rainy days", "morning": "early mornings",
+    "reading": "reading",
+    "music": "music",
+    "film": "film",
+    "art": "art",
+    "writing": "writing",
+    "travel": "travel",
+    "outdoors": "the outdoors",
+    "cooking": "cooking",
+    "coffee": "coffee",
+    "quiet": "quiet evenings",
+    "curious": "curiosity",
+    "funny": "humor",
+    "kind": "kindness",
+    "brave": "honesty",
+    "ambitious": "ambition",
+    "city": "city life",
+    "animals": "animals",
+    "rain": "rainy days",
+    "morning": "early mornings",
     "night": "late nights"
   },
   "saved": {
