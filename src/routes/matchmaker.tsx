@@ -112,8 +112,8 @@ function MatchmakerPage() {
       rightPane={
         <IntroCanvas
           state={state}
+          sessionId={sessionId}
           onAnotherPerson={() => trigger(actAnotherPerson)}
-          onPass={() => trigger(actAnotherPerson)}
         />
       }
     />

@@ -8,11 +8,20 @@ import type { MatchmakerState } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, undoFadedFor, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
 import { hasName, isVitalsComplete, loadProfile } from "@/lib/profile";
+import {
+  isPersonSaved,
+  removeSavedPerson,
+  savePerson,
+  subscribeSavedPeople,
+} from "@/lib/saved-people";
+import { BookmarkPlus, BookmarkCheck } from "lucide-react";
 
 interface Props {
   state: MatchmakerState;
+  sessionId: string;
   onAnotherPerson: () => void;
-  onPass: () => void;
+  /** Kept for back-compat; unused by the new Save-first flow. */
+  onPass?: () => void;
 }
 
 // Per-person composer draft — survives a jump to /profile and back so the
@@ -35,7 +44,7 @@ function clearDraft(personId: string) {
   try { window.sessionStorage.removeItem(draftKey(personId)); } catch { /* noop */ }
 }
 
-export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
+export function IntroCanvas({ state, sessionId, onAnotherPerson }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
@@ -46,7 +55,23 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
   const [composing, setComposing] = useState(false);
   const [draftPicked, setDraftPicked] = useState<string | null>(null);
   const [draftReply, setDraftReply] = useState("");
+  const [saved, setSaved] = useState<boolean>(() => (person ? isPersonSaved(person.id) : false));
   const restoredRef = useRef<string | null>(null);
+
+  // Track saved state for the current person; auto-remove once a real
+  // connection begins — Save is a pre-decision holding pattern only.
+  useEffect(() => {
+    if (!person) { setSaved(false); return; }
+    const check = () => setSaved(isPersonSaved(person.id));
+    check();
+    return subscribeSavedPeople(check);
+  }, [person?.id]);
+
+  useEffect(() => {
+    if (person && conn && conn.status !== "faded" && isPersonSaved(person.id)) {
+      removeSavedPerson(person.id);
+    }
+  }, [person?.id, conn?.status]);
 
   useEffect(() => {
     setConn(person ? get(person.id) : null);
@@ -214,40 +239,64 @@ export function IntroCanvas({ state, onAnotherPerson, onPass }: Props) {
           </div>
         )}
 
-        {/* Secondary */}
-        {!composing && !conn && (
-          <div className="mt-7 flex flex-wrap gap-2">
-            <button
-              onClick={onAnotherPerson}
-              className="px-3 py-1.5 rounded-md text-[12px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {t("intro.another_person")}
-            </button>
-          </div>
-        )}
-
-        {/* Primary closed-loop action */}
-        <div className="mt-5 pt-5 border-t border-border">
+        {/* Primary closed-loop actions — Say hello / Save side by side,
+            with a soft "see someone else" link below. */}
+        <div className="mt-7 pt-5 border-t border-border">
           {!conn && !composing && (
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={requestSayHello}
-                disabled={moments.length === 0}
-                className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
-              >
-                {t("connection.say_hello")}
-              </button>
-              <button
-                onClick={onPass}
-                className="px-3 py-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {t("connection.pass")}
-              </button>
-              <p className="basis-full text-[11.5px] text-muted-foreground leading-snug">
-                {t("connection.hello_hint")}
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={requestSayHello}
+                  disabled={moments.length === 0}
+                  className="px-4 py-2.5 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
+                >
+                  {t("connection.say_hello")}
+                </button>
+                <button
+                  onClick={() => {
+                    if (!person) return;
+                    if (saved) {
+                      removeSavedPerson(person.id);
+                    } else {
+                      savePerson(person.id, sessionId);
+                      onAnotherPerson();
+                    }
+                  }}
+                  aria-pressed={saved}
+                  className={[
+                    "inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-md border text-[13px] font-medium transition-colors",
+                    saved
+                      ? "border-foreground/70 bg-secondary text-foreground"
+                      : "border-border text-foreground/85 hover:bg-secondary",
+                  ].join(" ")}
+                >
+                  {saved ? (
+                    <>
+                      <BookmarkCheck className="w-3.5 h-3.5" strokeWidth={1.75} />
+                      {t("connection.saved")}
+                    </>
+                  ) : (
+                    <>
+                      <BookmarkPlus className="w-3.5 h-3.5" strokeWidth={1.75} />
+                      {t("connection.save")}
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="text-[11.5px] text-muted-foreground leading-snug">
+                {saved ? t("connection.save_hint_saved") : t("connection.save_hint")}
               </p>
+              <div className="pt-1">
+                <button
+                  onClick={onAnotherPerson}
+                  className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {t("intro.see_someone_else")}
+                </button>
+              </div>
             </div>
           )}
+
 
           {!conn && composing && (
             <HelloComposer

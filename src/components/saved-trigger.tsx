@@ -1,14 +1,16 @@
 // SavedTrigger — global header entry for "Saved for later".
 //
-// Mirrors HistoryTrigger visually. Reads from the cross-session saved store,
-// so the same list appears on the home page, inside any Side by Side wish,
-// or on any workspace page. Count-bearing only when there's at least one
-// saved candidate; a subtle dot indicates unopened growth.
+// Two sections in one drawer:
+//   · People — parked from Introduce someone (Matchmaker). Reopening jumps
+//     back to that person's matchmaker session and focuses their card so
+//     the user can Say hello.
+//   · Wishes — saved candidates from Side by Side.
+// Hidden entirely when both lists are empty.
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { Bookmark, BookmarkCheck, MessageCircle, X } from "lucide-react";
+import { Bookmark, BookmarkCheck, MessageCircle, UserRound, X } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -21,9 +23,16 @@ import {
   subscribeSaved,
   type SavedRecord,
 } from "@/lib/saved-intents";
+import {
+  listSavedPeople,
+  removeSavedPerson,
+  subscribeSavedPeople,
+  type SavedPersonRecord,
+} from "@/lib/saved-people";
 import { getIntentById, type Intent } from "@/lib/intents";
-import { avatarUrl, getPersonById } from "@/lib/people";
+import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import { getSession } from "@/lib/sessions";
+import { setFocusPerson } from "@/lib/seed";
 import type { Lang } from "@/lib/i18n";
 
 interface Props {
@@ -44,13 +53,28 @@ function useSavedList(): SavedRecord[] {
   }
 }
 
+function useSavedPeopleList(): SavedPersonRecord[] {
+  const snapshot = useSyncExternalStore(
+    subscribeSavedPeople,
+    () => JSON.stringify(listSavedPeople()),
+    () => "[]",
+  );
+  try {
+    const parsed = JSON.parse(snapshot) as SavedPersonRecord[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export function SavedTrigger({ variant = "default" }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const saved = useSavedList();
-  const count = saved.length;
+  const people = useSavedPeopleList();
+  const count = saved.length + people.length;
 
   if (count === 0) return null;
 
@@ -61,10 +85,18 @@ export function SavedTrigger({ variant = "default" }: Props) {
 
   function handleOpenChat(rec: SavedRecord) {
     setOpen(false);
-    // Deep-link to the wish's session with an intent to open TA chat directly.
     void navigate({
       to: "/side-by-side",
       search: { session: rec.sessionId, chatWith: rec.intentId } as any,
+    });
+  }
+
+  function handleOpenPerson(rec: SavedPersonRecord) {
+    setOpen(false);
+    setFocusPerson(rec.personId);
+    void navigate({
+      to: "/matchmaker",
+      search: { session: rec.sessionId } as any,
     });
   }
 
@@ -88,81 +120,145 @@ export function SavedTrigger({ variant = "default" }: Props) {
             {t("saved.subtitle")}
           </p>
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          {saved.length === 0 ? (
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+          {people.length > 0 && (
+            <section>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
+                {t("saved.section_people")} · {people.length}
+              </div>
+              <ul className="space-y-3">
+                {people.map((rec) => {
+                  const person = getPersonById(rec.personId);
+                  if (!person) return null;
+                  const loc = localized(person, lang);
+                  return (
+                    <li key={rec.personId} className="rounded-lg border border-border bg-card p-4">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={avatarUrl(person.id)}
+                          alt=""
+                          className="w-10 h-10 rounded-full border border-border"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[14px] font-medium text-foreground truncate">
+                            {loc.name}
+                            <span className="text-muted-foreground font-normal">, {person.age}</span>
+                          </div>
+                          <div className="text-[11.5px] text-muted-foreground truncate">
+                            {loc.occupation} · {loc.city}
+                          </div>
+                        </div>
+                      </div>
+                      {loc.portrait && (
+                        <p className="mt-2 text-[12.5px] text-foreground/85 leading-relaxed line-clamp-2">
+                          {loc.portrait}
+                        </p>
+                      )}
+                      <div className="mt-3 flex items-center gap-2">
+                        <button
+                          onClick={() => handleOpenPerson(rec)}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-foreground text-background text-[12.5px] font-medium hover:opacity-90 transition-opacity"
+                        >
+                          <UserRound className="w-3 h-3" />
+                          {t("saved.open_person")}
+                        </button>
+                        <button
+                          onClick={() => removeSavedPerson(rec.personId)}
+                          aria-label={t("saved.remove")}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-[12.5px] text-foreground/85 hover:bg-secondary transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                          {t("saved.remove")}
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
+          {saved.length > 0 && (
+            <section>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
+                {t("saved.section_wishes")} · {saved.length}
+              </div>
+              <ul className="space-y-3">
+                {saved.map((rec) => {
+                  const intent = getIntentById(rec.intentId) as Intent | null;
+                  if (!intent) return null;
+                  const person = getPersonById(intent.ownerId);
+                  const name = lang === "zh-CN" ? intent.ownerName_zh : intent.ownerName;
+                  const city = lang === "zh-CN" ? intent.ownerCity_zh : intent.ownerCity;
+                  const occ = person
+                    ? (lang === "zh-CN" ? person.occupation_zh : person.occupation)
+                    : "";
+                  const meta = [city, occ].filter((s) => s && s.trim()).join(" · ");
+                  const raw = lang === "zh-CN" ? intent.rawText_zh : intent.rawText;
+                  const session = getSession(rec.sessionId);
+                  const wishSummary = session?.seed ?? "";
+
+                  return (
+                    <li key={rec.intentId} className="rounded-lg border border-border bg-card p-4">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={avatarUrl(intent.ownerId)}
+                          alt=""
+                          className="w-10 h-10 rounded-full border border-border"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[14px] font-medium text-foreground truncate">
+                            {name}
+                            {person?.age ? (
+                              <span className="text-muted-foreground font-normal">
+                                , {person.age}
+                              </span>
+                            ) : null}
+                          </div>
+                          {meta && (
+                            <div className="text-[11.5px] text-muted-foreground truncate">
+                              {meta}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <p className="mt-2 text-[12.5px] text-foreground/85 leading-relaxed line-clamp-3">
+                        "{raw}"
+                      </p>
+                      {wishSummary && (
+                        <p className="mt-1.5 text-[11px] text-muted-foreground truncate">
+                          {t("saved.from_wish")}: {wishSummary}
+                        </p>
+                      )}
+                      <div className="mt-3 flex items-center gap-2">
+                        <button
+                          onClick={() => handleOpenChat(rec)}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-foreground text-background text-[12.5px] font-medium hover:opacity-90 transition-opacity"
+                        >
+                          <MessageCircle className="w-3 h-3" />
+                          {t("saved.start_chat")}
+                        </button>
+                        <button
+                          onClick={() => removeSaved(rec.intentId)}
+                          aria-label={t("saved.remove")}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-[12.5px] text-foreground/85 hover:bg-secondary transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                          {t("saved.remove")}
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
+          {count === 0 && (
             <div className="text-center py-10 text-muted-foreground">
               <Bookmark className="w-6 h-6 mx-auto mb-2 opacity-50" />
               <p className="text-[13px]">{t("saved.empty")}</p>
             </div>
-          ) : (
-            <ul className="space-y-3">
-              {saved.map((rec) => {
-                const intent = getIntentById(rec.intentId) as Intent | null;
-                if (!intent) return null;
-                const person = getPersonById(intent.ownerId);
-                const name = lang === "zh-CN" ? intent.ownerName_zh : intent.ownerName;
-                const city = lang === "zh-CN" ? intent.ownerCity_zh : intent.ownerCity;
-                const occ = person
-                  ? (lang === "zh-CN" ? person.occupation_zh : person.occupation)
-                  : "";
-                const meta = [city, occ].filter((s) => s && s.trim()).join(" · ");
-                const raw = lang === "zh-CN" ? intent.rawText_zh : intent.rawText;
-                const session = getSession(rec.sessionId);
-                const wishSummary = session?.seed ?? "";
-
-                return (
-                  <li key={rec.intentId} className="rounded-lg border border-border bg-card p-4">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={avatarUrl(intent.ownerId)}
-                        alt=""
-                        className="w-10 h-10 rounded-full border border-border"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[14px] font-medium text-foreground truncate">
-                          {name}
-                          {person?.age ? (
-                            <span className="text-muted-foreground font-normal">
-                              , {person.age}
-                            </span>
-                          ) : null}
-                        </div>
-                        {meta && (
-                          <div className="text-[11.5px] text-muted-foreground truncate">
-                            {meta}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <p className="mt-2 text-[12.5px] text-foreground/85 leading-relaxed line-clamp-3">
-                      "{raw}"
-                    </p>
-                    {wishSummary && (
-                      <p className="mt-1.5 text-[11px] text-muted-foreground truncate">
-                        {t("saved.from_wish")}: {wishSummary}
-                      </p>
-                    )}
-                    <div className="mt-3 flex items-center gap-2">
-                      <button
-                        onClick={() => handleOpenChat(rec)}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-foreground text-background text-[12.5px] font-medium hover:opacity-90 transition-opacity"
-                      >
-                        <MessageCircle className="w-3 h-3" />
-                        {t("saved.start_chat")}
-                      </button>
-                      <button
-                        onClick={() => removeSaved(rec.intentId)}
-                        aria-label={t("saved.remove")}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-[12.5px] text-foreground/85 hover:bg-secondary transition-colors"
-                      >
-                        <X className="w-3 h-3" />
-                        {t("saved.remove")}
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
           )}
         </div>
       </SheetContent>
@@ -187,4 +283,3 @@ export function useIsSaved(intentId: string | null | undefined): boolean {
   }, [intentId]);
   return flag;
 }
-

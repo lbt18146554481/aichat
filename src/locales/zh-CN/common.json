@@ -94,7 +94,8 @@
     "next_person_after": "看下一个人",
     "check_progress": "去看进展",
     "hello_again": "换个方式再说一次",
-    "while_you_chat": "继续看下一个"
+    "while_you_chat": "继续看下一个",
+    "see_someone_else": "看下一个人 →"
   },
   "moment": {
     "about_them": "关于 {{name}} 的三件小事",
@@ -119,6 +120,10 @@
     "title": "我的联系",
     "say_hello": "打个招呼",
     "pass": "跳过",
+    "save": "收藏",
+    "saved": "已收藏",
+    "save_hint": "先放着。之后可以在顶栏「已收藏」里找回 TA。",
+    "save_hint_saved": "已放入收藏。随时可以在顶栏「已收藏」里找回 TA。",
     "hello_hint": "TA 会看到你写的那一句和你挑的 TA 那一段。还看不到你的名字——只有 TA 回应之后才会显示。",
     "delivered": "已送达",
     "open_conversation": "进入对话",
@@ -399,10 +404,13 @@
     "header": "收藏 · {{count}}",
     "header_aria": "打开收藏",
     "title": "先收藏起来",
-    "subtitle": "你在挑人时先收藏起来的人。跨心愿保留，直到你开始聊 TA 或手动移出。",
+    "subtitle": "你先放着的人和心愿。留在这里，直到你采取下一步或手动移出。",
     "empty": "暂无收藏。",
     "from_wish": "来自",
     "start_chat": "开始聊",
+    "open_person": "打开",
+    "section_people": "人",
+    "section_wishes": "心愿",
     "remove": "移出"
   }
 }

@@ -96,7 +96,8 @@
     "next_person_after": "See someone else",
     "check_progress": "Check progress",
     "hello_again": "Say it another way",
-    "while_you_chat": "See someone else"
+    "while_you_chat": "See someone else",
+    "see_someone_else": "See someone else →"
   },
   "moment": {
     "about_them": "Three small things about {{name}}",
@@ -121,6 +122,10 @@
     "title": "Connections",
     "say_hello": "Say hello",
     "pass": "Pass",
+    "save": "Save",
+    "saved": "Saved",
+    "save_hint": "Keep them for later. Find them back under Saved in the top bar.",
+    "save_hint_saved": "Kept. You can find them under Saved in the top bar anytime.",
     "hello_hint": "They'll see what you wrote and the part of theirs you read. Not your name yet — that only unlocks if they reply.",
     "delivered": "Delivered",
     "open_conversation": "Open conversation",
@@ -405,10 +410,13 @@
     "header": "Saved · {{count}}",
     "header_aria": "Open saved list",
     "title": "Saved for later",
-    "subtitle": "People you parked while looking. They stay here across wishes until you start chatting or remove them.",
+    "subtitle": "People and wishes you parked. They stay here until you take action or remove them.",
     "empty": "Nothing saved yet.",
     "from_wish": "From",
     "start_chat": "Start chatting",
+    "open_person": "Open",
+    "section_people": "People",
+    "section_wishes": "Wishes",
     "remove": "Remove"
   }
 }
