@@ -358,24 +358,13 @@ export function IntroCanvas({ state, sessionId, onAnotherPerson }: Props) {
           )}
 
           {conn?.status === "faded" && (
-            <div className="space-y-3">
-              <p className="text-[12.5px] text-muted-foreground leading-relaxed">
-                {t("hello.faded_hint")}
-              </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  onClick={onAnotherPerson}
-                  className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
-                >
-                  {t("intro.next_person_after")}
-                </button>
-                <button
-                  onClick={() => { undoFadedFor(person!.id); setComposing(true); }}
-                  className="px-3 py-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {t("intro.hello_again")}
-                </button>
-              </div>
+            <div>
+              <button
+                onClick={onAnotherPerson}
+                className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
+              >
+                {t("intro.see_someone_else")}
+              </button>
             </div>
           )}
         </div>
