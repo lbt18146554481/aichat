@@ -121,12 +121,28 @@ export function SavedTrigger({ variant = "default" }: Props) {
             {t("saved.subtitle")}
           </p>
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
-          {people.length > 0 && (
-            <section>
-              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
+        <Tabs
+          defaultValue={people.length > 0 || saved.length === 0 ? "people" : "wishes"}
+          className="flex-1 flex flex-col min-h-0"
+        >
+          <div className="px-6 pt-3">
+            <TabsList className="w-full">
+              <TabsTrigger value="people" className="flex-1">
                 {t("saved.section_people")} · {people.length}
+              </TabsTrigger>
+              <TabsTrigger value="wishes" className="flex-1">
+                {t("saved.section_wishes")} · {saved.length}
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="people" className="flex-1 overflow-y-auto px-6 py-4 mt-0">
+            {people.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground">
+                <Bookmark className="w-6 h-6 mx-auto mb-2 opacity-50" />
+                <p className="text-[13px]">{t("saved.people_empty")}</p>
               </div>
+            ) : (
               <ul className="space-y-3">
                 {people.map((rec) => {
                   const person = getPersonById(rec.personId);
@@ -176,14 +192,16 @@ export function SavedTrigger({ variant = "default" }: Props) {
                   );
                 })}
               </ul>
-            </section>
-          )}
+            )}
+          </TabsContent>
 
-          {saved.length > 0 && (
-            <section>
-              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
-                {t("saved.section_wishes")} · {saved.length}
+          <TabsContent value="wishes" className="flex-1 overflow-y-auto px-6 py-4 mt-0">
+            {saved.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground">
+                <Bookmark className="w-6 h-6 mx-auto mb-2 opacity-50" />
+                <p className="text-[13px]">{t("saved.wishes_empty")}</p>
               </div>
+            ) : (
               <ul className="space-y-3">
                 {saved.map((rec) => {
                   const intent = getIntentById(rec.intentId) as Intent | null;
@@ -252,16 +270,10 @@ export function SavedTrigger({ variant = "default" }: Props) {
                   );
                 })}
               </ul>
-            </section>
-          )}
+            )}
+          </TabsContent>
+        </Tabs>
 
-          {count === 0 && (
-            <div className="text-center py-10 text-muted-foreground">
-              <Bookmark className="w-6 h-6 mx-auto mb-2 opacity-50" />
-              <p className="text-[13px]">{t("saved.empty")}</p>
-            </div>
-          )}
-        </div>
       </SheetContent>
     </Sheet>
   );
