@@ -250,8 +250,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={requestSayHello}
-                  disabled={moments.length === 0}
-                  className="flex-1 sm:flex-none px-4 py-2.5 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
+                  className="flex-1 sm:flex-none px-4 py-2.5 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
                 >
                   {t("connection.say_hello")}
                 </button>
@@ -282,33 +281,66 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
                   )}
                 </button>
                 <button
-                  onClick={onAnotherPerson}
+                  onClick={onPassAndNext}
                   className="px-3 py-2.5 rounded-md text-[13px] text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {t("intro.see_someone_else")}
                 </button>
               </div>
-              <p className="text-[11.5px] text-muted-foreground leading-snug">
-                {saved ? t("connection.save_hint_saved") : t("connection.save_hint")}
-              </p>
+              {saved ? (
+                <p className="text-[11.5px] text-muted-foreground leading-snug">
+                  {t("connection.save_hint_saved")}{" "}
+                  <button
+                    onClick={onPassAndNext}
+                    className="underline underline-offset-2 hover:text-foreground transition-colors"
+                  >
+                    {t("intro.see_someone_else")}
+                  </button>
+                </p>
+              ) : (
+                <p className="text-[11.5px] text-muted-foreground leading-snug">
+                  {t("connection.save_hint")}
+                </p>
+              )}
             </div>
           )}
 
-
-
           {!conn && composing && (
-            <HelloComposer
-              moments={moments}
-              lang={lang}
-              initialPicked={draftPicked}
-              initialReply={draftReply}
-              onDraftChange={(picked, reply) => {
-                setDraftPicked(picked);
-                setDraftReply(reply);
-              }}
-              onSubmit={handleHello}
-              onCancel={handleCancel}
-            />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {t("intro.back_to_actions")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!person) return;
+                    if (!saved) savePerson(person.id, sessionId);
+                    handleCancel();
+                  }}
+                  className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <BookmarkPlus className="w-3 h-3" strokeWidth={1.75} />
+                  {t("connection.save_and_later")}
+                </button>
+              </div>
+              <HelloComposer
+                moments={moments}
+                lang={lang}
+                initialPicked={draftPicked}
+                initialReply={draftReply}
+                onDraftChange={(picked, reply) => {
+                  setDraftPicked(picked);
+                  setDraftReply(reply);
+                }}
+                onSubmit={handleHello}
+                onCancel={handleCancel}
+              />
+            </div>
           )}
 
           {conn?.status === "sent" && (
@@ -320,7 +352,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
               {conn.fromMe && <YourHelloRecap fromMe={conn.fromMe} person={person} lang={lang} />}
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <button
-                  onClick={onAnotherPerson}
+                  onClick={onSeeNextPerson}
                   className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
                 >
                   {t("intro.next_person_after")}
@@ -350,7 +382,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
                   {t("connection.open_conversation")}
                 </Link>
                 <button
-                  onClick={onAnotherPerson}
+                  onClick={onSeeNextPerson}
                   className="px-3 py-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {t("intro.while_you_chat")}
@@ -361,9 +393,12 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
           )}
 
           {conn?.status === "faded" && (
-            <div>
+            <div className="space-y-2">
+              <p className="text-[12.5px] text-muted-foreground leading-snug">
+                {t("intro.faded_note")}
+              </p>
               <button
-                onClick={onAnotherPerson}
+                onClick={onSeeNextPerson}
                 className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
               >
                 {t("intro.see_someone_else")}
