@@ -1,110 +1,109 @@
 
-# Introduce Someone 详情页重构（v2）
+# Introduce Someone 详情右侧再精简 & 左侧 Agent 建议指令
 
-## 用户决策链——先想清楚，再决定展示什么
+## 一、先想清楚：One Work（One Film / Book / …）到底留不留
 
-用户站在这个页面时，只在做一件事：**「我要不要主动和 TA 说一句话？」**
+结论：**保留，但必须"挣得版面"——从展示物 → 会话钩子**。
 
-围绕这一个决定，反推信息优先级——每一块内容如果不能推动这个决策，就不该占版面：
+理由（站在用户"我要不要跟 TA 说一句话"的决策链上）：
+- Moments 是 TA 亲口写的"人格证据"；One Work 是 TA 亲口挑出的"品味证据"。两者是不同维度的开口话题——删了就少一根开场白钩子，而这个产品的核心动作就是"打招呼"。
+- 但**当前的呈现方式没有下一步动作**：用户看完 title + why 后不知道能做什么，所以觉得"莫名其妙"。问题不在内容本身，在于它没有绑定动作。
+- 解决方案：压缩成 1 行 + 绑一个动作 —— **点击 = 以这件事为切入点打招呼**（把 title/why 作为草稿注入 composer）。这样它就从"资料条目"变成"最短路径的开场白"。
+- 如果 `person.oneWork` 缺失，整块直接隐藏（不留空占位）。
 
-| 决策问题 | 用户想看到的 | 判断 |
-|---|---|---|
-| TA 是谁？ | 头像 + 姓名 + 年龄 + 职业 + 城市 | 保留 |
-| TA 大致是怎样的人？ | 一句话画像（portrait） | **新增**，从头像身份区里带出 |
-| TA 有哪些具体特质？ | 3-5 个 signal 标签 | 保留但简化 |
-| Agent 为什么推荐 TA？ | 一句话的推荐理由 | 保留，但**降格为脚注引用** |
-| TA 亲口说过什么？ | 1 条最能打动人的原话 | **只留 1 条**（决策钩子够了） |
-| TA 在意的一件事？ | One Work | 保留 |
-| 我要不要打招呼？ | 三个动作按钮 | **完全不动** |
-
-## 关于「他说过的话」板块——保留但要精简
-
-结论：**必须保留，但只展示 1 条**。
-
-原因：
-- Moments 是 TA **亲口写下**的答案，是「人格证据」，比 Agent 的推荐话术可信度高一个量级；这是让用户从「感觉像还行」跨到「我想跟 TA 说话」的关键钩子。
-- 但**当前 3 条 moment 全部展开**是设计错误：非撰写状态下，用户不需要 3 条同等权重的原话，只需要 1 条最能触发对话欲望的。剩下的 2 条只会拉长版面、稀释注意力。
-- 撰写状态（composing）下则相反——用户要挑一条引用，必须看到全部。
-
-方案：
-- **非撰写态**：只展示 1 条「最匹配」的 Moment（用 `pickBestAngle` 相同的 signals-overlap 思路选出，如无匹配则回退到第 1 条），下方一个极小的 muted 链接「查看全部 · TA 还说过什么」→ 打开 `PublicProfileSheet`。
-- **撰写态**：保持现有逻辑，展开全部 moments 供点选引用。
-
-## 结构总览（改造后）
+## 二、右侧详情信息层级（改造后 · 每块都对应一个下一步）
 
 ```
-┌─ 头部（可点开公开资料）
+┌─ 头部（点击 = 打开公开资料 Sheet）
 │  ● 头像[Eye]  Hugo · 32
 │              Journalist · Shanghai
-│              一句话画像 portrait（12.5px muted）
+│              portrait 一句话画像
+│              动作：看更多 → PublicProfileSheet
 │
-├─ WHO THEY ARE 卡（原「Why I thought of you」重命名+重写）
-│  [signal] [signal] [signal] [signal] [signal]
-│  ─────
-│  ⌇ Agent's note · 一句话推荐理由（引用体，斜体、mono 前缀）
+├─ signals chips（5 个，纯展示）
+│  ⌇ Agent's note · 一句话推荐理由（脚注引用体）
+│  动作：无（此块是"三秒扫读判断是否合眼缘"，本身就是决策器）
 │
-├─ IN THEIR WORDS
-│  › prompt
-│    最匹配的 1 条 moment 原话
-│  ↳ 查看全部 · TA 还说过什么 (弱链接→打开 PublicProfileSheet)
+├─ 一条最匹配的 moment（› prompt / 原话）
+│  ↳ 查看全部（弱链接 → Sheet）
+│  动作：点击原话 = 引用这段话打招呼（注入 composer 草稿）
 │
-├─ ONE {book|film|…}
-│  Title
-│  Why
+├─ One Work（压缩成 1 行 · 仅当存在）
+│  ⌾ Cares about {kind}: 《title》— why 截 40 字…
+│  动作：点击 = 以这件事切入打招呼（注入 composer 草稿）
 │
-└─ 按钮区（保持不变）
-   [ Say hello ] [ ⌾ Save ] [ see someone else ]
+└─ Say hello / Save / See someone else（完全不改）
 ```
 
-## 关键改动
+关键紧凑化措施：
+- One Work 从多行卡（title / meta / why 三段）压成 **单行 muted card**：一行 icon + kind + title + " — " + why (truncate)；hover 变亮 + 光标 pointer 提示可点。
+- 头部下方的 `View full profile` 虚线小字 hint 冗余（Eye 图标已足够+整个头部可点），删除。
+- signals 卡与 moment 卡之间的分隔靠自然间距，不再画多余分割线。
+- 整体行高与卡片 padding 略收（`py-3` → `py-2.5`；块间距 `mt-6` → `mt-5`）——目标是首屏就能看到"Say hello"按钮或至少看到 One Work。
 
-### 1. 头部
-- 头像 + 名字 · 年龄 · 职业 · 城市 保持可点击（打开 `PublicProfileSheet`），Eye 图标保留。
-- **删除**「View full profile」下划线文字提示（Eye 图标已足以暗示）。
-- 在职业·城市**下方新增一行** `loc.portrait`（12.5px muted，1-2 行）——把「TA 是怎样的人」这层信息前置到 3 秒内可读。
+## 三、动作绑定的具体行为
 
-### 2. 「WHO THEY ARE」卡（原 Why I thought of you）
-- Label 从 `WHY I THOUGHT OF YOU / 我为什么想到 TA` → `WHO THEY ARE / TA 是怎样的人`。
-- Chips：直接展示 `person.signals.slice(0, 5)`——统一为「TA 的特质」，不再区分「共同」/「他们的」双分支（那个分支本身就是设计噪声）。
-- Agent 的一句话理由：**降格为脚注引用体**——细分割线之下、mono 小字前缀 `Agent's note ·`，斜体正文。避免和 signals 平起平坐、语义混淆。
-- **删除 `personBrief` 展示**：和头部 portrait 语义重叠；完整版仍在 PublicProfileSheet 内可见。
+复用现有 composer 流程（`requestSayHello` 已存在）：
+- **点击 Moment 原话**（非撰写态）：进入撰写态 + 预置引用（就是"撰写态点击一条 moment 引用"的现有能力，只是把非撰写态的入口也接上去）。
+- **点击 One Work 单行卡**：进入撰写态 + 预置一段 opener 草稿，如：  
+  英：`Saw {name} cares about "{title}" — {why 截断}. Curious what drew them in.`  
+  中：`看到 {name} 在乎《{title}》——{why 截断}。想问问 TA 是怎么开始喜欢上的。`  
+  草稿仅作为初始文本，用户可自由改写/清空。
+- 不改按钮区、不改 composer 组件本身。
 
-### 3. Moments 板块
-- 标题文案 `moment.about_them`：
-  - 中：`Three small things about {{name}}` → `TA 是这样说的`（去掉 `{{name}}`）
-  - 英：→ `In their own words`
-- 非撰写态：**只渲染 1 条**——用新工具函数 `pickBestMoment(person, understanding)`（与 `pickBestAngle` 同思路：先找 prompt/answer 与 user positives 交集最大者，回退第 1 条）。下方追加弱链接「查看全部 · TA 还说过什么」，点击 `setProfileOpen(true)`。
-- 撰写态：不变，展开全部 moments 供选。
+## 四、左侧 Agent 输入框上方新增"建议指令" chips
 
-### 4. One Work
-- 不改。
+目的：解决"用户面对空输入框不知说什么"的静默期。chips 是**贴着当前情境**的一键短语，点击 = 填入输入框（不自动发送，用户可再改）。
 
-### 5. 按钮区（**遵守用户约束：不改动布局**）
-- Say hello / Save / See someone else 三键**保持现在的位置与并排关系**。
-- **删除**下方两段解释性 hint：
-  - `connection.save_hint`（"I'll keep them under Saved · People…"）
-  - `connection.save_hint_saved`（"They're under Saved · People…" + 「see someone else」重复入口）
-- 保存与否的状态用按钮本身的 `Save ↔ Saved` 视觉切换传达即可，无需文字解释。
+情境分支（按 `MatchmakerState.phase` + 当前是否有 currentPersonId + 匹配池状态）：
 
-## 技术改动清单
+| 情境 | chips |
+|---|---|
+| clarifying（还没介绍过人） | "想认识安静一点的人" / "不想要太激烈的" / "希望对方在乎创作" / "跟我节奏差不多的" |
+| introducing · 有 currentPerson | "多说说 TA" / "换一个感觉不一样的" / "有没有更松弛的" / "想认识做{与 TA 相关的一个 signal}的人" |
+| introducing · 池子空了（`L.none_left`） | "放宽一个条件" / "换个我没提过的特质" / "我再想想，稍后回来" |
 
-- `src/components/canvas/intro-canvas.tsx`
-  - 头部：删除「View full profile」链接元素；在职业·城市下方新增 `<p>{loc.portrait}</p>`。
-  - 匹配卡：删除 shared / their-signals 分支；signals 一律取 `person.signals.slice(0, 5)`；angle 改为脚注引用体（分割线 + mono 前缀 + italic）；删除 personBrief block。
-  - Moments：非撰写态改为 `moments.length > 0 && renderOne(pickBestMoment(...))` + 弱链接跳 PublicProfileSheet；撰写态保持 `.map`。
-  - 按钮区：删除两段 `<p>` hint；按钮本身及 `flex-wrap` 布局保持不变。
-- `src/lib/agents/matchmaker.ts`
-  - 新增 `pickBestMoment(person, understanding)`：与 `pickBestAngle` 同思路，用 answer 文本的 signal-overlap 或 tokens-jaccard 作为分数，回退首条。
-- `src/locales/en/common.json` + `src/locales/zh-CN/common.json`
-  - 新增 `intro.who_they_are_label`：`WHO THEY ARE` / `TA 是怎样的人`
-  - 新增 `intro.agent_note_prefix`：`Agent's note` / `Agent 观察`
-  - 新增 `intro.see_all_moments`：`See all · what else they've said` / `查看全部 · TA 还说过什么`
-  - 修改 `moment.about_them`：`In their own words` / `TA 是这样说的`（去掉 `{{name}}`；调用点同步简化为无参）
-  - `connection.save_hint` / `connection.save_hint_saved`：本次不删除 key（保留兼容），仅在 UI 停止渲染
+技术：
+- chips 数据由一个纯函数 `suggestChips(state, lang)` 返回 `string[]`，`ChatComposer` 组件在 textarea 上方渲染一行水平滚动的按钮。
+- 点击 → 调用 composer 已有的 `setDraft(text)` 或等价 setter（若无则暴露一个 `onSuggest(text)` prop 由父级 setState）。
+- 不改变对话协议、不新增消息类型；chips 只是"预填输入框"的糖。
 
-## 不改动范围
+## 五、技术改动清单
 
-- 底部三键的布局、位置、顺序、行为——**完全保持**。
-- `PublicProfileSheet` 组件本身——保持，作为「查看更多」的落地页。
-- 数据模型、路由、存储、滚动位置持久化、composer 草稿逻辑——不动。
-- Composing / connected / faded 三态的现有逻辑——不动。
+1. `src/components/canvas/intro-canvas.tsx`
+   - 头部：删除 `intro.view_profile` 虚线小字提示行。
+   - One Work 板块：整个 JSX 从多行改为单行 muted card；绑 `onClick` → `requestSayHello()` + 预置草稿。
+   - Moment 板块（非撰写态）：外层 wrapper 从只读 → `role="button"` + `onClick` = 进入撰写态并选中该 moment 作为引用（复用撰写态已有的 pickMoment 逻辑）。
+   - 微调间距（`mt-6` → `mt-5`，卡片 `py-3` → `py-2.5`）。
+
+2. `src/components/hello-composer.tsx`（若草稿注入接口不存在）
+   - 暴露初始 `draft` prop 或 `initialText`，在打开时若为空则填入。已有 quote 机制的话优先复用。
+
+3. `src/components/chat-primitives.tsx`（或 Matchmaker 侧输入组件所在文件）
+   - 在 `<textarea>` 上方新增 `<SuggestionRow suggestions={...} onPick={(t) => setDraft(t)} />`。
+   - 样式：`flex gap-1.5 overflow-x-auto pb-2`，chip 是小号 outline button。
+
+4. `src/lib/agents/matchmaker.ts`（或新建 `src/lib/agents/suggestions.ts`）
+   - 导出 `suggestChips(state, lang): string[]`，按上面 3 种情境分支返回。
+
+5. `src/locales/{en,zh-CN}/common.json`
+   - 新增：
+     - `intro.one_work_action_hint`（accessible label / tooltip）
+     - `intro.opener_from_one_work`（草稿模板，含 `{name}` `{title}` `{why}` 占位）
+     - `suggest.clarify.*`（4 条）、`suggest.introducing.*`（4 条）、`suggest.empty.*`（3 条）
+   - 删除：`intro.view_profile`（不再使用）—— 或保留 key，仅 UI 不渲染，避免 i18n key 引用报错时再处理。
+
+## 六、不改动范围
+
+- 底部三键（Say hello / Save / See someone else）的位置、顺序、行为、样式——**完全保持**。
+- `PublicProfileSheet`、`Person` 数据模型、路由、会话/滚动位置持久化——不动。
+- 左侧 Agent 的对话协议、`userTurn` / `introduce` 逻辑——不动，chips 只是输入框糖。
+- Composing / connected / faded 三态的整体状态机——不动。
+
+## 七、验收清单
+
+- One Work 存在时压成 1 行且可点击，点击后 composer 打开并带草稿；不存在时整块隐藏。
+- Moment 单条原话在非撰写态可直接点击进入引用状态。
+- 首屏（约 720px 高的右侧面板）能同时看到头部 + signals + moment + One Work + 按钮区中的至少 Say hello。
+- 左侧输入框上方出现 2-4 个情境 chips；切换情境（clarify → introducing → none-left）时 chips 内容随之变化；点击 chip 只填入不发送。
+- `bunx tsgo --noEmit` 通过。

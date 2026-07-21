@@ -29,6 +29,8 @@ interface Props {
   placeholderOverride?: string;
   /** Called when the user taps a chip inside an assistant message. */
   onChipClick?: (action: unknown) => void;
+  /** Context-aware suggestion strings rendered above the composer; clicking one pre-fills the input. */
+  suggestions?: string[];
   lang?: Lang; // kept for parity, not currently used internally
 }
 
@@ -44,6 +46,7 @@ export function Workspace({
   composerDisabled,
   placeholderOverride,
   onChipClick,
+  suggestions,
 }: Props) {
   const { t } = useTranslation();
   const [input, setInput] = useState("");
@@ -110,6 +113,24 @@ export function Workspace({
                     disabled={thinking || composerDisabled}
                     onPick={(a) => onChipClick?.(a)}
                   />
+                </div>
+              )}
+              {!activeChips && suggestions && suggestions.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      disabled={thinking || composerDisabled}
+                      onClick={() => {
+                        setInput(s);
+                        inputRef.current?.focus();
+                      }}
+                      className="px-2.5 py-1 rounded-full border border-border bg-card text-[11.5px] text-muted-foreground hover:border-foreground/40 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {s}
+                    </button>
+                  ))}
                 </div>
               )}
               <Composer

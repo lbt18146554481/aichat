@@ -13,6 +13,7 @@ import {
   save,
   seeNextPerson,
   start,
+  suggestChips,
   userTurn,
   type MatchmakerState,
 } from "@/lib/agents/matchmaker";
@@ -110,6 +111,7 @@ function MatchmakerPage() {
       thinking={thinking}
       onSend={send}
       onReset={handleReset}
+      suggestions={suggestChips(state, lang)}
       rightPane={
         <IntroCanvas
           state={state}
