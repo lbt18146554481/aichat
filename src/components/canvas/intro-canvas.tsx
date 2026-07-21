@@ -184,7 +184,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
 
 
   return (
-    <div className="h-full px-8 py-10">
+    <div ref={rootRef} className="h-full px-8 py-10">
       <div className="mx-auto max-w-md">
         {/* Header */}
         <div className="flex items-start gap-4">
