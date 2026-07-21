@@ -404,10 +404,13 @@
     "header": "收藏 · {{count}}",
     "header_aria": "打开收藏",
     "title": "先收藏起来",
-    "subtitle": "你在挑人时先收藏起来的人。跨心愿保留，直到你开始聊 TA 或手动移出。",
+    "subtitle": "你先放着的人和心愿。留在这里，直到你采取下一步或手动移出。",
     "empty": "暂无收藏。",
     "from_wish": "来自",
     "start_chat": "开始聊",
+    "open_person": "打开",
+    "section_people": "人",
+    "section_wishes": "心愿",
     "remove": "移出"
   }
 }
