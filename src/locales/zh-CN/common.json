@@ -100,6 +100,9 @@
     "back_to_actions": "← 返回",
     "faded_note": "这次没有回音。这很正常——我不会再把 TA 推给你。",
     "why_them_label": "我为什么想到 TA",
+    "who_they_are_label": "TA 是怎样的人",
+    "agent_note_prefix": "Agent 观察",
+    "see_all_moments": "查看全部 · TA 还说过什么",
     "shared_signals_label": "共同点",
     "their_signals_label": "TA 的关键词",
     "view_profile": "查看完整资料",
@@ -110,7 +113,7 @@
     "what_they_do": "TA 平时在做的"
   },
   "moment": {
-    "about_them": "关于 {{name}} 的三件小事",
+    "about_them": "TA 是这样说的",
     "pick_one": "挑一段打动你的",
     "your_reply": "写下你想回的那一句",
     "reply_placeholder": "不用夸奖，也不用提问——你读到这段时想到的，或者你自己的对应版本。",

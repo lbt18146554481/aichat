@@ -1,62 +1,110 @@
 
-# Introduce Someone 详情页优化：可点击的资料入口 + 更清晰的匹配理由
+# Introduce Someone 详情页重构（v2）
 
-## 目标与用户流程
+## 用户决策链——先想清楚，再决定展示什么
 
-站在用户角度，详情页目前的头部只有「头像 + 名字 + 年龄 · 职业 · 城市」，信息量太单薄；再往下直接跳到 Moments，用户很难在 3 秒内理解「Agent 为什么把这个人推给我」，也没有入口去查看这个人更完整的一面。
+用户站在这个页面时，只在做一件事：**「我要不要主动和 TA 说一句话？」**
 
-优化后的核心流程：
-1. 一眼看到匹配亮点：头像下方有一张「为什么是 TA」的卡片，用共同标签 + 一句话理由说明推荐逻辑。
-2. 想深入了解就点头像：头像和名字变成可点击入口，滑出「公开资料」侧边栏，展示这个人对外可见的完整信息。
-3. 保持右侧主区域的简洁：亮点卡是概览，详细资料在侧边栏，Moments / One Work 仍是主区域的「人的证据」，Say hello / Save / See next 三个动作不变。
+围绕这一个决定，反推信息优先级——每一块内容如果不能推动这个决策，就不该占版面：
 
-## 具体设计
+| 决策问题 | 用户想看到的 | 判断 |
+|---|---|---|
+| TA 是谁？ | 头像 + 姓名 + 年龄 + 职业 + 城市 | 保留 |
+| TA 大致是怎样的人？ | 一句话画像（portrait） | **新增**，从头像身份区里带出 |
+| TA 有哪些具体特质？ | 3-5 个 signal 标签 | 保留但简化 |
+| Agent 为什么推荐 TA？ | 一句话的推荐理由 | 保留，但**降格为脚注引用** |
+| TA 亲口说过什么？ | 1 条最能打动人的原话 | **只留 1 条**（决策钩子够了） |
+| TA 在意的一件事？ | One Work | 保留 |
+| 我要不要打招呼？ | 三个动作按钮 | **完全不动** |
 
-### 1. 顶部：可点击的身份区
+## 关于「他说过的话」板块——保留但要精简
 
-- 头像和名字合并为一个 `button`，点击打开「公开资料」侧边栏。
-- 头像右下角增加一个极轻的「查看资料」提示（悬浮时显现的下划线 + `Eye` 图标，尺寸不超过 12px），保持视觉安静。
-- 键盘可达：`aria-label="View {name}'s profile"`。
+结论：**必须保留，但只展示 1 条**。
 
-### 2. 新增「为什么是 TA」匹配亮点卡
+原因：
+- Moments 是 TA **亲口写下**的答案，是「人格证据」，比 Agent 的推荐话术可信度高一个量级；这是让用户从「感觉像还行」跨到「我想跟 TA 说话」的关键钩子。
+- 但**当前 3 条 moment 全部展开**是设计错误：非撰写状态下，用户不需要 3 条同等权重的原话，只需要 1 条最能触发对话欲望的。剩下的 2 条只会拉长版面、稀释注意力。
+- 撰写状态（composing）下则相反——用户要挑一条引用，必须看到全部。
 
-位置：身份区正下方，Moments 之前。视觉：`rounded-lg border bg-card`，与 One Work 卡片同一档次。
+方案：
+- **非撰写态**：只展示 1 条「最匹配」的 Moment（用 `pickBestAngle` 相同的 signals-overlap 思路选出，如无匹配则回退到第 1 条），下方一个极小的 muted 链接「查看全部 · TA 还说过什么」→ 打开 `PublicProfileSheet`。
+- **撰写态**：保持现有逻辑，展开全部 moments 供点选引用。
 
-内容结构：
-- 顶部一行 mono 小字 `WHY I THOUGHT OF YOU`（中：`我为什么想到 TA`）。
-- 共同标签芯片：从 `person.signals ∩ understanding.positive` 里取前 3 个作为 `Chip`，用 i18n 词典翻译。
-  - 若交集为空，回退到该人 `signals` 前 3 个（表示「TA 的关键词」而非「你们的共同点」），并改用文案 `THEIR SIGNALS / TA 的关键词`。
-- 一句话理由：从 `person.angles` 中挑选与用户 `understanding.positive` 交集最多的那条，展示其 `text` / `text_zh`。这是已有数据，目前完全没用到。
-- 底部一行 `personBrief`（若存在），作为「TA 大致是个怎样的人」的两三句描述。
+## 结构总览（改造后）
 
-这样用户 3 秒内能得到三层信息：共同点是什么 → Agent 的推荐话术 → TA 的整体画像。
+```
+┌─ 头部（可点开公开资料）
+│  ● 头像[Eye]  Hugo · 32
+│              Journalist · Shanghai
+│              一句话画像 portrait（12.5px muted）
+│
+├─ WHO THEY ARE 卡（原「Why I thought of you」重命名+重写）
+│  [signal] [signal] [signal] [signal] [signal]
+│  ─────
+│  ⌇ Agent's note · 一句话推荐理由（引用体，斜体、mono 前缀）
+│
+├─ IN THEIR WORDS
+│  › prompt
+│    最匹配的 1 条 moment 原话
+│  ↳ 查看全部 · TA 还说过什么 (弱链接→打开 PublicProfileSheet)
+│
+├─ ONE {book|film|…}
+│  Title
+│  Why
+│
+└─ 按钮区（保持不变）
+   [ Say hello ] [ ⌾ Save ] [ see someone else ]
+```
 
-### 3. 新增 `PublicProfileSheet` 侧边栏
+## 关键改动
 
-从右侧滑出，宽度与现有 `SavedTrigger` 一致。内容分区（自上而下）：
-- 大头像 + 名字 · 年龄 · 城市 · 职业。
-- Portrait：`portrait` / `portrait_zh` 一句话画像。
-- Signals：把该人所有 `signals` 以 chip 形式全展示（比亮点卡更全）。
-- About them：`personBrief`（若无则不显示该分区）。
-- Their moments：完整 `moments` 列表（含 prompt + answer），与主区一致但只读。
-- One work：与主区一致。
-- What they do：如果 `activities.length > 0`，展示每条活动的 kind · level · area（三段式紧凑排版），让用户看到 TA 现实生活的样子。
+### 1. 头部
+- 头像 + 名字 · 年龄 · 职业 · 城市 保持可点击（打开 `PublicProfileSheet`），Eye 图标保留。
+- **删除**「View full profile」下划线文字提示（Eye 图标已足以暗示）。
+- 在职业·城市**下方新增一行** `loc.portrait`（12.5px muted，1-2 行）——把「TA 是怎样的人」这层信息前置到 3 秒内可读。
 
-关闭方式：右上角 `X`、点击遮罩、Esc 键。移动端全屏化，桌面端 `max-w-md`。
+### 2. 「WHO THEY ARE」卡（原 Why I thought of you）
+- Label 从 `WHY I THOUGHT OF YOU / 我为什么想到 TA` → `WHO THEY ARE / TA 是怎样的人`。
+- Chips：直接展示 `person.signals.slice(0, 5)`——统一为「TA 的特质」，不再区分「共同」/「他们的」双分支（那个分支本身就是设计噪声）。
+- Agent 的一句话理由：**降格为脚注引用体**——细分割线之下、mono 小字前缀 `Agent's note ·`，斜体正文。避免和 signals 平起平坐、语义混淆。
+- **删除 `personBrief` 展示**：和头部 portrait 语义重叠；完整版仍在 PublicProfileSheet 内可见。
 
-侧边栏本身不带任何跨页跳转，仅作为「只读资料查看」。避免打断当前 Say hello / Save 的核心动线。
+### 3. Moments 板块
+- 标题文案 `moment.about_them`：
+  - 中：`Three small things about {{name}}` → `TA 是这样说的`（去掉 `{{name}}`）
+  - 英：→ `In their own words`
+- 非撰写态：**只渲染 1 条**——用新工具函数 `pickBestMoment(person, understanding)`（与 `pickBestAngle` 同思路：先找 prompt/answer 与 user positives 交集最大者，回退第 1 条）。下方追加弱链接「查看全部 · TA 还说过什么」，点击 `setProfileOpen(true)`。
+- 撰写态：不变，展开全部 moments 供选。
 
-### 4. 交互与边界
+### 4. One Work
+- 不改。
 
-- Composer 打开时（`composing === true`），头像入口仍可点击，侧边栏为覆盖层，不影响正在起草的内容（`sessionStorage` 草稿逻辑已存在，无需变动）。
-- 已连接 / 已淡出等状态下，亮点卡与资料侧边栏依然可见（用户想再复习一下 TA 是谁）。
-- 亮点卡的匹配逻辑纯本地计算，不新增网络或 storage 依赖。
+### 5. 按钮区（**遵守用户约束：不改动布局**）
+- Say hello / Save / See someone else 三键**保持现在的位置与并排关系**。
+- **删除**下方两段解释性 hint：
+  - `connection.save_hint`（"I'll keep them under Saved · People…"）
+  - `connection.save_hint_saved`（"They're under Saved · People…" + 「see someone else」重复入口）
+- 保存与否的状态用按钮本身的 `Save ↔ Saved` 视觉切换传达即可，无需文字解释。
 
-## 技术实现要点（供开发参考）
+## 技术改动清单
 
-- 文件改动：
-  - `src/components/canvas/intro-canvas.tsx`：改造头部为可点击入口；新增 `WhyThemCard` 子组件；引入 `PublicProfileSheet` 并管理其 open state。
-  - `src/components/public-profile-sheet.tsx`（新文件）：接收 `person: Person`，纯展示组件；使用 `Sheet` 原语或复用 `SavedTrigger` 的抽屉实现。
-  - `src/lib/agents/matchmaker.ts`：导出一个小工具 `pickBestAngle(person, understanding)`（沿用现有 `scorePerson` 的 signals 交集思路），供 `WhyThemCard` 复用。
-  - `src/locales/{en,zh-CN}/common.json`：新增 `intro.why_them_label`、`intro.their_signals_label`、`intro.view_profile`、`intro.public_profile_title`、`intro.about_them`、`intro.what_they_do`、`intro.signals_label` 等键。
-- 保持所有变更仅在 UI/展示层；无数据模型、后端或路由变更；不影响现有滚动位置恢复、草稿保存、`originSessionId` 返回路径等逻辑。
+- `src/components/canvas/intro-canvas.tsx`
+  - 头部：删除「View full profile」链接元素；在职业·城市下方新增 `<p>{loc.portrait}</p>`。
+  - 匹配卡：删除 shared / their-signals 分支；signals 一律取 `person.signals.slice(0, 5)`；angle 改为脚注引用体（分割线 + mono 前缀 + italic）；删除 personBrief block。
+  - Moments：非撰写态改为 `moments.length > 0 && renderOne(pickBestMoment(...))` + 弱链接跳 PublicProfileSheet；撰写态保持 `.map`。
+  - 按钮区：删除两段 `<p>` hint；按钮本身及 `flex-wrap` 布局保持不变。
+- `src/lib/agents/matchmaker.ts`
+  - 新增 `pickBestMoment(person, understanding)`：与 `pickBestAngle` 同思路，用 answer 文本的 signal-overlap 或 tokens-jaccard 作为分数，回退首条。
+- `src/locales/en/common.json` + `src/locales/zh-CN/common.json`
+  - 新增 `intro.who_they_are_label`：`WHO THEY ARE` / `TA 是怎样的人`
+  - 新增 `intro.agent_note_prefix`：`Agent's note` / `Agent 观察`
+  - 新增 `intro.see_all_moments`：`See all · what else they've said` / `查看全部 · TA 还说过什么`
+  - 修改 `moment.about_them`：`In their own words` / `TA 是这样说的`（去掉 `{{name}}`；调用点同步简化为无参）
+  - `connection.save_hint` / `connection.save_hint_saved`：本次不删除 key（保留兼容），仅在 UI 停止渲染
+
+## 不改动范围
+
+- 底部三键的布局、位置、顺序、行为——**完全保持**。
+- `PublicProfileSheet` 组件本身——保持，作为「查看更多」的落地页。
+- 数据模型、路由、存储、滚动位置持久化、composer 草稿逻辑——不动。
+- Composing / connected / faded 三态的现有逻辑——不动。

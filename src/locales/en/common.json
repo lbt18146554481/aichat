@@ -100,6 +100,9 @@
     "back_to_actions": "← Back",
     "faded_note": "This one didn't land. It happens — I won't recommend them again.",
     "why_them_label": "Why I thought of you",
+    "who_they_are_label": "Who they are",
+    "agent_note_prefix": "Agent's note",
+    "see_all_moments": "See all · what else they've said",
     "shared_signals_label": "SHARED",
     "their_signals_label": "THEIR SIGNALS",
     "view_profile": "View full profile",
@@ -110,7 +113,7 @@
     "what_they_do": "What they do"
   },
   "moment": {
-    "about_them": "Three small things about {{name}}",
+    "about_them": "In their own words",
     "pick_one": "Pick the one that landed for you",
     "your_reply": "Write your one line back",
     "reply_placeholder": "Not a compliment, not a question — what you thought when you read this, or your own version of it.",
