@@ -137,13 +137,23 @@ function scorePerson(p: Person, u: UserUnderstanding, passedIds: string[], shown
   return s;
 }
 
+function isUnavailable(personId: string): boolean {
+  if (typeof window === "undefined") return false;
+  const c = getConnection(personId);
+  // Hard-exclude anyone we've already engaged with — a faded hello never
+  // comes back; sent/connected/incoming already live in Connections and
+  // shouldn't be re-surfaced as a "new" recommendation.
+  return !!c && (c.status === "faded" || c.status === "sent" || c.status === "connected" || c.status === "incoming");
+}
+
 function pickNext(state: MatchmakerState, excludeCurrent = false): Person | null {
-  const fresh = PEOPLE.filter(
+  const available = PEOPLE.filter((p) => !isUnavailable(p.id));
+  const fresh = available.filter(
     (p) => !state.passedIds.includes(p.id)
       && (!excludeCurrent || p.id !== state.currentPersonId)
       && !state.shownIds.includes(p.id),
   );
-  const pool = fresh.length > 0 ? fresh : PEOPLE.filter(
+  const pool = fresh.length > 0 ? fresh : available.filter(
     (p) => !state.passedIds.includes(p.id) && (!excludeCurrent || p.id !== state.currentPersonId),
   );
   if (pool.length === 0) return null;
