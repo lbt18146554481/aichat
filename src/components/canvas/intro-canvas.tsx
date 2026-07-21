@@ -414,21 +414,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
                   {t("intro.see_someone_else")}
                 </button>
               </div>
-              {saved ? (
-                <p className="text-[11.5px] text-muted-foreground leading-snug">
-                  {t("connection.save_hint_saved")}{" "}
-                  <button
-                    onClick={onPassAndNext}
-                    className="underline underline-offset-2 hover:text-foreground transition-colors"
-                  >
-                    {t("intro.see_someone_else")}
-                  </button>
-                </p>
-              ) : (
-                <p className="text-[11.5px] text-muted-foreground leading-snug">
-                  {t("connection.save_hint")}
-                </p>
-              )}
+
             </div>
           )}
 
