@@ -94,7 +94,8 @@
     "next_person_after": "看下一个人",
     "check_progress": "去看进展",
     "hello_again": "换个方式再说一次",
-    "while_you_chat": "继续看下一个"
+    "while_you_chat": "继续看下一个",
+    "see_someone_else": "看下一个人 →"
   },
   "moment": {
     "about_them": "关于 {{name}} 的三件小事",
