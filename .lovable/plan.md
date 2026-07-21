@@ -1,117 +1,66 @@
-# Introduce someone 详情页 —— Action 清晰化 + Save 闭环
+# Introduce someone —— Action 结构与 Saved 抽屉重构
 
-## 目标（用户视角）
+聚焦四件事，均为前端/呈现层调整，不动匹配算法与业务逻辑。
 
-看完一个人后，只面对两个明确的选择：
-1. **主动 → Say hello**（写招呼、开始连接）
-2. **暂缓 → Save**（先收着，之后再决定）
+## 1. 三个 Action 并列（Say hello / Save / See someone else）
 
-「换一个」不再是一个"决定"，而是一个隐性动作（跳过=看下一位），不与前两者争夺注意力。取消模糊的 Pass。
+文件：`src/components/canvas/intro-canvas.tsx`（`!conn && !composing` 分支）
 
-## 变更
+- 现状：`Say hello` + `Save` 双列网格，`See someone else` 作为下方弱链接；Save 会顺带调用 `onAnotherPerson()` 自动跳下一位。
+- 改为：三个按钮同一行（`flex flex-wrap gap-2`），视觉层级：
+  - `Say hello` — 主按钮（深底，`bg-foreground text-background`）
+  - `Save` / `Saved ✓` — 次按钮（描边）
+  - `See someone else` — 三级按钮（无边框 ghost 样式，`text-muted-foreground hover:text-foreground`）
+- 三者语义正交、互不触发彼此。
 
-### 1. 按钮布局：Say hello / Save 并列
+## 2. Save 点击后仅切换按钮态，不再自动前进
 
-`src/components/canvas/intro-canvas.tsx` 里 `!conn && !composing` 分支：
+同文件，Save 按钮 `onClick`：
+- 去掉 `savePerson(...)` 之后的 `onAnotherPerson()` 调用
+- 已 saved 再点 = `removeSavedPerson`（保持切换语义）
+- 按钮文案/图标随 `saved` 切换（沿用现有 `BookmarkPlus` → `BookmarkCheck`、`connection.save` → `connection.saved`）
+- 下方的 hint 文案保留一行（`connection.save_hint` / `connection.save_hint_saved`），告知用户可从顶栏「Saved」找回；不再有"自动跳到下一位"的隐性动作
 
-- 现状：`Say hello`（主）+ `Pass`（弱链接）+ 上方独立的 `Another person`（弱链接）
-- 改为：**`Say hello`（主，深底）** 与 **`Save`（次，描边）** 并列同权重
-- `Another person` 保留但**下沉为一行文字型链接**放在两个按钮下方，配文案「看下一位」——它是"跳过"，不是"决定"
+用户想去下一位，明确点第三个按钮 `See someone else` 即可。
 
-```text
-[ Say hello ]   [ ♡ Save ]
-                              ← 一段小字提示
-                              ↓
-       See someone else →     ← 弱链接
-```
+## 3. 移除"再试一次"重试提示（faded 状态）
 
-### 2. Pass 语义正式退休
+同文件，`conn?.status === "faded"` 分支：
+- 删除 `hello.faded_hint` 提示文案与 `intro.hello_again`（`undoFadedFor` + 重新 composing）按钮
+- faded 态下只保留一个操作：`See someone else`（沿用 `intro.next_person_after` 或复用 `intro.see_someone_else` 文案，风格与非 conn 态对齐）
+- 依据：现有"没成功，再写一次"的提示对用户无实际价值，且容易让用户误以为系统出错；对方没回应就是没回应，产品动作应向前（换一位），不向后（反复重写同一封）。
+- `undoFadedFor` 导入若无其他使用点，一并清理 import。
 
-- 删除 `t("connection.pass")` 在此处的使用（键可保留以防他处引用）
-- `onPass` prop 保留签名但改为触发 Save 逻辑，或直接新增 `onSave`，并把 `matchmaker.tsx` 中 `onPass={() => trigger(actAnotherPerson)}` 替换为 `onSave={handleSave}`
+i18n：`intro.hello_again` 与 `hello.faded_hint` 两个键**保留不删**（避免其他分支引用），仅停止使用。
 
-关键区别：
-- 旧 Pass：把该人加入 `passedIds`（**永久排除，再也不会推**）
-- 新 Save：**不进 passedIds**，加入"收藏人"列表，同时前进到下一位
+## 4. Saved 抽屉改为 Tabs（People / Wishes）
 
-### 3. Save 存储 —— 新增 saved-people 模块
+文件：`src/components/saved-trigger.tsx`
 
-新建 `src/lib/saved-people.ts`（对照 `saved-intents.ts` 的结构，独立 key）：
-
-```ts
-interface SavedPersonRecord {
-  personId: string;
-  sessionId: string;      // 来自哪个 matchmaker 会话
-  savedAt: number;
-}
-// listSavedPeople / isPersonSaved / savePerson / removeSavedPerson
-// / toggleSavedPerson / subscribeSavedPeople
-// localStorage key: "kindred:saved-people:v1"
-```
-
-行为：
-- Save 按钮点击 → `savePerson(personId, sessionId)` → 调用 `onAnotherPerson` 前进
-- 若该人已 saved，按钮显示为 `Saved ✓`，点击后取消收藏（不前进）
-
-### 4. Header 收藏入口扩展
-
-`src/components/saved-trigger.tsx` 目前只列 Intent。改为**同一 Sheet 内两个分区**：
-
-```
-Saved
-├─ People you kept              (来自 Introduce someone)
-│    · Avatar · Name, age · City · occupation
-│    · "why they might fit" 一句
-│    · [ Say hello ]  [ Remove ]
-└─ Wishes you kept              (来自 Side by Side，现有)
-```
-
-- 空态：两区均空时按钮隐藏（沿用现有 `count === 0` 隐藏规则，count = people + intents）
-- People 项的 `Say hello` → 跳 `/matchmaker?session={rec.sessionId}` 并通过 `sessionStorage` 写入 focus-person 指令，`matchmaker.tsx` 现有 `consumeFocusPerson()` 已能承接，无需改路由
-
-### 5. Introduce 卡片本身对 saved 状态感知
-
-- 若当前 person 已在 saved-people 里，Save 按钮变 `Saved ✓`（描边+对勾）
-- Sent/Connected/Faded 各态下（`conn` 存在时），若之前 saved 过，静默从 saved-people 移除——已建立连接，收藏收纳意义结束
-
-### 6. i18n（en / zh-CN）
-
-新增/调整键：
-- `connection.save` = "Save" / "先收着"
-- `connection.saved` = "Saved" / "已收藏"
-- `connection.save_hint` = "Keep them for later. You can come back from the header." / "先收着，之后可从顶部「已收藏」再找回。"
-- `intro.see_someone_else` = "See someone else →" / "看下一位 →"
-- `saved.section_people` = "People" / "人"
-- `saved.section_wishes` = "Wishes" / "心愿"
-- `saved.people_empty` / `saved.wishes_empty` 分区空态
-
-废弃（不删键，仅停止使用）：`connection.pass`、`intro.another_person`（顶部次按钮位置移除）
-
-## 交互闭环示意
-
-```text
-Introduce ──Say hello──▶ Composer ─▶ Sent/Connected ─▶ Connections
-     │
-     ├──Save──▶ (前进到下一位) ─────┐
-     │                              │
-     └──See someone else──▶ 下一位  │
-                                    ▼
-                        Header · Saved · People
-                                    │
-                                    └──Say hello──▶ 回到该人的 Introduce
-```
-
-Save 明确的"下一步"就是：**从 header 找回 → Say hello**。这是唯一的续接路径，简单闭环。
+- 现状：两个 section 竖向堆叠，`people` 与 `wishes` 都多时列表很长且视觉混乱。
+- 改为 shadcn `Tabs`（项目已装，`@/components/ui/tabs`），两个 tab：
+  - `People · N`（来自 Introduce someone）
+  - `Wishes · N`（来自 Side by Side）
+- 默认 tab 逻辑：
+  - 两者都非空 → 默认 `People`（Introduce someone 是本轮重点）
+  - 只有一边有 → 默认那一边
+- 单边为空时该 tab 仍显示但内部呈现空态文案（复用 `saved.people_empty` / `saved.wishes_empty`，若缺则新增）
+- 计数徽标沿用现有 `count = people + saved`
+- 抽屉标题、副标题与打开逻辑不变；空态（`count === 0`）依然完全隐藏入口
 
 ## 技术要点
 
-- `saved-people.ts` 结构对齐 `saved-intents.ts`，两者都通过各自 `subscribeXxx` 通知 header 更新
-- `SavedTrigger` 用 `useSyncExternalStore` 订阅两个源；count = 两者相加
-- 不新增路由；focus person 复用现有 `consumeFocusPerson` + `?session=` 机制
-- 不改 `matchmaker.ts` 状态机；Save 与 pass 的差异只在于**不写入 `passedIds`**，因此该人未来仍可能被算法推荐——符合"暂缓不是拒绝"
+- 三个 action 直接用 `flex flex-wrap items-center gap-2` 一行；Say hello 按钮加 `flex-1 sm:flex-none` 让它在窄容器里优先占宽，Save 与 See someone else 自然并列
+- Save 按钮点击不再触发 `onAnotherPerson`；`aria-pressed={saved}` 保留
+- `matchmaker.tsx` 无需改动（`onAnotherPerson` 语义未变，Save 逻辑本就在 IntroCanvas 内闭合）
+- Tabs 组件需要 `import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"`，把两段 `<section>` 分别塞进两个 `<TabsContent>`
+- 新增 i18n（en / zh-CN）：
+  - `saved.people_empty` = "Nothing saved yet from introductions." / "还没有从「介绍认识」里收藏任何人。"
+  - `saved.wishes_empty` = "No wishes kept for later." / "还没有先收着的心愿。"
 
 ## 不做的事
 
-- 不给 Save 增加标签/备注/文件夹分类（保持简洁）
-- 不为 Save 加通知或提醒回访（避免打扰）
-- 不改 Composer、Connections、Faded 三个已有分支的按钮结构
+- 不改 Sent / Connected 分支的按钮结构
+- 不改 Save 存储结构，也不加分类/备注
+- 不改匹配算法、passedIds 语义
+- 不动 Side by Side 侧的 Saved 逻辑
