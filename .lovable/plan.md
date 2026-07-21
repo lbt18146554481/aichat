@@ -1,66 +1,91 @@
-# Introduce someone —— Action 结构与 Saved 抽屉重构
 
-聚焦四件事，均为前端/呈现层调整，不动匹配算法与业务逻辑。
+# Introduce Someone —— Action 逻辑修复与流程闭环
 
-## 1. 三个 Action 并列（Say hello / Save / See someone else）
+围绕三件事：（1）Action 行为语义纠错；（2）系统不再回头推荐没成功的人；（3）Say hello / Save 的前后路径都留出可见的出路。全部为前端 + 匹配过滤层调整，不改 Connections/Sessions 存储结构。
 
-文件：`src/components/canvas/intro-canvas.tsx`（`!conn && !composing` 分支）
+## 1. 匹配池：过滤掉"没成功的人"
 
-- 现状：`Say hello` + `Save` 双列网格，`See someone else` 作为下方弱链接；Save 会顺带调用 `onAnotherPerson()` 自动跳下一位。
-- 改为：三个按钮同一行（`flex flex-wrap gap-2`），视觉层级：
-  - `Say hello` — 主按钮（深底，`bg-foreground text-background`）
-  - `Save` / `Saved ✓` — 次按钮（描边）
-  - `See someone else` — 三级按钮（无边框 ghost 样式，`text-muted-foreground hover:text-foreground`）
-- 三者语义正交、互不触发彼此。
+文件：`src/lib/agents/matchmaker.ts`
 
-## 2. Save 点击后仅切换按钮态，不再自动前进
+现状问题：`pickNext` 只看 `passedIds` 和 `shownIds`。一旦某人的 hello 变成 `faded`（对方没回应），Ta 仍会因为 `shownIds` 已含被扣 5 分，但当"新鲜池"用尽后 fallback 会把 faded 过的人再翻出来。用户视角：明明"没成功"的人又被推回来，很怪。
 
-同文件，Save 按钮 `onClick`：
-- 去掉 `savePerson(...)` 之后的 `onAnotherPerson()` 调用
-- 已 saved 再点 = `removeSavedPerson`（保持切换语义）
-- 按钮文案/图标随 `saved` 切换（沿用现有 `BookmarkPlus` → `BookmarkCheck`、`connection.save` → `connection.saved`）
-- 下方的 hint 文案保留一行（`connection.save_hint` / `connection.save_hint_saved`），告知用户可从顶栏「Saved」找回；不再有"自动跳到下一位"的隐性动作
+改动：
+- 引入 `hasFadedWith`（已存在于 `src/lib/connections.ts`）作为**硬过滤**
+- `pickNext` 中：
+  - 计算 `fadedIds = PEOPLE.filter(p => hasFadedWith(p.id)).map(p => p.id)`（只在浏览器端有效；SSR/无 window 返回空集）
+  - `fresh` 与 fallback `pool` 都追加 `!fadedIds.includes(p.id)` 条件
+  - 已 `connected` / `sent` 的人也一并排除（Ta 已经在正在进行的连接里，不应再作为"新推荐"出现）
+- 池彻底空时仍走 `L.none_left` 文案，不做兜底把 faded 人塞回
 
-用户想去下一位，明确点第三个按钮 `See someone else` 即可。
+结果：faded 的人**永远不再被推荐**，用户也不再看到"再试一次"这种回环入口（第 3 节配合）。
 
-## 3. 移除"再试一次"重试提示（faded 状态）
+## 2. Action 语义修正（`src/components/canvas/intro-canvas.tsx`）
 
-同文件，`conn?.status === "faded"` 分支：
-- 删除 `hello.faded_hint` 提示文案与 `intro.hello_again`（`undoFadedFor` + 重新 composing）按钮
-- faded 态下只保留一个操作：`See someone else`（沿用 `intro.next_person_after` 或复用 `intro.see_someone_else` 文案，风格与非 conn 态对齐）
-- 依据：现有"没成功，再写一次"的提示对用户无实际价值，且容易让用户误以为系统出错；对方没回应就是没回应，产品动作应向前（换一位），不向后（反复重写同一封）。
-- `undoFadedFor` 导入若无其他使用点，一并清理 import。
+现有几个隐性 bug：
 
-i18n：`intro.hello_again` 与 `hello.faded_hint` 两个键**保留不删**（避免其他分支引用），仅停止使用。
+**Bug A —— `sent` / `connected` 状态下的"下一位"错误地把当前人写进 passedIds**  
+现状：`onAnotherPerson` 一律调用 `actAnotherPerson` → `passedIds.push(currentPersonId)`。但此时用户**刚给 Ta 发了 hello / 已经在聊了**，把 Ta 标记为"已 pass"是错的语义——只是"看下一位"而非"放弃这位"。
 
-## 4. Saved 抽屉改为 Tabs（People / Wishes）
+改动：`matchmaker.tsx` 提供一个新的动作 `onSeeNextPerson`（不 pass，直接换下一位）。
+- `matchmaker.ts` 新增 `seeNextPerson(state, lang)`：与 `actAnotherPerson` 类似，但**不把 currentPersonId 加入 passedIds**，直接 `introduce(state, lang)`。
+- `matchmaker.tsx` 把 `IntroCanvas` 的 `onAnotherPerson` 拆成两个 props：
+  - `onPassAndNext`：仍写 passedIds（`!conn && !composing` 分支的 "See someone else" 使用）
+  - `onSeeNextPerson`：不写 passedIds（`sent` / `connected` / `faded` 分支使用）
 
-文件：`src/components/saved-trigger.tsx`
+**Bug B —— Say hello 禁用态没有出路**  
+`moments.length === 0` 时按钮直接 disabled，用户既不能打招呼也拿不到提示。这些人是"没有 moments、只有 portrait"的资料。
 
-- 现状：两个 section 竖向堆叠，`people` 与 `wishes` 都多时列表很长且视觉混乱。
-- 改为 shadcn `Tabs`（项目已装，`@/components/ui/tabs`），两个 tab：
-  - `People · N`（来自 Introduce someone）
-  - `Wishes · N`（来自 Side by Side）
-- 默认 tab 逻辑：
-  - 两者都非空 → 默认 `People`（Introduce someone 是本轮重点）
-  - 只有一边有 → 默认那一边
-- 单边为空时该 tab 仍显示但内部呈现空态文案（复用 `saved.people_empty` / `saved.wishes_empty`，若缺则新增）
-- 计数徽标沿用现有 `count = people + saved`
-- 抽屉标题、副标题与打开逻辑不变；空态（`count === 0`）依然完全隐藏入口
+改动：
+- 当 `moments.length === 0` 时，**不禁用** Say hello，改为允许发一句无引用的 hello（`quotedMomentId = null`，`HelloComposer` 本身已支持 null）
+- 若因 profile 不完整需要回填，走已有的 `/profile` 跳转分支（不变）
 
-## 技术要点
+**Bug C —— Save 的可见性规则**  
+现状：`saved` 状态只在 `!conn && !composing` 分支显示按钮。用户在 `composing`（写 hello 中途）时，中途反悔想"先收着再说"，没有入口。
 
-- 三个 action 直接用 `flex flex-wrap items-center gap-2` 一行；Say hello 按钮加 `flex-1 sm:flex-none` 让它在窄容器里优先占宽，Save 与 See someone else 自然并列
-- Save 按钮点击不再触发 `onAnotherPerson`；`aria-pressed={saved}` 保留
-- `matchmaker.tsx` 无需改动（`onAnotherPerson` 语义未变，Save 逻辑本就在 IntroCanvas 内闭合）
-- Tabs 组件需要 `import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"`，把两段 `<section>` 分别塞进两个 `<TabsContent>`
-- 新增 i18n（en / zh-CN）：
-  - `saved.people_empty` = "Nothing saved yet from introductions." / "还没有从「介绍认识」里收藏任何人。"
-  - `saved.wishes_empty` = "No wishes kept for later." / "还没有先收着的心愿。"
+改动：`composing` 分支的 `HelloComposer` 上方增加一小行右对齐的 "Save & write later"（次要 ghost 按钮），点击 = 保存 + 取消 composer + 关闭 draft。文案键：`connection.save_and_later`。
 
-## 不做的事
+## 3. 前后路径闭环
 
-- 不改 Sent / Connected 分支的按钮结构
-- 不改 Save 存储结构，也不加分类/备注
-- 不改匹配算法、passedIds 语义
-- 不动 Side by Side 侧的 Saved 逻辑
+**Say hello 之前 —— composing 态的回退**  
+`HelloComposer` 已有 `onCancel`。补一条 UI 明示：composer 顶部加一行 crumb `← {t("intro.back_to_actions")}`（点击 = Cancel）。避免用户在 composer 里以为"只能发出去或强关页面"。
+
+**Say hello 之后 —— sent 态**  
+现状按钮：`Next person` + `Check progress`。修复：
+- `Next person` 改用 `onSeeNextPerson`（不 pass 当前人）
+- `Check progress` 保留
+- hint 文案 `intro.after_hello_hint` 中显式点出："如果 Ta 没有回应，这次会静静地过去（fades），我们不会再把 Ta 推给你" —— 让"faded = 永久不复现"变成用户可感知的合同。新增 i18n 键或改写现有键。
+
+**Connected 态**  
+- 主按钮 `Open conversation` 保留
+- 次按钮 `while_you_chat` 改用 `onSeeNextPerson`（不 pass）
+- 保留 `connection.connected_note`
+
+**Faded 态（保底，正常情况下不会出现，因为下一位不再是 Ta）**  
+如果用户直接回到 URL 打开一个已 faded 的人（例如从 Saved 打开），显示极简说明 + 一个按钮：`See someone else`（用 `onSeeNextPerson`）。删除任何"再试一次 / hello_again"痕迹（上一轮已做，本轮确认）。
+
+**Save 之后的下一步提示**  
+现状 `save_hint_saved` 只说"可以在 Saved 里找回"。补足**下一步动作提示**：
+- 已 saved 时，hint 文案改为两行：一行说明"Ta 已放进 Saved（顶栏可找回）"；一行 CTA `See someone else →`（可点击文字链接，触发 `onPassAndNext`）
+- 明确"Save 不会自动前进，但你可以现在就看下一位"这层意图
+
+## 4. i18n 新增/改写（`src/locales/{en,zh-CN}/common.json`）
+
+- `connection.save_and_later`：`Save & finish later` / `先收着，之后再写`
+- `intro.back_to_actions`：`← Back` / `← 返回`
+- `intro.after_hello_hint`（改写）：加一句"如果 Ta 没回应，这次会自然过去，我们不会再把 Ta 推给你。" / "如果 Ta 没有回应，这次就静静过去，我们不会再把 Ta 推回来。"
+- `connection.save_hint_saved`（改写）：拆成主提示 + `see_someone_else` 单独作为链接文案（复用已有键）
+
+## 5. 不做的事
+
+- 不改 `Connection` / `Session` / `SavedPerson` 存储结构
+- 不改评分权重（`scorePerson` 内部逻辑不动）
+- 不改 Say hello 的写作流程（Composer 组件内部不动）
+- 不改 Saved 抽屉 Tabs 结构（上一轮成果保留）
+- 不动 Side by Side / Connections 页面
+
+## 技术要点摘要
+
+- `matchmaker.ts`：新增 `seeNextPerson`；`pickNext` 加入 `hasFadedWith` + `sent/connected` 硬过滤；SSR 安全（`typeof window` 判空）
+- `matchmaker.tsx`：`IntroCanvas` 的 props 从单一 `onAnotherPerson` 拆为 `onPassAndNext` + `onSeeNextPerson`
+- `intro-canvas.tsx`：Say hello 去掉 disabled；composing 内加 back crumb 与 Save-later 快捷；sent/connected 用 `onSeeNextPerson`；saved hint 补 CTA
+- 类型：`Props` 更新，`onPass?` 旧兼容 prop 一并移除（无外部引用）

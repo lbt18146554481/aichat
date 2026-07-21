@@ -92,12 +92,14 @@
     "empty_hint": "Not a list — one person at a time, with a reason. Tell me what you're looking for on the left.",
     "another_person": "Someone else",
     "one_work_label": "One {{kind}} that matters to them",
-    "after_hello_hint": "When they write back, I'll flag it in the corner. You can keep meeting others.",
+    "after_hello_hint": "When they write back, I'll flag it in the corner. If they don't, this one will quietly pass — I won't put them in front of you again.",
     "next_person_after": "See someone else",
     "check_progress": "Check progress",
     "hello_again": "Say it another way",
     "while_you_chat": "See someone else",
-    "see_someone_else": "See someone else →"
+    "see_someone_else": "See someone else →",
+    "back_to_actions": "← Back",
+    "faded_note": "This one didn't land. It happens — I won't recommend them again."
   },
   "moment": {
     "about_them": "Three small things about {{name}}",
@@ -124,8 +126,9 @@
     "pass": "Pass",
     "save": "Save",
     "saved": "Saved",
+    "save_and_later": "Save & finish later",
     "save_hint": "Keep them for later. Find them back under Saved in the top bar.",
-    "save_hint_saved": "Kept. You can find them under Saved in the top bar anytime.",
+    "save_hint_saved": "Kept. Find them under Saved in the top bar.",
     "hello_hint": "They'll see what you wrote and the part of theirs you read. Not your name yet — that only unlocks if they reply.",
     "delivered": "Delivered",
     "open_conversation": "Open conversation",

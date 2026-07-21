@@ -90,12 +90,14 @@
     "empty_hint": "不是列表——一次一个人，带着理由。在左边告诉我你想找的人。",
     "another_person": "换一个人",
     "one_work_label": "TA 在意的一件{{kind}}",
-    "after_hello_hint": "TA 回你的时候，我会在右上角提醒你。你可以继续看别人。",
+    "after_hello_hint": "TA 回你的时候，我会在右上角提醒你。如果 TA 没回应，这次就静静过去——我不会再把 TA 推到你面前。",
     "next_person_after": "看下一个人",
     "check_progress": "去看进展",
     "hello_again": "换个方式再说一次",
     "while_you_chat": "继续看下一个",
-    "see_someone_else": "看下一个人 →"
+    "see_someone_else": "看下一个人 →",
+    "back_to_actions": "← 返回",
+    "faded_note": "这次没有回音。这很正常——我不会再把 TA 推给你。"
   },
   "moment": {
     "about_them": "关于 {{name}} 的三件小事",
@@ -122,8 +124,9 @@
     "pass": "跳过",
     "save": "收藏",
     "saved": "已收藏",
+    "save_and_later": "先收着，之后再写",
     "save_hint": "先放着。之后可以在顶栏「已收藏」里找回 TA。",
-    "save_hint_saved": "已放入收藏。随时可以在顶栏「已收藏」里找回 TA。",
+    "save_hint_saved": "已放入收藏。可在顶栏「已收藏」找回 TA。",
     "hello_hint": "TA 会看到你写的那一句和你挑的 TA 那一段。还看不到你的名字——只有 TA 回应之后才会显示。",
     "delivered": "已送达",
     "open_conversation": "进入对话",

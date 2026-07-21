@@ -11,6 +11,7 @@ import {
   focusPerson,
   load,
   save,
+  seeNextPerson,
   start,
   userTurn,
   type MatchmakerState,
@@ -113,7 +114,8 @@ function MatchmakerPage() {
         <IntroCanvas
           state={state}
           sessionId={sessionId}
-          onAnotherPerson={() => trigger(actAnotherPerson)}
+          onPassAndNext={() => trigger(actAnotherPerson)}
+          onSeeNextPerson={() => trigger(seeNextPerson)}
         />
       }
     />

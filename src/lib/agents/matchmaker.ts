@@ -8,6 +8,7 @@ import { getPersonById, PEOPLE } from "../people";
 import { getQuestionById } from "../questions";
 import type { Person, Reflection } from "../types";
 import { loadProfile } from "../profile";
+import { get as getConnection } from "../connections";
 import {
   digest,
   loadUnderstanding,
@@ -136,13 +137,23 @@ function scorePerson(p: Person, u: UserUnderstanding, passedIds: string[], shown
   return s;
 }
 
+function isUnavailable(personId: string): boolean {
+  if (typeof window === "undefined") return false;
+  const c = getConnection(personId);
+  // Hard-exclude anyone we've already engaged with — a faded hello never
+  // comes back; sent/connected/incoming already live in Connections and
+  // shouldn't be re-surfaced as a "new" recommendation.
+  return !!c && (c.status === "faded" || c.status === "sent" || c.status === "connected" || c.status === "incoming");
+}
+
 function pickNext(state: MatchmakerState, excludeCurrent = false): Person | null {
-  const fresh = PEOPLE.filter(
+  const available = PEOPLE.filter((p) => !isUnavailable(p.id));
+  const fresh = available.filter(
     (p) => !state.passedIds.includes(p.id)
       && (!excludeCurrent || p.id !== state.currentPersonId)
       && !state.shownIds.includes(p.id),
   );
-  const pool = fresh.length > 0 ? fresh : PEOPLE.filter(
+  const pool = fresh.length > 0 ? fresh : available.filter(
     (p) => !state.passedIds.includes(p.id) && (!excludeCurrent || p.id !== state.currentPersonId),
   );
   if (pool.length === 0) return null;
@@ -246,6 +257,13 @@ function introduce(state: MatchmakerState, lang: "en" | "zh-CN"): MatchmakerStat
 
 export function actAnotherPerson(s: MatchmakerState, lang: "en" | "zh-CN") {
   return userTurn(s, lang === "zh-CN" ? "换一个吧。" : "Show me someone else.", lang);
+}
+
+// See the next candidate WITHOUT marking the current one as passed. Used
+// after Say hello / when in a live connection — the user isn't rejecting
+// this person, they just want to keep browsing.
+export function seeNextPerson(state: MatchmakerState, lang: "en" | "zh-CN"): MatchmakerState {
+  return introduce(state, lang);
 }
 
 // Focus a specific person as the current intro (used when the user comes
