@@ -29,6 +29,8 @@ interface Props {
   placeholderOverride?: string;
   /** Called when the user taps a chip inside an assistant message. */
   onChipClick?: (action: unknown) => void;
+  /** Context-aware suggestion strings rendered above the composer; clicking one pre-fills the input. */
+  suggestions?: string[];
   lang?: Lang; // kept for parity, not currently used internally
 }
 
