@@ -67,7 +67,9 @@ export function ConnectionThread({ personId }: Props) {
 
   function backToIntro() {
     setFocusPerson(personId);
-    void navigate({ to: "/matchmaker" });
+    const session = conn?.originSessionId;
+    if (session) void navigate({ to: "/matchmaker", search: { session } });
+    else void navigate({ to: "/" });
   }
 
   return (

@@ -190,7 +190,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   }
 
   function handleHello(quotedMomentId: string | null, reply: string) {
-    sayHello(person!.id, { quotedMomentId, reply });
+    sayHello(person!.id, { quotedMomentId, reply }, sessionId);
     setComposing(false);
     setDraftPicked(null);
     setDraftReply("");
