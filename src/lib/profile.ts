@@ -32,10 +32,12 @@ export interface UserActivity {
 
 export interface Profile {
   // L1 vitals
+  avatar: string;        // data URL, empty if unset (optional)
   name: string;
   age: number | null;
   city: string;
   occupation: string;
+  mbti: string;          // optional, "" or one of 16 types
   // L2 things you actually do (weekly rhythm)
   activities: UserActivity[];
   // L3 specificity
@@ -44,14 +46,17 @@ export interface Profile {
 }
 
 export const EMPTY_PROFILE: Profile = {
+  avatar: "",
   name: "",
   age: null,
   city: "",
   occupation: "",
+  mbti: "",
   activities: [],
   moments: [],
   favorites: [],
 };
+
 
 export const MIN_MOMENTS = 3;
 export const MAX_ACTIVITIES = 3;
