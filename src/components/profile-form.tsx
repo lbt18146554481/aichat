@@ -108,6 +108,11 @@ export function ProfileForm({ lang, compact = false }: Props) {
       {/* — 01 Vitals — */}
       <section className="space-y-4">
         <SectionHeader index={1} title={t("profile.section.vitals")} hint={t("profile.section.vitals_hint")} />
+        <AvatarField
+          value={profile.avatar}
+          name={profile.name}
+          onChange={(dataUrl) => updateField("avatar", dataUrl)}
+        />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label={t("profile.f.name")}>
             <input
@@ -138,8 +143,21 @@ export function ProfileForm({ lang, compact = false }: Props) {
               className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
             />
           </Field>
+          <Field label={`${t("profile.f.mbti")} · ${t("profile.optional")}`}>
+            <select
+              value={profile.mbti}
+              onChange={(e) => updateField("mbti", e.target.value)}
+              className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
+            >
+              <option value="">{t("profile.f.mbti_placeholder")}</option>
+              {MBTI_TYPES.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </Field>
         </div>
       </section>
+
 
       {/* — 02 Activities — */}
       <section className="space-y-4">
