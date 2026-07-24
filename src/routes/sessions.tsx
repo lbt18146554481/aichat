@@ -15,6 +15,8 @@ export const Route = createFileRoute("/sessions")({
 });
 
 function SessionsPage() {
+  const { ready } = useRequireAuth();
+  if (!ready) return <div className="min-h-screen bg-background" />;
   const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-background flex flex-col">
