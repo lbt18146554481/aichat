@@ -45,6 +45,14 @@ import {
 const WORK_KINDS: WorkKind[] = ["book", "film", "music", "exhibition", "food", "other"];
 const ACTIVITY_KINDS: ActivityKind[] = ["tennis", "run", "climb", "cook", "exhibition", "bookstore"];
 const CADENCES: ActivityCadence[] = ["weekly", "monthly", "occasional"];
+const MBTI_TYPES = [
+  "INTJ","INTP","ENTJ","ENTP",
+  "INFJ","INFP","ENFJ","ENFP",
+  "ISTJ","ISFJ","ESTJ","ESFJ",
+  "ISTP","ISFP","ESTP","ESFP",
+];
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // 2MB soft cap
+
 
 interface Props {
   lang: Lang;
