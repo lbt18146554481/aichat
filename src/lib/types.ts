@@ -67,7 +67,7 @@ export interface Person {
   activities: Activity[];
   reflections: Reflection[];
   moments: Moment[];
-  oneWork?: OneWorkRef;
+  favorites?: OneWorkRef[];
   /** One-sentence "why is TA" line for the side-by-side match card. Demo copy. */
   whyPersonLine?: { en: string; zh: string };
   /** 2-3 sentence "who is TA" line the Agent reads out when asked. Demo copy. */
