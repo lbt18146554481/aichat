@@ -6,11 +6,13 @@ import { LangSwitcher } from "@/components/lang-switcher";
 
 import { HistoryTrigger } from "@/components/history-trigger";
 import { SavedTrigger } from "@/components/saved-trigger";
+import { AccountMenu } from "@/components/account-menu";
 import { routeIntent } from "@/lib/route-intent";
 import { setSeed, type AgentId } from "@/lib/seed";
 import { hasUnseen, list, rehydrate, subscribe } from "@/lib/connections";
 import { isProfileComplete, loadProfile, profileProgress } from "@/lib/profile";
 import { createSession } from "@/lib/sessions";
+import { useAuth } from "@/lib/auth";
 import { EMPTY as EMPTY_SIDE } from "@/lib/agents/side-by-side";
 import { EMPTY as EMPTY_MATCHMAKER } from "@/lib/agents/matchmaker";
 
@@ -31,6 +33,7 @@ const CHIPS: Chip[] = [
 
 export function Home() {
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   const navigate = useNavigate();
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -61,6 +64,10 @@ export function Home() {
   function submit() {
     const body = text.trim();
     if (!body) return;
+    if (!user) {
+      void navigate({ to: "/auth", search: { mode: "signin", redirect: "/" } });
+      return;
+    }
     const target: AgentId = selected ?? routeIntent(body);
     setSeed(target, body);
     // Every submit — regardless of which Agent it routes to — creates one
@@ -102,14 +109,17 @@ export function Home() {
                 {unseen && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-foreground" />}
               </Link>
             )}
-            <Link
-              to="/profile"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-foreground/80 hover:text-foreground hover:bg-secondary transition-colors"
-            >
-              <UserCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
-              <span suppressHydrationWarning>{mounted ? t("home.profile") : ""}</span>
-            </Link>
+            {user && (
+              <Link
+                to="/profile"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-foreground/80 hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                <UserCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
+                <span suppressHydrationWarning>{mounted ? t("home.profile") : ""}</span>
+              </Link>
+            )}
             <LangSwitcher />
+            {mounted && <AccountMenu />}
           </div>
         </div>
       </header>

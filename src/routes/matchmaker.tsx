@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useRequireAuth } from "@/lib/auth-guard";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Lang } from "@/lib/i18n";
@@ -32,11 +33,14 @@ export const Route = createFileRoute("/matchmaker")({
 });
 
 function MatchmakerPage() {
+  const { ready } = useRequireAuth();
   const { i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
   const search = Route.useSearch();
   const sessionId = search.session || null;
+  if (!ready) return <div className="min-h-screen bg-background" />;
+
 
   // Every matchmaker page must live under a session; no sessionId → home.
   useEffect(() => {
