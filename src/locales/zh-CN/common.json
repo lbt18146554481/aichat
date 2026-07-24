@@ -388,10 +388,21 @@
       "age": "年龄",
       "city": "所在城市",
       "occupation": "你做什么",
+      "mbti": "MBTI",
+      "mbti_placeholder": "不填",
       "work_title": "名字",
       "work_title_placeholder": "比如：Annie Ernaux《悠悠岁月》",
       "work_why": "为什么留下了",
       "work_why_placeholder": "一句话。不是书评。"
+    },
+    "avatar": {
+      "upload": "上传头像",
+      "replace": "更换头像",
+      "remove": "移除",
+      "hint": "清晰的正脸照最好。JPG 或 PNG，小于 2MB。",
+      "error_type": "这个文件不像是图片。",
+      "error_size": "图片太大了——请保持在 2MB 以内。",
+      "error_read": "读不出这个文件，换一张试试。"
     },
     "kind": {
       "book": "书",

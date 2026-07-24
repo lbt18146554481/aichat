@@ -388,10 +388,21 @@
       "age": "Age",
       "city": "City",
       "occupation": "What you do",
+      "mbti": "MBTI",
+      "mbti_placeholder": "Prefer not to say",
       "work_title": "Title",
       "work_title_placeholder": "e.g. The Years — Annie Ernaux",
       "work_why": "Why it stuck",
       "work_why_placeholder": "One sentence. Not a review."
+    },
+    "avatar": {
+      "upload": "Upload photo",
+      "replace": "Replace photo",
+      "remove": "Remove",
+      "hint": "A clear headshot works best. JPG or PNG, under 2MB.",
+      "error_type": "That doesn't look like an image file.",
+      "error_size": "Image is too large — please keep it under 2MB.",
+      "error_read": "Couldn't read that file. Try another one."
     },
     "kind": {
       "book": "Book",

@@ -45,6 +45,14 @@ import {
 const WORK_KINDS: WorkKind[] = ["book", "film", "music", "exhibition", "food", "other"];
 const ACTIVITY_KINDS: ActivityKind[] = ["tennis", "run", "climb", "cook", "exhibition", "bookstore"];
 const CADENCES: ActivityCadence[] = ["weekly", "monthly", "occasional"];
+const MBTI_TYPES = [
+  "INTJ","INTP","ENTJ","ENTP",
+  "INFJ","INFP","ENFJ","ENFP",
+  "ISTJ","ISFJ","ESTJ","ESFJ",
+  "ISTP","ISFP","ESTP","ESFP",
+];
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // 2MB soft cap
+
 
 interface Props {
   lang: Lang;
@@ -100,6 +108,11 @@ export function ProfileForm({ lang, compact = false }: Props) {
       {/* — 01 Vitals — */}
       <section className="space-y-4">
         <SectionHeader index={1} title={t("profile.section.vitals")} hint={t("profile.section.vitals_hint")} />
+        <AvatarField
+          value={profile.avatar}
+          name={profile.name}
+          onChange={(dataUrl) => updateField("avatar", dataUrl)}
+        />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label={t("profile.f.name")}>
             <input
@@ -130,8 +143,21 @@ export function ProfileForm({ lang, compact = false }: Props) {
               className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
             />
           </Field>
+          <Field label={`${t("profile.f.mbti")} · ${t("profile.optional")}`}>
+            <select
+              value={profile.mbti}
+              onChange={(e) => updateField("mbti", e.target.value)}
+              className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
+            >
+              <option value="">{t("profile.f.mbti_placeholder")}</option>
+              {MBTI_TYPES.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </Field>
         </div>
       </section>
+
 
       {/* — 02 Activities — */}
       <section className="space-y-4">
@@ -372,16 +398,103 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+function AvatarField({
+  value,
+  name,
+  onChange,
+}: {
+  value: string;
+  name: string;
+  onChange: (dataUrl: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [error, setError] = useState<string | null>(null);
+  const initial = (name.trim()[0] ?? "?").toUpperCase();
+
+  function handlePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-pick same file
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError(t("profile.avatar.error_type"));
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      setError(t("profile.avatar.error_size"));
+      return;
+    }
+    setError(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      onChange(result);
+    };
+    reader.onerror = () => setError(t("profile.avatar.error_read"));
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="w-16 h-16 rounded-full border border-border bg-secondary/60 overflow-hidden flex items-center justify-center shrink-0">
+        {value ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={value} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-[20px] font-serif italic text-muted-foreground">{initial}</span>
+        )}
+      </div>
+      <div className="min-w-0 space-y-1">
+        <div className="flex items-center gap-2">
+          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-[12px] text-foreground/80 hover:border-foreground/50 cursor-pointer transition-colors">
+            <Plus className="w-3.5 h-3.5" />
+            <span>{value ? t("profile.avatar.replace") : t("profile.avatar.upload")}</span>
+            <input type="file" accept="image/*" onChange={handlePick} className="hidden" />
+          </label>
+          {value && (
+            <button
+              onClick={() => { onChange(""); setError(null); }}
+              className="text-[11.5px] text-muted-foreground hover:text-foreground"
+            >
+              {t("profile.avatar.remove")}
+            </button>
+          )}
+        </div>
+        <p className="text-[11.5px] text-muted-foreground leading-snug">
+          {error ?? t("profile.avatar.hint")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+
 function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
   const { t } = useTranslation();
   const favs = profile.favorites.filter((f) => f.title.trim() && f.why.trim()).slice(0, 3);
   return (
     <div className="rounded-xl border border-border bg-card px-5 py-5">
-      <div className="flex items-baseline gap-2 flex-wrap">
-        <h3 className="text-[18px] font-semibold tracking-tight text-foreground">{profile.name}</h3>
-        <span className="text-[12px] font-mono text-muted-foreground tabular-nums">{profile.age}</span>
+      <div className="flex items-start gap-4">
+        {profile.avatar ? (
+          <img src={profile.avatar} alt="" className="w-14 h-14 rounded-full object-cover border border-border shrink-0" />
+        ) : (
+          <div className="w-14 h-14 rounded-full border border-border bg-secondary/60 flex items-center justify-center shrink-0">
+            <span className="text-[18px] font-serif italic text-muted-foreground">
+              {(profile.name.trim()[0] ?? "?").toUpperCase()}
+            </span>
+          </div>
+        )}
+        <div className="min-w-0">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <h3 className="text-[18px] font-semibold tracking-tight text-foreground">{profile.name}</h3>
+            <span className="text-[12px] font-mono text-muted-foreground tabular-nums">{profile.age}</span>
+            {profile.mbti && (
+              <span className="text-[10.5px] font-mono uppercase tracking-wide text-muted-foreground">{profile.mbti}</span>
+            )}
+          </div>
+          <p className="text-[12.5px] text-muted-foreground mt-0.5">{profile.occupation} · {profile.city}</p>
+        </div>
       </div>
-      <p className="text-[12.5px] text-muted-foreground mt-0.5">{profile.occupation} · {profile.city}</p>
+
 
       <div className="mt-6 space-y-4">
         {profile.moments.filter((m) => m.answer.trim()).map((m) => {
