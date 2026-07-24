@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SideBySideRouteImport } from './routes/side-by-side'
 import { Route as SessionsRouteImport } from './routes/sessions'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as MatchmakerRouteImport } from './routes/matchmaker'
 import { Route as ConnectionsRouteImport } from './routes/connections'
@@ -26,11 +25,6 @@ const SideBySideRoute = SideBySideRouteImport.update({
 const SessionsRoute = SessionsRouteImport.update({
   id: '/sessions',
   path: '/sessions',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -65,7 +59,6 @@ export interface FileRoutesByFullPath {
   '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/profile': typeof ProfileRoute
-  '/reset-password': typeof ResetPasswordRoute
   '/sessions': typeof SessionsRoute
   '/side-by-side': typeof SideBySideRoute
 }
@@ -75,7 +68,6 @@ export interface FileRoutesByTo {
   '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/profile': typeof ProfileRoute
-  '/reset-password': typeof ResetPasswordRoute
   '/sessions': typeof SessionsRoute
   '/side-by-side': typeof SideBySideRoute
 }
@@ -86,7 +78,6 @@ export interface FileRoutesById {
   '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/profile': typeof ProfileRoute
-  '/reset-password': typeof ResetPasswordRoute
   '/sessions': typeof SessionsRoute
   '/side-by-side': typeof SideBySideRoute
 }
@@ -98,7 +89,6 @@ export interface FileRouteTypes {
     | '/connections'
     | '/matchmaker'
     | '/profile'
-    | '/reset-password'
     | '/sessions'
     | '/side-by-side'
   fileRoutesByTo: FileRoutesByTo
@@ -108,7 +98,6 @@ export interface FileRouteTypes {
     | '/connections'
     | '/matchmaker'
     | '/profile'
-    | '/reset-password'
     | '/sessions'
     | '/side-by-side'
   id:
@@ -118,7 +107,6 @@ export interface FileRouteTypes {
     | '/connections'
     | '/matchmaker'
     | '/profile'
-    | '/reset-password'
     | '/sessions'
     | '/side-by-side'
   fileRoutesById: FileRoutesById
@@ -129,7 +117,6 @@ export interface RootRouteChildren {
   ConnectionsRoute: typeof ConnectionsRoute
   MatchmakerRoute: typeof MatchmakerRoute
   ProfileRoute: typeof ProfileRoute
-  ResetPasswordRoute: typeof ResetPasswordRoute
   SessionsRoute: typeof SessionsRoute
   SideBySideRoute: typeof SideBySideRoute
 }
@@ -148,13 +135,6 @@ declare module '@tanstack/react-router' {
       path: '/sessions'
       fullPath: '/sessions'
       preLoaderRoute: typeof SessionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -201,7 +181,6 @@ const rootRouteChildren: RootRouteChildren = {
   ConnectionsRoute: ConnectionsRoute,
   MatchmakerRoute: MatchmakerRoute,
   ProfileRoute: ProfileRoute,
-  ResetPasswordRoute: ResetPasswordRoute,
   SessionsRoute: SessionsRoute,
   SideBySideRoute: SideBySideRoute,
 }
