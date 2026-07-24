@@ -1,11 +1,8 @@
 // The user's own Profile — the SOURCE OF TRUTH for "who you are" inside
-// Kindred. Four sections, each with a clear reader:
+// Kindred. Three sections, each with a clear reader:
 //   01 Vitals      → identity + system hard-filter (same city)
-//   02 Activities  → Side-by-Side matcher (real weekly rhythm)
-//   03 Moments     → other real people (Introduce Someone right pane)
-//   04 Favorites   → other real people (cultural taste; multi-entry)
-
-import type { ActivityKind } from "./types";
+//   02 Moments     → other real people (Introduce Someone right pane)
+//   03 Favorites   → other real people (cultural taste; multi-entry)
 
 export type WorkKind = "book" | "film" | "music" | "exhibition" | "food" | "other";
 
@@ -20,14 +17,6 @@ export interface Favorite {
   why: string;          // one sentence
 }
 
-export type ActivityCadence = "weekly" | "monthly" | "occasional";
-
-export interface UserActivity {
-  kind: ActivityKind;
-  area: string;          // user-typed neighborhood label
-  cadence: ActivityCadence;
-}
-
 // ---------- Profile --------------------------------------------------------
 
 export interface Profile {
@@ -38,9 +27,7 @@ export interface Profile {
   city: string;
   occupation: string;
   mbti: string;          // optional, "" or one of 16 types
-  // L2 things you actually do (weekly rhythm)
-  activities: UserActivity[];
-  // L3 specificity
+  // L2 specificity
   moments: ProfileMoment[];
   favorites: Favorite[];
 }
@@ -52,14 +39,12 @@ export const EMPTY_PROFILE: Profile = {
   city: "",
   occupation: "",
   mbti: "",
-  activities: [],
   moments: [],
   favorites: [],
 };
 
 
 export const MIN_MOMENTS = 3;
-export const MAX_ACTIVITIES = 3;
 export const MIN_FAVORITES = 1;
 export const MAX_FAVORITES = 6;
 
@@ -69,7 +54,7 @@ const KEY = "kindred:profile.v1";
 interface LegacyProfile extends Partial<Profile> {
   oneWork?: { kind: WorkKind; title: string; why: string } | null;
   compatibility?: unknown;
-  mbti?: string;
+  activities?: unknown;
 }
 
 export function loadProfile(): Profile {
@@ -83,10 +68,12 @@ export function loadProfile(): Profile {
       : parsed.oneWork && parsed.oneWork.title
       ? [{ kind: parsed.oneWork.kind, title: parsed.oneWork.title, why: parsed.oneWork.why }]
       : [];
+    // Drop legacy fields (activities, compatibility, oneWork) silently.
+    const { activities: _a, compatibility: _c, oneWork: _o, ...rest } = parsed;
+    void _a; void _c; void _o;
     return {
       ...EMPTY_PROFILE,
-      ...parsed,
-      activities: Array.isArray(parsed.activities) ? parsed.activities : [],
+      ...rest,
       moments: Array.isArray(parsed.moments) ? parsed.moments : [],
       favorites,
     };
@@ -139,24 +126,6 @@ export function upsertMoment(p: Profile, promptId: string, answer: string): Prof
 
 export function removeMoment(p: Profile, promptId: string): Profile {
   return { ...p, moments: p.moments.filter((m) => m.promptId !== promptId) };
-}
-
-// ---------- Activities -----------------------------------------------------
-
-export function addActivity(p: Profile, a: UserActivity): Profile {
-  if (p.activities.length >= MAX_ACTIVITIES) return p;
-  return { ...p, activities: [...p.activities, a] };
-}
-
-export function updateActivity(p: Profile, index: number, patch: Partial<UserActivity>): Profile {
-  return {
-    ...p,
-    activities: p.activities.map((a, i) => (i === index ? { ...a, ...patch } : a)),
-  };
-}
-
-export function removeActivity(p: Profile, index: number): Profile {
-  return { ...p, activities: p.activities.filter((_, i) => i !== index) };
 }
 
 // ---------- Favorites ------------------------------------------------------
