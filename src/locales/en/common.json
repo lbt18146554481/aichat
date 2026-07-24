@@ -91,7 +91,7 @@
     "empty_title": "I'll introduce one person here.",
     "empty_hint": "Not a list — one person at a time, with a reason. Tell me what you're looking for on the left.",
     "another_person": "Someone else",
-    "one_work_label": "One {{kind}} that matters to them",
+    "favorites_label": "Favorites",
     "next_person_after": "See someone else",
     "check_progress": "Check progress",
     "hello_again": "Say it another way",
@@ -227,7 +227,7 @@
     "more_hint": "More",
     "sheet": {
       "about_ta": "About TA",
-      "one_work": "Into right now",
+      "one_work": "Favorites",
       "moments": "Moments TA shared",
       "aligning": "What you're aligning on"
     },
@@ -358,37 +358,15 @@
     "section": {
       "vitals": "The basics",
       "vitals_hint": "Facts the system uses to decide who's near you. Anyone you're introduced to sees these.",
-      "compat": "How you live",
-      "compat_hint": "Soft signals the system uses to put more likely fits higher. All optional.",
+      "activities": "Things you actually do",
+      "activities_hint": "Weekly rhythms, not aspirations. Side by Side uses these to find real overlaps.",
       "moments": "Pick at least {{n}} and answer in your own words",
       "moments_hint": "Other people read this to decide whether to say hello. Specific beats clever.",
-      "one_work": "One thing you've cared about lately",
-      "one_work_hint": "A book, film, album, exhibition, meal — any form. One line on why it stuck."
+      "favorites": "Favorites",
+      "favorites_hint": "Books, films, music, exhibitions, food you love — one line each on why. Books first is a good start."
     },
     "optional": "Optional",
-    "compat": {
-      "weekend": {
-        "q": "An unclaimed weekend — you're most yourself when you…",
-        "quiet_recharge": "Recharge alone",
-        "one_close_friend": "See one close friend",
-        "out_and_about": "Are out among people"
-      },
-      "conflict": {
-        "q": "When something rubs you the wrong way with someone close, you tend to…",
-        "talk_now": "Talk about it now",
-        "cool_off_first": "Cool off, then talk",
-        "write_it_out": "Write it out first"
-      },
-      "five_years": {
-        "q": "The next few years, what you most want is…",
-        "depth_one_thing": "To go deep on one thing",
-        "range_many_things": "Range across many things",
-        "stability_family": "A steadier home life"
-      }
-    },
     "activities": {
-      "title": "Things you actually do",
-      "hint": "Weekly rhythms, not aspirations. Side by Side uses these to find real overlaps.",
       "add": "Add an activity",
       "remove": "Remove",
       "area_placeholder": "Neighborhood you usually go"
@@ -398,10 +376,12 @@
       "monthly": "Monthly",
       "occasional": "Now and then"
     },
-    "mbti": {
-      "title": "MBTI (optional)",
-      "placeholder": "e.g. INFJ",
-      "note": "Shown as a tag on your profile. Not used for matching."
+    "favorite": {
+      "add_first": "Add your first favorite",
+      "add": "Add another",
+      "remove": "Remove",
+      "title_placeholder": "Title — e.g. The Years — Annie Ernaux",
+      "why_placeholder": "One line. Why it stuck with you."
     },
     "f": {
       "name": "Name",
