@@ -398,6 +398,76 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+function AvatarField({
+  value,
+  name,
+  onChange,
+}: {
+  value: string;
+  name: string;
+  onChange: (dataUrl: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [error, setError] = useState<string | null>(null);
+  const initial = (name.trim()[0] ?? "?").toUpperCase();
+
+  function handlePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-pick same file
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError(t("profile.avatar.error_type"));
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      setError(t("profile.avatar.error_size"));
+      return;
+    }
+    setError(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      onChange(result);
+    };
+    reader.onerror = () => setError(t("profile.avatar.error_read"));
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="w-16 h-16 rounded-full border border-border bg-secondary/60 overflow-hidden flex items-center justify-center shrink-0">
+        {value ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={value} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-[20px] font-serif italic text-muted-foreground">{initial}</span>
+        )}
+      </div>
+      <div className="min-w-0 space-y-1">
+        <div className="flex items-center gap-2">
+          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-[12px] text-foreground/80 hover:border-foreground/50 cursor-pointer transition-colors">
+            <Plus className="w-3.5 h-3.5" />
+            <span>{value ? t("profile.avatar.replace") : t("profile.avatar.upload")}</span>
+            <input type="file" accept="image/*" onChange={handlePick} className="hidden" />
+          </label>
+          {value && (
+            <button
+              onClick={() => { onChange(""); setError(null); }}
+              className="text-[11.5px] text-muted-foreground hover:text-foreground"
+            >
+              {t("profile.avatar.remove")}
+            </button>
+          )}
+        </div>
+        <p className="text-[11.5px] text-muted-foreground leading-snug">
+          {error ?? t("profile.avatar.hint")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+
 function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
   const { t } = useTranslation();
   const favs = profile.favorites.filter((f) => f.title.trim() && f.why.trim()).slice(0, 3);
