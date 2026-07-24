@@ -30,6 +30,8 @@ export const Route = createFileRoute("/connections")({
 type PaneKind = "thread" | "incoming" | "waiting" | null;
 
 function ConnectionsPage() {
+  const { ready } = useRequireAuth();
+  if (!ready) return <div className="min-h-screen bg-background" />;
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
