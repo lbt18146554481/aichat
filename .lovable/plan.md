@@ -1,83 +1,104 @@
-## 判断先行
 
-你选"彻底删 Activities"这条路，代价是清楚的：Side-by-Side 从此不再读用户档案里的常规活动节奏，改由**当次心愿文本 + 同城硬过滤**独立支撑匹配。这条线原本就已经能跑（心愿里都会指明活动+时间+水平），所以删掉 Activities 不会让 Side-by-Side 崩，只会让"档案预填一份周节奏、供以后复用"这个便利消失——收益（Profile 更瘦、板块无重叠）大于代价，接受。
+# 目标
 
-Favorites 你把设计交给我，我选**克制的单行清单**这条：不做卡片外壳，不做 kind 芯片组，why 用引号斜体压成一句话。视觉上像一段读书笔记，而不像一张表单。
+搭建完整的账户系统，让 Kindred 从"演示 demo"过渡到"有真实用户身份"的产品首版。范围包括：注册、登录、登出、Google/Apple 社交登录、WeChat 占位、邀请码门槛、以及登录后与现有 Profile / History / Saved 的衔接（前端演示层，不动后台业务）。
 
-## 目标形态
+# 一、用户流程
 
-Profile 收到 **3 段**：
+## 1. 未登录访客进入首页
 
-```
-01 Vitals       身份底线（含头像 / 城市必填 / MBTI 可选）
-02 Moments      你自己说的话（≥3）
-03 Favorites    你喜欢的东西（≥1，最多 6）
-```
+- 首页仍可看到 Agent 介绍和输入框（保留"能看到产品是什么"的第一印象）。
+- 任何**会产生私人数据**的动作（提交心愿、打开 Profile、打开 History、Saved、发送 Hello）都会触发一个轻量登录弹层，而不是直接跳走——保留上下文，登录后回到原动作。
+- 页眉右上从"语言切换"变成"语言切换 + Sign in"。
 
-Favorites 的最终样子：
+## 2. 登录弹层（`/auth`，也可作为独立页）
 
-```
-📖  《呼吸》 · 特德·姜             ×
-    "凡是要花力气记住的都值得。"
+单一页面，两种状态由 URL query 切换：`?mode=signin` / `?mode=signup`（默认 signin）。
 
-🎬  《在爱与生活之间》 · 侯麦          ×
-    "把'无所事事的下午'拍得像宗教。"
+内容自上而下：
+- 标题 + 一句话说明（signin：欢迎回来 / signup：Kindred 目前仅限受邀加入）。
+- **Continue with Google**（主按钮）
+- **Continue with Apple**
+- **Continue with WeChat**（灰态，右侧小字 `Coming soon`，点击 toast 提示）
+- 分隔线 `or`
+- Email + Password 表单
+- 底部切换链接：`New here? Get an invite` / `Already have an account? Sign in`
+- signup 模式下，Email/Password 表单**上方**多一个 `Invite code` 输入框（必填）。社交登录按钮在 signup 模式下也会先校验邀请码：若未填，点按钮时用红色提示要求先填。
 
-+ 再加一条
-```
+## 3. 邀请码规则
 
-规则：
-- 每条一行：`kind 图标 + 标题（可含作者/副标题，用户自己排版）` 在上，`why` 在下方一行灰色小字，带引号
-- kind 用图标而非文字芯片，点击图标弹出小 popover 选类型（book/film/music/exhibition/food/other），默认 book
-- 标题占位符：`书名 · 作者` / `电影 · 导演` 等按 kind 变化
-- why 占位符：`一句话，为什么它对你重要`
-- 没填的空条目自动不进保存，也不阻塞完成度
-- 添加时直接 inline 展开一条空行，不弹卡片
+- 每个已登录用户在 Profile 页多一个 "Invites" 板块：显示自己剩余的可用邀请码数量（首版默认给每人 3 个），可点击生成一个新的 8 位字母数字码，一键复制。
+- 码由字母数字组成，单次使用；被使用后从生成者的额度里扣掉一个。
+- 校验时机：signup 提交时校验；无效/已用/过期给出明确错误。
+- 首批种子用户（比如"admin"账户）通过后台预置。首版前端只需要暴露"生成 / 复制 / 显示剩余额度"三个动作。
 
-## 改动清单
+## 4. 注册后
 
-### 1. 数据模型 `src/lib/profile.ts`
-- 删除 `activities` 字段、`UserActivity` 类型、`ActivityCadence` 类型
-- 删除 `addActivity` / `updateActivity` / `removeActivity` / `MAX_ACTIVITIES`
-- `loadProfile` 迁移旧数据：`activities` 字段静默丢弃
-- `isProfileComplete` / `profileProgress` 已经不依赖 activities，无需改动
-- `EMPTY_PROFILE` 移除 `activities: []`
+- 落到 Profile 页（复用现在的 `/profile`），顶部一条一次性欢迎横幅："Welcome to Kindred. Fill in the basics so we can introduce you to the right people." 引导完成 Vitals。
+- 首次登录时把当前 localStorage 里的匿名数据"认领"给这个账号（本地绑定 userId 命名空间即可，后端由你处理）。
 
-### 2. 表单 `src/components/profile-form.tsx`
-- 删除整个 Activities 板块（`ActivitiesField` 组件、`ACTIVITY_KIND_OPTIONS`、`CADENCE_OPTIONS` 等相关常量与渲染块）
-- 把 Favorites 板块从卡片式重写为**单行清单式**：
-  - 每条一行两栏：左侧 kind icon 按钮（Lucide 图标：BookOpen / Film / Music / Landmark / UtensilsCrossed / Sparkles），点击弹 popover 切换类型
-  - 右侧上下两行：Title 单行 input（无边框，只有底部细线，focus 时高亮）+ Why 单行 input（更小字号，斜体，占位文案带引号）
-  - 每行末尾一个 hover 才显示的 `×` 移除按钮
-  - 底部一个 `+ 再加一条` 的纯文字按钮（到 MAX_FAVORITES=6 时禁用并变灰）
-  - 空态：默认渲染一条 book 空行占位
-- `PreviewCard` 里的 Favorites 展示也同步换成单行样式（去掉外壳、去掉标签）
-- 板块序号从 4 段收到 3 段：Vitals → Moments → Favorites
+## 5. 已登录状态
 
-### 3. 匹配器 `src/lib/agents/side-by-side.ts`
-- 移除对 `profile.activities` 的读取（如果有）。若当前无引用，只需确认。
+- 页眉右上角原本的 History/Saved/Connections 图标仍在；最右边新增账户头像按钮，点开下拉菜单：
+  - 用户名 + 邮箱（灰色只读一行）
+  - `Your profile` → `/profile`
+  - `Invites (剩余 N)` → 展开生成/复制
+  - `Sign out`
+- 未登录时头像位置显示 `Sign in` 文本按钮。
 
-### 4. i18n `src/locales/{en,zh-CN}/common.json`
-- 删除：`profile.section.activities*`、`profile.activity.*`、`profile.cadence.*`、以及 Activities 相关的所有 key
-- Favorites 的 key 复用现有的即可；新增或调整占位符文案：
-  - `profile.favorite.title_placeholder.book` / `.film` / `.music` / `.exhibition` / `.food` / `.other`
-  - `profile.favorite.why_placeholder`（改成带引号的口吻，如 `一句话，为什么它对你重要`）
-  - `profile.favorite.add_more`（"+ 再加一条" / "+ Add another"）
-- 进度条 total 从 3 保持 3（Vitals + Moments + Favorites），无需改
+## 6. 登出
 
-### 5. 兼容旧数据
-- 老用户 localStorage 里若存在 `activities`，`loadProfile` 直接丢弃，不做提示、不做迁移。其它字段照常保留。
+- 点击 `Sign out` → 清空登录态 → 跳回 `/`（保留 localStorage 里那些"演示数据"以便下次任何用户登录都能看到 demo 内容；这是演示层的取舍）。
 
-## 不动的东西
-- 头像上传 / MBTI / 城市必填 / Moments 板块
-- Public Profile Sheet 里 Favorites 的分组展示（TA 看你时仍按 kind 分组，不受表单形态影响）
-- Side-by-Side 主流程（活动从心愿文本抽取这条已经在跑）
-- 语言切换、路由、历史、Saved
+## 7. 忘记密码
 
-## 验收
-- `/profile` 从 4 段变 3 段，无 Activities 板块残留
-- Favorites 每条以"图标 + 标题 + 一行斜体 why"呈现，无卡片外壳；添加/移除流畅，最多 6 条
-- 空条目不阻塞完成度；填够 1 条即算达成
-- 老档案打开后 Vitals/Moments/Favorites 完好，`activities` 静默丢失
-- Side-by-Side 匹配仍能正常跑（不再依赖 profile.activities）
-- `bunx tsgo --noEmit` 通过；无 i18n key 缺失或未使用告警
+首版极简：email 表单下面一行 `Forgot password?` → 跳 `/reset-password`，UI 占位（输入邮箱 → 显示"我们会给你发链接"toast），实际邮件发送由你在后台接入。同样地 `/reset-password?type=recovery` 支持设置新密码的 UI。
+
+# 二、前端演示层实现范围
+
+我只做前端 UI + 一个可插拔的"假登录"层（`src/lib/auth.ts`），后台真实接入你来处理。假登录层负责：
+- 用 localStorage 存 `kindred:auth.v1 = { userId, email, name, avatar, provider, invitesLeft }`。
+- 提供 `useAuth()` hook：`{ user, signIn, signUp, signOut, generateInvite }`。
+- `signIn/signUp` 均返回 Promise，模拟 800ms 延迟；signup 时校验邀请码来自内置白名单（例如 `KINDRED2026`）或已生成集合。
+- 页眉、登录弹层、Profile 全部读这一层；未来你替换 `src/lib/auth.ts` 的实现即可对接真实后端。
+
+# 三、文件改动
+
+新增：
+- `src/lib/auth.ts` — 假登录 store（localStorage） + hook。
+- `src/lib/invites.ts` — 邀请码生成、校验、消费。
+- `src/routes/auth.tsx` — Sign in / Sign up 页面（一页两态）。
+- `src/routes/reset-password.tsx` — 忘记密码 / 设置新密码占位。
+- `src/components/auth-required-dialog.tsx` — 未登录动作触发的轻弹层（其实就是 push to `/auth` 并保存 `redirect` 搜索参数）。
+- `src/components/account-menu.tsx` — 页眉右侧头像下拉。
+
+修改：
+- `src/components/workspace-header.tsx` — 加 `<AccountMenu />` 或 `Sign in` 按钮。
+- `src/components/home.tsx` — 首页提交时若未登录 → 跳 `/auth?redirect=...`。
+- `src/routes/profile.tsx`、`src/routes/connections.tsx`、`src/routes/sessions.tsx`、`src/routes/side-by-side.tsx`、`src/routes/matchmaker.tsx` — 页面入口加登录护栏（未登录跳 `/auth?redirect=当前路径`）。
+- `src/components/profile-form.tsx` — 底部加 `Invites` 板块。
+- `src/locales/en/common.json`、`src/locales/zh-CN/common.json` — 加 auth / invites 相关文案。
+
+# 四、技术要点（给你后端对接时参考）
+
+- 三个社交按钮在演示层里都走同一个 `signIn(provider)`；未来接入 Lovable Cloud 时，Google/Apple 通过 `supabase.auth.signInWithOAuth`，WeChat 走自定义 server route（`src/routes/api/public/wechat-callback.ts`）+ 自签 Supabase session。
+- `redirect_uri` 使用 `window.location.origin`，不要指向受保护路径。
+- 登录弹层永远是**顶级公共路由**，不要放在 `_authenticated/` 下（否则回跳时会闪回登录页）。
+- 邀请码表未来在 Supabase 里应长这样：`invite_codes (code text pk, created_by uuid, used_by uuid null, expires_at, created_at)`，前端把 code 当字符串处理即可。
+
+# 五、非目标（首版明确不做）
+
+- WeChat 真实登录（灰态占位）。
+- 双因素、手机号、SSO。
+- 邀请码分级/带角色。
+- 头像通过第三方存储上传（现在仍是 data URL 本地保存）。
+- 后端真实持久化（你已明确自己处理）。
+
+# 六、验收清单
+
+1. 未登录访客点首页输入框提交 → 跳 `/auth`，登录后回到首页并保留输入。
+2. 从 `/auth?mode=signup` 使用有效邀请码 + Google/Apple/邮箱都能完成注册，直达 `/profile` 并看到欢迎条。
+3. WeChat 按钮点击后仅弹提示，不引发任何跳转。
+4. Profile 页显示剩余邀请数，点 `Generate` 出现新码并可复制。
+5. 页眉头像下拉可跳 Profile、生成邀请、登出；登出后回到 `/`，再点保护路径会重新跳 `/auth`。
+6. 忘记密码走到 `/reset-password` 且 UI 占位不报错。

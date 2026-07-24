@@ -5,6 +5,7 @@ import { ArrowLeft, MessageCircle, RotateCcw, UserCircle } from "lucide-react";
 import { LangSwitcher } from "./lang-switcher";
 import { HistoryTrigger } from "./history-trigger";
 import { SavedTrigger } from "./saved-trigger";
+import { AccountMenu } from "./account-menu";
 import { hasUnseen, list, subscribe, type Connection } from "@/lib/connections";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
@@ -132,6 +133,7 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
           )}
           <HistoryTrigger variant="compact" />
           <LangSwitcher />
+          <AccountMenu compact />
         </div>
       </div>
     </header>

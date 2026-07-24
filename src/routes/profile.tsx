@@ -6,6 +6,7 @@ import type { Lang } from "@/lib/i18n";
 import { loadProfile, profileProgress } from "@/lib/profile";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { ProfileForm } from "@/components/profile-form";
+import { useRequireAuth } from "@/lib/auth-guard";
 
 export const Route = createFileRoute("/profile")({
   component: ProfilePage,
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/profile")({
 });
 
 function ProfilePage() {
+  const { ready } = useRequireAuth();
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
@@ -50,7 +52,7 @@ function ProfilePage() {
     else void navigate({ to: "/" });
   }
 
-  if (!hydrated) return <div className="min-h-screen bg-background" />;
+  if (!ready || !hydrated) return <div className="min-h-screen bg-background" />;
 
   const backLabel =
     returnTo === "/matchmaker"

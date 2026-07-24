@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useRequireAuth } from "@/lib/auth-guard";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft } from "lucide-react";
 import { SessionList } from "@/components/session-list";
@@ -14,6 +15,8 @@ export const Route = createFileRoute("/sessions")({
 });
 
 function SessionsPage() {
+  const { ready } = useRequireAuth();
+  if (!ready) return <div className="min-h-screen bg-background" />;
   const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-background flex flex-col">

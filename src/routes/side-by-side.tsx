@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useRequireAuth } from "@/lib/auth-guard";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -173,6 +174,7 @@ function classify(text: string): Question {
 }
 
 function SideBySidePage() {
+  const { ready } = useRequireAuth();
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
@@ -611,7 +613,7 @@ function SideBySidePage() {
     startNewActivity();
   }
 
-  if (!hydrated) return <div className="h-screen bg-background" />;
+  if (!ready || !hydrated) return <div className="h-screen bg-background" />;
 
   const messages: AgentMsg[] = state.messages;
   const placeholderKey =

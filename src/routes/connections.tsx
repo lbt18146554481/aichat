@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useRequireAuth } from "@/lib/auth-guard";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
@@ -29,6 +30,8 @@ export const Route = createFileRoute("/connections")({
 type PaneKind = "thread" | "incoming" | "waiting" | null;
 
 function ConnectionsPage() {
+  const { ready } = useRequireAuth();
+  if (!ready) return <div className="min-h-screen bg-background" />;
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
