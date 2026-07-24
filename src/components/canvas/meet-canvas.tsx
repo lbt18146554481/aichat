@@ -280,7 +280,8 @@ function PersonProfileSheet({
   const brief = person?.personBrief
     ? (lang === "zh-CN" ? person.personBrief.zh : person.personBrief.en)
     : "";
-  const oneWork = person?.oneWork;
+  const favorites = person?.favorites ?? [];
+  const oneWork = favorites[0];
   const oneWorkTitle = oneWork
     ? (lang === "zh-CN" && oneWork.title_zh ? oneWork.title_zh : oneWork.title)
     : "";

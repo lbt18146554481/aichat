@@ -111,18 +111,29 @@ export function PublicProfileSheet({ person, open, onOpenChange }: Props) {
           </div>
         )}
 
-        {/* One work */}
-        {person.oneWork && (
-          <div className="mt-6 rounded-lg border border-border bg-card px-3.5 py-3">
+        {/* Favorites */}
+        {person.favorites && person.favorites.length > 0 && (
+          <div className="mt-6">
             <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
-              {t("intro.one_work_label", { kind: t(`profile.kind.${person.oneWork.kind}`) })}
+              {t("intro.favorites_label")}
             </div>
-            <div className="text-[14px] font-medium text-foreground leading-snug">
-              {lang === "zh-CN" && person.oneWork.title_zh ? person.oneWork.title_zh : person.oneWork.title}
-            </div>
-            <p className="mt-1 text-[12.5px] text-muted-foreground leading-relaxed">
-              {lang === "zh-CN" ? person.oneWork.why_zh : person.oneWork.why}
-            </p>
+            <ul className="space-y-2.5">
+              {person.favorites.map((w, i) => (
+                <li key={i} className="text-[13.5px] leading-snug">
+                  <div className="text-foreground">
+                    <span className="text-[10.5px] font-mono uppercase tracking-wide text-muted-foreground mr-1.5">
+                      {t(`profile.kind.${w.kind}`)}
+                    </span>
+                    <span className="font-medium">
+                      {lang === "zh-CN" && w.title_zh ? w.title_zh : w.title}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[12.5px] text-muted-foreground leading-relaxed">
+                    {lang === "zh-CN" ? w.why_zh : w.why}
+                  </p>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
