@@ -2,39 +2,32 @@
 // Reads/writes localStorage directly via load/saveProfile. Every field
 // change persists immediately; nothing gates on "complete".
 //
-// Four sections, each with a clear reader:
+// Three sections, each with a clear reader:
 //   01 Vitals      — identity + system hard filter (same city)
-//   02 Activities  — Side-by-Side matcher (real weekly rhythm)
-//   03 Moments     — other real people (Introduce Someone right pane)
-//   04 Favorites   — other real people (cultural taste; multi-entry)
+//   02 Moments     — other real people (Introduce Someone right pane)
+//   03 Favorites   — other real people (cultural taste; multi-entry)
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Plus } from "lucide-react";
+import { X, Plus, BookOpen, Film, Music, Landmark, UtensilsCrossed, Sparkles } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
 import {
   EMPTY_PROFILE,
   MIN_MOMENTS,
-  MAX_ACTIVITIES,
   MAX_FAVORITES,
-  addActivity,
   addFavorite,
   isProfileComplete,
   loadProfile,
-  removeActivity,
   removeFavorite,
   removeMoment,
   saveProfile,
-  updateActivity,
   updateFavorite,
   upsertMoment,
-  type ActivityCadence,
   type Favorite,
   type Profile,
-  type UserActivity,
   type WorkKind,
 } from "@/lib/profile";
-import type { ActivityKind } from "@/lib/types";
 import {
   MOMENT_PROMPTS,
   getMomentPromptById,
@@ -43,8 +36,14 @@ import {
 } from "@/lib/questions";
 
 const WORK_KINDS: WorkKind[] = ["book", "film", "music", "exhibition", "food", "other"];
-const ACTIVITY_KINDS: ActivityKind[] = ["tennis", "run", "climb", "cook", "exhibition", "bookstore"];
-const CADENCES: ActivityCadence[] = ["weekly", "monthly", "occasional"];
+const KIND_ICONS: Record<WorkKind, LucideIcon> = {
+  book: BookOpen,
+  film: Film,
+  music: Music,
+  exhibition: Landmark,
+  food: UtensilsCrossed,
+  other: Sparkles,
+};
 const MBTI_TYPES = [
   "INTJ","INTP","ENTJ","ENTP",
   "INFJ","INFP","ENFJ","ENFP",
@@ -80,15 +79,6 @@ export function ProfileForm({ lang, compact = false }: Props) {
   function dropMoment(promptId: string) {
     setProfile((p) => removeMoment(p, promptId));
   }
-  function handleAddActivity() {
-    setProfile((p) => addActivity(p, { kind: "tennis", area: "", cadence: "weekly" }));
-  }
-  function patchActivity(i: number, patch: Partial<UserActivity>) {
-    setProfile((p) => updateActivity(p, i, patch));
-  }
-  function dropActivity(i: number) {
-    setProfile((p) => removeActivity(p, i));
-  }
   function handleAddFavorite() {
     setProfile((p) => addFavorite(p, { kind: "book", title: "", why: "" }));
   }
@@ -102,6 +92,11 @@ export function ProfileForm({ lang, compact = false }: Props) {
   if (!hydrated) return <div />;
 
   const gap = compact ? "space-y-10" : "space-y-14";
+  // Always render at least one empty row so the shape is discoverable.
+  const favRows = profile.favorites.length === 0
+    ? [{ kind: "book" as WorkKind, title: "", why: "" }]
+    : profile.favorites;
+  const hasStoredFavs = profile.favorites.length > 0;
 
   return (
     <div className={gap}>
@@ -158,82 +153,10 @@ export function ProfileForm({ lang, compact = false }: Props) {
         </div>
       </section>
 
-
-      {/* — 02 Activities — */}
+      {/* — 02 Moments — */}
       <section className="space-y-4">
         <SectionHeader
           index={2}
-          title={t("profile.section.activities")}
-          hint={t("profile.section.activities_hint")}
-          badge={`${profile.activities.length} / ${MAX_ACTIVITIES}`}
-        />
-        <div className="space-y-2">
-          {profile.activities.map((a, i) => (
-            <div key={i} className="rounded-lg border border-border bg-card px-3 py-3 space-y-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <select
-                  value={a.kind}
-                  onChange={(e) => patchActivity(i, { kind: e.target.value as ActivityKind })}
-                  className="bg-transparent text-[13px] font-medium text-foreground outline-none border-b border-transparent hover:border-border focus:border-foreground py-0.5"
-                >
-                  {ACTIVITY_KINDS.map((k) => (
-                    <option key={k} value={k}>{t(`activity.kind.${k}`)}</option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => dropActivity(i)}
-                  aria-label={t("profile.activities.remove")}
-                  className="p-1 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <input
-                  value={a.area}
-                  onChange={(e) => patchActivity(i, { area: e.target.value })}
-                  placeholder={t("profile.activities.area_placeholder")}
-                  className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1 text-[13px]"
-                />
-                <div className="flex gap-1.5">
-                  {CADENCES.map((c) => {
-                    const active = a.cadence === c;
-                    return (
-                      <button
-                        key={c}
-                        onClick={() => patchActivity(i, { cadence: c })}
-                        className={
-                          "px-2.5 py-1 rounded-full text-[11.5px] border transition-colors " +
-                          (active
-                            ? "bg-foreground text-background border-foreground"
-                            : "border-border text-foreground/80 hover:border-foreground/50")
-                        }
-                      >
-                        {t(`profile.cadence.${c}`)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {profile.activities.length < MAX_ACTIVITIES && (
-            <button
-              onClick={handleAddActivity}
-              className="w-full rounded-lg border border-dashed border-border hover:border-foreground/40 py-2.5 text-[13px] text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              {t("profile.activities.add")}
-            </button>
-          )}
-        </div>
-      </section>
-
-      {/* — 03 Moments — */}
-      <section className="space-y-4">
-        <SectionHeader
-          index={3}
           title={t("profile.section.moments", { n: MIN_MOMENTS })}
           hint={t("profile.section.moments_hint")}
           badge={`${filledMoments.length} / ${MIN_MOMENTS}`}
@@ -282,71 +205,43 @@ export function ProfileForm({ lang, compact = false }: Props) {
         </div>
       </section>
 
-      {/* — 04 Favorites — */}
+      {/* — 03 Favorites — */}
       <section className="space-y-4">
         <SectionHeader
-          index={4}
+          index={3}
           title={t("profile.section.favorites")}
           hint={t("profile.section.favorites_hint")}
           badge={`${profile.favorites.length} / ${MAX_FAVORITES}`}
         />
-        <div className="space-y-2">
-          {profile.favorites.map((f, i) => (
-            <div key={i} className="rounded-lg border border-border bg-card px-4 py-3 space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex flex-wrap gap-1.5">
-                  {WORK_KINDS.map((k) => {
-                    const active = f.kind === k;
-                    return (
-                      <button
-                        key={k}
-                        onClick={() => patchFavorite(i, { kind: k })}
-                        className={
-                          "px-2.5 py-1 rounded-full text-[11.5px] border transition-colors " +
-                          (active
-                            ? "bg-foreground text-background border-foreground"
-                            : "border-border text-foreground/80 hover:border-foreground/50")
-                        }
-                      >
-                        {t(`profile.kind.${k}`)}
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  onClick={() => dropFavorite(i)}
-                  aria-label={t("profile.favorite.remove")}
-                  className="p-1 text-muted-foreground hover:text-foreground shrink-0"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <input
-                value={f.title}
-                onChange={(e) => patchFavorite(i, { title: e.target.value })}
-                placeholder={t("profile.favorite.title_placeholder")}
-                className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
-              />
-              <textarea
-                rows={2}
-                value={f.why}
-                onChange={(e) => patchFavorite(i, { why: e.target.value.slice(0, 120) })}
-                placeholder={t("profile.favorite.why_placeholder")}
-                className="w-full bg-transparent resize-none border-b border-border focus:border-foreground outline-none py-1.5 text-[14px] leading-relaxed"
-              />
-            </div>
+        <ul className="divide-y divide-border/70 border-y border-border/70">
+          {favRows.map((f, i) => (
+            <FavoriteRow
+              key={i}
+              favorite={f}
+              onKind={(kind) => hasStoredFavs ? patchFavorite(i, { kind }) : setProfile((p) => addFavorite(p, { ...f, kind }))}
+              onTitle={(title) => {
+                if (hasStoredFavs) patchFavorite(i, { title });
+                else if (title.length > 0) setProfile((p) => addFavorite(p, { ...f, title }));
+              }}
+              onWhy={(why) => {
+                const capped = why.slice(0, 80);
+                if (hasStoredFavs) patchFavorite(i, { why: capped });
+                else if (capped.length > 0) setProfile((p) => addFavorite(p, { ...f, why: capped }));
+              }}
+              onRemove={hasStoredFavs ? () => dropFavorite(i) : undefined}
+            />
           ))}
+        </ul>
 
-          {profile.favorites.length < MAX_FAVORITES && (
-            <button
-              onClick={handleAddFavorite}
-              className="w-full rounded-lg border border-dashed border-border hover:border-foreground/40 py-2.5 text-[13px] text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              {profile.favorites.length === 0 ? t("profile.favorite.add_first") : t("profile.favorite.add")}
-            </button>
-          )}
-        </div>
+        {profile.favorites.length < MAX_FAVORITES && hasStoredFavs && (
+          <button
+            onClick={handleAddFavorite}
+            className="text-[13px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            {t("profile.favorite.add_more")}
+          </button>
+        )}
       </section>
 
       {/* — Note — */}
@@ -365,6 +260,98 @@ export function ProfileForm({ lang, compact = false }: Props) {
         </section>
       )}
     </div>
+  );
+}
+
+function FavoriteRow({
+  favorite,
+  onKind,
+  onTitle,
+  onWhy,
+  onRemove,
+}: {
+  favorite: Favorite;
+  onKind: (k: WorkKind) => void;
+  onTitle: (v: string) => void;
+  onWhy: (v: string) => void;
+  onRemove?: () => void;
+}) {
+  const { t } = useTranslation();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const rootRef = useRef<HTMLLIElement>(null);
+  const Icon = KIND_ICONS[favorite.kind];
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    function onDown(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setPickerOpen(false);
+    }
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, [pickerOpen]);
+
+  return (
+    <li ref={rootRef} className="group relative flex items-start gap-3 py-3">
+      <div className="relative pt-1.5">
+        <button
+          type="button"
+          onClick={() => setPickerOpen((v) => !v)}
+          aria-label={t("profile.favorite.kind_label")}
+          title={t(`profile.kind.${favorite.kind}`)}
+          className="w-7 h-7 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-foreground/50 flex items-center justify-center transition-colors"
+        >
+          <Icon className="w-3.5 h-3.5" />
+        </button>
+        {pickerOpen && (
+          <div className="absolute left-0 top-9 z-10 rounded-lg border border-border bg-popover shadow-md p-1 flex gap-0.5">
+            {WORK_KINDS.map((k) => {
+              const KI = KIND_ICONS[k];
+              const active = favorite.kind === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => { onKind(k); setPickerOpen(false); }}
+                  title={t(`profile.kind.${k}`)}
+                  className={
+                    "w-7 h-7 rounded-md flex items-center justify-center transition-colors " +
+                    (active ? "bg-foreground text-background" : "text-muted-foreground hover:bg-secondary hover:text-foreground")
+                  }
+                >
+                  <KI className="w-3.5 h-3.5" />
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <input
+          value={favorite.title}
+          onChange={(e) => onTitle(e.target.value)}
+          placeholder={t(`profile.favorite.title_placeholder.${favorite.kind}`)}
+          className="w-full bg-transparent outline-none py-0.5 text-[14.5px] text-foreground placeholder:text-muted-foreground/60"
+        />
+        <input
+          value={favorite.why}
+          onChange={(e) => onWhy(e.target.value)}
+          placeholder={t("profile.favorite.why_placeholder")}
+          maxLength={80}
+          className="w-full bg-transparent outline-none py-0.5 text-[12.5px] italic text-muted-foreground placeholder:text-muted-foreground/50"
+        />
+      </div>
+
+      {onRemove && (
+        <button
+          onClick={onRemove}
+          aria-label={t("profile.favorite.remove")}
+          className="mt-1.5 p-1 text-muted-foreground/0 group-hover:text-muted-foreground hover:!text-foreground transition-colors"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      )}
+    </li>
   );
 }
 
@@ -517,16 +504,19 @@ function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
           <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
             {t("intro.favorites_label")}
           </div>
-          <ul className="space-y-1.5">
-            {favs.map((f, i) => (
-              <li key={i} className="text-[13px] text-foreground leading-snug">
-                <span className="text-[10.5px] font-mono uppercase tracking-wide text-muted-foreground mr-1.5">
-                  {t(`profile.kind.${f.kind}`)}
-                </span>
-                <span className="font-medium">{f.title}</span>
-                <span className="text-muted-foreground"> — {f.why}</span>
-              </li>
-            ))}
+          <ul className="space-y-2">
+            {favs.map((f, i) => {
+              const Icon = KIND_ICONS[f.kind];
+              return (
+                <li key={i} className="flex items-start gap-2.5 text-[13px] leading-snug">
+                  <Icon className="w-3.5 h-3.5 mt-1 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-foreground">{f.title}</div>
+                    <div className="text-muted-foreground italic">“{f.why}”</div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
