@@ -100,9 +100,6 @@
     "back_to_actions": "← Back",
     "faded_note": "This one didn't land. It happens — I won't recommend them again.",
     "why_them_label": "Why I thought of you",
-    "who_they_are_label": "Who they are",
-    "agent_note_prefix": "Agent's note",
-    "see_all_moments": "See all · what else they've said",
     "shared_signals_label": "SHARED",
     "their_signals_label": "THEIR SIGNALS",
     "view_profile": "View full profile",
@@ -110,8 +107,8 @@
     "public_profile_title": "Public profile",
     "about_them": "About them",
     "signals_label": "Signals",
-    "what_they_do": "What they do",
-    "one_work_opener": "About that {{kind}} — {{title}}. What drew you in?"
+    "what_they_do": "What they do"
+
   },
   "moment": {
     "about_them": "In their own words",
