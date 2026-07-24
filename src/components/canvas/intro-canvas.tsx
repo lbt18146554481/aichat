@@ -176,7 +176,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
 
   const loc = localized(person, lang);
   const moments = person.moments;
-  const work = person.oneWork;
+
 
   function requestSayHello(opts?: { pickedMomentId?: string | null; draftReply?: string }) {
     const p = loadProfile();
