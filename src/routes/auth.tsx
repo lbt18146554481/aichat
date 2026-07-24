@@ -1,8 +1,8 @@
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { LangSwitcher } from "@/components/lang-switcher";
 import {
   AuthError,
@@ -11,8 +11,10 @@ import {
   useAuth,
   type AuthProvider,
 } from "@/lib/auth";
+import { validateInvite } from "@/lib/invites";
 
 type Mode = "signin" | "signup";
+type Step = "invite" | "provider";
 
 interface Search {
   mode?: Mode;
@@ -33,10 +35,13 @@ export const Route = createFileRoute("/auth")({
   }),
 });
 
+// Reject anything that isn't a same-origin app path, and never bounce back
+// to /auth (that's what created the nested redirect loop before).
 function safeRedirect(target: string | undefined): string {
   if (!target) return "/";
-  if (target.startsWith("/") && !target.startsWith("//")) return target;
-  return "/";
+  if (!target.startsWith("/") || target.startsWith("//")) return "/";
+  if (target === "/auth" || target.startsWith("/auth?") || target.startsWith("/auth/")) return "/";
+  return target;
 }
 
 function AuthPage() {
@@ -46,80 +51,103 @@ function AuthPage() {
   const navigate = useNavigate();
   const { user, hydrated } = useAuth();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  // Signup is a two-step flow: invite → provider. Signin skips step 1.
+  const [step, setStep] = useState<Step>(mode === "signup" ? "invite" : "provider");
   const [inviteCode, setInviteCode] = useState("");
-  const [name, setName] = useState("");
-  const [pending, setPending] = useState<AuthProvider | "form" | null>(null);
+  const [verifiedCode, setVerifiedCode] = useState<string | null>(null);
+  const [pending, setPending] = useState<AuthProvider | "verify" | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
-  // If already signed in, bounce to the intended target.
-  if (hydrated && user) {
+  // Reset step whenever the user toggles between signin/signup.
+  useEffect(() => {
+    if (mode === "signin") {
+      setStep("provider");
+      setVerifiedCode(null);
+      setInviteCode("");
+    } else {
+      setStep(verifiedCode ? "provider" : "invite");
+    }
+    setErr(null);
+    setNotFound(false);
+  }, [mode, verifiedCode]);
+
+  // If already signed in, bounce out. Do it in an effect (not during render).
+  useEffect(() => {
+    if (!hydrated || !user) return;
     void navigate({ to: safeRedirect(search.redirect) as "/", replace: true });
-  }
+  }, [hydrated, user, navigate, search.redirect]);
 
-  function finish() {
-    const target = safeRedirect(search.redirect);
-    // Land freshly-signed-up users on their profile.
-    if (mode === "signup" && (!search.redirect || search.redirect === "/")) {
+  function finishAfterAuth(justSignedUp: boolean) {
+    if (justSignedUp && (!search.redirect || search.redirect === "/")) {
       void navigate({ to: "/profile", search: { welcome: 1 } as never, replace: true });
       return;
     }
-    void navigate({ to: target as "/", replace: true });
+    void navigate({ to: safeRedirect(search.redirect) as "/", replace: true });
+  }
+
+  function handleVerifyInvite(e: FormEvent) {
+    e.preventDefault();
+    setErr(null);
+    const code = inviteCode.trim().toUpperCase();
+    if (!code) {
+      setErr(t("auth.err.invite_required"));
+      return;
+    }
+    setPending("verify");
+    // Synchronous check — but keep the pending flash brief for polish.
+    window.setTimeout(() => {
+      if (!validateInvite(code)) {
+        setErr(t("auth.err.invite_invalid"));
+        setPending(null);
+        return;
+      }
+      setVerifiedCode(code);
+      setStep("provider");
+      setPending(null);
+    }, 200);
+  }
+
+  function changeInvite() {
+    setVerifiedCode(null);
+    setStep("invite");
+    setErr(null);
   }
 
   async function handleProvider(provider: AuthProvider) {
     setErr(null);
+    setNotFound(false);
     if (provider === "wechat") {
       toast(t("auth.wechat_coming_soon"));
-      return;
-    }
-    if (mode === "signup" && !inviteCode.trim()) {
-      setErr(t("auth.err.invite_required"));
       return;
     }
     setPending(provider);
     try {
       if (mode === "signup") {
-        await signUp({ provider, inviteCode });
+        if (!verifiedCode) {
+          setErr(t("auth.err.invite_required"));
+          setStep("invite");
+          return;
+        }
+        await signUp({ provider, inviteCode: verifiedCode });
+        finishAfterAuth(true);
       } else {
         await signIn({ provider });
+        finishAfterAuth(false);
       }
-      finish();
     } catch (e) {
-      setErr(e instanceof AuthError ? e.message : String(e));
-    } finally {
-      setPending(null);
-    }
-  }
-
-  async function handleEmail(e: FormEvent) {
-    e.preventDefault();
-    setErr(null);
-    if (!email.trim() || !password.trim()) {
-      setErr(t("auth.err.email_password_required"));
-      return;
-    }
-    if (mode === "signup" && !inviteCode.trim()) {
-      setErr(t("auth.err.invite_required"));
-      return;
-    }
-    setPending("form");
-    try {
-      if (mode === "signup") {
-        await signUp({ provider: "email", email, password, name, inviteCode });
+      if (e instanceof AuthError && e.code === "account_not_found") {
+        setNotFound(true);
       } else {
-        await signIn({ provider: "email", email, password });
+        setErr(e instanceof AuthError ? e.message : String(e));
       }
-      finish();
-    } catch (e) {
-      setErr(e instanceof AuthError ? e.message : String(e));
     } finally {
       setPending(null);
     }
   }
 
   const otherMode: Mode = mode === "signin" ? "signup" : "signin";
+  const showProviderStep = mode === "signin" || step === "provider";
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -139,124 +167,127 @@ function AuthPage() {
       <main className="flex-1 flex items-center justify-center px-5 py-10">
         <div className="w-full max-w-sm">
           <h1 className="text-[24px] font-serif italic leading-tight text-foreground">
-            {mode === "signin" ? t("auth.title_signin") : t("auth.title_signup")}
+            {mode === "signin"
+              ? t("auth.title_signin")
+              : step === "invite"
+                ? t("auth.invite_step_title")
+                : t("auth.provider_step_title_signup")}
           </h1>
           <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed">
-            {mode === "signin" ? t("auth.sub_signin") : t("auth.sub_signup")}
+            {mode === "signin"
+              ? t("auth.sub_signin")
+              : step === "invite"
+                ? t("auth.invite_step_sub")
+                : t("auth.sub_signup")}
           </p>
 
-          {mode === "signup" && (
-            <label className="mt-6 block">
-              <span className="text-[11px] font-mono uppercase tracking-wide text-muted-foreground">
-                {t("auth.invite_label")}
-              </span>
-              <input
-                type="text"
-                value={inviteCode}
-                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                placeholder={t("auth.invite_placeholder")}
-                className="mt-1.5 w-full rounded-md border border-border bg-card px-3 py-2 text-[14px] font-mono tracking-widest text-foreground outline-none focus:border-foreground/50"
-                autoComplete="off"
-                spellCheck={false}
-              />
-              <p className="mt-1.5 text-[11px] text-muted-foreground">
-                {t("auth.invite_hint")}
-              </p>
-            </label>
+          {/* Step 1 — Invite code gate (signup only) */}
+          {mode === "signup" && step === "invite" && (
+            <form onSubmit={handleVerifyInvite} className="mt-6 space-y-3">
+              <label className="block">
+                <span className="text-[11px] font-mono uppercase tracking-wide text-muted-foreground">
+                  {t("auth.invite_label")}
+                </span>
+                <input
+                  type="text"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                  placeholder={t("auth.invite_placeholder")}
+                  className="mt-1.5 w-full rounded-md border border-border bg-card px-3 py-2.5 text-[15px] font-mono tracking-widest text-foreground outline-none focus:border-foreground/50"
+                  autoComplete="off"
+                  spellCheck={false}
+                  autoFocus
+                />
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  {t("auth.invite_hint")}
+                </p>
+              </label>
+
+              {err && (
+                <p className="text-[12px] text-red-600 dark:text-red-400">{err}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={pending === "verify"}
+                className="w-full inline-flex items-center justify-center rounded-md bg-foreground text-background px-3 py-2 text-[13px] font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
+              >
+                {pending === "verify" ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  t("auth.invite_verify")
+                )}
+              </button>
+            </form>
           )}
 
-          <div className="mt-6 space-y-2">
-            <ProviderButton
-              provider="google"
-              label={t("auth.continue_google")}
-              onClick={() => handleProvider("google")}
-              pending={pending === "google"}
-              disabled={!!pending}
-              primary
-            />
-            <ProviderButton
-              provider="apple"
-              label={t("auth.continue_apple")}
-              onClick={() => handleProvider("apple")}
-              pending={pending === "apple"}
-              disabled={!!pending}
-            />
-            <ProviderButton
-              provider="wechat"
-              label={t("auth.continue_wechat")}
-              onClick={() => handleProvider("wechat")}
-              pending={false}
-              disabled={!!pending}
-              soon
-            />
-          </div>
-
-          <div className="my-6 flex items-center gap-3">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-[11px] font-mono uppercase tracking-wide text-muted-foreground">
-              {t("auth.or")}
-            </span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-
-          <form onSubmit={handleEmail} className="space-y-3">
-            {mode === "signup" && (
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t("auth.name_placeholder")}
-                className="w-full rounded-md border border-border bg-card px-3 py-2 text-[14px] text-foreground outline-none focus:border-foreground/50"
-              />
-            )}
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t("auth.email_placeholder")}
-              autoComplete="email"
-              className="w-full rounded-md border border-border bg-card px-3 py-2 text-[14px] text-foreground outline-none focus:border-foreground/50"
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={t("auth.password_placeholder")}
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
-              className="w-full rounded-md border border-border bg-card px-3 py-2 text-[14px] text-foreground outline-none focus:border-foreground/50"
-            />
-
-            {err && (
-              <p className="text-[12px] text-red-600 dark:text-red-400">{err}</p>
-            )}
-
-            <button
-              type="submit"
-              disabled={!!pending}
-              className="w-full inline-flex items-center justify-center rounded-md bg-foreground text-background px-3 py-2 text-[13px] font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
-            >
-              {pending === "form" ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : mode === "signin" ? (
-                t("auth.submit_signin")
-              ) : (
-                t("auth.submit_signup")
+          {/* Step 2 — provider chooser (or signin entry) */}
+          {showProviderStep && (
+            <>
+              {mode === "signup" && verifiedCode && (
+                <div className="mt-6 flex items-center justify-between rounded-md border border-border bg-secondary/40 px-3 py-2">
+                  <span className="inline-flex items-center gap-1.5 text-[12px] text-foreground">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span className="font-mono tracking-wider">{verifiedCode}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={changeInvite}
+                    className="text-[11.5px] text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-2"
+                  >
+                    {t("auth.invite_change")}
+                  </button>
+                </div>
               )}
-            </button>
 
-            {mode === "signin" && (
-              <div className="text-center">
-                <Link
-                  to="/reset-password"
-                  className="text-[12px] text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-2"
-                >
-                  {t("auth.forgot_password")}
-                </Link>
+              <div className="mt-6 space-y-2">
+                <ProviderButton
+                  provider="google"
+                  label={t("auth.continue_google")}
+                  onClick={() => handleProvider("google")}
+                  pending={pending === "google"}
+                  disabled={!!pending}
+                  primary
+                />
+                <ProviderButton
+                  provider="apple"
+                  label={t("auth.continue_apple")}
+                  onClick={() => handleProvider("apple")}
+                  pending={pending === "apple"}
+                  disabled={!!pending}
+                />
+                <ProviderButton
+                  provider="wechat"
+                  label={t("auth.continue_wechat")}
+                  onClick={() => handleProvider("wechat")}
+                  pending={false}
+                  disabled={!!pending}
+                  soon
+                />
               </div>
-            )}
-          </form>
 
-          <div className="mt-6 text-center text-[12px] text-muted-foreground">
+              {notFound && (
+                <div className="mt-4 rounded-md border border-border bg-secondary/40 px-3 py-2.5">
+                  <p className="text-[12px] text-foreground">
+                    {t("auth.err.account_not_found")}
+                  </p>
+                  <Link
+                    to="/auth"
+                    search={{ mode: "signup", redirect: search.redirect }}
+                    className="mt-1.5 inline-block text-[12px] font-medium text-foreground underline decoration-dotted underline-offset-2 hover:opacity-80"
+                  >
+                    {t("auth.switch_to_signup_cta")} →
+                  </Link>
+                </div>
+              )}
+
+              {err && !notFound && (
+                <p className="mt-3 text-[12px] text-red-600 dark:text-red-400">{err}</p>
+              )}
+            </>
+          )}
+
+          <div className="mt-8 text-center text-[12px] text-muted-foreground">
             {mode === "signin" ? t("auth.switch_to_signup_lead") : t("auth.switch_to_signin_lead")}{" "}
             <Link
               to="/auth"
