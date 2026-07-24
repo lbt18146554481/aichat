@@ -461,5 +461,63 @@
     "people_empty": "还没有从「介绍认识」里收藏任何人。",
     "wishes_empty": "还没有先收着的心愿。",
     "remove": "移出"
+  },
+  "auth": {
+    "sign_in": "登录",
+    "sign_out": "退出登录",
+    "your_profile": "我的资料",
+    "account_menu": "账号菜单",
+    "title_signin": "欢迎回来。",
+    "title_signup": "加入 Kindred — 需要邀请码。",
+    "sub_signin": "登录后继续你之前的旅程。",
+    "sub_signup": "目前 Kindred 仅限邀请注册。填入邀请码，然后继续。",
+    "invite_label": "邀请码",
+    "invite_placeholder": "例如 KINDRED2026",
+    "invite_hint": "向已经在里面的朋友要一个邀请码。",
+    "continue_google": "使用 Google 继续",
+    "continue_apple": "使用 Apple 继续",
+    "continue_wechat": "使用微信继续",
+    "coming_soon": "即将上线",
+    "wechat_coming_soon": "微信登录即将上线。",
+    "or": "或",
+    "email_placeholder": "you@example.com",
+    "password_placeholder": "密码",
+    "name_placeholder": "你的名字",
+    "submit_signin": "邮箱登录",
+    "submit_signup": "创建账号",
+    "forgot_password": "忘记密码？",
+    "switch_to_signup_lead": "还没有账号？",
+    "switch_to_signup_cta": "创建一个",
+    "switch_to_signin_lead": "已经有账号？",
+    "switch_to_signin_cta": "登录",
+    "err": {
+      "invite_required": "请填入邀请码。",
+      "email_password_required": "请填写邮箱和密码。"
+    },
+    "invites": {
+      "title": "邀请码",
+      "remaining": "剩余 {{n}}",
+      "generate": "生成新的邀请码",
+      "no_more": "你的邀请名额已用完。",
+      "generated": "邀请码 {{code}} 已复制，发给朋友吧。",
+      "copied": "邀请码已复制。",
+      "copy": "复制",
+      "used": "已使用"
+    },
+    "reset": {
+      "back": "返回登录",
+      "title_request": "重置密码",
+      "sub_request": "填写邮箱，我们会给你发一封重置邮件。",
+      "title_new": "设定新密码",
+      "sub_new": "至少 8 个字符。",
+      "new_password": "新密码",
+      "confirm_password": "确认密码",
+      "update_cta": "更新密码",
+      "send_cta": "发送重置邮件",
+      "link_sent": "如果 {{email}} 已注册，重置邮件已发出。",
+      "password_short": "密码至少需要 8 个字符。",
+      "mismatch": "两次密码不一致。",
+      "updated": "密码已更新，可以登录了。"
+    }
   }
 }
