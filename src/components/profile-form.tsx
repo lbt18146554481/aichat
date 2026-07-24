@@ -473,11 +473,28 @@ function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
   const favs = profile.favorites.filter((f) => f.title.trim() && f.why.trim()).slice(0, 3);
   return (
     <div className="rounded-xl border border-border bg-card px-5 py-5">
-      <div className="flex items-baseline gap-2 flex-wrap">
-        <h3 className="text-[18px] font-semibold tracking-tight text-foreground">{profile.name}</h3>
-        <span className="text-[12px] font-mono text-muted-foreground tabular-nums">{profile.age}</span>
+      <div className="flex items-start gap-4">
+        {profile.avatar ? (
+          <img src={profile.avatar} alt="" className="w-14 h-14 rounded-full object-cover border border-border shrink-0" />
+        ) : (
+          <div className="w-14 h-14 rounded-full border border-border bg-secondary/60 flex items-center justify-center shrink-0">
+            <span className="text-[18px] font-serif italic text-muted-foreground">
+              {(profile.name.trim()[0] ?? "?").toUpperCase()}
+            </span>
+          </div>
+        )}
+        <div className="min-w-0">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <h3 className="text-[18px] font-semibold tracking-tight text-foreground">{profile.name}</h3>
+            <span className="text-[12px] font-mono text-muted-foreground tabular-nums">{profile.age}</span>
+            {profile.mbti && (
+              <span className="text-[10.5px] font-mono uppercase tracking-wide text-muted-foreground">{profile.mbti}</span>
+            )}
+          </div>
+          <p className="text-[12.5px] text-muted-foreground mt-0.5">{profile.occupation} · {profile.city}</p>
+        </div>
       </div>
-      <p className="text-[12.5px] text-muted-foreground mt-0.5">{profile.occupation} · {profile.city}</p>
+
 
       <div className="mt-6 space-y-4">
         {profile.moments.filter((m) => m.answer.trim()).map((m) => {
