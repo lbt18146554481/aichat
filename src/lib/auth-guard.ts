@@ -17,10 +17,10 @@ export function useRequireAuth(): { ready: boolean } {
     if (user) return;
     void navigate({
       to: "/auth",
-      search: { mode: "signin", redirect: location.pathname + location.searchStr },
+      search: { mode: "signin", redirect: location.href },
       replace: true,
     });
-  }, [hydrated, user, navigate, location.pathname, location.searchStr]);
+  }, [hydrated, user, navigate, location.href]);
 
   return { ready: hydrated && !!user };
 }
