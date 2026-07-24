@@ -1,10 +1,10 @@
 import type { Person } from "./types";
 import { ACTIVITIES, MOMENTS, ONE_WORKS, REFLECTIONS } from "./people-extras";
 
-// The pool. activities / reflections / moments / oneWork are merged in
+// The pool. activities / reflections / moments / favorites are merged in
 // from people-extras.ts to keep this file readable.
 
-type PersonCore = Omit<Person, "activities" | "reflections" | "moments" | "oneWork">;
+type PersonCore = Omit<Person, "activities" | "reflections" | "moments" | "favorites">;
 const CORE: PersonCore[] = [
   {
     id: "isa",
@@ -547,7 +547,7 @@ export const PEOPLE: Person[] = CORE.map((p) => ({
   activities: ACTIVITIES[p.id] ?? [],
   reflections: REFLECTIONS[p.id] ?? [],
   moments: MOMENTS[p.id] ?? [],
-  oneWork: ONE_WORKS[p.id],
+  favorites: ONE_WORKS[p.id] ? [ONE_WORKS[p.id]] : undefined,
   whyPersonLine: WHY_PERSON[p.id],
   personBrief: DEMO_CONTENT[p.id]?.personBrief,
   openerSuggestion: DEMO_CONTENT[p.id]?.openerSuggestion,

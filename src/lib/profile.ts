@@ -1,10 +1,9 @@
 // The user's own Profile — the SOURCE OF TRUTH for "who you are" inside
-// Kindred. Three layers, each with a different reader:
-//   L1 Vitals          → system hard-filters (name/age/city/occupation)
-//   L2 Compatibility   → system soft-signals (situational answers, activities,
-//                        optional MBTI tag) — all optional, no completion gate
-//   L3 Specificity     → other real people (Moments + One Work)
-// The Agent reads this; it never mutates it.
+// Kindred. Four sections, each with a clear reader:
+//   01 Vitals      → identity + system hard-filter (same city)
+//   02 Activities  → Side-by-Side matcher (real weekly rhythm)
+//   03 Moments     → other real people (Introduce Someone right pane)
+//   04 Favorites   → other real people (cultural taste; multi-entry)
 
 import type { ActivityKind } from "./types";
 
@@ -15,20 +14,10 @@ export interface ProfileMoment {
   answer: string;       // user's own words, stored verbatim
 }
 
-export interface OneWork {
+export interface Favorite {
   kind: WorkKind;
   title: string;
   why: string;          // one sentence
-}
-
-// ---------- Layer 2 --------------------------------------------------------
-
-// Three situational choices. Each is optional. Values are stable string ids
-// so the matcher can compare across users without depending on wording.
-export interface CompatibilityAnswers {
-  weekend?: "quiet_recharge" | "one_close_friend" | "out_and_about";
-  conflict?: "talk_now" | "cool_off_first" | "write_it_out";
-  five_years?: "depth_one_thing" | "range_many_things" | "stability_family";
 }
 
 export type ActivityCadence = "weekly" | "monthly" | "occasional";
@@ -47,13 +36,11 @@ export interface Profile {
   age: number | null;
   city: string;
   occupation: string;
-  // L2 compatibility (all optional, do not affect completion)
+  // L2 things you actually do (weekly rhythm)
   activities: UserActivity[];
-  compatibility: CompatibilityAnswers;
-  mbti?: string;               // free-form 4-letter tag, display only
   // L3 specificity
   moments: ProfileMoment[];
-  oneWork: OneWork | null;
+  favorites: Favorite[];
 }
 
 export const EMPTY_PROFILE: Profile = {
@@ -62,29 +49,41 @@ export const EMPTY_PROFILE: Profile = {
   city: "",
   occupation: "",
   activities: [],
-  compatibility: {},
-  mbti: "",
   moments: [],
-  oneWork: null,
+  favorites: [],
 };
 
 export const MIN_MOMENTS = 3;
 export const MAX_ACTIVITIES = 3;
+export const MIN_FAVORITES = 1;
+export const MAX_FAVORITES = 6;
+
 const KEY = "kindred:profile.v1";
+
+// Legacy shape we may find in localStorage from earlier versions.
+interface LegacyProfile extends Partial<Profile> {
+  oneWork?: { kind: WorkKind; title: string; why: string } | null;
+  compatibility?: unknown;
+  mbti?: string;
+}
 
 export function loadProfile(): Profile {
   if (typeof window === "undefined") return EMPTY_PROFILE;
   try {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return EMPTY_PROFILE;
-    // Merge over defaults so older stored shapes get new fields as empty.
-    const parsed = JSON.parse(raw) as Partial<Profile>;
+    const parsed = JSON.parse(raw) as LegacyProfile;
+    const favorites: Favorite[] = Array.isArray(parsed.favorites)
+      ? (parsed.favorites as Favorite[])
+      : parsed.oneWork && parsed.oneWork.title
+      ? [{ kind: parsed.oneWork.kind, title: parsed.oneWork.title, why: parsed.oneWork.why }]
+      : [];
     return {
       ...EMPTY_PROFILE,
       ...parsed,
       activities: Array.isArray(parsed.activities) ? parsed.activities : [],
-      compatibility: parsed.compatibility ?? {},
       moments: Array.isArray(parsed.moments) ? parsed.moments : [],
+      favorites,
     };
   } catch {
     return EMPTY_PROFILE;
@@ -108,13 +107,14 @@ export function isVitalsComplete(p: Profile): boolean {
     && p.occupation.trim().length > 0;
 }
 
+function filledFavorites(p: Profile): Favorite[] {
+  return p.favorites.filter((f) => f.title.trim().length > 0 && f.why.trim().length > 0);
+}
 
 export function isProfileComplete(p: Profile): boolean {
   return isVitalsComplete(p)
     && p.moments.filter((m) => m.answer.trim().length > 0).length >= MIN_MOMENTS
-    && p.oneWork !== null
-    && p.oneWork.title.trim().length > 0
-    && p.oneWork.why.trim().length > 0;
+    && filledFavorites(p).length >= MIN_FAVORITES;
 }
 
 export function profileProgress(p: Profile): { done: number; total: number } {
@@ -122,7 +122,7 @@ export function profileProgress(p: Profile): { done: number; total: number } {
   const total = 3;
   if (isVitalsComplete(p)) done++;
   if (p.moments.filter((m) => m.answer.trim().length > 0).length >= MIN_MOMENTS) done++;
-  if (p.oneWork && p.oneWork.title.trim() && p.oneWork.why.trim()) done++;
+  if (filledFavorites(p).length >= MIN_FAVORITES) done++;
   return { done, total };
 }
 
@@ -136,16 +136,7 @@ export function removeMoment(p: Profile, promptId: string): Profile {
   return { ...p, moments: p.moments.filter((m) => m.promptId !== promptId) };
 }
 
-// ---------- Layer 2 mutators ----------------------------------------------
-
-export function setCompatibility<K extends keyof CompatibilityAnswers>(
-  p: Profile, key: K, value: CompatibilityAnswers[K] | undefined,
-): Profile {
-  const next = { ...p.compatibility };
-  if (value === undefined) delete next[key];
-  else next[key] = value;
-  return { ...p, compatibility: next };
-}
+// ---------- Activities -----------------------------------------------------
 
 export function addActivity(p: Profile, a: UserActivity): Profile {
   if (p.activities.length >= MAX_ACTIVITIES) return p;
@@ -161,4 +152,22 @@ export function updateActivity(p: Profile, index: number, patch: Partial<UserAct
 
 export function removeActivity(p: Profile, index: number): Profile {
   return { ...p, activities: p.activities.filter((_, i) => i !== index) };
+}
+
+// ---------- Favorites ------------------------------------------------------
+
+export function addFavorite(p: Profile, f: Favorite): Profile {
+  if (p.favorites.length >= MAX_FAVORITES) return p;
+  return { ...p, favorites: [...p.favorites, f] };
+}
+
+export function updateFavorite(p: Profile, index: number, patch: Partial<Favorite>): Profile {
+  return {
+    ...p,
+    favorites: p.favorites.map((f, i) => (i === index ? { ...f, ...patch } : f)),
+  };
+}
+
+export function removeFavorite(p: Profile, index: number): Profile {
+  return { ...p, favorites: p.favorites.filter((_, i) => i !== index) };
 }
