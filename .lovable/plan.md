@@ -1,104 +1,91 @@
+## 目标
 
-# 目标
+第一版去掉邮箱注册/登录，登录只留 Google、Apple、WeChat（占位）。新用户必须先输入有效邀请码才能看到注册入口——邀请码作为**先验**关卡，OAuth 之后不再校验。同时修掉当前 `/auth` 无限嵌套 `redirect=` 的 bug，把所有相关流程理顺。
 
-搭建完整的账户系统，让 Kindred 从"演示 demo"过渡到"有真实用户身份"的产品首版。范围包括：注册、登录、登出、Google/Apple 社交登录、WeChat 占位、邀请码门槛、以及登录后与现有 Profile / History / Saved 的衔接（前端演示层，不动后台业务）。
+## 一、最终流程
 
-# 一、用户流程
+### 未登录用户
+- 页眉右上显示 `Sign in`。首页可浏览，但任何私人动作 → `/auth?mode=signin&redirect=<返回路径>`。
+- `/auth?mode=signin`：只展示 `Continue with Google` / `Continue with Apple` / `Continue with WeChat (Coming soon)`。底部一行 `New to Kindred? Join with an invite →` 跳 `/auth?mode=signup`。
+- `/auth?mode=signup` 分**两步**：
+  1. **Step 1 — Invite code**：一个大输入框 + `Continue` 按钮。校验通过（`validateInvite`，但**不消耗**）才进入 Step 2；无效/已用则红字提示，允许重试。
+  2. **Step 2 — Choose provider**：显示三枚 OAuth 按钮 + 顶部一行只读的已验证码芯片 `Invite ✓ ABCD1234`（可点 `Change` 回 Step 1）。点 OAuth 成功后再 `consumeInvite`，然后落 `/profile?welcome=1`。
+- WeChat 按钮始终 toast 提示 `Coming soon`，不产生跳转。
 
-## 1. 未登录访客进入首页
+### 已登录用户
+- 直接访问 `/auth` → 立即跳回 `redirect` 或 `/`。
+- 头像下拉里的 `Invites` 面板照旧（生成/复制/剩余额度）。
 
-- 首页仍可看到 Agent 介绍和输入框（保留"能看到产品是什么"的第一印象）。
-- 任何**会产生私人数据**的动作（提交心愿、打开 Profile、打开 History、Saved、发送 Hello）都会触发一个轻量登录弹层，而不是直接跳走——保留上下文，登录后回到原动作。
-- 页眉右上从"语言切换"变成"语言切换 + Sign in"。
+### 忘记密码
+- 邮箱登录已删，`/reset-password` 不再有意义，直接删除该路由 + `Forgot password?` 链接。
 
-## 2. 登录弹层（`/auth`，也可作为独立页）
+### 登出
+- 与现状一致：`signOut()` → 回 `/`。
 
-单一页面，两种状态由 URL query 切换：`?mode=signin` / `?mode=signup`（默认 signin）。
+## 二、Bug：`/auth?redirect=%2Fauth%3F...` 无限嵌套
 
-内容自上而下：
-- 标题 + 一句话说明（signin：欢迎回来 / signup：Kindred 目前仅限受邀加入）。
-- **Continue with Google**（主按钮）
-- **Continue with Apple**
-- **Continue with WeChat**（灰态，右侧小字 `Coming soon`，点击 toast 提示）
-- 分隔线 `or`
-- Email + Password 表单
-- 底部切换链接：`New here? Get an invite` / `Already have an account? Sign in`
-- signup 模式下，Email/Password 表单**上方**多一个 `Invite code` 输入框（必填）。社交登录按钮在 signup 模式下也会先校验邀请码：若未填，点按钮时用红色提示要求先填。
+`useRequireAuth` 用 `location.href` 拼 `redirect`，而 `safeRedirect` 又接受任何 `/…`，一旦某处再触发一次守卫（例如 SPA 内快速切页时 `/auth` 短暂命中受保护路由），`redirect` 里的 `redirect` 就会被再次编码套一层，累积成当前 URL。修复：
 
-## 3. 邀请码规则
+- `auth-guard.ts`：改用 `location.pathname + location.search`；若当前已在 `/auth` 则直接返回不再重定向。
+- `auth.tsx` 的 `safeRedirect`：拒绝任何以 `/auth` 开头的目标（回退到 `/`），并把"已登录自动跳转"从 render 期挪到 `useEffect`（现在是在 render 里调 `navigate`，可能重复入栈）。
+- `account-menu.tsx`：`redirect` 参数继续用 `location.pathname`（现状 OK，无需改）。
 
-- 每个已登录用户在 Profile 页多一个 "Invites" 板块：显示自己剩余的可用邀请码数量（首版默认给每人 3 个），可点击生成一个新的 8 位字母数字码，一键复制。
-- 码由字母数字组成，单次使用；被使用后从生成者的额度里扣掉一个。
-- 校验时机：signup 提交时校验；无效/已用/过期给出明确错误。
-- 首批种子用户（比如"admin"账户）通过后台预置。首版前端只需要暴露"生成 / 复制 / 显示剩余额度"三个动作。
+## 三、代码改动
 
-## 4. 注册后
+**修改 `src/lib/auth.ts`**
+- 收窄 `AuthProvider` 语义：仍是 `"google" | "apple" | "wechat" | "email"`，但对外只导出/使用前三者；`email` 保留为内部字面量以兼容旧存储读取。
+- 删除 `SignInInput.email/password`、`SignUpInput.email/password/name`。
+- `signIn({ provider })`：若 `loadUser()` 返回空，抛 `account_not_found` 错误（提示先走 signup）。已存在则返回 existing user（demo 单账户槽）。
+- `signUp({ provider, inviteCode })`：先 `validateInvite`（不消耗）→ OAuth 模拟成功 → 再 `consumeInvite`。任一步失败均不消耗邀请码。
 
-- 落到 Profile 页（复用现在的 `/profile`），顶部一条一次性欢迎横幅："Welcome to Kindred. Fill in the basics so we can introduce you to the right people." 引导完成 Vitals。
-- 首次登录时把当前 localStorage 里的匿名数据"认领"给这个账号（本地绑定 userId 命名空间即可，后端由你处理）。
+**修改 `src/lib/invites.ts`**
+- 无逻辑改动。（`validateInvite` 已存在。）
 
-## 5. 已登录状态
+**修改 `src/routes/auth.tsx`**
+- 删除所有邮箱/密码/姓名 input、`handleEmail`、`Forgot password?` 链接。
+- 引入本地 state `step: "invite" | "provider"`（仅 signup 有意义；signin 直接是 provider 步）。
+- Step 1 UI：邀请码输入 + `Continue` 按钮 + 错误提示。
+- Step 2 UI：`Invite ✓ CODE (Change)` chip + 三个 provider 按钮。
+- `handleProvider` 在 signup 分支里传已验证的 `inviteCode`；signin 分支捕获 `account_not_found` → 提示并给一个跳 signup 的按钮。
+- `signed-in 自动跳转`挪到 `useEffect`；`safeRedirect` 增加 `/auth` 前缀过滤。
+- `head()` 保留。
 
-- 页眉右上角原本的 History/Saved/Connections 图标仍在；最右边新增账户头像按钮，点开下拉菜单：
-  - 用户名 + 邮箱（灰色只读一行）
-  - `Your profile` → `/profile`
-  - `Invites (剩余 N)` → 展开生成/复制
-  - `Sign out`
-- 未登录时头像位置显示 `Sign in` 文本按钮。
+**修改 `src/lib/auth-guard.ts`**
+- `redirect` 用 `location.pathname + location.search`；若 pathname 已是 `/auth` 则不重定向（避免嵌套）。
 
-## 6. 登出
+**删除 `src/routes/reset-password.tsx`**
+- 路由树会自动重生成；同时移除 `common.json` 里 `auth.forgot_password` / `reset.*` 相关键（若无外部引用）。
 
-- 点击 `Sign out` → 清空登录态 → 跳回 `/`（保留 localStorage 里那些"演示数据"以便下次任何用户登录都能看到 demo 内容；这是演示层的取舍）。
+**修改 `src/locales/en/common.json` 与 `zh-CN/common.json`**
+- 移除：`auth.email_placeholder` / `auth.password_placeholder` / `auth.name_placeholder` / `auth.submit_signin` / `auth.submit_signup` / `auth.forgot_password` / `auth.err.email_password_required` / `reset.*`。
+- 新增：
+  - `auth.invite_step_title`（"先输入邀请码"）
+  - `auth.invite_step_sub`（"Kindred 目前仅限受邀加入，输入你的邀请码继续。"）
+  - `auth.invite_verify`（`Continue`）
+  - `auth.invite_change`（`Change`）
+  - `auth.invite_verified`（`Invite ✓ {{code}}`）
+  - `auth.err.invite_invalid`（"邀请码无效或已被使用"）
+  - `auth.err.account_not_found`（"还没有账号？用邀请码加入。"）
+  - `auth.provider_step_title_signup`（"选择注册方式"）
 
-## 7. 忘记密码
+**修改 `src/components/home.tsx` 等触发登录处**
+- 保持现状（跳 `/auth?mode=signin&redirect=...`）；`safeRedirect` 改动后即可断掉嵌套。
 
-首版极简：email 表单下面一行 `Forgot password?` → 跳 `/reset-password`，UI 占位（输入邮箱 → 显示"我们会给你发链接"toast），实际邮件发送由你在后台接入。同样地 `/reset-password?type=recovery` 支持设置新密码的 UI。
+## 四、非目标（本次不做）
 
-# 二、前端演示层实现范围
+- 真实后端接入 / Lovable Cloud。
+- 邮箱魔法链接、手机号、SSO。
+- 邀请码分角色/分级。
+- WeChat 真实登录。
 
-我只做前端 UI + 一个可插拔的"假登录"层（`src/lib/auth.ts`），后台真实接入你来处理。假登录层负责：
-- 用 localStorage 存 `kindred:auth.v1 = { userId, email, name, avatar, provider, invitesLeft }`。
-- 提供 `useAuth()` hook：`{ user, signIn, signUp, signOut, generateInvite }`。
-- `signIn/signUp` 均返回 Promise，模拟 800ms 延迟；signup 时校验邀请码来自内置白名单（例如 `KINDRED2026`）或已生成集合。
-- 页眉、登录弹层、Profile 全部读这一层；未来你替换 `src/lib/auth.ts` 的实现即可对接真实后端。
+## 五、验收清单
 
-# 三、文件改动
-
-新增：
-- `src/lib/auth.ts` — 假登录 store（localStorage） + hook。
-- `src/lib/invites.ts` — 邀请码生成、校验、消费。
-- `src/routes/auth.tsx` — Sign in / Sign up 页面（一页两态）。
-- `src/routes/reset-password.tsx` — 忘记密码 / 设置新密码占位。
-- `src/components/auth-required-dialog.tsx` — 未登录动作触发的轻弹层（其实就是 push to `/auth` 并保存 `redirect` 搜索参数）。
-- `src/components/account-menu.tsx` — 页眉右侧头像下拉。
-
-修改：
-- `src/components/workspace-header.tsx` — 加 `<AccountMenu />` 或 `Sign in` 按钮。
-- `src/components/home.tsx` — 首页提交时若未登录 → 跳 `/auth?redirect=...`。
-- `src/routes/profile.tsx`、`src/routes/connections.tsx`、`src/routes/sessions.tsx`、`src/routes/side-by-side.tsx`、`src/routes/matchmaker.tsx` — 页面入口加登录护栏（未登录跳 `/auth?redirect=当前路径`）。
-- `src/components/profile-form.tsx` — 底部加 `Invites` 板块。
-- `src/locales/en/common.json`、`src/locales/zh-CN/common.json` — 加 auth / invites 相关文案。
-
-# 四、技术要点（给你后端对接时参考）
-
-- 三个社交按钮在演示层里都走同一个 `signIn(provider)`；未来接入 Lovable Cloud 时，Google/Apple 通过 `supabase.auth.signInWithOAuth`，WeChat 走自定义 server route（`src/routes/api/public/wechat-callback.ts`）+ 自签 Supabase session。
-- `redirect_uri` 使用 `window.location.origin`，不要指向受保护路径。
-- 登录弹层永远是**顶级公共路由**，不要放在 `_authenticated/` 下（否则回跳时会闪回登录页）。
-- 邀请码表未来在 Supabase 里应长这样：`invite_codes (code text pk, created_by uuid, used_by uuid null, expires_at, created_at)`，前端把 code 当字符串处理即可。
-
-# 五、非目标（首版明确不做）
-
-- WeChat 真实登录（灰态占位）。
-- 双因素、手机号、SSO。
-- 邀请码分级/带角色。
-- 头像通过第三方存储上传（现在仍是 data URL 本地保存）。
-- 后端真实持久化（你已明确自己处理）。
-
-# 六、验收清单
-
-1. 未登录访客点首页输入框提交 → 跳 `/auth`，登录后回到首页并保留输入。
-2. 从 `/auth?mode=signup` 使用有效邀请码 + Google/Apple/邮箱都能完成注册，直达 `/profile` 并看到欢迎条。
-3. WeChat 按钮点击后仅弹提示，不引发任何跳转。
-4. Profile 页显示剩余邀请数，点 `Generate` 出现新码并可复制。
-5. 页眉头像下拉可跳 Profile、生成邀请、登出；登出后回到 `/`，再点保护路径会重新跳 `/auth`。
-6. 忘记密码走到 `/reset-password` 且 UI 占位不报错。
+1. `/auth?mode=signin` 无邮箱/密码字段，只有三枚 provider + 一条 "Join with an invite"。
+2. `/auth?mode=signup` 先要求邀请码；未通过校验时点 provider 不生效（其实按钮压根没渲染）。
+3. 用无效码点 `Continue` → 红字提示 + 邀请码保留；用有效码 → 进入 Step 2，`Invite ✓ CODE` 可见，可点 `Change` 回退。
+4. Step 2 完成 Google/Apple 登录 → 邀请码被消耗（`listMyCodes` 中 `usedBy` 更新）→ 落 `/profile?welcome=1`。
+5. 未注册状态直接在 signin 步点 Google → 提示 `account_not_found` 并给出跳 signup 的入口。
+6. WeChat 按钮点击只 toast，不跳。
+7. 从 `/profile` 未登录被拦截 → `/auth?redirect=/profile`；登录后回 `/profile`；地址栏**不会**出现二次编码的 `redirect=%2Fauth...`。
+8. 已登录时访问 `/auth` → 立刻跳走，不刷屏。
+9. `/reset-password` 返回 404（或不存在于路由树）。
