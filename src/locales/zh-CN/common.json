@@ -91,7 +91,7 @@
     "empty_title": "我会在这里引荐一个人。",
     "empty_hint": "不是列表——一次一个人，带着理由。在左边告诉我你想找的人。",
     "another_person": "换一个人",
-    "one_work_label": "TA 在意的一件{{kind}}",
+    "favorites_label": "TA 的偏爱",
     "next_person_after": "看下一个人",
     "check_progress": "去看进展",
     "hello_again": "换个方式再说一次",
@@ -227,7 +227,7 @@
     "more_hint": "更多",
     "sheet": {
       "about_ta": "TA 是谁",
-      "one_work": "最近在读 · 看 · 听",
+      "one_work": "TA 的偏爱",
       "moments": "TA 分享过的瞬间",
       "aligning": "你们要一起做的事"
     },
@@ -358,37 +358,15 @@
     "section": {
       "vitals": "基本信息",
       "vitals_hint": "系统用这些判断你们是否在同一个城市。被引荐给你的人也会看到。",
-      "compat": "你怎么生活",
-      "compat_hint": "系统用这些把更可能合得来的人排在前面。全部可选，填不填都可以。",
+      "activities": "你真的常做的事",
+      "activities_hint": "是每周的节奏，不是愿望。Side by Side 用这些找真正的交集。",
       "moments": "至少挑 {{n}} 个，用你自己的话写",
       "moments_hint": "别人靠这些决定要不要对你打招呼。具体胜过聪明。",
-      "one_work": "最近你在意的一件作品",
-      "one_work_hint": "书、电影、专辑、展览、食物——什么形式都行。一句话写为什么它留下了。"
+      "favorites": "偏爱的作品",
+      "favorites_hint": "书、电影、音乐、展览、食物——每样写一句为什么留下了。可以先从一本书开始。"
     },
     "optional": "可选",
-    "compat": {
-      "weekend": {
-        "q": "一个没有安排的周末，你最像自己的方式是……",
-        "quiet_recharge": "独处充电",
-        "one_close_friend": "见一个亲近的朋友",
-        "out_and_about": "在人群里走一走"
-      },
-      "conflict": {
-        "q": "跟亲近的人有摩擦时，你更倾向于……",
-        "talk_now": "马上聊开",
-        "cool_off_first": "先冷静再谈",
-        "write_it_out": "先写下来"
-      },
-      "five_years": {
-        "q": "接下来几年，你最想要的是……",
-        "depth_one_thing": "在一件事上深入",
-        "range_many_things": "在很多事上展开",
-        "stability_family": "一份更稳定的生活"
-      }
-    },
     "activities": {
-      "title": "你真的常做的事",
-      "hint": "是每周的节奏，不是愿望。Side by Side 用这些找真正的交集。",
       "add": "加一项活动",
       "remove": "移除",
       "area_placeholder": "你常去的片区"
@@ -398,10 +376,12 @@
       "monthly": "每月",
       "occasional": "偶尔"
     },
-    "mbti": {
-      "title": "MBTI（可选）",
-      "placeholder": "例如 INFJ",
-      "note": "只作为资料上的标签展示，不参与匹配。"
+    "favorite": {
+      "add_first": "加入第一件偏爱",
+      "add": "再加一件",
+      "remove": "移除",
+      "title_placeholder": "名字——比如：Annie Ernaux《悠悠岁月》",
+      "why_placeholder": "一句话。为什么它留下了。"
     },
     "f": {
       "name": "名字",
