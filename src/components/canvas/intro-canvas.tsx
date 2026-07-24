@@ -176,7 +176,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
 
   const loc = localized(person, lang);
   const moments = person.moments;
-  const work = person.oneWork;
+
 
   function requestSayHello(opts?: { pickedMomentId?: string | null; draftReply?: string }) {
     const p = loadProfile();
@@ -309,87 +309,42 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
           </div>
         </button>
 
-        {/* Who they are — signals + agent's footnote */}
-        {(signalChips.length > 0 || angleText) && (
-          <div className="mt-6 rounded-lg border border-border bg-card px-3.5 py-3">
-            <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2.5">
-              {t("intro.who_they_are_label")}
-            </div>
-            {signalChips.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {signalChips.map((s) => (
-                  <span
-                    key={s}
-                    className="inline-flex items-center px-2 py-0.5 rounded-full border border-border bg-secondary text-[11px] text-foreground/85"
-                  >
-                    {t(`signal.${s}`, { defaultValue: s })}
-                  </span>
-                ))}
-              </div>
-            )}
-            {angleText && (
-              <div className={signalChips.length > 0 ? "mt-3 pt-3 border-t border-border" : ""}>
-                <div className="text-[9.5px] uppercase tracking-[0.16em] font-mono text-muted-foreground/80 mb-1">
-                  {t("intro.agent_note_prefix")}
-                </div>
-                <p className="text-[13px] text-muted-foreground leading-relaxed italic">
-                  {angleText}
-                </p>
-              </div>
-            )}
+        {/* Signals — compact chip row directly under header */}
+        {signalChips.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {signalChips.map((s) => (
+              <span
+                key={s}
+                className="inline-flex items-center px-2 py-0.5 rounded-full border border-border bg-secondary text-[11px] text-foreground/85"
+              >
+                {t(`signal.${s}`, { defaultValue: s })}
+              </span>
+            ))}
           </div>
         )}
 
+        {/* Agent's footnote — one italic muted line, reads as a note not a block */}
+        {angleText && (
+          <p className="mt-3 text-[12.5px] text-muted-foreground leading-relaxed italic">
+            <span className="mr-1 not-italic text-muted-foreground/70">⌇</span>
+            {angleText}
+          </p>
+        )}
 
-        {/* Moments — 1 preview when browsing (clickable → quote & compose),
-            full list when composing (clickable → toggle quote). */}
+        {/* One Moment — TA's own voice, clickable to quote & compose */}
         {moments.length > 0 && (
-          <div className="mt-6 space-y-4">
-            <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
-              {composing ? t("moment.compose_hint") : t("moment.about_them")}
-            </div>
+          <div className="mt-5 space-y-4">
+            {composing && (
+              <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
+                {t("moment.compose_hint")}
+              </div>
+            )}
             {composing
               ? moments.map((m) => renderMoment(m, { clickable: true, mode: "select" }))
               : bestMoment && renderMoment(bestMoment, { clickable: true, mode: "quoteAndCompose" })}
-            {!composing && moments.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setProfileOpen(true)}
-                className="text-[11.5px] text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2 decoration-dotted"
-              >
-                {t("intro.see_all_moments")}
-              </button>
-            )}
           </div>
         )}
 
-        {/* One Work — single-line clickable card that pre-fills the composer
-            with a starter that references this work. */}
-        {work && (() => {
-          const title = lang === "zh-CN" && work.title_zh ? work.title_zh : work.title;
-          const kindLabel = t(`profile.kind.${work.kind}`);
-          const opener = t("intro.one_work_opener", { kind: kindLabel, title });
-          return (
-            <button
-              type="button"
-              onClick={() => !composing && !conn && requestSayHello({ draftReply: opener })}
-              disabled={composing || !!conn}
-              className="mt-6 w-full text-left rounded-lg border border-border bg-card px-3.5 py-2.5 hover:border-foreground/40 transition-colors disabled:cursor-default disabled:hover:border-border"
-            >
-              <div className="flex items-baseline gap-2">
-                <span className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono shrink-0">
-                  {kindLabel}
-                </span>
-                <span className="text-[13.5px] font-medium text-foreground leading-snug truncate">
-                  {title}
-                </span>
-              </div>
-              <p className="mt-1 text-[12.5px] text-muted-foreground leading-relaxed line-clamp-2">
-                {lang === "zh-CN" ? work.why_zh : work.why}
-              </p>
-            </button>
-          );
-        })()}
 
         {/* Primary closed-loop actions — Say hello / Save side by side,
             with a soft "see someone else" link. */}
