@@ -470,29 +470,28 @@
     "title_signin": "Welcome back.",
     "title_signup": "Join Kindred — by invite.",
     "sub_signin": "Sign in to pick up where you left off.",
-    "sub_signup": "Kindred is invite-only for now. Enter a code, then continue.",
+    "sub_signup": "Choose how you'd like to sign in. We'll use it just to identify you.",
+    "invite_step_title": "You'll need an invite.",
+    "invite_step_sub": "Kindred is invite-only for now. Enter a code to continue.",
+    "provider_step_title_signup": "Choose how to sign up.",
     "invite_label": "Invite code",
     "invite_placeholder": "e.g. KINDRED2026",
     "invite_hint": "Ask a friend who's already inside for their code.",
+    "invite_verify": "Continue",
+    "invite_change": "Change",
     "continue_google": "Continue with Google",
     "continue_apple": "Continue with Apple",
     "continue_wechat": "Continue with WeChat",
     "coming_soon": "Soon",
     "wechat_coming_soon": "WeChat sign-in is coming soon.",
-    "or": "or",
-    "email_placeholder": "you@example.com",
-    "password_placeholder": "Password",
-    "name_placeholder": "Your name",
-    "submit_signin": "Sign in with email",
-    "submit_signup": "Create account",
-    "forgot_password": "Forgot password?",
     "switch_to_signup_lead": "New to Kindred?",
-    "switch_to_signup_cta": "Create an account",
+    "switch_to_signup_cta": "Join with an invite",
     "switch_to_signin_lead": "Already have an account?",
     "switch_to_signin_cta": "Sign in",
     "err": {
       "invite_required": "Enter your invite code.",
-      "email_password_required": "Enter your email and password."
+      "invite_invalid": "That invite code isn't valid or has already been used.",
+      "account_not_found": "No account yet on this device. Join with an invite code to create one."
     },
     "invites": {
       "title": "Invites",
@@ -503,21 +502,6 @@
       "copied": "Code copied.",
       "copy": "Copy",
       "used": "used"
-    },
-    "reset": {
-      "back": "Back to sign in",
-      "title_request": "Reset your password",
-      "sub_request": "Enter your email and we'll send you a link.",
-      "title_new": "Choose a new password",
-      "sub_new": "Pick something at least 8 characters.",
-      "new_password": "New password",
-      "confirm_password": "Confirm password",
-      "update_cta": "Update password",
-      "send_cta": "Send reset link",
-      "link_sent": "If {{email}} has an account, a reset link is on its way.",
-      "password_short": "Password must be at least 8 characters.",
-      "mismatch": "Passwords don't match.",
-      "updated": "Password updated. You can sign in now."
     }
   }
 }
