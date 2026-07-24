@@ -15,12 +15,17 @@ export function useRequireAuth(): { ready: boolean } {
   useEffect(() => {
     if (!hydrated) return;
     if (user) return;
+    // Never bounce /auth → /auth (would nest the redirect param on itself).
+    if (location.pathname === "/auth") return;
+    // Use pathname+search (never location.href — that could be an absolute
+    // URL and re-encoding it here is what produced the nested loop).
+    const target = location.pathname + (location.search ?? "");
     void navigate({
       to: "/auth",
-      search: { mode: "signin", redirect: location.href },
+      search: { mode: "signin", redirect: target },
       replace: true,
     });
-  }, [hydrated, user, navigate, location.href]);
+  }, [hydrated, user, navigate, location.pathname, location.search]);
 
   return { ready: hydrated && !!user };
 }
