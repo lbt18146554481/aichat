@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useRequireAuth } from "@/lib/auth-guard";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft } from "lucide-react";
 import { SessionList } from "@/components/session-list";
