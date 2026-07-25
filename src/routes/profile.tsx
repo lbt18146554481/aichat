@@ -1,14 +1,20 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
-import { loadProfile, profileProgress } from "@/lib/profile";
+import { isProfileComplete, loadProfile, profileProgress } from "@/lib/profile";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { ProfileForm } from "@/components/profile-form";
 import { useRequireAuth } from "@/lib/auth-guard";
 
+interface ProfileSearch {
+  welcome?: 1;
+}
+
 export const Route = createFileRoute("/profile")({
+  validateSearch: (raw: Record<string, unknown>): ProfileSearch =>
+    raw.welcome === 1 || raw.welcome === "1" ? { welcome: 1 } : {},
   component: ProfilePage,
   head: () => ({
     meta: [
@@ -23,10 +29,13 @@ function ProfilePage() {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
+  const search = useSearch({ from: "/profile" });
   const [progress, setProgress] = useState({ done: 0, total: 3 });
   const [hydrated, setHydrated] = useState(false);
   const [returnTo, setReturnTo] = useState<string | null>(null);
   const [needCity, setNeedCity] = useState(false);
+
+  const isWelcome = search.welcome === 1 && !returnTo;
 
   useEffect(() => {
     setProgress(profileProgress(loadProfile()));
@@ -39,6 +48,14 @@ function ProfilePage() {
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
+
+  // Once the profile is complete, clear the welcome flag so a later revisit
+  // shows the plain edit view.
+  useEffect(() => {
+    if (search.welcome === 1 && isProfileComplete(loadProfile())) {
+      void navigate({ to: "/profile", search: {}, replace: true });
+    }
+  }, [progress, search.welcome, navigate]);
 
   function handleBack() {
     let back: string | null = null;
@@ -59,7 +76,10 @@ function ProfilePage() {
       ? t("hello.gate.back_to_matchmaker")
       : returnTo === "/side-by-side"
       ? t("hello.gate.back_to_sidebyside")
+      : isWelcome
+      ? t("profile.skip_for_now")
       : "Kindred";
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -70,7 +90,7 @@ function ProfilePage() {
             className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span className={returnTo ? "" : "font-mono uppercase tracking-wide"}>
+            <span className={returnTo || isWelcome ? "" : "font-mono uppercase tracking-wide"}>
               {backLabel}
             </span>
           </button>
@@ -97,7 +117,7 @@ function ProfilePage() {
             {t("profile.heading_setup")}
           </h1>
           <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed max-w-xl">
-            {t("profile.subhead")}
+            {isWelcome ? t("profile.welcome_sub") : t("profile.subhead")}
           </p>
           <p className="mt-2 text-[11px] font-mono uppercase tracking-wide text-muted-foreground tabular-nums">
             {t("profile.progress", { done: progress.done, total: progress.total })}

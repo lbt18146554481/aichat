@@ -1,62 +1,49 @@
+## 目标
+1. 删除首页底部的 "So the Agents can introduce you too — set up profile · 0/3" 提示。
+2. 审视首次登录后的 Profile 初始化流程，判断是否需要优化，并给出结论与最小改动。
 
-## 核心简化
+## 现状梳理
+- 首页 `src/components/home.tsx` 在资料未完成时渲染 `home.profile_nudge` + `home.profile_nudge_cta`（就是那条 0/3 文字）。
+- 注册成功后，`src/routes/auth.tsx` 的 `finishAfterAuth(true)` 已经将新用户直接跳到 `/profile?welcome=1`（除非用户是从别处被拦截过来的，会回原来的路径）。
+- `/profile` 页面本身已有 `heading_setup`、`subhead`、`progress (done/total)` 三件套，是一个完整的引导页。
+- 用户在使用 Matchmaker / Side-by-Side 提交心愿时，若资料不全（例如缺城市），`src/routes/profile.tsx` 已经有 `kindred:profile:return` + `kindred:profile:focus` 的“按需回填”跳转机制。
 
-Connections 就是一个「聊天列表」——像微信 / iMessage。不再分 incoming / sent / connected / faded 四段状态，全部合并成一列对话。右侧就是当前选中对话的聊天内容。
+## 结论：流程不需要再增加提示，反而应删繁就简
+现在的问题不是缺提醒，而是重复提醒 + 时机错位：
+- 注册后已经强制进入 `/profile`——用户已经知道要填资料。
+- 真正需要用到城市/资料时，系统会自动把用户带回 `/profile` 并高亮所需字段。
+- 首页那条 0/3 文字属于"永久性未完成状态提示"，噪声大、价值低（用户随时可从右上角头像/Profile 入口进入），删除即可，不需要用其他形式替代。
 
----
+## 变更清单
 
-## 一、左侧：一列聊天
+### 1. 首页删除资料提示
+文件：`src/components/home.tsx`
+- 删除 `!profileReady` 的整段 nudge JSX（约 193–204 行）。
+- 顺带清理不再使用的 state / imports：
+  - `profileReady`、`progress` state 与其 setter 调用；
+  - `isProfileComplete`、`profileProgress` 的 import；
+  - `loadProfile` 若不再被使用则一并移除。
 
-- 顶部标题：`Conversations` / 「对话」。
-- 一段列表，按最近一条消息/事件时间倒序，不再分组。每一行统一结构：
+### 2. 首次注册跳转体验的小打磨（保持简洁）
+文件：`src/routes/profile.tsx`
+- 读取 URL 上的 `welcome=1` 参数（`useSearch`）：
+  - 当 `welcome=1` 时，页面顶部返回按钮改为“稍后再填 / Skip for now”，点击直接回首页；
+  - 副标题在欢迎态下使用一句更友好的欢迎语（新增 i18n key `profile.welcome_sub`），非欢迎态维持原文案；
+  - 完成 3/3 时自动移除 `welcome` 参数，避免二次进入仍显示欢迎态。
+- 需要在 `createFileRoute` 上加 `validateSearch` 处理 `welcome`。
 
-  ```
-  [头像·未读小点]   姓名                       12:30
-                   最后一句话，截断一行灰色…
-  ```
+### 3. i18n
+`src/locales/en/common.json` 与 `src/locales/zh-CN/common.json`：
+- 删除 `home.profile_nudge`、`home.profile_nudge_cta`。
+- 新增 `profile.welcome_sub`、`profile.skip_for_now`。
 
-- 副标题「最后一句话」的取值规则（保持极简）：
-  - 有消息：显示最新一条消息文本（不区分你/TA）。
-  - 无消息但对方发来 hello（incoming）：显示对方那句 hello 引用。
-  - 无消息但你发出 hello（sent）：显示你写的那句 + 尾部灰字「· 等待中」。
-  - `faded`：整行 opacity-60，副标题显示「没有回音」。
-- 未读点保留（`hasUnseenFor`）。右侧时间戳可选，本轮先不加，保持干净。
-- 移除现有的 Section 分组、Archived 折叠按钮。`faded` 直接混在列表里靠 dim 表达；如果嫌乱后续再加长按/滑动归档，本轮不做。
+## 不做的事
+- 不新增“完成 X 步解锁 Y”类进度奖励。
+- 不做强制拦截式的资料引导 —— 需要资料的具体场景（如缺城市）已经有原生跳转，覆盖足够。
+- 不改动 auth 完成后跳 `/profile?welcome=1` 的既有逻辑。
 
-## 二、右侧：始终展示聊天内容
-
-无论对话处于什么状态，右侧都用**同一个聊天视图**，只是内容不同：
-
-- **顶栏**：`[头像] 姓名 · 职业·城市 [⋯]` — 整块头像+姓名可点，直接打开 `PublicProfileSheet`（就地滑出，不跳走）。移除现有「← 返回介绍页」按钮。`⋯` 菜单收纳低频动作（撤回招呼 / 再打一次 / 移除 / 忽略），按当前状态显示对应项。
-- **消息区**：
-  - `connected` / `incoming` / `sent`：都用同一个消息流。对方那句 hello（`fromThem.reply`）作为消息流里 TA 发的第一条气泡；你那句 hello（`fromMe.reply`）作为你发的第一条气泡。之后正常追加 `messages`。这样用户看到的就是一条完整的聊天记录，不再有单独的「Hello Anchor 卡片」。
-  - `sent` 状态：消息流里只有你那条气泡，底部一行灰字状态提示「等待回音…」，输入框禁用。
-  - `incoming` 状态：消息流里只有 TA 那条气泡，底部提示「回复即建立联系」，输入框启用；发送即调用 `respondToIncoming`。
-  - `faded` 状态：消息流展示当时留下的一两条气泡（置灰），底部提示「没有回音」，输入框禁用，主 CTA「再打一次招呼」。
-- **底部输入框**：保持现有 Composer 样式；按状态启用/禁用。
-
-移除 `HelloAnchor` 那两张引用卡片——信息已经融进消息流。
-
-## 三、改动清单
-
-1. `src/routes/connections.tsx`
-   - 删除 Section / Archived 折叠。列表改成扁平一列，按 `Date.now`-ish 时间倒序。
-   - `Row` 副标题按上文规则简化。
-
-2. `src/components/canvas/connection-thread.tsx`
-   - 顶栏：去掉返回按钮；头像+姓名可点开 `PublicProfileSheet`；右侧加 `⋯` 菜单。
-   - 移除 `HelloAnchor`，把 `fromMe` / `fromThem` 转换成消息流第一条气泡再渲染。
-   - 底部区域按状态切换：启用输入框 / 灰字状态 / faded CTA。
-   - 让这个组件成为右侧唯一的 pane。
-
-3. 删除或空壳化 `incoming-hello.tsx` / `sent-waiting.tsx` / `faded-pane.tsx`，全部合并进 `ConnectionThread`。`connections.tsx` 里不再判断 `paneKind`。
-
-4. `src/locales/en/*.json` + `src/locales/zh-CN/*.json`
-   - 新增：`connection.title_v2`（`Conversations` / `对话`）、`connection.waiting_tail`（`等待中`）、`connection.no_reply`（`没有回音`）、`connection.waiting_hint`（`等待回音…`）、`connection.incoming_hint`（`回复即建立联系`）、`connection.say_hello_again`（`再打一次招呼`）。
-   - 保留但不再作为主副标题使用的旧 key 保留兼容。
-
-## 四、不做
-
-- 不改 `src/lib/connections.ts` 数据模型与状态机。
-- 不改招呼、匹配、typing 模拟逻辑。
-- 不引入 Cloud/后端。
+## 验收
+- 未完成资料的账号首页不再出现 0/3 提示，页面更干净。
+- 新用户注册后仍进入 `/profile`，顶部有明确的“稍后再填”出口；副标题呈现欢迎态。
+- 已登录老用户从首页头像进入 `/profile`，页面外观与之前一致（非欢迎态）。
+- Matchmaker / Side-by-Side 中因缺失字段回跳 `/profile` 的路径不受影响。
