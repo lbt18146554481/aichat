@@ -192,7 +192,7 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
         <div className="mt-4 flex items-center gap-2">
           <button
             onClick={onStartChat}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-md bg-primary text-primary-foreground text-[13.5px] font-medium hover:opacity-90 transition-opacity"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-md bg-foreground text-background text-[13.5px] font-medium hover:opacity-90 transition-opacity"
           >
             <MessageCircle className="w-3.5 h-3.5" />
             {t("intent.start_chat")}
@@ -205,7 +205,7 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
               className={
                 "inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md border text-[13px] transition-colors " +
                 (isSaved
-                  ? "bg-primary text-primary-foreground border-primary hover:opacity-90"
+                  ? "bg-foreground text-background border-foreground hover:opacity-90"
                   : "border-border text-foreground/85 hover:bg-secondary")
               }
             >
@@ -407,7 +407,7 @@ function PersonProfileSheet({
         <div className="border-t border-border bg-background px-6 py-4">
           <button
             onClick={onStartChat}
-            className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-md bg-primary text-primary-foreground text-[13.5px] font-medium hover:opacity-90 transition-opacity"
+            className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-md bg-foreground text-background text-[13.5px] font-medium hover:opacity-90 transition-opacity"
           >
             <MessageCircle className="w-3.5 h-3.5" />
             {t("intent.start_chat")}
@@ -471,7 +471,7 @@ function WhyPersonBox({ otherOwnerId, lang }: { otherOwnerId: string; lang: Lang
           />
           <button
             onClick={submit}
-            className="inline-flex items-center px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-[12px] font-medium hover:opacity-90 transition-opacity"
+            className="inline-flex items-center px-3 py-1.5 rounded-md bg-foreground text-background text-[12px] font-medium hover:opacity-90 transition-opacity"
           >
             {t("intent.tell_agent_submit")}
           </button>
@@ -555,7 +555,7 @@ function EditWishPanel({
               className={[
                 "px-3 py-1 rounded-full text-[12px] border transition-colors",
                 when === w
-                  ? "border-primary bg-primary text-primary-foreground"
+                  ? "border-foreground bg-foreground text-background"
                   : "border-border bg-secondary text-foreground/80 hover:border-foreground/40",
               ].join(" ")}
             >
@@ -578,7 +578,7 @@ function EditWishPanel({
                 className={[
                   "px-3 py-1 rounded-full text-[12px] border transition-colors",
                   level === l
-                    ? "border-primary bg-primary text-primary-foreground"
+                    ? "border-foreground bg-foreground text-background"
                     : "border-border bg-secondary text-foreground/80 hover:border-foreground/40",
                 ].join(" ")}
               >
@@ -614,7 +614,7 @@ function EditWishPanel({
 
       <button
         onClick={apply}
-        className="w-full inline-flex items-center justify-center px-4 py-2 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity"
+        className="w-full inline-flex items-center justify-center px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
       >
         {t("intent.edit_apply")}
       </button>
@@ -903,7 +903,7 @@ function ChatView({ state, onSendChat, onBackToCandidate, onDraftConsumed }: Pro
             onClick={submit}
             disabled={!text.trim()}
             aria-label="Send"
-            className="absolute right-2 bottom-1.5 w-8 h-8 grid place-items-center rounded-lg bg-primary text-primary-foreground disabled:opacity-25 hover:opacity-90 transition-opacity"
+            className="absolute right-2 bottom-1.5 w-8 h-8 grid place-items-center rounded-lg bg-foreground text-background disabled:opacity-25 hover:opacity-90 transition-opacity"
           >
             <ArrowUp className="w-4 h-4" />
           </button>
@@ -921,7 +921,7 @@ function ChatBubble({ m }: { m: ChatMsg }) {
         className={[
           "max-w-[80%] px-3.5 py-2 text-[14px] leading-relaxed",
           isMine
-            ? "rounded-2xl rounded-br-md bg-primary text-primary-foreground"
+            ? "rounded-2xl rounded-br-md bg-foreground text-background"
             : "rounded-2xl rounded-bl-md bg-secondary text-foreground",
         ].join(" ")}
       >

@@ -90,12 +90,12 @@ export function Home() {
   }
 
   return (
-    <div className="min-h-dvh bg-gradient-hero flex flex-col pb-tabbar" suppressHydrationWarning>
+    <div className="min-h-dvh bg-background flex flex-col pb-tabbar" suppressHydrationWarning>
       {/* Desktop header — hidden on mobile in favor of the bottom tab bar. */}
-      <header className="hidden md:block w-full">
-        <div className="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
+      <header className="hidden md:block w-full border-b border-border/60">
+        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">K</div>
+            <div className="w-6 h-6 rounded-md bg-foreground text-background grid place-items-center font-mono text-[11px] font-bold">K</div>
             <span className="text-[14px] font-semibold tracking-tight text-foreground">Kindred</span>
           </div>
           <div className="flex items-center gap-3">
@@ -104,7 +104,7 @@ export function Home() {
             {connCount > 0 && (
               <Link
                 to="/connections"
-                className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-foreground/80 hover:text-foreground hover:bg-secondary transition-colors"
+                className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               >
                 <MessageCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
                 <span suppressHydrationWarning>{mounted ? t("home.connections") : ""}</span>
@@ -114,7 +114,7 @@ export function Home() {
             {user && (
               <Link
                 to="/profile"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-foreground/80 hover:text-foreground hover:bg-secondary transition-colors"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               >
                 <UserCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
                 <span suppressHydrationWarning>{mounted ? t("home.profile") : ""}</span>
@@ -126,12 +126,11 @@ export function Home() {
         </div>
       </header>
 
-      {/* Mobile top strip — logo only + saved shortcut when non-empty.
-          Everything else lives in the bottom tab bar or Me tab. */}
+      {/* Mobile top strip */}
       <div className="md:hidden pt-safe">
         <div className="px-5 h-12 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">K</div>
+            <div className="w-6 h-6 rounded-md bg-foreground text-background grid place-items-center font-mono text-[11px] font-bold">K</div>
             <span className="text-[13.5px] font-semibold tracking-tight text-foreground">Kindred</span>
           </div>
           <div className="flex items-center gap-1">
@@ -141,24 +140,45 @@ export function Home() {
         </div>
       </div>
 
-      {/* Content area — greeting scrolls, composer sticks to viewport bottom
-          on mobile so the send button stays inside the thumb zone. */}
-      <main className="flex-1 flex flex-col md:items-center md:justify-center px-5 md:px-6">
-        <div className="w-full max-w-2xl md:mx-auto flex-1 flex flex-col md:block">
+      <main className="flex-1 flex flex-col md:block px-5 md:px-6">
+        <div className="w-full max-w-3xl md:mx-auto flex-1 flex flex-col md:block md:pt-[16vh]">
           <div className="flex-1 md:flex-none flex items-center md:block pt-6 md:pt-0">
             <h1
-              className="w-full text-center text-[26px] sm:text-[32px] font-serif italic leading-tight text-foreground"
+              className="w-full text-center md:text-left text-[28px] sm:text-[36px] md:text-[44px] font-semibold tracking-[-0.02em] leading-[1.15] text-foreground"
               suppressHydrationWarning
             >
               {t("home.greeting")}
             </h1>
           </div>
 
-          {/* Composer — desktop: inline card; mobile: sticky to bottom of
-              viewport with safe-area padding, so it hugs the keyboard when
-              open and the thumb zone when closed. */}
+          {/* Composer */}
           <div className="md:mt-8 sticky bottom-0 md:static z-10 bg-background md:bg-transparent -mx-5 md:mx-0 px-5 md:px-0 pb-[max(env(safe-area-inset-bottom),12px)] md:pb-0 pt-3 md:pt-0">
-            <div className="rounded-2xl border border-border bg-card shadow-[0_1px_0_rgba(0,0,0,0.02),0_12px_30px_-18px_rgba(0,0,0,0.18)] focus-within:border-foreground/40 transition-colors">
+            {/* Suggestion chips — above composer on desktop, Gemini-style */}
+            <div className="hidden md:flex flex-wrap items-center gap-2 mb-3">
+              {CHIPS.map((c) => {
+                const active = selected === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setSelected(active ? null : c.id)}
+                    className={[
+                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors",
+                      active
+                        ? "border-foreground/25 bg-surface text-foreground"
+                        : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/20",
+                    ].join(" ")}
+                    aria-pressed={active}
+                    suppressHydrationWarning
+                  >
+                    <c.Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
+                    <span suppressHydrationWarning>{t(c.labelKey)}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="rounded-3xl border border-border bg-card shadow-sm-soft focus-within:border-foreground/30 transition-colors">
               <div className="px-4 md:px-5 pt-3 md:pt-4 pb-2">
                 <textarea
                   ref={taRef}
@@ -169,13 +189,14 @@ export function Home() {
                   }}
                   rows={2}
                   placeholder={mounted ? t("home.placeholder") : ""}
-                  className="w-full resize-none bg-transparent outline-none text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground/70"
+                  className="w-full resize-none bg-transparent outline-none text-[15px] leading-relaxed text-foreground placeholder:text-subtle-foreground"
                   suppressHydrationWarning
                 />
               </div>
 
               <div className="px-2.5 md:px-3 pb-2.5 md:pb-3 pt-1 flex items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-1.5 pl-1.5 md:pl-2">
+                {/* Mobile-only chip row inside composer to keep thumb reach */}
+                <div className="flex md:hidden flex-wrap items-center gap-1.5 pl-1.5">
                   {CHIPS.map((c) => {
                     const active = selected === c.id;
                     return (
@@ -184,10 +205,10 @@ export function Home() {
                         type="button"
                         onClick={() => setSelected(active ? null : c.id)}
                         className={[
-                          "group inline-flex items-center gap-1.5 rounded-full border px-3 py-2 md:py-1.5 text-[12px] transition-colors min-h-[36px]",
+                          "inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-[12px] transition-colors min-h-[36px]",
                           active
-                            ? "border-primary/40 bg-primary-soft text-primary"
-                            : "border-border bg-card text-foreground/80 hover:border-primary/40 hover:text-foreground",
+                            ? "border-foreground/25 bg-surface text-foreground"
+                            : "border-border bg-card text-muted-foreground",
                         ].join(" ")}
                         aria-pressed={active}
                         suppressHydrationWarning
@@ -198,12 +219,13 @@ export function Home() {
                     );
                   })}
                 </div>
+                <div className="hidden md:block flex-1" />
 
                 <button
                   type="button"
                   onClick={submit}
                   disabled={!text.trim()}
-                  className="shrink-0 inline-flex items-center justify-center w-10 h-10 md:w-9 md:h-9 rounded-full bg-primary text-primary-foreground disabled:opacity-25 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+                  className="shrink-0 inline-flex items-center justify-center w-10 h-10 md:w-9 md:h-9 rounded-full bg-foreground text-background disabled:bg-input disabled:text-subtle-foreground disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
                   aria-label={t("home.send")}
                   suppressHydrationWarning
                 >
@@ -213,7 +235,7 @@ export function Home() {
             </div>
 
             <p
-              className="mt-3 md:mt-6 text-center text-[10.5px] md:text-[11.5px] text-muted-foreground font-mono uppercase tracking-[0.12em]"
+              className="mt-3 md:mt-4 text-center text-[10.5px] md:text-[11px] text-subtle-foreground font-mono uppercase tracking-[0.12em]"
               suppressHydrationWarning
             >
               {t("home.agents_footnote")}

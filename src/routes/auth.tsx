@@ -150,7 +150,7 @@ function AuthPage() {
   const showProviderStep = mode === "signin" || step === "provider";
 
   return (
-    <div className="min-h-dvh bg-gradient-hero flex flex-col pt-safe pb-safe">
+    <div className="min-h-dvh bg-background flex flex-col pt-safe pb-safe">
       <header className="border-b border-border bg-background/90 backdrop-blur">
         <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
           <Link
@@ -166,7 +166,7 @@ function AuthPage() {
 
       <main className="flex-1 flex items-center justify-center px-5 py-10">
         <div className="w-full max-w-sm">
-          <h1 className="text-[24px] font-serif italic leading-tight text-foreground">
+          <h1 className="text-[24px] font-semibold tracking-tight leading-tight text-foreground">
             {mode === "signin"
               ? t("auth.title_signin")
               : step === "invite"
@@ -210,7 +210,7 @@ function AuthPage() {
               <button
                 type="submit"
                 disabled={pending === "verify"}
-                className="w-full inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-2 text-[13px] font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
+                className="w-full inline-flex items-center justify-center rounded-md bg-foreground text-background px-3 py-2 text-[13px] font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
               >
                 {pending === "verify" ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -329,7 +329,7 @@ function ProviderButton({
       className={[
         "w-full inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-[13px] font-medium transition-colors",
         primary
-          ? "bg-primary text-primary-foreground hover:opacity-90"
+          ? "bg-foreground text-background hover:opacity-90"
           : "border border-border bg-card text-foreground hover:bg-secondary",
         soon ? "opacity-60" : "",
         disabled ? "opacity-50 cursor-not-allowed" : "",

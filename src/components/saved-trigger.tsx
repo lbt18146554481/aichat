@@ -174,7 +174,7 @@ export function SavedTrigger({ variant = "default" }: Props) {
                       <div className="mt-3 flex items-center gap-2">
                         <button
                           onClick={() => handleOpenPerson(rec)}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-primary text-primary-foreground text-[12.5px] font-medium hover:opacity-90 transition-opacity"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-foreground text-background text-[12.5px] font-medium hover:opacity-90 transition-opacity"
                         >
                           <UserRound className="w-3 h-3" />
                           {t("saved.open_person")}
@@ -252,7 +252,7 @@ export function SavedTrigger({ variant = "default" }: Props) {
                       <div className="mt-3 flex items-center gap-2">
                         <button
                           onClick={() => handleOpenChat(rec)}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-primary text-primary-foreground text-[12.5px] font-medium hover:opacity-90 transition-opacity"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-foreground text-background text-[12.5px] font-medium hover:opacity-90 transition-opacity"
                         >
                           <MessageCircle className="w-3 h-3" />
                           {t("saved.start_chat")}
