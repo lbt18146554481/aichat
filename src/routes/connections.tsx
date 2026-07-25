@@ -200,9 +200,9 @@ function ConnectionsPage() {
                       key={c.personId}
                       conn={c}
                       lang={lang}
-                      active={false}
-                      muted
-                      onSelect={() => { /* nothing to open */ }}
+                      active={c.personId === activeId}
+                      dim
+                      onSelect={() => setActiveId(c.personId)}
                     />
                   ))}
                 </ul>
@@ -215,6 +215,7 @@ function ConnectionsPage() {
           {paneKind === "thread" && activeId && <ConnectionThread personId={activeId} />}
           {paneKind === "incoming" && activeId && <IncomingHello personId={activeId} />}
           {paneKind === "waiting" && activeId && <SentWaitingPane personId={activeId} />}
+          {paneKind === "faded" && activeId && <FadedPane personId={activeId} />}
           {paneKind === null && (
             <div className="h-full grid place-items-center">
               <p className="text-[13px] text-muted-foreground">{t("connection.pick_one")}</p>
