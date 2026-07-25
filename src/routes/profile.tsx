@@ -82,7 +82,7 @@ function ProfilePage() {
 
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background pt-safe pb-tabbar">
       <header className="border-b border-border bg-background/90 backdrop-blur sticky top-0 z-30">
         <div className="max-w-3xl mx-auto px-5 h-14 flex items-center justify-between gap-3">
           <button

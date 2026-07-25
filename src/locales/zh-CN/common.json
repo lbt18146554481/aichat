@@ -70,7 +70,14 @@
     }
   },
   "nav": {
-    "home": "返回首页"
+    "home": "返回首页",
+    "back": "返回"
+  },
+  "tabs": {
+    "home": "首页",
+    "chats": "对话",
+    "history": "历史",
+    "me": "我的"
   },
   "header": {
     "reset": "+ 新一件事",
@@ -84,6 +91,10 @@
     "placeholder_followup": "回复，或者告诉我要调整什么",
     "disclaimer": "模拟资料。没有任何信息离开你的浏览器。",
     "starting": "思考中……"
+  },
+  "workspace": {
+    "tab_chat": "对话",
+    "tab_result": "结果"
   },
   "intro": {
     "empty_title": "我会在这里引荐一个人。",

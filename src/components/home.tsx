@@ -46,7 +46,14 @@ export function Home() {
 
 
   useEffect(() => { setMounted(true); }, []);
-  useEffect(() => { if (mounted) taRef.current?.focus(); }, [mounted]);
+  useEffect(() => {
+    // Autofocus is desktop-only. On mobile, auto-focusing the textarea
+    // would summon the keyboard immediately and hide the greeting.
+    if (!mounted) return;
+    if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
+      taRef.current?.focus();
+    }
+  }, [mounted]);
   useEffect(() => {
     rehydrate();
     const update = () => { setConnCount(list().length); setUnseen(hasUnseen()); };
@@ -83,8 +90,9 @@ export function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col" suppressHydrationWarning>
-      <header className="w-full">
+    <div className="min-h-dvh bg-background flex flex-col pb-tabbar" suppressHydrationWarning>
+      {/* Desktop header — hidden on mobile in favor of the bottom tab bar. */}
+      <header className="hidden md:block w-full">
         <div className="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-6 h-6 rounded-md bg-foreground text-background grid place-items-center font-mono text-[11px] font-bold">K</div>
@@ -118,82 +126,101 @@ export function Home() {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center px-6 pb-20">
-        <div className="w-full max-w-2xl">
-          
+      {/* Mobile top strip — logo only + saved shortcut when non-empty.
+          Everything else lives in the bottom tab bar or Me tab. */}
+      <div className="md:hidden pt-safe">
+        <div className="px-5 h-12 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-foreground text-background grid place-items-center font-mono text-[11px] font-bold">K</div>
+            <span className="text-[13.5px] font-semibold tracking-tight text-foreground">Kindred</span>
+          </div>
+          <div className="flex items-center gap-1">
+            {mounted && <SavedTrigger variant="compact" />}
+            <LangSwitcher />
+          </div>
+        </div>
+      </div>
 
-          <h1
-            className="text-center text-[26px] sm:text-[32px] font-serif italic leading-tight text-foreground"
-            suppressHydrationWarning
-          >
-            {t("home.greeting")}
-          </h1>
-
-          {/* Composer — always usable */}
-          <div className="mt-8 rounded-2xl border border-border bg-card shadow-[0_1px_0_rgba(0,0,0,0.02),0_12px_30px_-18px_rgba(0,0,0,0.18)] focus-within:border-foreground/40 transition-colors">
-            <div className="px-5 pt-4 pb-2">
-              <textarea
-                ref={taRef}
-                value={text}
-                onChange={(e) => { setText(e.target.value); autosize(e.target); }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
-                }}
-                rows={2}
-                placeholder={mounted ? t("home.placeholder") : ""}
-                className="w-full resize-none bg-transparent outline-none text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground/70"
-                suppressHydrationWarning
-              />
-            </div>
-
-            <div className="px-3 pb-3 pt-1 flex items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-1.5 pl-2">
-                {CHIPS.map((c) => {
-                  const active = selected === c.id;
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setSelected(active ? null : c.id)}
-                      className={[
-                        "group inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] transition-colors",
-                        active
-                          ? "border-foreground bg-foreground text-background"
-                          : "border-border bg-background text-foreground/80 hover:border-foreground/50 hover:text-foreground",
-                      ].join(" ")}
-                      aria-pressed={active}
-                      suppressHydrationWarning
-                    >
-                      <c.Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
-                      <span suppressHydrationWarning>{t(c.labelKey)}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <button
-                type="button"
-                onClick={submit}
-                disabled={!text.trim()}
-                className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-full bg-foreground text-background disabled:opacity-25 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
-                aria-label={t("home.send")}
-                suppressHydrationWarning
-              >
-                <ArrowUp className="w-4 h-4" strokeWidth={2.25} />
-              </button>
-            </div>
+      {/* Content area — greeting scrolls, composer sticks to viewport bottom
+          on mobile so the send button stays inside the thumb zone. */}
+      <main className="flex-1 flex flex-col md:items-center md:justify-center px-5 md:px-6">
+        <div className="w-full max-w-2xl md:mx-auto flex-1 flex flex-col md:block">
+          <div className="flex-1 md:flex-none flex items-center md:block pt-6 md:pt-0">
+            <h1
+              className="w-full text-center text-[26px] sm:text-[32px] font-serif italic leading-tight text-foreground"
+              suppressHydrationWarning
+            >
+              {t("home.greeting")}
+            </h1>
           </div>
 
+          {/* Composer — desktop: inline card; mobile: sticky to bottom of
+              viewport with safe-area padding, so it hugs the keyboard when
+              open and the thumb zone when closed. */}
+          <div className="md:mt-8 sticky bottom-0 md:static z-10 bg-background md:bg-transparent -mx-5 md:mx-0 px-5 md:px-0 pb-[max(env(safe-area-inset-bottom),12px)] md:pb-0 pt-3 md:pt-0">
+            <div className="rounded-2xl border border-border bg-card shadow-[0_1px_0_rgba(0,0,0,0.02),0_12px_30px_-18px_rgba(0,0,0,0.18)] focus-within:border-foreground/40 transition-colors">
+              <div className="px-4 md:px-5 pt-3 md:pt-4 pb-2">
+                <textarea
+                  ref={taRef}
+                  value={text}
+                  onChange={(e) => { setText(e.target.value); autosize(e.target); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
+                  }}
+                  rows={2}
+                  placeholder={mounted ? t("home.placeholder") : ""}
+                  className="w-full resize-none bg-transparent outline-none text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground/70"
+                  suppressHydrationWarning
+                />
+              </div>
 
-          <p
-            className="mt-6 text-center text-[11.5px] text-muted-foreground font-mono uppercase tracking-[0.12em]"
-            suppressHydrationWarning
-          >
-            {t("home.agents_footnote")}
-          </p>
+              <div className="px-2.5 md:px-3 pb-2.5 md:pb-3 pt-1 flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5 pl-1.5 md:pl-2">
+                  {CHIPS.map((c) => {
+                    const active = selected === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setSelected(active ? null : c.id)}
+                        className={[
+                          "group inline-flex items-center gap-1.5 rounded-full border px-3 py-2 md:py-1.5 text-[12px] transition-colors min-h-[36px]",
+                          active
+                            ? "border-foreground bg-foreground text-background"
+                            : "border-border bg-background text-foreground/80 hover:border-foreground/50 hover:text-foreground",
+                        ].join(" ")}
+                        aria-pressed={active}
+                        suppressHydrationWarning
+                      >
+                        <c.Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
+                        <span suppressHydrationWarning>{t(c.labelKey)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={submit}
+                  disabled={!text.trim()}
+                  className="shrink-0 inline-flex items-center justify-center w-10 h-10 md:w-9 md:h-9 rounded-full bg-foreground text-background disabled:opacity-25 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+                  aria-label={t("home.send")}
+                  suppressHydrationWarning
+                >
+                  <ArrowUp className="w-4 h-4" strokeWidth={2.25} />
+                </button>
+              </div>
+            </div>
+
+            <p
+              className="mt-3 md:mt-6 text-center text-[10.5px] md:text-[11.5px] text-muted-foreground font-mono uppercase tracking-[0.12em]"
+              suppressHydrationWarning
+            >
+              {t("home.agents_footnote")}
+            </p>
+          </div>
         </div>
       </main>
     </div>
   );
 }
-

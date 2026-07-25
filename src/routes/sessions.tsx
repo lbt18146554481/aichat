@@ -20,7 +20,7 @@ function SessionsPage() {
   if (!ready) return <div className="min-h-screen bg-background" />;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-dvh bg-background flex flex-col pt-safe pb-tabbar">
       <header className="w-full">
         <div className="max-w-3xl mx-auto px-6 py-5 flex items-center justify-between">
           <Link

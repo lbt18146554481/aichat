@@ -87,20 +87,44 @@ function ConnectionsPage() {
   if (!ready) return <div className="min-h-screen bg-background" />;
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      <header className="w-full border-b border-border bg-background/90 backdrop-blur sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-5 h-14 flex items-center justify-between gap-3">
-          <Link to="/" className="inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="font-mono uppercase tracking-wide">Kindred</span>
-          </Link>
+    <div className="h-dvh flex flex-col bg-background pb-tabbar lg:pb-0">
+      <header className="w-full border-b border-border bg-background/90 backdrop-blur sticky top-0 z-30 pt-safe">
+        <div className="max-w-7xl mx-auto px-4 md:px-5 h-14 flex items-center justify-between gap-3">
+          {/* On mobile, when a thread is open we show a back button that
+              closes the thread (returning to the list). Otherwise a Home
+              link. On desktop, always Home. */}
+          {activeId ? (
+            <button
+              type="button"
+              onClick={() => setActiveId(null)}
+              className="lg:hidden inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={t("nav.back")}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="font-mono uppercase tracking-wide">{t("nav.back")}</span>
+            </button>
+          ) : (
+            <Link to="/" className="inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="font-mono uppercase tracking-wide">Kindred</span>
+            </Link>
+          )}
+          {activeId && (
+            <Link to="/" className="hidden lg:inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors">
+              <span className="font-mono uppercase tracking-wide">Kindred</span>
+            </Link>
+          )}
           <div className="text-[13.5px] font-semibold tracking-tight">{t("connection.title")}</div>
           <LangSwitcher />
         </div>
       </header>
 
       <div className="flex-1 grid lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] min-h-0">
-        <aside className="border-r border-border overflow-y-auto">
+        <aside className={[
+          "border-r border-border overflow-y-auto overscroll-contain-y",
+          // Hide list on mobile once a thread is open.
+          activeId ? "hidden lg:block" : "block",
+        ].join(" ")}>
           {items.length === 0 ? (
             <p className="px-5 py-8 text-[13px] text-muted-foreground leading-relaxed">{t("connection.empty")}</p>
           ) : (
@@ -119,7 +143,11 @@ function ConnectionsPage() {
           )}
         </aside>
 
-        <section className="min-h-0 bg-secondary/30 hidden lg:block">
+        <section className={[
+          "min-h-0 bg-secondary/30",
+          // Show thread on mobile only if activeId is set.
+          activeId ? "block" : "hidden lg:block",
+        ].join(" ")}>
           {activeId ? (
             <ConnectionThread key={activeId} personId={activeId} />
           ) : (
@@ -132,6 +160,7 @@ function ConnectionsPage() {
     </div>
   );
 }
+
 
 function Row({ conn, lang, active, dot, onSelect }: {
   conn: Connection; lang: Lang; active: boolean; dot?: boolean; onSelect: () => void;

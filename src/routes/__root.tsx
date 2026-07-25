@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import i18n, { initI18n, applyPersistedLang } from "../lib/i18n";
 import { Toaster } from "@/components/ui/sonner";
+import { MobileTabBar } from "@/components/mobile/tab-bar";
 
 initI18n();
 // Hard-lock the first render to English on every entry so SSR HTML and the
@@ -82,7 +83,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      {
+        name: "viewport",
+        content:
+          "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content",
+      },
+      { name: "theme-color", content: "#ffffff" },
       { title: "Kindred — an AI agent for finding the person you're looking for" },
       {
         name: "description",
@@ -150,6 +156,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      <MobileTabBar />
       <Toaster />
     </QueryClientProvider>
   );

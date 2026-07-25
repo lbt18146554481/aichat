@@ -70,7 +70,14 @@
     }
   },
   "nav": {
-    "home": "Back to home"
+    "home": "Back to home",
+    "back": "Back"
+  },
+  "tabs": {
+    "home": "Home",
+    "chats": "Chats",
+    "history": "History",
+    "me": "Me"
   },
   "header": {
     "reset": "+ New wish",
@@ -84,6 +91,10 @@
     "placeholder_followup": "Reply, or tell me what to change",
     "disclaimer": "Mock profiles. Nothing leaves your browser.",
     "starting": "Thinking…"
+  },
+  "workspace": {
+    "tab_chat": "Chat",
+    "tab_result": "Result"
   },
   "intro": {
     "empty_title": "I'll introduce one person here.",
