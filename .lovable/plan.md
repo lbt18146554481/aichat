@@ -1,78 +1,96 @@
-## 目标
-在不改动现有视觉调性（极简黑白 + serif italic）的前提下，把整站移动端体验重构为一套"手机 App 布局"：底部 Tab Bar、全屏 Sheet、贴底 Composer、安全区适配、44px 触控热区。桌面端体验保持不变。
+## 视觉方向
 
-## 心智模型
-- **桌面（sm+）**：沿用当前顶部头 + 居中大画布布局。
-- **移动（< sm，≤ 767px）**：切换为「App 壳」——
-  ```text
-  ┌──────────────── status bar safe-area ────────────────┐
-  │ 顶部：极简 title / 返回 / 右侧单个操作                  │
-  ├──────────────────────────────────────────────────────┤
-  │                                                      │
-  │ 内容滚动区（overscroll-behavior: contain）             │
-  │                                                      │
-  ├──────────────────────────────────────────────────────┤
-  │ Sticky composer（仅内容/聊天页）                        │
-  ├──────────────────────────────────────────────────────┤
-  │ Bottom Tab Bar（4 tab）+ home indicator 安全区          │
-  └──────────────────────────────────────────────────────┘
-  ```
+**基调**：晨雾般清爽的浅色底 + 湖蓝作为唯一强调色 + 极少量薄荷绿点缀成功态。让人放松、干净、有呼吸感。彻底告别当前的褐色/黑色填充。
 
-## 全局壳：Tab Bar & Safe Area
-- 新增 `src/components/mobile/tab-bar.tsx`：4 个 tab —— **Home / Chats（Connections）/ Saved / Me（Profile）**，仅在 `< sm` 显示；使用 `useLocation` 判断激活项；未登录时点击非 Home tab → 引导登录（复用 `useRequireAuth` 语义）。
-- 新增 `src/components/mobile/app-shell.tsx`：为每个路由套上「flex-col、min-h-[100dvh]、pt-[env(safe-area-inset-top)]、pb-[calc(56px+env(safe-area-inset-bottom))] on mobile」，桌面下等同 `<>{children}</>`。
-- 在 `src/routes/__root.tsx` 中统一挂载 `<TabBar />`（仅移动端渲染），避免每个页面单独放。
-- 未读点（Chats tab）复用 `hasUnseen()`。
+**字体**：保持 Inter（sans）+ JetBrains Mono，不做替换（用户表示如无更好选择可不动）。仅调整标题字重与字距，让排版更松弛。
 
-## 首页 (`src/components/home.tsx`)
-- 顶部 header 在移动端**隐藏**：Kindred 徽标不占空间，`SavedTrigger` / `HistoryTrigger` / Connections / Profile 均下沉到 Tab Bar 或右上角单个「⋯ 更多」按钮。语言切换 & 账号菜单收到 Me tab。
-- 主体：顶部一段更小的 greeting，Composer 变成 **贴底 sticky**（`pb-[env(safe-area-inset-bottom)]`）—— 用户拇指区一步触达；chip（Introduce / Together）横向 pill 组浮在 composer 上方；发送按钮尺寸 ≥ 40×40。
-- 桌面端保持当前设计不变（用 `sm:` 分支切换）。
+## 一、设计 Token（`src/styles.css`）
 
-## 聊天型页面
-覆盖：`src/routes/matchmaker.tsx`、`src/routes/side-by-side.tsx`、`src/components/canvas/connection-thread.tsx`。
-- 移动端使用 100dvh 布局：**头部（52px）+ 消息滚动 + Sticky Composer**。
-- Composer 使用 `position: sticky; bottom: 0`，附带 `env(safe-area-inset-bottom)` 缓冲；焦点时用 `scrollIntoView({block:'end'})` 保证最新消息可见（iOS Safari 键盘遮挡）。
-- 左右双栏（Agent 私聊 + 匹配画布）在移动端改成 **Segmented Tab**（顶部两枚 pill：`Agent` / `Match`），不再左右并列；桌面保持并列。
-- 「返回」使用 `router.history.back()` + 左上角 `<` 图标，44×44 触控区。
+改写 `:root` 全部语义色，同时新增湖蓝主色梯度与柔和阴影/渐变 token。
 
-## Connections 列表 & 详情
-- 列表页（`src/routes/connections.tsx`）：完整全屏列表，行高 ≥ 64px，右侧未读点；点击行 push 进入 `/connections?thread=...` 全屏对话（移动端不再分栏）。
-- 详情视图 iOS 风格头部：头像 + 名字居中，返回位于左上；`⋯` 菜单收纳撤回/移除。
-- 桌面保持左右分栏。
+```text
+背景系（晨雾）
+  --background     : oklch(0.995 0.003 240)   接近纯白，微冷调
+  --sidebar/muted  : oklch(0.975 0.012 235)   雾面浅蓝白 #F1F5FA 感
+  --card           : oklch(1 0 0)              纯白卡面
+  --secondary      : oklch(0.965 0.018 232)   悬浮/hover 底
 
-## Saved / History
-- Sheet 触发器改为 **Sheet 全屏**（移动端 `side="bottom" + h-[92dvh] + rounded-t-2xl`），带 drag handle；桌面保留原右侧 Sheet。
-- 内部 tab（People / Wishes / History）沿用现状，仅调整触控高度与滚动。
+文字系
+  --foreground     : oklch(0.24 0.03 250)     深墨蓝(而非纯黑)，柔和
+  --muted-foreground: oklch(0.55 0.02 245)    次级文字
+  
+主色（湖蓝）
+  --primary        : oklch(0.62 0.14 235)     #0284C7 感
+  --primary-foreground: oklch(0.99 0.005 240)
+  --primary-soft   : oklch(0.94 0.04 235)     淡蓝背景（chip/tag/hover）
+  --primary-glow   : oklch(0.78 0.10 230)     渐变尾色 #7DD3FC 感
+  --ring           : oklch(0.62 0.14 235 / 0.35)
 
-## Profile & Auth
-- Profile 页移动端顶部收起为 sticky 极简 bar；Auth 页表单在移动端居中并将 CTA 贴底以贴合拇指区。
-- Auth 页与 Profile 页在移动端**不显示**底部 Tab Bar（视为模态流程）。
+反馈色（点缀，只在必要时出现）
+  --success        : oklch(0.72 0.13 175)     薄荷绿
+  --destructive    : oklch(0.62 0.20 25)      柔和红
 
-## 通用移动交互细节
-- 触控最小 44×44（按钮、chip、Tab 项）。
-- 所有可滚动区加 `overscroll-behavior: contain`；主容器 `touch-action: manipulation`。
-- `src/styles.css` 添加：`--safe-top / --safe-bottom` 变量；`.mobile-scroll { -webkit-overflow-scrolling: touch }`；`html, body { overscroll-behavior-y: none }`。
-- 视口 meta：在 `__root.tsx` 补 `viewport-fit=cover, interactive-widget=resizes-content` 以让键盘正确压缩视口。
-- 长按/双击/输入 focus 不放大：`user-scalable=no` + `input/textarea { font-size: 16px }` 防 iOS 缩放。
+边框/描边
+  --border         : oklch(0.92 0.012 235)    极淡蓝灰描边
+  --input          : oklch(0.94 0.010 235)
 
-## 视觉保持不变（用户明确要求）
-- 不改动颜色、字体、圆角、阴影 token；仅结构与尺寸。
-- Tab Bar 也使用现有 border/muted-foreground 语义色，激活态用 foreground。
+渐变与阴影
+  --gradient-hero  : linear-gradient(180deg, #F0F7FD 0%, #FFFFFF 60%)
+  --gradient-accent: linear-gradient(135deg, var(--primary), var(--primary-glow))
+  --shadow-soft    : 0 1px 2px oklch(0.4 0.05 240 / 0.04), 0 8px 24px -12px oklch(0.4 0.08 240 / 0.10)
+  --shadow-focus   : 0 0 0 3px oklch(0.62 0.14 235 / 0.15)
+```
 
-## 变更文件清单
-- 新增：`src/components/mobile/tab-bar.tsx`、`src/components/mobile/app-shell.tsx`、`src/hooks/use-mobile.tsx`（若已存在则复用）。
-- 修改：`src/routes/__root.tsx`（挂 TabBar、viewport meta）、`src/components/home.tsx`、`src/routes/matchmaker.tsx`、`src/routes/side-by-side.tsx`、`src/components/canvas/connection-thread.tsx`、`src/routes/connections.tsx`、`src/components/saved-trigger.tsx`、`src/components/history-trigger.tsx`、`src/routes/profile.tsx`、`src/routes/auth.tsx`、`src/styles.css`。
-- 不新增依赖；不引入 AI Elements（此次纯 layout，不改 chat 语义）。
+同时补齐 `@theme inline`，暴露 `bg-primary-soft`、`bg-gradient-accent`、`shadow-soft` 等工具类。
 
-## 验收
-- iPhone 14 (390×844) & 小屏（375×667）无横向滚动、Composer 贴底不遮挡键盘。
-- 四个 Tab 之间切换在移动端顺畅，页面滚动位置各自保留（借助 `scrollRestoration`）。
-- 桌面端（≥ 768px）UI 与当前完全一致——不引入回归。
-- Chats tab 有未读点；点击 Connections 行直达对话。
-- Home、Matchmaker、Side-by-Side、Connections、Saved、History、Profile、Auth 全部通过 iOS Safari + Android Chrome 手动预览。
+**排版微调**：`h1..h4` 从 600 降到 550/字距 -0.015em；正文 `line-height` 提高到 1.6，让页面更松弛。
+
+## 二、组件层调整（不改交互，只换填充语义）
+
+所有当前用到"深黑填充"（`bg-foreground text-background`）的位置，改为语义主色：
+
+| 位置 | 现状 | 调整后 |
+| --- | --- | --- |
+| 首页 Composer 发送按钮 | `bg-foreground` | `bg-primary` + `hover:opacity-90` |
+| 首页 Chip 激活态 | `bg-foreground text-background` | `bg-primary-soft text-primary border-primary/40` |
+| Kindred Logo 方块 | 黑底白字 | 湖蓝渐变底白字 |
+| Auth 主按钮 / OAuth 按钮 | 黑填充 | 主 CTA 用 `bg-primary`；OAuth 用白底 + 描边 |
+| 语言切换器激活态 | 黑底 | `bg-primary-soft text-primary` |
+| 移动端 TabBar 激活图标 | `text-foreground` | `text-primary` + 顶部 2px 湖蓝指示条 |
+| Matchmaker/Side-by-side 主要操作 (Say hello / Save) | 黑填充 | Say hello=`bg-primary`；Save 未收藏=描边、已收藏=`bg-primary-soft text-primary` |
+| Connections 未读点 | 黑点 | 湖蓝点 |
+| Sheet drag handle | 深灰 | 淡蓝灰 |
+| Profile 头像占位 | 深灰 | `bg-gradient-accent` 圆形柔光底 |
+
+**页面氛围**：
+- 首页 & Auth 页背景改为 `--gradient-hero`（顶部一抹极淡的湖蓝雾，向下过渡到纯白），让首屏立刻感到清爽而不空。
+- 匹配详情卡片的 `Portrait / Why-this-person` 区块给一个极淡的 `bg-primary-soft/40` 底，让信息分层更清楚。
+- 卡片阴影统一换成 `--shadow-soft`（冷色调阴影），比现在的中性阴影更贴合湖蓝基调。
+
+## 三、深色模式（顺手补一份，不额外增负担）
+在 `.dark` 下写一份对应变量：深墨蓝底 `oklch(0.22 0.02 245)` + 保持湖蓝主色（略提亮到 0.68）。当前若无 `.dark` 触发器可先只落 token，不接入切换 UI。
+
+## 四、验收
+- 站内所有黑色填充按钮/徽标已被湖蓝或湖蓝渐变替代；除 `foreground` 文字本身，页面不出现纯黑色块。
+- 首页首屏、Auth 页、匹配详情页视觉上出现明确的湖蓝氛围，但不喧宾夺主（强调色使用面积 <15%）。
+- 移动端 TabBar 激活态一眼可辨（湖蓝指示条 + 蓝图标）。
+- Lighthouse 对比度：主色 `#0284C7` on 白底 = 4.7:1 ✅；主色 on `--primary-soft` 底 = 4.9:1 ✅。
 
 ## 不做
-- 不接入 PWA / manifest / Service Worker。
-- 不改视觉主题（颜色/字体/圆角），后续视觉方案独立迭代。
-- 不迁移到原生 Capacitor / React Native。
+- 不换字体家族（Inter 保留），只调字重/字距/行高。
+- 不改任何交互流程、组件结构、路由或文案。
+- 不引入新依赖。
+- 不引入分区着色（Introduce/Together 各自不同色）——保持单一强调色系，避免复杂。
+
+## 变更文件清单
+- `src/styles.css`（token 全面重写 + 新增柔光渐变/阴影工具类）
+- `src/components/home.tsx`（Composer 按钮、chip、logo、背景渐变）
+- `src/components/lang-switcher.tsx`（激活态换色）
+- `src/components/mobile/tab-bar.tsx`（激活态换色 + 顶部指示条）
+- `src/routes/auth.tsx`（CTA、OAuth 按钮、背景渐变）
+- `src/routes/profile.tsx`（头像占位、welcome banner）
+- `src/components/canvas/intro-canvas.tsx`（Say hello / Save 按钮、traits chip）
+- `src/components/canvas/meet-canvas.tsx`（同上）
+- `src/components/canvas/connection-thread.tsx`（未读点、状态色）
+- `src/components/saved-trigger.tsx` / `history-trigger.tsx`（图标 hover 态）
+- `src/components/workspace-header.tsx`（右上角按钮组）
