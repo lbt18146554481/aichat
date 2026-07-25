@@ -4,7 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowUp } from "lucide-react";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
-import { get, markSeen, send, subscribe, type Connection } from "@/lib/connections";
+import { get, isTyping, markSeen, send, subscribe, type Connection } from "@/lib/connections";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
 import { loadProfile } from "@/lib/profile";
 import { setFocusPerson } from "@/lib/seed";
