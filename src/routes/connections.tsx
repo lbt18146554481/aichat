@@ -89,18 +89,18 @@ function ConnectionsPage() {
   useEffect(() => {
     if (activeId) {
       const active = items.find((c) => c.personId === activeId);
-      if (!active || active.status === "faded") {
+      if (!active) {
         setActiveId(null);
       }
       return;
     }
-    // Auto-select: incoming > connected > sent.
+    // Auto-select: incoming > connected > sent > faded.
     const firstIncoming = items.find((c) => c.status === "incoming");
     if (firstIncoming) { setActiveId(firstIncoming.personId); return; }
     const firstConnected = items.find((c) => c.status === "connected");
     if (firstConnected) { setActiveId(firstConnected.personId); return; }
     const firstSent = items.find((c) => c.status === "sent");
-    if (firstSent) setActiveId(firstSent.personId);
+    if (firstSent) { setActiveId(firstSent.personId); return; }
   }, [items, activeId]);
 
   const incoming = items.filter((c) => c.status === "incoming");
@@ -113,6 +113,7 @@ function ConnectionsPage() {
     activeConn?.status === "incoming" ? "incoming"
     : activeConn?.status === "connected" ? "thread"
     : activeConn?.status === "sent" ? "waiting"
+    : activeConn?.status === "faded" ? "faded"
     : null;
 
   if (!ready) return <div className="min-h-screen bg-background" />;
