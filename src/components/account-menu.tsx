@@ -61,7 +61,7 @@ export function AccountMenu({ compact }: { compact?: boolean }) {
     );
   }
 
-  const initial = (user.name || user.email).charAt(0).toUpperCase();
+  const initial = (displayName || user.email).charAt(0).toUpperCase();
 
   function onGenerate() {
     if (!user) return;
