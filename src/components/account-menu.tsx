@@ -95,8 +95,8 @@ export function AccountMenu({ compact }: { compact?: boolean }) {
         onClick={() => setOpen((v) => !v)}
         className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold hover:opacity-90"
       >
-        {user.avatar ? (
-          <img src={user.avatar} alt="" className="w-7 h-7 rounded-full object-cover" />
+        {displayAvatar ? (
+          <img src={displayAvatar} alt="" className="w-7 h-7 rounded-full object-cover" />
         ) : (
           <span>{initial}</span>
         )}
@@ -110,7 +110,7 @@ export function AccountMenu({ compact }: { compact?: boolean }) {
           ].join(" ")}
         >
           <div className="px-3 py-3 border-b border-border">
-            <div className="text-[13px] font-medium text-foreground truncate">{user.name}</div>
+            <div className="text-[13px] font-medium text-foreground truncate">{displayName}</div>
             <div className="text-[11px] text-muted-foreground truncate">{user.email}</div>
           </div>
 
