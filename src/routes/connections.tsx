@@ -73,7 +73,7 @@ function ConnectionsPage() {
       const saved = window.sessionStorage.getItem(LAST_ACTIVE_KEY);
       if (saved) {
         const target = items.find((c) => c.personId === saved);
-        if (target && target.status !== "faded") {
+        if (target) {
           setActiveId(saved);
         }
       }
