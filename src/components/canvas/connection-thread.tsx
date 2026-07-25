@@ -131,6 +131,15 @@ export function ConnectionThread({ personId }: Props) {
                 </li>
               );
             })}
+            {typing && (
+              <li className="flex flex-col items-start" aria-live="polite">
+                <div className="max-w-[80%] px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-secondary text-foreground/70 inline-flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60 animate-[pulse_1.2s_ease-in-out_infinite]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60 animate-[pulse_1.2s_ease-in-out_0.2s_infinite]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60 animate-[pulse_1.2s_ease-in-out_0.4s_infinite]" />
+                </div>
+              </li>
+            )}
           </ul>
         </div>
       </div>
