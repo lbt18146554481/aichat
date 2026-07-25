@@ -92,6 +92,10 @@
     "disclaimer": "Mock profiles. Nothing leaves your browser.",
     "starting": "Thinking…"
   },
+  "workspace": {
+    "tab_chat": "Chat",
+    "tab_result": "Result"
+  },
   "intro": {
     "empty_title": "I'll introduce one person here.",
     "empty_hint": "Not a list — one person at a time, with a reason. Tell me what you're looking for on the left.",
