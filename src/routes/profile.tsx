@@ -90,7 +90,7 @@ function ProfilePage() {
             className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span className={returnTo ? "" : "font-mono uppercase tracking-wide"}>
+            <span className={returnTo || isWelcome ? "" : "font-mono uppercase tracking-wide"}>
               {backLabel}
             </span>
           </button>
