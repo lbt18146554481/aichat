@@ -129,7 +129,7 @@
     "remove_quote": "取消引用"
   },
   "connection": {
-    "title": "我的联系",
+    "title": "对话",
     "say_hello": "打个招呼",
     "pass": "跳过",
     "save": "收藏",
@@ -159,7 +159,10 @@
     "remove": "移除",
     "faded_body": "这次没接上，没关系——门没关。你可以再写一句新的，或者把这条记录清掉。",
     "incoming_subtitle": "给你打了招呼",
-    "faded_subtitle": "没有回音"
+    "faded_subtitle": "没有回音",
+    "waiting_tail": "等待中",
+    "incoming_hint": "回复即建立联系……",
+    "faded_body_short": "这次没接上。"
   },
   "incoming": {
     "label": "有人读到了你",
