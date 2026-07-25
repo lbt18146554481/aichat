@@ -150,7 +150,7 @@ function AuthPage() {
   const showProviderStep = mode === "signin" || step === "provider";
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-dvh bg-background flex flex-col pt-safe pb-safe">
       <header className="border-b border-border bg-background/90 backdrop-blur">
         <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
           <Link
