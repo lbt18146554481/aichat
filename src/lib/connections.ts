@@ -1,10 +1,5 @@
 // Connections — the closed loop around Say hello.
 //
-// There are only two branches after A sends hello to B:
-//   1. B wants to talk → both sides land in a real thread.
-//   2. B doesn't want to talk → the hello quietly fades on A's side and
-//      leaves B's inbox on dismiss. No "rejected", no countdown.
-//
 // Statuses:
 //   - "sent"       : I sent a hello, awaiting resolution. A sees "delivered".
 //   - "incoming"   : They sent me a hello. I haven't responded.
@@ -24,12 +19,12 @@ export interface ChatMsg {
 }
 
 export interface HelloFromMe {
-  quotedMomentId: string | null;   // → person.moments[id]; null = no quote
+  quotedMomentId: string | null;
   reply: string;
 }
 
 export interface HelloFromThem {
-  quotedUserMomentPromptId: string;  // → user.profile.moments[promptId]
+  quotedUserMomentPromptId: string;
   reply: string;
 }
 
@@ -41,8 +36,6 @@ export interface Connection {
   connectedAt?: number;
   fadedAt?: number;
   lastSeenAt?: number;
-  /** The matchmaker session this hello originated from. Lets
-   *  "← Back to <name>" return to the exact session + person. */
   originSessionId?: string;
   fromMe?: HelloFromMe;
   fromThem?: HelloFromThem;
@@ -51,6 +44,10 @@ export interface Connection {
 
 const KEY = "kindred:connections.v3";
 const LISTENERS = new Set<() => void>();
+
+// Ephemeral "they're typing" state — not persisted.
+const TYPING = new Set<string>();
+export function isTyping(personId: string): boolean { return TYPING.has(personId); }
 
 function emit() { LISTENERS.forEach((fn) => fn()); }
 function uid() { return Math.random().toString(36).slice(2, 10); }
@@ -92,8 +89,6 @@ export function sayHello(
 ): Connection {
   const state = read();
   const existing = state[personId];
-  // Allow re-hello after a faded outcome — the plan explicitly keeps the
-  // door open. Any live state (sent/incoming/connected) is a no-op.
   if (existing && existing.status !== "faded") return existing;
 
   const conn: Connection = {
@@ -111,10 +106,19 @@ export function sayHello(
   return conn;
 }
 
+// I withdraw a hello I sent before the other side has responded.
+export function withdrawSent(personId: string) {
+  const state = read();
+  const conn = state[personId];
+  if (!conn || conn.status !== "sent") return;
+  delete state[personId];
+  write(state);
+}
+
 // The other side "decides" locally: 70% wants to talk, 30% fades.
 function scheduleResolution(personId: string) {
   if (typeof window === "undefined") return;
-  const delay = 30_000 + Math.floor(Math.random() * 60_000); // 30–90s
+  const delay = 30_000 + Math.floor(Math.random() * 60_000);
   window.setTimeout(() => {
     const state = read();
     const conn = state[personId];
@@ -128,11 +132,9 @@ function scheduleResolution(personId: string) {
       return;
     }
 
-    // They "reply" by quoting one of the user's own moments.
     const profile = loadProfile();
     const userMoments = profile.moments.filter((m) => m.answer.trim().length > 0);
     if (userMoments.length === 0) {
-      // Contract broken — no moments to quote. Fade rather than hang.
       conn.status = "faded";
       conn.fadedAt = Date.now();
       write(state);
@@ -165,11 +167,30 @@ const REPLIES_ZH = [
   "嗯——你挑的那一段，也是我会挑的那一段。",
 ];
 
+// A wider pool for ongoing chat so the thread doesn't feel canned.
+const CHAT_REPLIES_EN = [
+  "Yeah — I feel that too.",
+  "Say more about that?",
+  "Ha, I wasn't expecting that answer.",
+  "Where did you land on it?",
+  "Same — took me a while to get there though.",
+  "I'd want to sit with that a minute.",
+  "That's a good line. I'm stealing it.",
+  "Curious what made you think of it now.",
+];
+const CHAT_REPLIES_ZH = [
+  "嗯，我也这么觉得。",
+  "再多说一点？",
+  "哈，这答案有点出乎我意料。",
+  "你最后是怎么想的？",
+  "一样——我也是绕了一圈才想明白。",
+  "让我先坐着想一分钟。",
+  "这句话不错，我要偷走了。",
+  "好奇你怎么会突然想到这个。",
+];
+
 // ---- Incoming: they say hello to me -------------------------------------
 
-// Seeded on demand so the receiving-side UI is not permanently empty. Only
-// seeds when the user has enough of their own moments to have plausibly
-// been "read".
 export function maybeSeedIncoming() {
   if (typeof window === "undefined") return;
   const profile = loadProfile();
@@ -201,7 +222,6 @@ export function maybeSeedIncoming() {
   write(state);
 }
 
-// I answer an incoming hello — this makes it bilateral and starts the thread.
 export function respondToIncoming(personId: string, fromMe: HelloFromMe) {
   const state = read();
   const conn = state[personId];
@@ -212,7 +232,6 @@ export function respondToIncoming(personId: string, fromMe: HelloFromMe) {
   write(state);
 }
 
-// I close the incoming card — "later". Folded away, no notification to them.
 export function dismissIncoming(personId: string) {
   const state = read();
   const conn = state[personId];
@@ -222,14 +241,18 @@ export function dismissIncoming(personId: string) {
   write(state);
 }
 
-// I want to say hello again to someone whose previous hello faded. Wipe
-// the connection so `sayHello` starts a fresh "sent" record.
+// Wipe a faded record so `sayHello` can start fresh.
 export function undoFadedFor(personId: string) {
   const state = read();
   const conn = state[personId];
   if (!conn || conn.status !== "faded") return;
   delete state[personId];
   write(state);
+}
+
+// Explicit "remove from list" for faded rows.
+export function removeFaded(personId: string) {
+  undoFadedFor(personId);
 }
 
 // ---- Thread messaging (connected) ---------------------------------------
@@ -242,17 +265,26 @@ export function send(personId: string, text: string) {
   if (!conn || conn.status !== "connected") return;
   conn.messages.push({ id: uid(), from: "me", t: Date.now(), text: t });
   write(state);
-  // Lightweight local echo so the thread feels alive.
-  const delay = 4000 + Math.floor(Math.random() * 8000);
+
+  // Show typing shortly, then send a reply.
+  const typeAfter = 1500 + Math.floor(Math.random() * 2500);
+  const replyAfter = typeAfter + 3000 + Math.floor(Math.random() * 5000);
+  window.setTimeout(() => {
+    if (!read()[personId]) return;
+    TYPING.add(personId);
+    emit();
+  }, typeAfter);
   window.setTimeout(() => {
     const s = read();
     const c = s[personId];
-    if (!c) return;
+    TYPING.delete(personId);
+    if (!c || c.status !== "connected") { emit(); return; }
     const zh = typeof navigator !== "undefined" && navigator.language.startsWith("zh");
-    const reply = zh ? "嗯，我也这么觉得。" : "Yeah — I feel that too.";
+    const pool = zh ? CHAT_REPLIES_ZH : CHAT_REPLIES_EN;
+    const reply = pool[Math.floor(Math.random() * pool.length)];
     c.messages.push({ id: uid(), from: "them", t: Date.now(), text: reply });
     write(s);
-  }, delay);
+  }, replyAfter);
 }
 
 // ---- Read tracking ------------------------------------------------------
@@ -265,14 +297,16 @@ export function markSeen(personId: string) {
   write(state);
 }
 
+export function hasUnseenFor(conn: Connection): boolean {
+  if (conn.status === "incoming") return (conn.lastSeenAt ?? 0) < conn.helloAt;
+  if (conn.status !== "connected") return false;
+  const lastIncoming = [...conn.messages].reverse().find((m) => m.from === "them");
+  const last = lastIncoming?.t ?? conn.connectedAt ?? conn.helloAt;
+  return (conn.lastSeenAt ?? 0) < last;
+}
+
 export function hasUnseen(): boolean {
-  return list().some((c) => {
-    if (c.status === "incoming") return (c.lastSeenAt ?? 0) < c.helloAt;
-    if (c.status !== "connected") return false;
-    const lastIncoming = [...c.messages].reverse().find((m) => m.from === "them");
-    const last = lastIncoming?.t ?? c.connectedAt ?? c.helloAt;
-    return (c.lastSeenAt ?? 0) < last;
-  });
+  return list().some((c) => hasUnseenFor(c));
 }
 
 // Cross-cut helpers -------------------------------------------------------
@@ -284,21 +318,13 @@ export function hasFadedWith(personId: string): boolean {
 
 export function rehydrate() {
   if (typeof window === "undefined") return;
-  // Re-arm any sent-state timers that were mid-flight on last unload.
   const state = read();
   for (const conn of Object.values(state)) {
     if (conn.status === "sent") {
-      const elapsed = Date.now() - conn.helloAt;
-      if (elapsed > 120_000) {
-        // Old pending — resolve now.
-        scheduleResolution(conn.personId);
-      } else {
-        scheduleResolution(conn.personId);
-      }
+      scheduleResolution(conn.personId);
     }
   }
   maybeSeedIncoming();
 }
 
-// Silence unused-import warnings on shared type imports.
 export type _KeepPeople = typeof getPersonById;
