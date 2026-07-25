@@ -49,12 +49,18 @@ function ProfilePage() {
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
-  // Once the profile is complete, clear the welcome flag so a later revisit
-  // shows the plain edit view.
+  // Once the profile is complete during welcome, return the user to
+  // whatever they were doing before signup (or home if nothing was stored).
   useEffect(() => {
-    if (search.welcome === 1 && isProfileComplete(loadProfile())) {
-      void navigate({ to: "/profile", search: {}, replace: true });
-    }
+    if (search.welcome !== 1) return;
+    if (!isProfileComplete(loadProfile())) return;
+    let back: string | null = null;
+    try {
+      back = window.sessionStorage.getItem("kindred:profile:welcome_return");
+      window.sessionStorage.removeItem("kindred:profile:welcome_return");
+    } catch { /* noop */ }
+    const dest = back && back.startsWith("/") ? back : "/";
+    void navigate({ to: dest as "/", replace: true });
   }, [progress, search.welcome, navigate]);
 
   function handleBack() {
