@@ -181,13 +181,13 @@ export function Workspace({
                 className={[
                   "relative h-9 rounded-full text-[13px] transition-colors",
                   active
-                    ? "bg-foreground text-background"
+                    ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground",
                 ].join(" ")}
               >
                 {label}
                 {tab === "canvas" && canvasDot && !active && (
-                  <span className="absolute top-1.5 right-3 w-1.5 h-1.5 rounded-full bg-foreground" />
+                  <span className="absolute top-1.5 right-3 w-1.5 h-1.5 rounded-full bg-primary" />
                 )}
               </button>
             );

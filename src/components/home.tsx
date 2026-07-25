@@ -95,7 +95,7 @@ export function Home() {
       <header className="hidden md:block w-full">
         <div className="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 rounded-md bg-foreground text-background grid place-items-center font-mono text-[11px] font-bold">K</div>
+            <div className="w-6 h-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">K</div>
             <span className="text-[14px] font-semibold tracking-tight text-foreground">Kindred</span>
           </div>
           <div className="flex items-center gap-3">
@@ -108,7 +108,7 @@ export function Home() {
               >
                 <MessageCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
                 <span suppressHydrationWarning>{mounted ? t("home.connections") : ""}</span>
-                {unseen && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-foreground" />}
+                {unseen && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-primary" />}
               </Link>
             )}
             {user && (
@@ -131,7 +131,7 @@ export function Home() {
       <div className="md:hidden pt-safe">
         <div className="px-5 h-12 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-foreground text-background grid place-items-center font-mono text-[11px] font-bold">K</div>
+            <div className="w-6 h-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">K</div>
             <span className="text-[13.5px] font-semibold tracking-tight text-foreground">Kindred</span>
           </div>
           <div className="flex items-center gap-1">
@@ -186,7 +186,7 @@ export function Home() {
                         className={[
                           "group inline-flex items-center gap-1.5 rounded-full border px-3 py-2 md:py-1.5 text-[12px] transition-colors min-h-[36px]",
                           active
-                            ? "border-foreground bg-foreground text-background"
+                            ? "border-primary bg-primary text-primary-foreground"
                             : "border-border bg-background text-foreground/80 hover:border-foreground/50 hover:text-foreground",
                         ].join(" ")}
                         aria-pressed={active}
@@ -203,7 +203,7 @@ export function Home() {
                   type="button"
                   onClick={submit}
                   disabled={!text.trim()}
-                  className="shrink-0 inline-flex items-center justify-center w-10 h-10 md:w-9 md:h-9 rounded-full bg-foreground text-background disabled:opacity-25 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+                  className="shrink-0 inline-flex items-center justify-center w-10 h-10 md:w-9 md:h-9 rounded-full bg-primary text-primary-foreground disabled:opacity-25 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
                   aria-label={t("home.send")}
                   suppressHydrationWarning
                 >

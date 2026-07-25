@@ -354,7 +354,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => requestSayHello()}
-                  className="flex-1 sm:flex-none px-4 py-2.5 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
+                  className="flex-1 sm:flex-none px-4 py-2.5 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity"
                 >
                   {t("connection.say_hello")}
                 </button>
@@ -443,7 +443,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <button
                   onClick={onSeeNextPerson}
-                  className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
+                  className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity"
                 >
                   {t("intro.next_person_after")}
                 </button>
@@ -464,7 +464,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
                 <Link
                   to="/connections"
                   search={{ open: person.id }}
-                  className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
+                  className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity"
                 >
                   {t("connection.open_conversation")}
                 </Link>
@@ -486,7 +486,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
               </p>
               <button
                 onClick={onSeeNextPerson}
-                className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium hover:opacity-90 transition-opacity"
+                className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity"
               >
                 {t("intro.see_someone_else")}
               </button>

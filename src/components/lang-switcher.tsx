@@ -24,7 +24,7 @@ export function LangSwitcher() {
             aria-label={`Language: ${lang === "zh-CN" ? "中文" : "English"}`}
             className={`px-2 py-1 rounded-[5px] font-mono transition-colors ${
               active
-                ? "bg-foreground text-background"
+                ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >

@@ -109,7 +109,7 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
             >
               <MessageCircle className="w-3.5 h-3.5" />
               <span>{t("header.connections")}</span>
-              {unseen && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-foreground" />}
+              {unseen && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-primary" />}
             </Link>
           ) : null}
           <SavedTrigger variant="compact" />

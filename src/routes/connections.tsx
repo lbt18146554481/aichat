@@ -205,7 +205,7 @@ function Row({ conn, lang, active, dot, onSelect }: {
             "w-10 h-10 rounded-full border border-border bg-secondary",
             dim ? "grayscale" : "",
           ].join(" ")} />
-          {dot && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-foreground ring-2 ring-background" />}
+          {dot && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary ring-2 ring-background" />}
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-[13.5px] font-medium text-foreground truncate">{loc.name}</div>

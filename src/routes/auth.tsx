@@ -210,7 +210,7 @@ function AuthPage() {
               <button
                 type="submit"
                 disabled={pending === "verify"}
-                className="w-full inline-flex items-center justify-center rounded-md bg-foreground text-background px-3 py-2 text-[13px] font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
+                className="w-full inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-2 text-[13px] font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
               >
                 {pending === "verify" ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -329,7 +329,7 @@ function ProviderButton({
       className={[
         "w-full inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-[13px] font-medium transition-colors",
         primary
-          ? "bg-foreground text-background hover:opacity-90"
+          ? "bg-primary text-primary-foreground hover:opacity-90"
           : "border border-border bg-card text-foreground hover:bg-secondary",
         soon ? "opacity-60" : "",
         disabled ? "opacity-50 cursor-not-allowed" : "",

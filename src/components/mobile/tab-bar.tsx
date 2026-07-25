@@ -85,7 +85,7 @@ export function MobileTabBar() {
                 <span className="relative">
                   <Icon className="w-[22px] h-[22px]" strokeWidth={active ? 2 : 1.6} />
                   {showBadge && unseen && (
-                    <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-foreground ring-2 ring-background" />
+                    <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-primary ring-2 ring-background" />
                   )}
                 </span>
                 <span className="text-[10px] tracking-wide leading-none">
