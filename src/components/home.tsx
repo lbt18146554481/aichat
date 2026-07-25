@@ -126,7 +126,7 @@ export function Home() {
           </div>
 
           <div className="flex items-center gap-1">
-            {mounted && <SavedTrigger variant="compact" />}
+            {mounted && user && <SavedTrigger variant="compact" />}
             <LangSwitcher />
           </div>
         </div>
