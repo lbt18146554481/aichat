@@ -117,7 +117,7 @@ function ProfilePage() {
             {t("profile.heading_setup")}
           </h1>
           <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed max-w-xl">
-            {t("profile.subhead")}
+            {isWelcome ? t("profile.welcome_sub") : t("profile.subhead")}
           </p>
           <p className="mt-2 text-[11px] font-mono uppercase tracking-wide text-muted-foreground tabular-nums">
             {t("profile.progress", { done: progress.done, total: progress.total })}
