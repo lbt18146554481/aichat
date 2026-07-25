@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
-import { get, subscribe, type Connection } from "@/lib/connections";
+import { get, subscribe, withdrawSent, type Connection } from "@/lib/connections";
 import { setFocusPerson } from "@/lib/seed";
 
 interface Props { personId: string; }
