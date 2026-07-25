@@ -88,8 +88,8 @@ function MatchmakerPage() {
   }
 
   function handleReset() {
-    if (!confirm("Start over?")) return;
-    setState(start(lang));
+    try { window.sessionStorage.setItem("kindred:home:focus", "1"); } catch { /* noop */ }
+    void navigate({ to: "/" });
   }
 
   function trigger(fn: (s: MatchmakerState, l: Lang) => MatchmakerState) {

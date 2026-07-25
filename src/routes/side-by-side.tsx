@@ -607,10 +607,10 @@ function SideBySidePage() {
   function handleBackToCandidate() { setState((s) => backToCandidate(s)); }
   function handleDraftConsumed()   { setState((s) => clearPendingDraft(s)); }
 
-  // "New activity" from the header. Same semantic as before but no confirm —
-  // the user has learned this means "reset the current wish and start clean".
+  // "New wish" from the header — go home, focus composer, start fresh.
   function handleReset() {
-    startNewActivity();
+    try { window.sessionStorage.setItem("kindred:home:focus", "1"); } catch { /* noop */ }
+    void navigate({ to: "/" });
   }
 
   if (!ready || !hydrated) return <div className="h-screen bg-background" />;

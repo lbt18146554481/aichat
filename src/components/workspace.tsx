@@ -125,7 +125,7 @@ export function Workspace({
             </div>
           )}
           {!activeChips && suggestions && suggestions.length > 0 && (
-            <div className="mb-2 flex flex-wrap gap-1.5">
+            <div className="mb-2 -mx-4 md:-mx-5 px-4 md:px-5 flex gap-1.5 overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {suggestions.map((s) => (
                 <button
                   key={s}
@@ -135,7 +135,7 @@ export function Workspace({
                     setInput(s);
                     inputRef.current?.focus();
                   }}
-                  className="px-2.5 py-1 rounded-full border border-border bg-card text-[11.5px] text-muted-foreground hover:border-foreground/40 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="shrink-0 snap-start whitespace-nowrap px-3 py-1.5 rounded-full border border-border bg-card text-[12px] text-muted-foreground hover:border-foreground/40 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   {s}
                 </button>

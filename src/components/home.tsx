@@ -47,12 +47,19 @@ export function Home() {
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
-    // Autofocus is desktop-only. On mobile, auto-focusing the textarea
-    // would summon the keyboard immediately and hide the greeting.
     if (!mounted) return;
-    if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
-      taRef.current?.focus();
-    }
+    // Force-focus flag set by "New wish" reset — focus on any viewport.
+    let forced = false;
+    try {
+      if (window.sessionStorage.getItem("kindred:home:focus") === "1") {
+        window.sessionStorage.removeItem("kindred:home:focus");
+        forced = true;
+      }
+    } catch { /* noop */ }
+    // Otherwise autofocus is desktop-only — on mobile it would summon the
+    // keyboard immediately and hide the greeting.
+    const isDesktop = typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches;
+    if (forced || isDesktop) taRef.current?.focus();
   }, [mounted]);
   useEffect(() => {
     rehydrate();
