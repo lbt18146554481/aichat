@@ -139,6 +139,7 @@
   },
   "connection": {
     "title": "Conversations",
+    "back_to_origin": "Back to conversation",
     "say_hello": "Say hello",
     "pass": "Pass",
     "save": "Save",

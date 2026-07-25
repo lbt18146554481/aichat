@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowUp, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, ArrowUp, MoreHorizontal } from "lucide-react";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import {
@@ -127,8 +127,25 @@ export function ConnectionThread({ personId }: Props) {
     ? t("connection.incoming_hint")
     : t("connection.composer_placeholder");
 
+  const originSession = conn.originSessionId ?? null;
+  function backToOrigin() {
+    if (!originSession) return;
+    setFocusPerson(personId);
+    void navigate({ to: "/matchmaker", search: { session: originSession } });
+  }
+
   return (
     <div className="h-full flex flex-col">
+      {originSession && (
+        <button
+          type="button"
+          onClick={backToOrigin}
+          className="w-full text-left px-5 py-2 text-[11.5px] text-muted-foreground hover:text-foreground hover:bg-secondary/40 border-b border-border transition-colors inline-flex items-center gap-1.5"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          {t("connection.back_to_origin", { defaultValue: "Back to conversation" })}
+        </button>
+      )}
       {/* Header — avatar+name is the profile trigger */}
       <div className="border-b border-border bg-background px-5 py-3 flex items-center gap-3">
         <button
@@ -197,7 +214,7 @@ export function ConnectionThread({ personId }: Props) {
                   className={[
                     "max-w-[80%] px-3.5 py-2 text-[14px] leading-relaxed",
                     b.from === "me"
-                      ? "rounded-2xl rounded-br-md bg-foreground text-background"
+                      ? "rounded-2xl rounded-br-md bg-primary text-primary-foreground"
                       : "rounded-2xl rounded-bl-md bg-secondary text-foreground",
                     b.faded ? "opacity-60" : "",
                   ].join(" ")}
@@ -237,7 +254,7 @@ export function ConnectionThread({ personId }: Props) {
                 onClick={submit}
                 disabled={!text.trim()}
                 aria-label="Send"
-                className="absolute right-2 bottom-1.5 w-8 h-8 grid place-items-center rounded-lg bg-foreground text-background disabled:opacity-25 hover:opacity-90 transition-opacity"
+                className="absolute right-2 bottom-1.5 w-8 h-8 grid place-items-center rounded-lg bg-primary text-primary-foreground disabled:opacity-25 hover:opacity-90 transition-opacity"
               >
                 <ArrowUp className="w-4 h-4" />
               </button>
@@ -252,7 +269,7 @@ export function ConnectionThread({ personId }: Props) {
               <button
                 type="button"
                 onClick={tryAgain}
-                className="px-3 h-8 rounded-md bg-foreground text-background text-[12.5px] hover:opacity-90 transition-opacity shrink-0"
+                className="px-3 h-8 rounded-md bg-primary text-primary-foreground text-[12.5px] hover:opacity-90 transition-opacity shrink-0"
               >
                 {t("connection.say_hello_again")}
               </button>

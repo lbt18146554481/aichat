@@ -99,9 +99,7 @@ export function Home() {
             <span className="text-[14px] font-semibold tracking-tight text-foreground">Kindred</span>
           </div>
           <div className="flex items-center gap-3">
-            {mounted && <SavedTrigger />}
-            {mounted && <HistoryTrigger />}
-            {connCount > 0 && (
+            {mounted && user && connCount > 0 && (
               <Link
                 to="/connections"
                 className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -111,6 +109,8 @@ export function Home() {
                 {unseen && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-primary" />}
               </Link>
             )}
+            {mounted && user && <SavedTrigger />}
+            {mounted && user && <HistoryTrigger />}
             <LangSwitcher />
             {mounted && <AccountMenu />}
           </div>
@@ -126,7 +126,7 @@ export function Home() {
           </div>
 
           <div className="flex items-center gap-1">
-            {mounted && <SavedTrigger variant="compact" />}
+            {mounted && user && <SavedTrigger variant="compact" />}
             <LangSwitcher />
           </div>
         </div>
