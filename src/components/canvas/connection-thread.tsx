@@ -127,8 +127,25 @@ export function ConnectionThread({ personId }: Props) {
     ? t("connection.incoming_hint")
     : t("connection.composer_placeholder");
 
+  const originSession = conn.originSessionId ?? null;
+  function backToOrigin() {
+    if (!originSession) return;
+    setFocusPerson(personId);
+    void navigate({ to: "/matchmaker", search: { session: originSession } });
+  }
+
   return (
     <div className="h-full flex flex-col">
+      {originSession && (
+        <button
+          type="button"
+          onClick={backToOrigin}
+          className="w-full text-left px-5 py-2 text-[11.5px] text-muted-foreground hover:text-foreground hover:bg-secondary/40 border-b border-border transition-colors inline-flex items-center gap-1.5"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          {t("connection.back_to_origin", { defaultValue: "Back to conversation" })}
+        </button>
+      )}
       {/* Header — avatar+name is the profile trigger */}
       <div className="border-b border-border bg-background px-5 py-3 flex items-center gap-3">
         <button
