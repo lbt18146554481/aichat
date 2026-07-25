@@ -1,14 +1,20 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
-import { loadProfile, profileProgress } from "@/lib/profile";
+import { isProfileComplete, loadProfile, profileProgress } from "@/lib/profile";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { ProfileForm } from "@/components/profile-form";
 import { useRequireAuth } from "@/lib/auth-guard";
 
+interface ProfileSearch {
+  welcome?: 1;
+}
+
 export const Route = createFileRoute("/profile")({
+  validateSearch: (raw: Record<string, unknown>): ProfileSearch =>
+    raw.welcome === 1 || raw.welcome === "1" ? { welcome: 1 } : {},
   component: ProfilePage,
   head: () => ({
     meta: [
