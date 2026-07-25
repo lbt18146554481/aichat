@@ -31,7 +31,6 @@ type PaneKind = "thread" | "incoming" | "waiting" | null;
 
 function ConnectionsPage() {
   const { ready } = useRequireAuth();
-  if (!ready) return <div className="min-h-screen bg-background" />;
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
@@ -42,12 +41,14 @@ function ConnectionsPage() {
   const consumedOpenRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (!ready) return;
     rehydrate();
     const update = () => setItems(list());
     update();
     const unsub = subscribe(update);
     return () => { unsub(); };
-  }, []);
+  }, [ready]);
+
 
   // Consume ?open= once — direct-land on the requested person.
   useEffect(() => {
@@ -112,6 +113,9 @@ function ConnectionsPage() {
     : activeConn?.status === "connected" ? "thread"
     : activeConn?.status === "sent" ? "waiting"
     : null;
+
+  if (!ready) return <div className="min-h-screen bg-background" />;
+
 
   return (
     <div className="h-screen flex flex-col bg-background">
