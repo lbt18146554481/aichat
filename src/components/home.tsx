@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowUp, MessageCircle, UserSearch, Users, UserCircle } from "lucide-react";
+import { ArrowUp, MessageCircle, UserSearch, Users } from "lucide-react";
 import { LangSwitcher } from "@/components/lang-switcher";
 
 import { HistoryTrigger } from "@/components/history-trigger";
@@ -95,7 +95,7 @@ export function Home() {
       <header className="hidden md:block w-full border-b border-border/60">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 rounded-md bg-foreground text-background grid place-items-center font-mono text-[11px] font-bold">K</div>
+            <div className="w-6 h-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">K</div>
             <span className="text-[14px] font-semibold tracking-tight text-foreground">Kindred</span>
           </div>
           <div className="flex items-center gap-3">
@@ -111,15 +111,6 @@ export function Home() {
                 {unseen && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-primary" />}
               </Link>
             )}
-            {user && (
-              <Link
-                to="/profile"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              >
-                <UserCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
-                <span suppressHydrationWarning>{mounted ? t("home.profile") : ""}</span>
-              </Link>
-            )}
             <LangSwitcher />
             {mounted && <AccountMenu />}
           </div>
@@ -130,9 +121,10 @@ export function Home() {
       <div className="md:hidden pt-safe">
         <div className="px-5 h-12 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-foreground text-background grid place-items-center font-mono text-[11px] font-bold">K</div>
+            <div className="w-6 h-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">K</div>
             <span className="text-[13.5px] font-semibold tracking-tight text-foreground">Kindred</span>
           </div>
+
           <div className="flex items-center gap-1">
             {mounted && <SavedTrigger variant="compact" />}
             <LangSwitcher />
@@ -225,7 +217,7 @@ export function Home() {
                   type="button"
                   onClick={submit}
                   disabled={!text.trim()}
-                  className="shrink-0 inline-flex items-center justify-center w-10 h-10 md:w-9 md:h-9 rounded-full bg-foreground text-background disabled:bg-input disabled:text-subtle-foreground disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+                  className="shrink-0 inline-flex items-center justify-center w-10 h-10 md:w-9 md:h-9 rounded-full bg-primary text-primary-foreground disabled:bg-input disabled:text-subtle-foreground disabled:cursor-not-allowed hover:bg-primary-hover transition-colors"
                   aria-label={t("home.send")}
                   suppressHydrationWarning
                 >
@@ -233,14 +225,8 @@ export function Home() {
                 </button>
               </div>
             </div>
-
-            <p
-              className="mt-3 md:mt-4 text-center text-[10.5px] md:text-[11px] text-subtle-foreground font-mono uppercase tracking-[0.12em]"
-              suppressHydrationWarning
-            >
-              {t("home.agents_footnote")}
-            </p>
           </div>
+
         </div>
       </main>
     </div>
