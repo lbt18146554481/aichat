@@ -57,7 +57,7 @@ export function ConnectionThread({ personId }: Props) {
       }
     }
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [conn?.messages.length, lastTheirsId]);
+  }, [conn?.messages.length, lastTheirsId, typing]);
 
   const person = getPersonById(personId);
   if (!person || !conn || conn.status !== "connected") return null;
