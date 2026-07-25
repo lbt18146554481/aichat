@@ -236,8 +236,8 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-function Row({ conn, lang, active, muted, dot, onSelect }: {
-  conn: Connection; lang: Lang; active: boolean; muted?: boolean; dot?: boolean; onSelect: () => void;
+function Row({ conn, lang, active, dim, dot, onSelect }: {
+  conn: Connection; lang: Lang; active: boolean; dim?: boolean; dot?: boolean; onSelect: () => void;
 }) {
   const { t } = useTranslation();
   const person = getPersonById(conn.personId);
@@ -245,9 +245,9 @@ function Row({ conn, lang, active, muted, dot, onSelect }: {
   const loc = localized(person, lang);
   const last = conn.messages[conn.messages.length - 1];
   const subtitle = conn.status === "incoming"
-    ? loc.occupation
+    ? t("connection.incoming_subtitle")
     : conn.status === "faded"
-    ? loc.city
+    ? t("connection.faded_subtitle")
     : conn.status === "sent"
     ? t("connection.delivered")
     : (last?.text ?? loc.occupation);
@@ -255,11 +255,10 @@ function Row({ conn, lang, active, muted, dot, onSelect }: {
     <li>
       <button
         onClick={onSelect}
-        disabled={muted}
         className={[
           "w-full text-left px-5 py-3 flex items-center gap-3 border-l-2 transition-colors",
           active ? "border-foreground bg-secondary/50" : "border-transparent hover:bg-secondary/40",
-          muted ? "opacity-55 cursor-default" : "",
+          dim ? "opacity-60" : "",
         ].join(" ")}
       >
         <div className="relative shrink-0">
