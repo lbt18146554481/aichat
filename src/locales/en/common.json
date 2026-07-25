@@ -129,7 +129,7 @@
     "remove_quote": "Remove quote"
   },
   "connection": {
-    "title": "Connections",
+    "title": "Conversations",
     "say_hello": "Say hello",
     "pass": "Pass",
     "save": "Save",
@@ -159,7 +159,10 @@
     "remove": "Remove",
     "faded_body": "This one didn't land. That's fine — the door isn't locked. You can write something new, or clear the record.",
     "incoming_subtitle": "Said hello",
-    "faded_subtitle": "Didn't land"
+    "faded_subtitle": "Didn't land",
+    "waiting_tail": "waiting",
+    "incoming_hint": "Reply to open the conversation…",
+    "faded_body_short": "No reply this time."
   },
   "incoming": {
     "label": "Someone read you",

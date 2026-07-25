@@ -1,91 +1,62 @@
-## 目标
 
-第一版去掉邮箱注册/登录，登录只留 Google、Apple、WeChat（占位）。新用户必须先输入有效邀请码才能看到注册入口——邀请码作为**先验**关卡，OAuth 之后不再校验。同时修掉当前 `/auth` 无限嵌套 `redirect=` 的 bug，把所有相关流程理顺。
+## 核心简化
 
-## 一、最终流程
+Connections 就是一个「聊天列表」——像微信 / iMessage。不再分 incoming / sent / connected / faded 四段状态，全部合并成一列对话。右侧就是当前选中对话的聊天内容。
 
-### 未登录用户
-- 页眉右上显示 `Sign in`。首页可浏览，但任何私人动作 → `/auth?mode=signin&redirect=<返回路径>`。
-- `/auth?mode=signin`：只展示 `Continue with Google` / `Continue with Apple` / `Continue with WeChat (Coming soon)`。底部一行 `New to Kindred? Join with an invite →` 跳 `/auth?mode=signup`。
-- `/auth?mode=signup` 分**两步**：
-  1. **Step 1 — Invite code**：一个大输入框 + `Continue` 按钮。校验通过（`validateInvite`，但**不消耗**）才进入 Step 2；无效/已用则红字提示，允许重试。
-  2. **Step 2 — Choose provider**：显示三枚 OAuth 按钮 + 顶部一行只读的已验证码芯片 `Invite ✓ ABCD1234`（可点 `Change` 回 Step 1）。点 OAuth 成功后再 `consumeInvite`，然后落 `/profile?welcome=1`。
-- WeChat 按钮始终 toast 提示 `Coming soon`，不产生跳转。
+---
 
-### 已登录用户
-- 直接访问 `/auth` → 立即跳回 `redirect` 或 `/`。
-- 头像下拉里的 `Invites` 面板照旧（生成/复制/剩余额度）。
+## 一、左侧：一列聊天
 
-### 忘记密码
-- 邮箱登录已删，`/reset-password` 不再有意义，直接删除该路由 + `Forgot password?` 链接。
+- 顶部标题：`Conversations` / 「对话」。
+- 一段列表，按最近一条消息/事件时间倒序，不再分组。每一行统一结构：
 
-### 登出
-- 与现状一致：`signOut()` → 回 `/`。
+  ```
+  [头像·未读小点]   姓名                       12:30
+                   最后一句话，截断一行灰色…
+  ```
 
-## 二、Bug：`/auth?redirect=%2Fauth%3F...` 无限嵌套
+- 副标题「最后一句话」的取值规则（保持极简）：
+  - 有消息：显示最新一条消息文本（不区分你/TA）。
+  - 无消息但对方发来 hello（incoming）：显示对方那句 hello 引用。
+  - 无消息但你发出 hello（sent）：显示你写的那句 + 尾部灰字「· 等待中」。
+  - `faded`：整行 opacity-60，副标题显示「没有回音」。
+- 未读点保留（`hasUnseenFor`）。右侧时间戳可选，本轮先不加，保持干净。
+- 移除现有的 Section 分组、Archived 折叠按钮。`faded` 直接混在列表里靠 dim 表达；如果嫌乱后续再加长按/滑动归档，本轮不做。
 
-`useRequireAuth` 用 `location.href` 拼 `redirect`，而 `safeRedirect` 又接受任何 `/…`，一旦某处再触发一次守卫（例如 SPA 内快速切页时 `/auth` 短暂命中受保护路由），`redirect` 里的 `redirect` 就会被再次编码套一层，累积成当前 URL。修复：
+## 二、右侧：始终展示聊天内容
 
-- `auth-guard.ts`：改用 `location.pathname + location.search`；若当前已在 `/auth` 则直接返回不再重定向。
-- `auth.tsx` 的 `safeRedirect`：拒绝任何以 `/auth` 开头的目标（回退到 `/`），并把"已登录自动跳转"从 render 期挪到 `useEffect`（现在是在 render 里调 `navigate`，可能重复入栈）。
-- `account-menu.tsx`：`redirect` 参数继续用 `location.pathname`（现状 OK，无需改）。
+无论对话处于什么状态，右侧都用**同一个聊天视图**，只是内容不同：
 
-## 三、代码改动
+- **顶栏**：`[头像] 姓名 · 职业·城市 [⋯]` — 整块头像+姓名可点，直接打开 `PublicProfileSheet`（就地滑出，不跳走）。移除现有「← 返回介绍页」按钮。`⋯` 菜单收纳低频动作（撤回招呼 / 再打一次 / 移除 / 忽略），按当前状态显示对应项。
+- **消息区**：
+  - `connected` / `incoming` / `sent`：都用同一个消息流。对方那句 hello（`fromThem.reply`）作为消息流里 TA 发的第一条气泡；你那句 hello（`fromMe.reply`）作为你发的第一条气泡。之后正常追加 `messages`。这样用户看到的就是一条完整的聊天记录，不再有单独的「Hello Anchor 卡片」。
+  - `sent` 状态：消息流里只有你那条气泡，底部一行灰字状态提示「等待回音…」，输入框禁用。
+  - `incoming` 状态：消息流里只有 TA 那条气泡，底部提示「回复即建立联系」，输入框启用；发送即调用 `respondToIncoming`。
+  - `faded` 状态：消息流展示当时留下的一两条气泡（置灰），底部提示「没有回音」，输入框禁用，主 CTA「再打一次招呼」。
+- **底部输入框**：保持现有 Composer 样式；按状态启用/禁用。
 
-**修改 `src/lib/auth.ts`**
-- 收窄 `AuthProvider` 语义：仍是 `"google" | "apple" | "wechat" | "email"`，但对外只导出/使用前三者；`email` 保留为内部字面量以兼容旧存储读取。
-- 删除 `SignInInput.email/password`、`SignUpInput.email/password/name`。
-- `signIn({ provider })`：若 `loadUser()` 返回空，抛 `account_not_found` 错误（提示先走 signup）。已存在则返回 existing user（demo 单账户槽）。
-- `signUp({ provider, inviteCode })`：先 `validateInvite`（不消耗）→ OAuth 模拟成功 → 再 `consumeInvite`。任一步失败均不消耗邀请码。
+移除 `HelloAnchor` 那两张引用卡片——信息已经融进消息流。
 
-**修改 `src/lib/invites.ts`**
-- 无逻辑改动。（`validateInvite` 已存在。）
+## 三、改动清单
 
-**修改 `src/routes/auth.tsx`**
-- 删除所有邮箱/密码/姓名 input、`handleEmail`、`Forgot password?` 链接。
-- 引入本地 state `step: "invite" | "provider"`（仅 signup 有意义；signin 直接是 provider 步）。
-- Step 1 UI：邀请码输入 + `Continue` 按钮 + 错误提示。
-- Step 2 UI：`Invite ✓ CODE (Change)` chip + 三个 provider 按钮。
-- `handleProvider` 在 signup 分支里传已验证的 `inviteCode`；signin 分支捕获 `account_not_found` → 提示并给一个跳 signup 的按钮。
-- `signed-in 自动跳转`挪到 `useEffect`；`safeRedirect` 增加 `/auth` 前缀过滤。
-- `head()` 保留。
+1. `src/routes/connections.tsx`
+   - 删除 Section / Archived 折叠。列表改成扁平一列，按 `Date.now`-ish 时间倒序。
+   - `Row` 副标题按上文规则简化。
 
-**修改 `src/lib/auth-guard.ts`**
-- `redirect` 用 `location.pathname + location.search`；若 pathname 已是 `/auth` 则不重定向（避免嵌套）。
+2. `src/components/canvas/connection-thread.tsx`
+   - 顶栏：去掉返回按钮；头像+姓名可点开 `PublicProfileSheet`；右侧加 `⋯` 菜单。
+   - 移除 `HelloAnchor`，把 `fromMe` / `fromThem` 转换成消息流第一条气泡再渲染。
+   - 底部区域按状态切换：启用输入框 / 灰字状态 / faded CTA。
+   - 让这个组件成为右侧唯一的 pane。
 
-**删除 `src/routes/reset-password.tsx`**
-- 路由树会自动重生成；同时移除 `common.json` 里 `auth.forgot_password` / `reset.*` 相关键（若无外部引用）。
+3. 删除或空壳化 `incoming-hello.tsx` / `sent-waiting.tsx` / `faded-pane.tsx`，全部合并进 `ConnectionThread`。`connections.tsx` 里不再判断 `paneKind`。
 
-**修改 `src/locales/en/common.json` 与 `zh-CN/common.json`**
-- 移除：`auth.email_placeholder` / `auth.password_placeholder` / `auth.name_placeholder` / `auth.submit_signin` / `auth.submit_signup` / `auth.forgot_password` / `auth.err.email_password_required` / `reset.*`。
-- 新增：
-  - `auth.invite_step_title`（"先输入邀请码"）
-  - `auth.invite_step_sub`（"Kindred 目前仅限受邀加入，输入你的邀请码继续。"）
-  - `auth.invite_verify`（`Continue`）
-  - `auth.invite_change`（`Change`）
-  - `auth.invite_verified`（`Invite ✓ {{code}}`）
-  - `auth.err.invite_invalid`（"邀请码无效或已被使用"）
-  - `auth.err.account_not_found`（"还没有账号？用邀请码加入。"）
-  - `auth.provider_step_title_signup`（"选择注册方式"）
+4. `src/locales/en/*.json` + `src/locales/zh-CN/*.json`
+   - 新增：`connection.title_v2`（`Conversations` / `对话`）、`connection.waiting_tail`（`等待中`）、`connection.no_reply`（`没有回音`）、`connection.waiting_hint`（`等待回音…`）、`connection.incoming_hint`（`回复即建立联系`）、`connection.say_hello_again`（`再打一次招呼`）。
+   - 保留但不再作为主副标题使用的旧 key 保留兼容。
 
-**修改 `src/components/home.tsx` 等触发登录处**
-- 保持现状（跳 `/auth?mode=signin&redirect=...`）；`safeRedirect` 改动后即可断掉嵌套。
+## 四、不做
 
-## 四、非目标（本次不做）
-
-- 真实后端接入 / Lovable Cloud。
-- 邮箱魔法链接、手机号、SSO。
-- 邀请码分角色/分级。
-- WeChat 真实登录。
-
-## 五、验收清单
-
-1. `/auth?mode=signin` 无邮箱/密码字段，只有三枚 provider + 一条 "Join with an invite"。
-2. `/auth?mode=signup` 先要求邀请码；未通过校验时点 provider 不生效（其实按钮压根没渲染）。
-3. 用无效码点 `Continue` → 红字提示 + 邀请码保留；用有效码 → 进入 Step 2，`Invite ✓ CODE` 可见，可点 `Change` 回退。
-4. Step 2 完成 Google/Apple 登录 → 邀请码被消耗（`listMyCodes` 中 `usedBy` 更新）→ 落 `/profile?welcome=1`。
-5. 未注册状态直接在 signin 步点 Google → 提示 `account_not_found` 并给出跳 signup 的入口。
-6. WeChat 按钮点击只 toast，不跳。
-7. 从 `/profile` 未登录被拦截 → `/auth?redirect=/profile`；登录后回 `/profile`；地址栏**不会**出现二次编码的 `redirect=%2Fauth...`。
-8. 已登录时访问 `/auth` → 立刻跳走，不刷屏。
-9. `/reset-password` 返回 404（或不存在于路由树）。
+- 不改 `src/lib/connections.ts` 数据模型与状态机。
+- 不改招呼、匹配、typing 模拟逻辑。
+- 不引入 Cloud/后端。
