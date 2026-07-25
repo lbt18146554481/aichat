@@ -217,7 +217,7 @@ export function Home() {
                   type="button"
                   onClick={submit}
                   disabled={!text.trim()}
-                  className="shrink-0 inline-flex items-center justify-center w-10 h-10 md:w-9 md:h-9 rounded-full bg-foreground text-background disabled:bg-input disabled:text-subtle-foreground disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+                  className="shrink-0 inline-flex items-center justify-center w-10 h-10 md:w-9 md:h-9 rounded-full bg-primary text-primary-foreground disabled:bg-input disabled:text-subtle-foreground disabled:cursor-not-allowed hover:bg-primary-hover transition-colors"
                   aria-label={t("home.send")}
                   suppressHydrationWarning
                 >
@@ -225,14 +225,8 @@ export function Home() {
                 </button>
               </div>
             </div>
-
-            <p
-              className="mt-3 md:mt-4 text-center text-[10.5px] md:text-[11px] text-subtle-foreground font-mono uppercase tracking-[0.12em]"
-              suppressHydrationWarning
-            >
-              {t("home.agents_footnote")}
-            </p>
           </div>
+
         </div>
       </main>
     </div>
