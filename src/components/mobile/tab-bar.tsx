@@ -83,7 +83,7 @@ export function MobileTabBar() {
                 aria-current={active ? "page" : undefined}
               >
                 {active && (
-                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full bg-foreground" />
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full bg-primary" />
                 )}
                 <span className="relative">
                   <Icon className="w-[22px] h-[22px]" strokeWidth={active ? 2 : 1.6} />

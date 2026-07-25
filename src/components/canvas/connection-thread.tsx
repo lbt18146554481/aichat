@@ -197,7 +197,7 @@ export function ConnectionThread({ personId }: Props) {
                   className={[
                     "max-w-[80%] px-3.5 py-2 text-[14px] leading-relaxed",
                     b.from === "me"
-                      ? "rounded-2xl rounded-br-md bg-foreground text-background"
+                      ? "rounded-2xl rounded-br-md bg-primary text-primary-foreground"
                       : "rounded-2xl rounded-bl-md bg-secondary text-foreground",
                     b.faded ? "opacity-60" : "",
                   ].join(" ")}
@@ -237,7 +237,7 @@ export function ConnectionThread({ personId }: Props) {
                 onClick={submit}
                 disabled={!text.trim()}
                 aria-label="Send"
-                className="absolute right-2 bottom-1.5 w-8 h-8 grid place-items-center rounded-lg bg-foreground text-background disabled:opacity-25 hover:opacity-90 transition-opacity"
+                className="absolute right-2 bottom-1.5 w-8 h-8 grid place-items-center rounded-lg bg-primary text-primary-foreground disabled:opacity-25 hover:opacity-90 transition-opacity"
               >
                 <ArrowUp className="w-4 h-4" />
               </button>
@@ -252,7 +252,7 @@ export function ConnectionThread({ personId }: Props) {
               <button
                 type="button"
                 onClick={tryAgain}
-                className="px-3 h-8 rounded-md bg-foreground text-background text-[12.5px] hover:opacity-90 transition-opacity shrink-0"
+                className="px-3 h-8 rounded-md bg-primary text-primary-foreground text-[12.5px] hover:opacity-90 transition-opacity shrink-0"
               >
                 {t("connection.say_hello_again")}
               </button>
