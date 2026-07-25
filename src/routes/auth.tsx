@@ -166,7 +166,7 @@ function AuthPage() {
 
       <main className="flex-1 flex items-center justify-center px-5 py-10">
         <div className="w-full max-w-sm">
-          <h1 className="text-[24px] font-serif italic leading-tight text-foreground">
+          <h1 className="text-[24px] font-semibold tracking-tight leading-tight text-foreground">
             {mode === "signin"
               ? t("auth.title_signin")
               : step === "invite"
