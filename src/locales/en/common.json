@@ -70,7 +70,14 @@
     }
   },
   "nav": {
-    "home": "Back to home"
+    "home": "Back to home",
+    "back": "Back"
+  },
+  "tabs": {
+    "home": "Home",
+    "chats": "Chats",
+    "history": "History",
+    "me": "Me"
   },
   "header": {
     "reset": "+ New wish",
