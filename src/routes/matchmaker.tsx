@@ -39,13 +39,11 @@ function MatchmakerPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const sessionId = search.session || null;
-  if (!ready) return <div className="min-h-screen bg-background" />;
-
 
   // Every matchmaker page must live under a session; no sessionId → home.
   useEffect(() => {
-    if (!sessionId) void navigate({ to: "/" });
-  }, [sessionId, navigate]);
+    if (ready && !sessionId) void navigate({ to: "/" });
+  }, [ready, sessionId, navigate]);
 
   // Consume any homepage-seeded prompt exactly once.
   const [pendingSeed, setPendingSeed] = useState<string | null>(() => {
@@ -102,7 +100,8 @@ function MatchmakerPage() {
     }, 450);
   }
 
-  if (!hydrated || !sessionId) return <div className="h-screen bg-background" />;
+  if (!ready || !hydrated || !sessionId) return <div className="min-h-screen bg-background" />;
+
 
   const messages: AgentMsg[] = state.messages;
 
