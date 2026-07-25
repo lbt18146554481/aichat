@@ -210,7 +210,7 @@ function AuthPage() {
               <button
                 type="submit"
                 disabled={pending === "verify"}
-                className="w-full inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-2 text-[13px] font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
+                className="w-full inline-flex items-center justify-center rounded-md bg-foreground text-background px-3 py-2 text-[13px] font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
               >
                 {pending === "verify" ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
