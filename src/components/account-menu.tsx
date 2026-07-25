@@ -37,6 +37,10 @@ export function AccountMenu({ compact }: { compact?: boolean }) {
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
+  const profile = user ? loadProfile() : null;
+  const displayName = (profile?.name && profile.name.trim()) || user?.name || user?.email || "";
+  const displayAvatar = profile?.avatar || user?.avatar || "";
+
   useEffect(() => {
     if (!user) return;
     setCodes(listMyCodes(user.id));
