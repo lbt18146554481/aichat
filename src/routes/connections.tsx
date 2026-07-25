@@ -9,7 +9,8 @@ import { LangSwitcher } from "@/components/lang-switcher";
 import { ConnectionThread } from "@/components/canvas/connection-thread";
 import { IncomingHello } from "@/components/canvas/incoming-hello";
 import { SentWaitingPane } from "@/components/canvas/sent-waiting";
-import { list, rehydrate, subscribe, type Connection } from "@/lib/connections";
+import { FadedPane } from "@/components/canvas/faded-pane";
+import { hasUnseenFor, list, rehydrate, subscribe, type Connection } from "@/lib/connections";
 
 const LAST_ACTIVE_KEY = "kindred:connections:last";
 
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/connections")({
   }),
 });
 
-type PaneKind = "thread" | "incoming" | "waiting" | null;
+type PaneKind = "thread" | "incoming" | "waiting" | "faded" | null;
 
 function ConnectionsPage() {
   const { ready } = useRequireAuth();
@@ -55,7 +56,7 @@ function ConnectionsPage() {
     if (!open || consumedOpenRef.current === open) return;
     if (items.length === 0) return;
     const target = items.find((c) => c.personId === open);
-    if (target && (target.status === "connected" || target.status === "incoming" || target.status === "sent")) {
+    if (target) {
       setActiveId(open);
       consumedOpenRef.current = open;
       // Clear the param so a refresh doesn't re-consume it.
@@ -72,7 +73,7 @@ function ConnectionsPage() {
       const saved = window.sessionStorage.getItem(LAST_ACTIVE_KEY);
       if (saved) {
         const target = items.find((c) => c.personId === saved);
-        if (target && target.status !== "faded") {
+        if (target) {
           setActiveId(saved);
         }
       }
@@ -88,18 +89,18 @@ function ConnectionsPage() {
   useEffect(() => {
     if (activeId) {
       const active = items.find((c) => c.personId === activeId);
-      if (!active || active.status === "faded") {
+      if (!active) {
         setActiveId(null);
       }
       return;
     }
-    // Auto-select: incoming > connected > sent.
+    // Auto-select: incoming > connected > sent > faded.
     const firstIncoming = items.find((c) => c.status === "incoming");
     if (firstIncoming) { setActiveId(firstIncoming.personId); return; }
     const firstConnected = items.find((c) => c.status === "connected");
     if (firstConnected) { setActiveId(firstConnected.personId); return; }
     const firstSent = items.find((c) => c.status === "sent");
-    if (firstSent) setActiveId(firstSent.personId);
+    if (firstSent) { setActiveId(firstSent.personId); return; }
   }, [items, activeId]);
 
   const incoming = items.filter((c) => c.status === "incoming");
@@ -112,6 +113,7 @@ function ConnectionsPage() {
     activeConn?.status === "incoming" ? "incoming"
     : activeConn?.status === "connected" ? "thread"
     : activeConn?.status === "sent" ? "waiting"
+    : activeConn?.status === "faded" ? "faded"
     : null;
 
   if (!ready) return <div className="min-h-screen bg-background" />;
@@ -159,6 +161,7 @@ function ConnectionsPage() {
                   conn={c}
                   lang={lang}
                   active={c.personId === activeId}
+                  dot={hasUnseenFor(c)}
                   onSelect={() => setActiveId(c.personId)}
                 />
               ))}
@@ -197,9 +200,9 @@ function ConnectionsPage() {
                       key={c.personId}
                       conn={c}
                       lang={lang}
-                      active={false}
-                      muted
-                      onSelect={() => { /* nothing to open */ }}
+                      active={c.personId === activeId}
+                      dim
+                      onSelect={() => setActiveId(c.personId)}
                     />
                   ))}
                 </ul>
@@ -212,6 +215,7 @@ function ConnectionsPage() {
           {paneKind === "thread" && activeId && <ConnectionThread personId={activeId} />}
           {paneKind === "incoming" && activeId && <IncomingHello personId={activeId} />}
           {paneKind === "waiting" && activeId && <SentWaitingPane personId={activeId} />}
+          {paneKind === "faded" && activeId && <FadedPane personId={activeId} />}
           {paneKind === null && (
             <div className="h-full grid place-items-center">
               <p className="text-[13px] text-muted-foreground">{t("connection.pick_one")}</p>
@@ -232,8 +236,8 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-function Row({ conn, lang, active, muted, dot, onSelect }: {
-  conn: Connection; lang: Lang; active: boolean; muted?: boolean; dot?: boolean; onSelect: () => void;
+function Row({ conn, lang, active, dim, dot, onSelect }: {
+  conn: Connection; lang: Lang; active: boolean; dim?: boolean; dot?: boolean; onSelect: () => void;
 }) {
   const { t } = useTranslation();
   const person = getPersonById(conn.personId);
@@ -241,9 +245,9 @@ function Row({ conn, lang, active, muted, dot, onSelect }: {
   const loc = localized(person, lang);
   const last = conn.messages[conn.messages.length - 1];
   const subtitle = conn.status === "incoming"
-    ? loc.occupation
+    ? t("connection.incoming_subtitle")
     : conn.status === "faded"
-    ? loc.city
+    ? t("connection.faded_subtitle")
     : conn.status === "sent"
     ? t("connection.delivered")
     : (last?.text ?? loc.occupation);
@@ -251,11 +255,10 @@ function Row({ conn, lang, active, muted, dot, onSelect }: {
     <li>
       <button
         onClick={onSelect}
-        disabled={muted}
         className={[
           "w-full text-left px-5 py-3 flex items-center gap-3 border-l-2 transition-colors",
           active ? "border-foreground bg-secondary/50" : "border-transparent hover:bg-secondary/40",
-          muted ? "opacity-55 cursor-default" : "",
+          dim ? "opacity-60" : "",
         ].join(" ")}
       >
         <div className="relative shrink-0">

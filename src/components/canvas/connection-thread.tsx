@@ -4,7 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowUp } from "lucide-react";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
-import { get, markSeen, send, subscribe, type Connection } from "@/lib/connections";
+import { get, isTyping, markSeen, send, subscribe, type Connection } from "@/lib/connections";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
 import { loadProfile } from "@/lib/profile";
 import { setFocusPerson } from "@/lib/seed";
@@ -16,14 +16,19 @@ export function ConnectionThread({ personId }: Props) {
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
   const [conn, setConn] = useState<Connection | null>(() => get(personId));
+  const [typing, setTyping] = useState<boolean>(() => isTyping(personId));
   const [text, setText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const msgRefs = useRef<Record<string, HTMLLIElement | null>>({});
   const focusedTheirRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const unsub = subscribe(() => setConn(get(personId)));
+    const unsub = subscribe(() => {
+      setConn(get(personId));
+      setTyping(isTyping(personId));
+    });
     setConn(get(personId));
+    setTyping(isTyping(personId));
     markSeen(personId);
     return () => { unsub(); };
   }, [personId]);
@@ -52,7 +57,7 @@ export function ConnectionThread({ personId }: Props) {
       }
     }
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [conn?.messages.length, lastTheirsId]);
+  }, [conn?.messages.length, lastTheirsId, typing]);
 
   const person = getPersonById(personId);
   if (!person || !conn || conn.status !== "connected") return null;
@@ -126,6 +131,15 @@ export function ConnectionThread({ personId }: Props) {
                 </li>
               );
             })}
+            {typing && (
+              <li className="flex flex-col items-start" aria-live="polite">
+                <div className="max-w-[80%] px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-secondary text-foreground/70 inline-flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60 animate-[pulse_1.2s_ease-in-out_infinite]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60 animate-[pulse_1.2s_ease-in-out_0.2s_infinite]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60 animate-[pulse_1.2s_ease-in-out_0.4s_infinite]" />
+                </div>
+              </li>
+            )}
           </ul>
         </div>
       </div>

@@ -4,13 +4,12 @@ import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
-import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
-import { get, subscribe, withdrawSent, type Connection } from "@/lib/connections";
+import { get, removeFaded, subscribe, undoFadedFor, type Connection } from "@/lib/connections";
 import { setFocusPerson } from "@/lib/seed";
 
 interface Props { personId: string; }
 
-export function SentWaitingPane({ personId }: Props) {
+export function FadedPane({ personId }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
@@ -23,12 +22,18 @@ export function SentWaitingPane({ personId }: Props) {
   }, [personId]);
 
   const person = getPersonById(personId);
-  if (!person || !conn || conn.status !== "sent") return null;
+  if (!person || !conn || conn.status !== "faded") return null;
   const loc = localized(person, lang);
-  const m = conn.fromMe
-    ? person.moments.find((mm) => mm.id === conn.fromMe!.quotedMomentId)
-    : null;
-  const prompt = m ? getMomentPromptById(m.promptId) : null;
+
+  function tryAgain() {
+    // Clear the faded record so Say hello can start fresh, then land the
+    // user back on the person's intro card to compose a new hello.
+    undoFadedFor(personId);
+    setFocusPerson(personId);
+    const session = conn?.originSessionId;
+    if (session) void navigate({ to: "/matchmaker", search: { session } });
+    else void navigate({ to: "/" });
+  }
 
   function backToIntro() {
     setFocusPerson(personId);
@@ -56,14 +61,14 @@ export function SentWaitingPane({ personId }: Props) {
             <img
               src={avatarUrl(person.id)}
               alt={loc.name}
-              className="w-14 h-14 rounded-full border border-border bg-secondary shrink-0"
+              className="w-14 h-14 rounded-full border border-border bg-secondary shrink-0 grayscale opacity-70"
             />
             <div className="min-w-0 pt-0.5">
               <div className="text-[10px] uppercase tracking-[0.18em] font-mono text-muted-foreground mb-1">
-                {t("connection.delivered")}
+                {t("connection.section_faded")}
               </div>
               <h2 className="text-[18px] font-semibold tracking-tight text-foreground">
-                {t("connection.waiting_title", { name: loc.name })}
+                {loc.name}
               </h2>
               <p className="mt-0.5 text-[12.5px] text-muted-foreground">
                 {loc.occupation} · {loc.city}
@@ -71,41 +76,25 @@ export function SentWaitingPane({ personId }: Props) {
             </div>
           </div>
 
-          {m && conn.fromMe && (
-            <article className="mt-7 rounded-lg border border-border bg-card px-4 py-3">
-              <div className="text-[10.5px] font-mono uppercase tracking-wide text-muted-foreground mb-1">
-                {t("moment.you_quoted")}
-              </div>
-              {prompt && (
-                <p className="text-[11px] italic text-muted-foreground mb-0.5">
-                  {localizedMomentPrompt(prompt, lang)}
-                </p>
-              )}
-              <p className="text-[13.5px] text-foreground leading-snug">
-                {lang === "zh-CN" ? m.answer_zh : m.answer}
-              </p>
-              <div className="mt-3 pt-3 border-t border-border">
-                <div className="text-[10.5px] font-mono uppercase tracking-wide text-muted-foreground mb-1">
-                  {t("moment.you_wrote")}
-                </div>
-                <p className="text-[14px] text-foreground leading-relaxed">"{conn.fromMe.reply}"</p>
-              </div>
-            </article>
-          )}
-
-          <p className="mt-6 text-[12.5px] text-muted-foreground leading-relaxed">
-            {t("connection.waiting_hint")}
+          <p className="mt-7 text-[13px] text-muted-foreground leading-relaxed">
+            {t("connection.faded_body")}
           </p>
 
           <div className="mt-6 flex items-center gap-3">
             <button
               type="button"
-              onClick={() => withdrawSent(personId)}
-              className="text-[12px] text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4"
+              onClick={tryAgain}
+              className="px-4 h-9 rounded-md bg-foreground text-background text-[13px] hover:opacity-90 transition-opacity"
             >
-              {t("connection.withdraw")}
+              {t("connection.say_hello_again")}
             </button>
-            <span className="text-[11px] text-muted-foreground/70">{t("connection.withdraw_hint")}</span>
+            <button
+              type="button"
+              onClick={() => removeFaded(personId)}
+              className="px-3 h-9 text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t("connection.remove")}
+            </button>
           </div>
         </div>
       </div>

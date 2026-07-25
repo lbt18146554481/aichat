@@ -152,7 +152,14 @@
     "waiting_title": "Waiting on {{name}}",
     "waiting_hint": "As soon as they write back, this fills in. You can keep meeting others in the meantime.",
     "your_last": "Your last message",
-    "their_reply": "Their latest reply"
+    "their_reply": "Their latest reply",
+    "withdraw": "Withdraw hello",
+    "withdraw_hint": "Removes it from your side. They won't be notified.",
+    "say_hello_again": "Say hello again",
+    "remove": "Remove",
+    "faded_body": "This one didn't land. That's fine — the door isn't locked. You can write something new, or clear the record.",
+    "incoming_subtitle": "Said hello",
+    "faded_subtitle": "Didn't land"
   },
   "incoming": {
     "label": "Someone read you",

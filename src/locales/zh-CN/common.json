@@ -152,7 +152,14 @@
     "waiting_title": "在等 {{name}} 的回音",
     "waiting_hint": "TA 一回来这里就会亮起。你可以继续看别人。",
     "your_last": "你最后说",
-    "their_reply": "TA 刚回"
+    "their_reply": "TA 刚回",
+    "withdraw": "撤回招呼",
+    "withdraw_hint": "只从你这边移除，TA 不会收到通知。",
+    "say_hello_again": "再打一次招呼",
+    "remove": "移除",
+    "faded_body": "这次没接上，没关系——门没关。你可以再写一句新的，或者把这条记录清掉。",
+    "incoming_subtitle": "给你打了招呼",
+    "faded_subtitle": "没有回音"
   },
   "incoming": {
     "label": "有人读到了你",
