@@ -186,8 +186,8 @@ export function Home() {
                         className={[
                           "group inline-flex items-center gap-1.5 rounded-full border px-3 py-2 md:py-1.5 text-[12px] transition-colors min-h-[36px]",
                           active
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border bg-background text-foreground/80 hover:border-foreground/50 hover:text-foreground",
+                            ? "border-primary/40 bg-primary-soft text-primary"
+                            : "border-border bg-card text-foreground/80 hover:border-primary/40 hover:text-foreground",
                         ].join(" ")}
                         aria-pressed={active}
                         suppressHydrationWarning
