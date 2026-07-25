@@ -9,7 +9,8 @@ import { LangSwitcher } from "@/components/lang-switcher";
 import { ConnectionThread } from "@/components/canvas/connection-thread";
 import { IncomingHello } from "@/components/canvas/incoming-hello";
 import { SentWaitingPane } from "@/components/canvas/sent-waiting";
-import { list, rehydrate, subscribe, type Connection } from "@/lib/connections";
+import { FadedPane } from "@/components/canvas/faded-pane";
+import { hasUnseenFor, list, rehydrate, subscribe, type Connection } from "@/lib/connections";
 
 const LAST_ACTIVE_KEY = "kindred:connections:last";
 
