@@ -35,7 +35,7 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer
         onClick={onSend}
         disabled={disabled || !value.trim()}
         aria-label="Send"
-        className="absolute right-2 bottom-2 w-8 h-8 grid place-items-center rounded-lg bg-foreground text-background disabled:opacity-25 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+        className="absolute right-2 bottom-2 w-8 h-8 grid place-items-center rounded-lg bg-primary text-primary-foreground disabled:opacity-25 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
       >
         <ArrowUp className="w-4 h-4" />
       </button>
@@ -46,7 +46,7 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer
 export function UserBubble({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[80%] rounded-2xl rounded-br-md bg-foreground text-background px-4 py-2.5 text-[14px] leading-relaxed">
+      <div className="max-w-[80%] rounded-2xl rounded-br-md bg-primary text-primary-foreground px-4 py-2.5 text-[14px] leading-relaxed">
         {text}
       </div>
     </div>

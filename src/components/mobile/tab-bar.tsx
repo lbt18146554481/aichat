@@ -78,14 +78,17 @@ export function MobileTabBar() {
                 to={tab.to}
                 className={[
                   "relative flex flex-col items-center justify-center gap-0.5 h-14 min-w-[44px] px-2 transition-colors",
-                  active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                  active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 ].join(" ")}
                 aria-current={active ? "page" : undefined}
               >
+                {active && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full bg-primary" />
+                )}
                 <span className="relative">
                   <Icon className="w-[22px] h-[22px]" strokeWidth={active ? 2 : 1.6} />
                   {showBadge && unseen && (
-                    <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-foreground ring-2 ring-background" />
+                    <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-primary ring-2 ring-background" />
                   )}
                 </span>
                 <span className="text-[10px] tracking-wide leading-none">

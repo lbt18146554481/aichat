@@ -315,7 +315,7 @@ function FavoriteRow({
                   title={t(`profile.kind.${k}`)}
                   className={
                     "w-7 h-7 rounded-md flex items-center justify-center transition-colors " +
-                    (active ? "bg-foreground text-background" : "text-muted-foreground hover:bg-secondary hover:text-foreground")
+                    (active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground")
                   }
                 >
                   <KI className="w-3.5 h-3.5" />

@@ -88,7 +88,7 @@ export function HelloComposer({
           type="button"
           onClick={submit}
           disabled={!reply.trim()}
-          className="px-4 py-2 rounded-md bg-foreground text-background text-[13px] font-medium disabled:opacity-30 hover:opacity-90 transition-opacity"
+          className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-[13px] font-medium disabled:opacity-30 hover:opacity-90 transition-opacity"
         >
           {t("moment.send_hello")}
         </button>

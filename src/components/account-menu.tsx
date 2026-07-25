@@ -88,7 +88,7 @@ export function AccountMenu({ compact }: { compact?: boolean }) {
         type="button"
         aria-label={t("auth.account_menu")}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-foreground text-background text-[11px] font-semibold hover:opacity-90"
+        className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold hover:opacity-90"
       >
         {user.avatar ? (
           <img src={user.avatar} alt="" className="w-7 h-7 rounded-full object-cover" />
