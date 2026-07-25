@@ -139,6 +139,7 @@
   },
   "connection": {
     "title": "对话",
+    "back_to_origin": "返回原对话",
     "say_hello": "打个招呼",
     "pass": "跳过",
     "save": "收藏",
