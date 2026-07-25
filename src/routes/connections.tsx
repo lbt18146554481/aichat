@@ -114,6 +114,9 @@ function ConnectionsPage() {
     : activeConn?.status === "sent" ? "waiting"
     : null;
 
+  if (!ready) return <div className="min-h-screen bg-background" />;
+
+
   return (
     <div className="h-screen flex flex-col bg-background">
       <header className="w-full border-b border-border bg-background/90 backdrop-blur sticky top-0 z-30">
