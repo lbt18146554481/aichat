@@ -79,7 +79,10 @@ function AuthPage() {
   }, [hydrated, user, navigate, search.redirect]);
 
   function finishAfterAuth(justSignedUp: boolean) {
-    if (justSignedUp && (!search.redirect || search.redirect === "/")) {
+    if (justSignedUp) {
+      // Remember where to return once the welcome profile setup completes.
+      const back = safeRedirect(search.redirect);
+      try { window.sessionStorage.setItem("kindred:profile:welcome_return", back); } catch { /* noop */ }
       void navigate({ to: "/profile", search: { welcome: 1 } as never, replace: true });
       return;
     }
