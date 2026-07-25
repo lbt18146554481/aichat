@@ -16,14 +16,19 @@ export function ConnectionThread({ personId }: Props) {
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
   const [conn, setConn] = useState<Connection | null>(() => get(personId));
+  const [typing, setTyping] = useState<boolean>(() => isTyping(personId));
   const [text, setText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const msgRefs = useRef<Record<string, HTMLLIElement | null>>({});
   const focusedTheirRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const unsub = subscribe(() => setConn(get(personId)));
+    const unsub = subscribe(() => {
+      setConn(get(personId));
+      setTyping(isTyping(personId));
+    });
     setConn(get(personId));
+    setTyping(isTyping(personId));
     markSeen(personId);
     return () => { unsub(); };
   }, [personId]);
