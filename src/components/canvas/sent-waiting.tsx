@@ -96,6 +96,17 @@ export function SentWaitingPane({ personId }: Props) {
           <p className="mt-6 text-[12.5px] text-muted-foreground leading-relaxed">
             {t("connection.waiting_hint")}
           </p>
+
+          <div className="mt-6 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => withdrawSent(personId)}
+              className="text-[12px] text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4"
+            >
+              {t("connection.withdraw")}
+            </button>
+            <span className="text-[11px] text-muted-foreground/70">{t("connection.withdraw_hint")}</span>
+          </div>
         </div>
       </div>
     </div>
