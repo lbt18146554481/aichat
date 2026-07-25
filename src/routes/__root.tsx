@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import i18n, { initI18n, applyPersistedLang } from "../lib/i18n";
 import { Toaster } from "@/components/ui/sonner";
+import { MobileTabBar } from "@/components/mobile/tab-bar";
 
 initI18n();
 // Hard-lock the first render to English on every entry so SSR HTML and the
@@ -155,6 +156,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      <MobileTabBar />
       <Toaster />
     </QueryClientProvider>
   );
