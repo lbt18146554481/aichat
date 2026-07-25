@@ -21,8 +21,6 @@
       "body": "Kindred 给别人看的是你亲手写下的字，不是我们替你归纳的标签。花五分钟把资料填完，然后再回来。",
       "cta": "去填资料 · {{done}}/{{total}}"
     },
-    "profile_nudge": "让 Agent 也能这样介绍你 ——",
-    "profile_nudge_cta": "完善资料 · {{done}}/{{total}}",
     "banner": {
       "waiting_title": "还给你挂着一条心愿",
       "waiting_body": "{{summary}} · {{ago}}发出",
@@ -363,6 +361,8 @@
     "heading_setup": "完善你的资料",
     "heading_edit": "你的资料",
     "subhead": "别人看到的就是这一页，原文一字不改。短句、具体、真实——胜过任何漂亮话。Agent 只会读这些，绝不会替你编。",
+    "welcome_sub": "欢迎来到 Kindred。花一分钟简单介绍下自己——之后随时可以回来修改，也可以先跳过。",
+    "skip_for_now": "先跳过",
     "progress": "第 {{done}} / {{total}} 步",
     "section": {
       "vitals": "基本信息",

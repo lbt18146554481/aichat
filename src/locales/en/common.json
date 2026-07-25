@@ -21,8 +21,6 @@
       "body": "Kindred shows people the words you write — not labels we infer. Take five minutes to set up your profile, then come back.",
       "cta": "Set up profile · {{done}}/{{total}}"
     },
-    "profile_nudge": "So the Agents can introduce you too —",
-    "profile_nudge_cta": "set up profile · {{done}}/{{total}}",
     "banner": {
       "waiting_title": "Still holding a wish for you",
       "waiting_body": "{{summary}} · posted {{ago}}",
@@ -363,6 +361,8 @@
     "heading_setup": "Set up your profile",
     "heading_edit": "Your profile",
     "subhead": "This is exactly how others see you. Write it in your own words — short, specific, true. The Agents read this, they never invent it.",
+    "welcome_sub": "Welcome to Kindred. Take a minute to introduce yourself — you can always come back and edit. Skip whenever you like.",
+    "skip_for_now": "Skip for now",
     "progress": "Step {{done}} of {{total}}",
     "section": {
       "vitals": "The basics",

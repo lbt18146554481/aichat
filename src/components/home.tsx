@@ -10,7 +10,6 @@ import { AccountMenu } from "@/components/account-menu";
 import { routeIntent } from "@/lib/route-intent";
 import { setSeed, type AgentId } from "@/lib/seed";
 import { hasUnseen, list, rehydrate, subscribe } from "@/lib/connections";
-import { isProfileComplete, loadProfile, profileProgress } from "@/lib/profile";
 import { createSession } from "@/lib/sessions";
 import { useAuth } from "@/lib/auth";
 import { EMPTY as EMPTY_SIDE } from "@/lib/agents/side-by-side";
@@ -43,8 +42,6 @@ export function Home() {
   const [mounted, setMounted] = useState(false);
   const [connCount, setConnCount] = useState(0);
   const [unseen, setUnseen] = useState(false);
-  const [profileReady, setProfileReady] = useState(false);
-  const [progress, setProgress] = useState({ done: 0, total: 3 });
 
 
 
@@ -55,9 +52,6 @@ export function Home() {
     const update = () => { setConnCount(list().length); setUnseen(hasUnseen()); };
     update();
     const unsub = subscribe(update);
-    const p = loadProfile();
-    setProfileReady(isProfileComplete(p));
-    setProgress(profileProgress(p));
     return () => { unsub(); };
   }, []);
 
@@ -190,18 +184,6 @@ export function Home() {
             </div>
           </div>
 
-          {/* Light nudge — only if profile is incomplete */}
-          {mounted && !profileReady && (
-            <div className="mt-4 flex items-center justify-center gap-2 text-[11.5px] text-muted-foreground">
-              <span>{t("home.profile_nudge")}</span>
-              <Link
-                to="/profile"
-                className="underline decoration-dotted underline-offset-2 hover:text-foreground"
-              >
-                {t("home.profile_nudge_cta", { done: progress.done, total: progress.total })}
-              </Link>
-            </div>
-          )}
 
           <p
             className="mt-6 text-center text-[11.5px] text-muted-foreground font-mono uppercase tracking-[0.12em]"
