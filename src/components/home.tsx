@@ -90,7 +90,7 @@ export function Home() {
   }
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col pb-tabbar" suppressHydrationWarning>
+    <div className="min-h-dvh bg-gradient-hero flex flex-col pb-tabbar" suppressHydrationWarning>
       {/* Desktop header — hidden on mobile in favor of the bottom tab bar. */}
       <header className="hidden md:block w-full">
         <div className="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
