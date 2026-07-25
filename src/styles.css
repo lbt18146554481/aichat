@@ -24,6 +24,8 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-glow: var(--primary-glow);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -32,6 +34,7 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -40,38 +43,72 @@
 }
 
 :root {
-  --radius: 0.5rem;
+  --radius: 0.625rem;
 
-  /* ChatGPT-style neutral */
-  --background: oklch(1 0 0);                    /* #FFFFFF */
-  --foreground: oklch(0.18 0 0);                 /* near black */
+  /* Morning-mist neutrals with a cool undertone */
+  --background: oklch(0.995 0.003 240);
+  --foreground: oklch(0.24 0.03 250);              /* deep ink-blue, not pure black */
 
-  --sidebar: oklch(0.97 0 0);                    /* #F7F7F8 */
+  --sidebar: oklch(0.975 0.012 235);
 
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0 0);
+  --card-foreground: oklch(0.24 0.03 250);
 
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0 0);
+  --popover-foreground: oklch(0.24 0.03 250);
 
-  --primary: oklch(0.18 0 0);                    /* #0D0D0D */
-  --primary-foreground: oklch(1 0 0);
+  /* Lake-blue accent */
+  --primary: oklch(0.62 0.14 235);                 /* ~#0284C7 */
+  --primary-foreground: oklch(0.99 0.005 240);
+  --primary-soft: oklch(0.945 0.038 232);           /* chip / hover ground */
+  --primary-glow: oklch(0.82 0.10 225);             /* gradient tail */
 
-  --secondary: oklch(0.97 0 0);                  /* #F7F7F8 */
-  --secondary-foreground: oklch(0.25 0 0);
+  --secondary: oklch(0.965 0.018 232);
+  --secondary-foreground: oklch(0.28 0.03 250);
 
-  --muted: oklch(0.965 0 0);
-  --muted-foreground: oklch(0.5 0 0);             /* #6B6B6B */
+  --muted: oklch(0.965 0.010 235);
+  --muted-foreground: oklch(0.55 0.02 245);
 
-  --accent: oklch(0.95 0 0);
-  --accent-foreground: oklch(0.2 0 0);
+  --accent: oklch(0.945 0.038 232);
+  --accent-foreground: oklch(0.34 0.10 235);
 
-  --destructive: oklch(0.6 0.22 25);
+  --success: oklch(0.72 0.13 175);
+  --destructive: oklch(0.62 0.20 25);
   --destructive-foreground: oklch(0.99 0 0);
 
-  --border: oklch(0.92 0 0);                     /* #E5E5E5 */
-  --input: oklch(0.94 0 0);
-  --ring: oklch(0.18 0 0);
+  --border: oklch(0.92 0.012 235);
+  --input: oklch(0.94 0.010 235);
+  --ring: oklch(0.62 0.14 235 / 0.35);
+
+  /* Reusable gradients + shadows */
+  --gradient-hero: linear-gradient(180deg, oklch(0.97 0.028 232) 0%, oklch(0.995 0.003 240) 55%);
+  --gradient-accent: linear-gradient(135deg, oklch(0.62 0.14 235), oklch(0.82 0.10 225));
+  --shadow-soft: 0 1px 2px oklch(0.4 0.05 240 / 0.04), 0 8px 24px -12px oklch(0.4 0.08 240 / 0.14);
+  --shadow-focus: 0 0 0 3px oklch(0.62 0.14 235 / 0.18);
+}
+
+.dark {
+  --background: oklch(0.20 0.02 250);
+  --foreground: oklch(0.96 0.01 240);
+  --sidebar: oklch(0.22 0.02 250);
+  --card: oklch(0.23 0.02 250);
+  --card-foreground: oklch(0.96 0.01 240);
+  --popover: oklch(0.23 0.02 250);
+  --popover-foreground: oklch(0.96 0.01 240);
+  --primary: oklch(0.72 0.13 232);
+  --primary-foreground: oklch(0.16 0.02 250);
+  --primary-soft: oklch(0.32 0.06 232);
+  --primary-glow: oklch(0.60 0.12 220);
+  --secondary: oklch(0.28 0.02 250);
+  --secondary-foreground: oklch(0.96 0.01 240);
+  --muted: oklch(0.27 0.02 250);
+  --muted-foreground: oklch(0.72 0.02 245);
+  --accent: oklch(0.32 0.06 232);
+  --accent-foreground: oklch(0.92 0.03 232);
+  --border: oklch(0.32 0.02 250);
+  --input: oklch(0.30 0.02 250);
+  --ring: oklch(0.72 0.13 232 / 0.4);
+  --gradient-hero: linear-gradient(180deg, oklch(0.24 0.04 240) 0%, oklch(0.20 0.02 250) 60%);
 }
 
 @layer base {
@@ -87,22 +124,18 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* Stop pull-to-refresh + rubber-band on the root document so the app
-       feels container-native on mobile. Individual scroll containers
-       still scroll normally. */
     overscroll-behavior-y: none;
+    line-height: 1.6;
   }
   h1, h2, h3, h4 {
     font-family: var(--font-sans);
-    letter-spacing: -0.02em;
-    font-weight: 600;
+    letter-spacing: -0.015em;
+    font-weight: 550;
   }
   ::selection {
-    background: color-mix(in oklab, var(--foreground) 18%, transparent);
+    background: color-mix(in oklab, var(--primary) 22%, transparent);
     color: var(--foreground);
   }
-  /* Prevent iOS Safari from auto-zooming when a text field is focused.
-     Any font-size >= 16px on the control disables the zoom heuristic. */
   @media (max-width: 767px) {
     input, textarea, select {
       font-size: 16px;
@@ -111,21 +144,22 @@
 }
 
 @layer utilities {
-  /* Safe-area helpers for mobile shells (Tab Bar, sticky composers). */
   .pt-safe { padding-top: env(safe-area-inset-top); }
   .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
   .pl-safe { padding-left: env(safe-area-inset-left); }
   .pr-safe { padding-right: env(safe-area-inset-right); }
   .h-dvh { height: 100dvh; }
   .min-h-dvh { min-height: 100dvh; }
-  /* Reserve room for the fixed 56px mobile Tab Bar + iOS home-indicator. */
   .pb-tabbar {
     padding-bottom: calc(56px + env(safe-area-inset-bottom));
   }
   @media (min-width: 768px) {
     .pb-tabbar { padding-bottom: 0; }
   }
-  /* Contain overscroll inside a chat / list panel. */
   .overscroll-contain-y { overscroll-behavior-y: contain; }
-}
 
+  .bg-gradient-hero { background: var(--gradient-hero); }
+  .bg-gradient-accent { background: var(--gradient-accent); }
+  .shadow-soft { box-shadow: var(--shadow-soft); }
+  .ring-focus { box-shadow: var(--shadow-focus); }
+}
