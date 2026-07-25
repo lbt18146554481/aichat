@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowUp, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, ArrowUp, MoreHorizontal } from "lucide-react";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 import {
