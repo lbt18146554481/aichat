@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Copy, LogOut, UserCircle, Ticket } from "lucide-react";
 import { signOut, useAuth } from "@/lib/auth";
+import { loadProfile } from "@/lib/profile";
 import {
   generateInvite,
   listMyCodes,
