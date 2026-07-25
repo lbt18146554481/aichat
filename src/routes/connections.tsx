@@ -28,7 +28,7 @@ export const Route = createFileRoute("/connections")({
   }),
 });
 
-type PaneKind = "thread" | "incoming" | "waiting" | null;
+type PaneKind = "thread" | "incoming" | "waiting" | "faded" | null;
 
 function ConnectionsPage() {
   const { ready } = useRequireAuth();
