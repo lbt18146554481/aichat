@@ -1,49 +1,78 @@
 ## 目标
-1. 删除首页底部的 "So the Agents can introduce you too — set up profile · 0/3" 提示。
-2. 审视首次登录后的 Profile 初始化流程，判断是否需要优化，并给出结论与最小改动。
+在不改动现有视觉调性（极简黑白 + serif italic）的前提下，把整站移动端体验重构为一套"手机 App 布局"：底部 Tab Bar、全屏 Sheet、贴底 Composer、安全区适配、44px 触控热区。桌面端体验保持不变。
 
-## 现状梳理
-- 首页 `src/components/home.tsx` 在资料未完成时渲染 `home.profile_nudge` + `home.profile_nudge_cta`（就是那条 0/3 文字）。
-- 注册成功后，`src/routes/auth.tsx` 的 `finishAfterAuth(true)` 已经将新用户直接跳到 `/profile?welcome=1`（除非用户是从别处被拦截过来的，会回原来的路径）。
-- `/profile` 页面本身已有 `heading_setup`、`subhead`、`progress (done/total)` 三件套，是一个完整的引导页。
-- 用户在使用 Matchmaker / Side-by-Side 提交心愿时，若资料不全（例如缺城市），`src/routes/profile.tsx` 已经有 `kindred:profile:return` + `kindred:profile:focus` 的“按需回填”跳转机制。
+## 心智模型
+- **桌面（sm+）**：沿用当前顶部头 + 居中大画布布局。
+- **移动（< sm，≤ 767px）**：切换为「App 壳」——
+  ```text
+  ┌──────────────── status bar safe-area ────────────────┐
+  │ 顶部：极简 title / 返回 / 右侧单个操作                  │
+  ├──────────────────────────────────────────────────────┤
+  │                                                      │
+  │ 内容滚动区（overscroll-behavior: contain）             │
+  │                                                      │
+  ├──────────────────────────────────────────────────────┤
+  │ Sticky composer（仅内容/聊天页）                        │
+  ├──────────────────────────────────────────────────────┤
+  │ Bottom Tab Bar（4 tab）+ home indicator 安全区          │
+  └──────────────────────────────────────────────────────┘
+  ```
 
-## 结论：流程不需要再增加提示，反而应删繁就简
-现在的问题不是缺提醒，而是重复提醒 + 时机错位：
-- 注册后已经强制进入 `/profile`——用户已经知道要填资料。
-- 真正需要用到城市/资料时，系统会自动把用户带回 `/profile` 并高亮所需字段。
-- 首页那条 0/3 文字属于"永久性未完成状态提示"，噪声大、价值低（用户随时可从右上角头像/Profile 入口进入），删除即可，不需要用其他形式替代。
+## 全局壳：Tab Bar & Safe Area
+- 新增 `src/components/mobile/tab-bar.tsx`：4 个 tab —— **Home / Chats（Connections）/ Saved / Me（Profile）**，仅在 `< sm` 显示；使用 `useLocation` 判断激活项；未登录时点击非 Home tab → 引导登录（复用 `useRequireAuth` 语义）。
+- 新增 `src/components/mobile/app-shell.tsx`：为每个路由套上「flex-col、min-h-[100dvh]、pt-[env(safe-area-inset-top)]、pb-[calc(56px+env(safe-area-inset-bottom))] on mobile」，桌面下等同 `<>{children}</>`。
+- 在 `src/routes/__root.tsx` 中统一挂载 `<TabBar />`（仅移动端渲染），避免每个页面单独放。
+- 未读点（Chats tab）复用 `hasUnseen()`。
 
-## 变更清单
+## 首页 (`src/components/home.tsx`)
+- 顶部 header 在移动端**隐藏**：Kindred 徽标不占空间，`SavedTrigger` / `HistoryTrigger` / Connections / Profile 均下沉到 Tab Bar 或右上角单个「⋯ 更多」按钮。语言切换 & 账号菜单收到 Me tab。
+- 主体：顶部一段更小的 greeting，Composer 变成 **贴底 sticky**（`pb-[env(safe-area-inset-bottom)]`）—— 用户拇指区一步触达；chip（Introduce / Together）横向 pill 组浮在 composer 上方；发送按钮尺寸 ≥ 40×40。
+- 桌面端保持当前设计不变（用 `sm:` 分支切换）。
 
-### 1. 首页删除资料提示
-文件：`src/components/home.tsx`
-- 删除 `!profileReady` 的整段 nudge JSX（约 193–204 行）。
-- 顺带清理不再使用的 state / imports：
-  - `profileReady`、`progress` state 与其 setter 调用；
-  - `isProfileComplete`、`profileProgress` 的 import；
-  - `loadProfile` 若不再被使用则一并移除。
+## 聊天型页面
+覆盖：`src/routes/matchmaker.tsx`、`src/routes/side-by-side.tsx`、`src/components/canvas/connection-thread.tsx`。
+- 移动端使用 100dvh 布局：**头部（52px）+ 消息滚动 + Sticky Composer**。
+- Composer 使用 `position: sticky; bottom: 0`，附带 `env(safe-area-inset-bottom)` 缓冲；焦点时用 `scrollIntoView({block:'end'})` 保证最新消息可见（iOS Safari 键盘遮挡）。
+- 左右双栏（Agent 私聊 + 匹配画布）在移动端改成 **Segmented Tab**（顶部两枚 pill：`Agent` / `Match`），不再左右并列；桌面保持并列。
+- 「返回」使用 `router.history.back()` + 左上角 `<` 图标，44×44 触控区。
 
-### 2. 首次注册跳转体验的小打磨（保持简洁）
-文件：`src/routes/profile.tsx`
-- 读取 URL 上的 `welcome=1` 参数（`useSearch`）：
-  - 当 `welcome=1` 时，页面顶部返回按钮改为“稍后再填 / Skip for now”，点击直接回首页；
-  - 副标题在欢迎态下使用一句更友好的欢迎语（新增 i18n key `profile.welcome_sub`），非欢迎态维持原文案；
-  - 完成 3/3 时自动移除 `welcome` 参数，避免二次进入仍显示欢迎态。
-- 需要在 `createFileRoute` 上加 `validateSearch` 处理 `welcome`。
+## Connections 列表 & 详情
+- 列表页（`src/routes/connections.tsx`）：完整全屏列表，行高 ≥ 64px，右侧未读点；点击行 push 进入 `/connections?thread=...` 全屏对话（移动端不再分栏）。
+- 详情视图 iOS 风格头部：头像 + 名字居中，返回位于左上；`⋯` 菜单收纳撤回/移除。
+- 桌面保持左右分栏。
 
-### 3. i18n
-`src/locales/en/common.json` 与 `src/locales/zh-CN/common.json`：
-- 删除 `home.profile_nudge`、`home.profile_nudge_cta`。
-- 新增 `profile.welcome_sub`、`profile.skip_for_now`。
+## Saved / History
+- Sheet 触发器改为 **Sheet 全屏**（移动端 `side="bottom" + h-[92dvh] + rounded-t-2xl`），带 drag handle；桌面保留原右侧 Sheet。
+- 内部 tab（People / Wishes / History）沿用现状，仅调整触控高度与滚动。
 
-## 不做的事
-- 不新增“完成 X 步解锁 Y”类进度奖励。
-- 不做强制拦截式的资料引导 —— 需要资料的具体场景（如缺城市）已经有原生跳转，覆盖足够。
-- 不改动 auth 完成后跳 `/profile?welcome=1` 的既有逻辑。
+## Profile & Auth
+- Profile 页移动端顶部收起为 sticky 极简 bar；Auth 页表单在移动端居中并将 CTA 贴底以贴合拇指区。
+- Auth 页与 Profile 页在移动端**不显示**底部 Tab Bar（视为模态流程）。
+
+## 通用移动交互细节
+- 触控最小 44×44（按钮、chip、Tab 项）。
+- 所有可滚动区加 `overscroll-behavior: contain`；主容器 `touch-action: manipulation`。
+- `src/styles.css` 添加：`--safe-top / --safe-bottom` 变量；`.mobile-scroll { -webkit-overflow-scrolling: touch }`；`html, body { overscroll-behavior-y: none }`。
+- 视口 meta：在 `__root.tsx` 补 `viewport-fit=cover, interactive-widget=resizes-content` 以让键盘正确压缩视口。
+- 长按/双击/输入 focus 不放大：`user-scalable=no` + `input/textarea { font-size: 16px }` 防 iOS 缩放。
+
+## 视觉保持不变（用户明确要求）
+- 不改动颜色、字体、圆角、阴影 token；仅结构与尺寸。
+- Tab Bar 也使用现有 border/muted-foreground 语义色，激活态用 foreground。
+
+## 变更文件清单
+- 新增：`src/components/mobile/tab-bar.tsx`、`src/components/mobile/app-shell.tsx`、`src/hooks/use-mobile.tsx`（若已存在则复用）。
+- 修改：`src/routes/__root.tsx`（挂 TabBar、viewport meta）、`src/components/home.tsx`、`src/routes/matchmaker.tsx`、`src/routes/side-by-side.tsx`、`src/components/canvas/connection-thread.tsx`、`src/routes/connections.tsx`、`src/components/saved-trigger.tsx`、`src/components/history-trigger.tsx`、`src/routes/profile.tsx`、`src/routes/auth.tsx`、`src/styles.css`。
+- 不新增依赖；不引入 AI Elements（此次纯 layout，不改 chat 语义）。
 
 ## 验收
-- 未完成资料的账号首页不再出现 0/3 提示，页面更干净。
-- 新用户注册后仍进入 `/profile`，顶部有明确的“稍后再填”出口；副标题呈现欢迎态。
-- 已登录老用户从首页头像进入 `/profile`，页面外观与之前一致（非欢迎态）。
-- Matchmaker / Side-by-Side 中因缺失字段回跳 `/profile` 的路径不受影响。
+- iPhone 14 (390×844) & 小屏（375×667）无横向滚动、Composer 贴底不遮挡键盘。
+- 四个 Tab 之间切换在移动端顺畅，页面滚动位置各自保留（借助 `scrollRestoration`）。
+- 桌面端（≥ 768px）UI 与当前完全一致——不引入回归。
+- Chats tab 有未读点；点击 Connections 行直达对话。
+- Home、Matchmaker、Side-by-Side、Connections、Saved、History、Profile、Auth 全部通过 iOS Safari + Android Chrome 手动预览。
+
+## 不做
+- 不接入 PWA / manifest / Service Worker。
+- 不改视觉主题（颜色/字体/圆角），后续视觉方案独立迭代。
+- 不迁移到原生 Capacitor / React Native。
