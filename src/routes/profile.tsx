@@ -29,10 +29,13 @@ function ProfilePage() {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
+  const search = useSearch({ from: "/profile" });
   const [progress, setProgress] = useState({ done: 0, total: 3 });
   const [hydrated, setHydrated] = useState(false);
   const [returnTo, setReturnTo] = useState<string | null>(null);
   const [needCity, setNeedCity] = useState(false);
+
+  const isWelcome = search.welcome === 1 && !returnTo;
 
   useEffect(() => {
     setProgress(profileProgress(loadProfile()));
@@ -45,6 +48,14 @@ function ProfilePage() {
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
+
+  // Once the profile is complete, clear the welcome flag so a later revisit
+  // shows the plain edit view.
+  useEffect(() => {
+    if (search.welcome === 1 && isProfileComplete(loadProfile())) {
+      void navigate({ to: "/profile", search: {}, replace: true });
+    }
+  }, [progress, search.welcome, navigate]);
 
   function handleBack() {
     let back: string | null = null;
@@ -65,7 +76,10 @@ function ProfilePage() {
       ? t("hello.gate.back_to_matchmaker")
       : returnTo === "/side-by-side"
       ? t("hello.gate.back_to_sidebyside")
+      : isWelcome
+      ? t("profile.skip_for_now")
       : "Kindred";
+
 
   return (
     <div className="min-h-screen bg-background">
