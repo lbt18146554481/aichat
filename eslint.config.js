@@ -20,6 +20,11 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // Enforce Rules of Hooks strictly: any conditional early-return that
+      // sits above a hook call — a common source of "Rendered more hooks
+      // than during the previous render" — is a hard error.
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
       "no-restricted-imports": [
         "error",
         {
@@ -35,6 +40,7 @@ export default tseslint.config(
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
     },
+
   },
   eslintPluginPrettier,
 );
