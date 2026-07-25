@@ -56,7 +56,7 @@ function ConnectionsPage() {
     if (!open || consumedOpenRef.current === open) return;
     if (items.length === 0) return;
     const target = items.find((c) => c.personId === open);
-    if (target && (target.status === "connected" || target.status === "incoming" || target.status === "sent")) {
+    if (target) {
       setActiveId(open);
       consumedOpenRef.current = open;
       // Clear the param so a refresh doesn't re-consume it.
