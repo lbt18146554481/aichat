@@ -49,19 +49,23 @@ function ProfilePage() {
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
-  // Once the profile is complete during welcome, return the user to
-  // whatever they were doing before signup (or home if nothing was stored).
+  // Once the profile is complete, return the user to whatever they were
+  // doing before landing here — the say-hello flow, a wish canvas, or the
+  // signup welcome return. Falls back to home when nothing is stored.
   useEffect(() => {
-    if (search.welcome !== 1) return;
     if (!isProfileComplete(loadProfile())) return;
     let back: string | null = null;
     try {
-      back = window.sessionStorage.getItem("kindred:profile:welcome_return");
+      back =
+        window.sessionStorage.getItem("kindred:profile:welcome_return") ||
+        window.sessionStorage.getItem("kindred:profile:return");
       window.sessionStorage.removeItem("kindred:profile:welcome_return");
+      window.sessionStorage.removeItem("kindred:profile:return");
+      window.sessionStorage.removeItem("kindred:profile:focus");
     } catch { /* noop */ }
     const dest = back && back.startsWith("/") ? back : "/";
     void navigate({ to: dest as "/", replace: true });
-  }, [progress, search.welcome, navigate]);
+  }, [progress, navigate]);
 
   function handleBack() {
     let back: string | null = null;
