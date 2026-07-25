@@ -161,6 +161,7 @@ function ConnectionsPage() {
                   conn={c}
                   lang={lang}
                   active={c.personId === activeId}
+                  dot={hasUnseenFor(c)}
                   onSelect={() => setActiveId(c.personId)}
                 />
               ))}
