@@ -246,9 +246,6 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
           </button>
         </div>
 
-        <p className="mt-4 text-[11.5px] text-muted-foreground leading-relaxed text-center">
-          {t("intent.match_footnote")}
-        </p>
       </div>
 
       <PersonProfileSheet
