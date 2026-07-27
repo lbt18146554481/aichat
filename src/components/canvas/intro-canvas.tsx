@@ -222,9 +222,6 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   }
 
 
-  const bestAngle = pickBestAngle(person, state.understanding);
-  const signalChips = person.signals.slice(0, 5);
-  const angleText = bestAngle ? (lang === "zh-CN" ? bestAngle.text_zh : bestAngle.text) : null;
   const bestMoment = pickBestMoment(person, state.understanding);
 
   function renderMoment(m: NonNullable<typeof bestMoment>, opts: { clickable: boolean; mode: "select" | "quoteAndCompose" }) {
