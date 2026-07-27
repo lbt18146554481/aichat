@@ -421,7 +421,9 @@
       "orientation": "性取向",
       "orientation_placeholder": "不填",
       "mbti": "MBTI",
-      "mbti_placeholder": "不填"
+     "mbti_placeholder": "不填",
+     "bio": "一句自我介绍",
+     "bio_placeholder": "一句话介绍自己——简短、具体、真实。"
     },
     "gender": {
       "female": "女",

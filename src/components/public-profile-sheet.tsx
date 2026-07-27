@@ -11,14 +11,14 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
+// Unified public profile view — renders strictly from Profile-shaped fields
+// (identity + bio + favorites + moments). The same shape is used for real
+// users and for demo Persons, so every "view someone" surface looks the same.
 export function PublicProfileSheet({ person, open, onOpenChange }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   if (!person) return null;
   const loc = localized(person, lang);
-  const brief = person.personBrief
-    ? (lang === "zh-CN" ? person.personBrief.zh : person.personBrief.en)
-    : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -51,64 +51,11 @@ export function PublicProfileSheet({ person, open, onOpenChange }: Props) {
           </div>
         </div>
 
-        {/* Portrait */}
-        <p className="mt-5 text-[13.5px] text-foreground/85 leading-relaxed italic">
-          {loc.portrait}
-        </p>
-
-        {/* About them (brief) */}
-        {brief && (
-          <div className="mt-6">
-            <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
-              {t("intro.about_them")}
-            </div>
-            <p className="text-[13.5px] text-foreground leading-relaxed">{brief}</p>
-          </div>
-        )}
-
-        {/* Signals */}
-        {person.signals.length > 0 && (
-          <div className="mt-6">
-            <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
-              {t("intro.signals_label")}
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {person.signals.map((s) => (
-                <span
-                  key={s}
-                  className="inline-flex items-center px-2 py-0.5 rounded-full border border-border bg-secondary text-[11px] text-foreground/85"
-                >
-                  {t(`signal.${s}`, { defaultValue: s })}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Moments */}
-        {person.moments.length > 0 && (
-          <div className="mt-6">
-            <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-3">
-              {t("moment.about_them", { name: loc.name })}
-            </div>
-            <div className="space-y-4">
-              {person.moments.map((m) => {
-                const prompt = getMomentPromptById(m.promptId);
-                return (
-                  <article key={m.id} className="border-l-2 border-border pl-3">
-                    {prompt && (
-                      <div className="text-[11px] text-muted-foreground italic leading-snug mb-1">
-                        {localizedMomentPrompt(prompt, lang)}
-                      </div>
-                    )}
-                    <p className="text-[14px] leading-[1.65] text-foreground">
-                      {lang === "zh-CN" ? m.answer_zh : m.answer}
-                    </p>
-                  </article>
-                );
-              })}
-            </div>
-          </div>
+        {/* Bio — one-sentence self-introduction (from the user's own profile) */}
+        {loc.bio && (
+          <p className="mt-5 text-[13.5px] text-foreground/90 leading-relaxed">
+            {loc.bio}
+          </p>
         )}
 
         {/* Favorites */}
@@ -137,28 +84,29 @@ export function PublicProfileSheet({ person, open, onOpenChange }: Props) {
           </div>
         )}
 
-        {/* Activities */}
-        {person.activities.length > 0 && (
+        {/* Moments — in their own words */}
+        {person.moments.length > 0 && (
           <div className="mt-6 mb-2">
-            <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-2">
-              {t("intro.what_they_do")}
+            <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-3">
+              {t("moment.about_them", { name: loc.name })}
             </div>
-            <ul className="space-y-2">
-              {person.activities.map((a, i) => (
-                <li
-                  key={i}
-                  className="text-[12.5px] text-foreground/85 leading-snug flex flex-wrap gap-x-2"
-                >
-                  <span className="font-medium text-foreground">
-                    {t(`activity.kind.${a.kind}`, { defaultValue: a.kind })}
-                  </span>
-                  <span className="text-muted-foreground">·</span>
-                  <span>{t(`activity.level.${a.level}`)}</span>
-                  <span className="text-muted-foreground">·</span>
-                  <span>{lang === "zh-CN" ? a.area_zh : a.area}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-4">
+              {person.moments.map((m) => {
+                const prompt = getMomentPromptById(m.promptId);
+                return (
+                  <article key={m.id} className="border-l-2 border-border pl-3">
+                    {prompt && (
+                      <div className="text-[11px] text-muted-foreground italic leading-snug mb-1">
+                        {localizedMomentPrompt(prompt, lang)}
+                      </div>
+                    )}
+                    <p className="text-[14px] leading-[1.65] text-foreground">
+                      {lang === "zh-CN" ? m.answer_zh : m.answer}
+                    </p>
+                  </article>
+                );
+              })}
+            </div>
           </div>
         )}
       </SheetContent>

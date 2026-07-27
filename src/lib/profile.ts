@@ -32,11 +32,13 @@ export interface Profile {
   gender: Gender;        // optional
   orientation: Orientation; // optional
   mbti: string;          // optional, "" or one of 16 types
+  /** One-sentence self-introduction (≤ 140 chars). Optional. */
+  bio: string;
   // L2 specificity
   moments: ProfileMoment[];
   favorites: Favorite[];
   /** Field keys the user has chosen to hide from others.
-   *  Keys: "avatar", "age", "gender", "orientation", "mbti",
+   *  Keys: "avatar", "age", "gender", "orientation", "mbti", "bio",
    *        `moment:<promptId>`, `favorite:<index>` */
   hidden: string[];
 }
@@ -50,6 +52,7 @@ export const EMPTY_PROFILE: Profile = {
   gender: "",
   orientation: "",
   mbti: "",
+  bio: "",
   moments: [],
   favorites: [],
   hidden: [],

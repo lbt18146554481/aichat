@@ -203,6 +203,20 @@ export function ProfileForm({ lang, compact = false }: Props) {
             </select>
           </Field>
         </div>
+        <Field
+          label={`${t("profile.f.bio")} · ${t("profile.optional")}`}
+          hidden={isHidden(profile, "bio")}
+          onToggleHide={() => flipHide("bio")}
+        >
+          <textarea
+            value={profile.bio}
+            onChange={(e) => updateField("bio", e.target.value.slice(0, 140))}
+            placeholder={t("profile.f.bio_placeholder")}
+            rows={2}
+            maxLength={140}
+            className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14px] leading-relaxed resize-none"
+          />
+        </Field>
       </section>
 
 

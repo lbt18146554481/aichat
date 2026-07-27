@@ -552,6 +552,10 @@ export const PEOPLE: Person[] = CORE.map((p) => ({
   personBrief: DEMO_CONTENT[p.id]?.personBrief,
   openerSuggestion: DEMO_CONTENT[p.id]?.openerSuggestion,
   replyHints: DEMO_CONTENT[p.id]?.replyHints,
+  // Demo bio = personBrief (one-sentence self-introduction), so both
+  // the user's profile and demo people render from the same shape.
+  bio: DEMO_CONTENT[p.id]?.personBrief.en,
+  bio_zh: DEMO_CONTENT[p.id]?.personBrief.zh,
 }));
 
 
@@ -572,6 +576,7 @@ export function localized(person: Person, lang: Lang) {
     city: isZh ? person.city_zh : person.city,
     occupation: isZh ? person.occupation_zh : person.occupation,
     portrait: isZh ? person.portrait_zh : person.portrait,
+    bio: isZh ? (person.bio_zh ?? "") : (person.bio ?? ""),
   };
 }
 
