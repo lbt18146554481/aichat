@@ -4,7 +4,10 @@
 //   02 Moments     → other real people (Introduce Someone right pane)
 //   03 Favorites   → other real people (cultural taste; multi-entry)
 
-export type WorkKind = "book" | "film" | "music" | "exhibition" | "food" | "other";
+export type WorkKind = "book" | "film" | "music" | "exhibition" | "food" | "sport" | "other";
+
+export type Gender = "" | "female" | "male" | "nonbinary" | "prefer_not_to_say";
+export type Orientation = "" | "straight" | "gay" | "lesbian" | "bi" | "pan" | "asexual" | "prefer_not_to_say";
 
 export interface ProfileMoment {
   promptId: string;
@@ -26,6 +29,8 @@ export interface Profile {
   age: number | null;
   city: string;
   occupation: string;
+  gender: Gender;        // optional
+  orientation: Orientation; // optional
   mbti: string;          // optional, "" or one of 16 types
   // L2 specificity
   moments: ProfileMoment[];
@@ -38,6 +43,8 @@ export const EMPTY_PROFILE: Profile = {
   age: null,
   city: "",
   occupation: "",
+  gender: "",
+  orientation: "",
   mbti: "",
   moments: [],
   favorites: [],

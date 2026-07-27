@@ -150,9 +150,6 @@ export function Workspace({
             disabled={thinking || composerDisabled}
             placeholder={placeholderOverride ?? t(placeholderKey)}
           />
-          <p className="mt-2 text-[10.5px] text-muted-foreground text-center font-mono">
-            {t("chat.disclaimer")}
-          </p>
         </div>
       </div>
     </section>
