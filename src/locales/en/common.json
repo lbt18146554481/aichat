@@ -411,8 +411,27 @@
       "age": "Age",
       "city": "City",
       "occupation": "What you do",
+      "gender": "Gender",
+      "gender_placeholder": "Prefer not to say",
+      "orientation": "Orientation",
+      "orientation_placeholder": "Prefer not to say",
       "mbti": "MBTI",
       "mbti_placeholder": "Prefer not to say"
+    },
+    "gender": {
+      "female": "Female",
+      "male": "Male",
+      "nonbinary": "Non-binary",
+      "prefer_not_to_say": "Prefer not to say"
+    },
+    "orientation": {
+      "straight": "Straight",
+      "gay": "Gay",
+      "lesbian": "Lesbian",
+      "bi": "Bisexual",
+      "pan": "Pansexual",
+      "asexual": "Asexual",
+      "prefer_not_to_say": "Prefer not to say"
     },
     "avatar": {
       "upload": "Upload photo",
@@ -429,6 +448,7 @@
       "music": "Music",
       "exhibition": "Exhibition",
       "food": "Food",
+      "sport": "Sport",
       "other": "Other"
     },
     "moment": {
