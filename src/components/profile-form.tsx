@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Plus, BookOpen, Film, Music, Landmark, UtensilsCrossed, Sparkles } from "lucide-react";
+import { X, Plus, BookOpen, Film, Music, Landmark, UtensilsCrossed, Dumbbell, Sparkles, ChevronDown } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
 import {
@@ -25,6 +25,8 @@ import {
   updateFavorite,
   upsertMoment,
   type Favorite,
+  type Gender,
+  type Orientation,
   type Profile,
   type WorkKind,
 } from "@/lib/profile";
@@ -35,15 +37,18 @@ import {
   localizedMomentPrompt,
 } from "@/lib/questions";
 
-const WORK_KINDS: WorkKind[] = ["book", "film", "music", "exhibition", "food", "other"];
+const WORK_KINDS: WorkKind[] = ["book", "film", "music", "exhibition", "food", "sport", "other"];
 const KIND_ICONS: Record<WorkKind, LucideIcon> = {
   book: BookOpen,
   film: Film,
   music: Music,
   exhibition: Landmark,
   food: UtensilsCrossed,
+  sport: Dumbbell,
   other: Sparkles,
 };
+const GENDERS: Gender[] = ["female", "male", "nonbinary", "prefer_not_to_say"];
+const ORIENTATIONS: Orientation[] = ["straight", "gay", "lesbian", "bi", "pan", "asexual", "prefer_not_to_say"];
 const MBTI_TYPES = [
   "INTJ","INTP","ENTJ","ENTP",
   "INFJ","INFP","ENFJ","ENFP",
