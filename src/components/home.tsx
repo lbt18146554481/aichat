@@ -162,31 +162,6 @@ export function Home() {
 
           {/* Composer */}
           <div className="md:mt-8 sticky bottom-0 md:static z-10 bg-background md:bg-transparent -mx-5 md:mx-0 px-5 md:px-0 pb-[max(env(safe-area-inset-bottom),12px)] md:pb-0 pt-3 md:pt-0">
-            {/* Suggestion chips — above composer on desktop, Gemini-style */}
-            <div className="hidden md:flex flex-wrap items-center gap-2 mb-3">
-              {CHIPS.map((c) => {
-                const active = selected === c.id;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setSelected(active ? null : c.id)}
-                    className={[
-                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors",
-                      active
-                        ? "border-foreground/25 bg-surface text-foreground"
-                        : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/20",
-                    ].join(" ")}
-                    aria-pressed={active}
-                    suppressHydrationWarning
-                  >
-                    <c.Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
-                    <span suppressHydrationWarning>{t(c.labelKey)}</span>
-                  </button>
-                );
-              })}
-            </div>
-
             <div className="rounded-3xl border border-border bg-card shadow-sm-soft focus-within:border-foreground/30 transition-colors">
               <div className="px-4 md:px-5 pt-3 md:pt-4 pb-2">
                 <textarea
@@ -204,8 +179,8 @@ export function Home() {
               </div>
 
               <div className="px-2.5 md:px-3 pb-2.5 md:pb-3 pt-1 flex items-center justify-between gap-2">
-                {/* Mobile-only chip row inside composer to keep thumb reach */}
-                <div className="flex md:hidden flex-wrap items-center gap-1.5 pl-1.5">
+                {/* Suggestion chips inside the composer — same on all viewports */}
+                <div className="flex flex-wrap items-center gap-1.5 pl-1.5">
                   {CHIPS.map((c) => {
                     const active = selected === c.id;
                     return (
@@ -214,10 +189,10 @@ export function Home() {
                         type="button"
                         onClick={() => setSelected(active ? null : c.id)}
                         className={[
-                          "inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-[12px] transition-colors min-h-[36px]",
+                          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors",
                           active
                             ? "border-foreground/25 bg-surface text-foreground"
-                            : "border-border bg-card text-muted-foreground",
+                            : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/20",
                         ].join(" ")}
                         aria-pressed={active}
                         suppressHydrationWarning
@@ -228,7 +203,7 @@ export function Home() {
                     );
                   })}
                 </div>
-                <div className="hidden md:block flex-1" />
+
 
                 <button
                   type="button"

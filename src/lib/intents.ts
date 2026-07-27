@@ -344,10 +344,12 @@ function score(mine: Intent, other: Intent): number {
 
 function kindsCompatible(mine: Intent, other: Intent): boolean {
   if (mine.kind === "other" || other.kind === "other") {
-    // Match on keyword overlap in raw text.
+    // Match on keyword overlap in raw text. One overlap is enough — the demo
+    // pool is small and users say things in their own words, so requiring
+    // two shared tokens starves the match view.
     const a = tokenize((mine.rawText || "") + " " + (mine.rawText_zh || ""));
     const b = tokenize((other.rawText || "") + " " + (other.rawText_zh || ""));
-    return overlapCount(a, b) >= 2;
+    return overlapCount(a, b) >= 1;
   }
   return mine.kind === other.kind;
 }
@@ -358,7 +360,11 @@ type MatchOpts = { exclude?: string[]; excludeOwnerIds?: string[] };
 export type MatchQuality = "exact" | "relaxed-when" | "relaxed-level";
 
 /** Group compatible candidates into exact / relaxed-when / relaxed-level buckets.
- *  A person offered as `exact` is never also offered as relaxed. */
+ *  A person offered as `exact` is never also offered as relaxed.
+ *
+ *  Matching is same-city first. If nothing lines up in the user's city, we
+ *  fall back to a city-agnostic pass so the demo pool always has room to
+ *  produce a match. Real deployments would keep the hard city filter. */
 export function findCandidatesTiered(mine: Intent, opts?: MatchOpts): {
   exact: Intent[];
   relaxedWhen: Intent[];
@@ -369,42 +375,50 @@ export function findCandidatesTiered(mine: Intent, opts?: MatchOpts): {
   const mineWhen: WhenTier | undefined = mine.whenAny ? undefined : slotToWhen(mine.day, mine.window);
   const mineLevel: LevelTier | undefined = mine.levelAny ? undefined : mine.level;
 
-  const pool = [...seedPool(), ...loadMyIntents().filter((it) => it.id !== mine.id)]
-    .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id) && !excludedOwners.has(it.ownerId))
-    .filter((it) => sameCity(mine, it))
-    .filter((it) => kindsCompatible(mine, it));
+  const build = (respectCity: boolean) => {
+    const pool = [...seedPool(), ...loadMyIntents().filter((it) => it.id !== mine.id)]
+      .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id) && !excludedOwners.has(it.ownerId))
+      .filter((it) => (respectCity ? sameCity(mine, it) : true))
+      .filter((it) => kindsCompatible(mine, it));
 
-  const buckets: { exact: Intent[]; when: Intent[]; level: Intent[] } = { exact: [], when: [], level: [] };
-  for (const it of pool) {
-    const theirWhen: WhenTier = it.whenAny ? "any" : slotToWhen(it.day, it.window);
-    const kind = mine.kind !== "other" ? mine.kind : it.kind;
-    const theirLevel: LevelTier | undefined = it.levelAny ? undefined : it.level;
-    const whenOk = whenCompatible(mineWhen, theirWhen);
-    const levelOk = levelCompatible(kind, mineLevel, theirLevel ?? "intermediate");
-    if (whenOk && levelOk) buckets.exact.push(it);
-    else if (!whenOk && levelOk) buckets.when.push(it);
-    else if (whenOk && !levelOk) buckets.level.push(it);
-    // both off → drop
-  }
-
-  const finalize = (arr: Intent[], skipOwners: Set<string>) => {
-    arr.sort((a, b) => score(mine, b) - score(mine, a));
-    const seen = new Set<string>(skipOwners);
-    const out: Intent[] = [];
-    for (const it of arr) {
-      if (seen.has(it.ownerId)) continue;
-      seen.add(it.ownerId);
-      out.push(it);
+    const buckets: { exact: Intent[]; when: Intent[]; level: Intent[] } = { exact: [], when: [], level: [] };
+    for (const it of pool) {
+      const theirWhen: WhenTier = it.whenAny ? "any" : slotToWhen(it.day, it.window);
+      const kind = mine.kind !== "other" ? mine.kind : it.kind;
+      const theirLevel: LevelTier | undefined = it.levelAny ? undefined : it.level;
+      const whenOk = whenCompatible(mineWhen, theirWhen);
+      const levelOk = levelCompatible(kind, mineLevel, theirLevel ?? "intermediate");
+      if (whenOk && levelOk) buckets.exact.push(it);
+      else if (!whenOk && levelOk) buckets.when.push(it);
+      else if (whenOk && !levelOk) buckets.level.push(it);
     }
-    return out;
+
+    const finalize = (arr: Intent[], skipOwners: Set<string>) => {
+      arr.sort((a, b) => score(mine, b) - score(mine, a));
+      const seen = new Set<string>(skipOwners);
+      const out: Intent[] = [];
+      for (const it of arr) {
+        if (seen.has(it.ownerId)) continue;
+        seen.add(it.ownerId);
+        out.push(it);
+      }
+      return out;
+    };
+
+    const exact = finalize(buckets.exact, new Set());
+    const exactOwners = new Set(exact.map((i) => i.ownerId));
+    const relaxedWhen = finalize(buckets.when, exactOwners);
+    const relaxedOwners = new Set([...exactOwners, ...relaxedWhen.map((i) => i.ownerId)]);
+    const relaxedLevel = finalize(buckets.level, relaxedOwners);
+    return { exact, relaxedWhen, relaxedLevel };
   };
 
-  const exact = finalize(buckets.exact, new Set());
-  const exactOwners = new Set(exact.map((i) => i.ownerId));
-  const relaxedWhen = finalize(buckets.when, exactOwners);
-  const relaxedOwners = new Set([...exactOwners, ...relaxedWhen.map((i) => i.ownerId)]);
-  const relaxedLevel = finalize(buckets.level, relaxedOwners);
-  return { exact, relaxedWhen, relaxedLevel };
+  const strict = build(true);
+  if (strict.exact.length + strict.relaxedWhen.length + strict.relaxedLevel.length > 0) {
+    return strict;
+  }
+  // No one in-city — widen so the demo pool can still surface a match.
+  return build(false);
 }
 
 /** All exact-match partners (sorted best-first), one best intent per person. */

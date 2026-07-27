@@ -35,6 +35,10 @@ export interface Profile {
   // L2 specificity
   moments: ProfileMoment[];
   favorites: Favorite[];
+  /** Field keys the user has chosen to hide from others.
+   *  Keys: "avatar", "age", "gender", "orientation", "mbti",
+   *        `moment:<promptId>`, `favorite:<index>` */
+  hidden: string[];
 }
 
 export const EMPTY_PROFILE: Profile = {
@@ -48,7 +52,19 @@ export const EMPTY_PROFILE: Profile = {
   mbti: "",
   moments: [],
   favorites: [],
+  hidden: [],
 };
+
+/** Is this field currently hidden from others? */
+export function isHidden(p: Profile, key: string): boolean {
+  return Array.isArray(p.hidden) && p.hidden.includes(key);
+}
+
+/** Flip the visibility of one field. */
+export function toggleHidden(p: Profile, key: string): Profile {
+  const cur = Array.isArray(p.hidden) ? p.hidden : [];
+  return { ...p, hidden: cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key] };
+}
 
 
 export const MIN_MOMENTS = 3;
@@ -62,6 +78,7 @@ interface LegacyProfile extends Partial<Profile> {
   oneWork?: { kind: WorkKind; title: string; why: string } | null;
   compatibility?: unknown;
   activities?: unknown;
+  hidden?: string[];
 }
 
 export function loadProfile(): Profile {
@@ -83,6 +100,7 @@ export function loadProfile(): Profile {
       ...rest,
       moments: Array.isArray(parsed.moments) ? parsed.moments : [],
       favorites,
+      hidden: Array.isArray(parsed.hidden) ? (parsed.hidden as string[]) : [],
     };
   } catch {
     return EMPTY_PROFILE;
