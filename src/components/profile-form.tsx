@@ -413,15 +413,20 @@ function FavoriteRow({
         />
       </div>
 
-      {onRemove && (
-        <button
-          onClick={onRemove}
-          aria-label={t("profile.favorite.remove")}
-          className="mt-1.5 p-1 text-muted-foreground/0 group-hover:text-muted-foreground hover:!text-foreground transition-colors"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
-      )}
+      <div className="mt-1.5 flex items-center gap-0.5">
+        {onToggleHide && (favorite.title.trim() || favorite.why.trim()) && (
+          <VisibilityToggle hidden={!!hidden} onClick={onToggleHide} />
+        )}
+        {onRemove && (
+          <button
+            onClick={onRemove}
+            aria-label={t("profile.favorite.remove")}
+            className="p-1 text-muted-foreground/0 group-hover:text-muted-foreground hover:!text-foreground transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
     </li>
   );
 }
