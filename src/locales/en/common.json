@@ -202,6 +202,13 @@
     "opening": "What do you want to do this week — and want company for? Just say it in your own words. If someone in the pool is waiting on the same thing, I'll match you two.",
     "empty_title": "Two-way match, one person at a time.",
     "empty_hint": "Say a thing you want to do with someone — when both sides have published the same wish, that's a match.",
+    "examples_label": "What a match looks like",
+    "examples": [
+      "Saturday morning tennis in Shanghai · intermediate — matched with Mia, a copywriter who plays casually on weekends.",
+      "Weeknight run along the river in Beijing · easy pace — matched with Leo, warm-up 6:30pm.",
+      "Sunday afternoon at a new bookstore in Chengdu — matched with Yuki, who's been meaning to visit the same one."
+    ],
+    "examples_footnote": "Both of you publish. When the activity, time and city line up, we surface the match here — chat starts immediately.",
     "truncated_hint": "That's a lot — I only pulled keywords from the first part.",
     "heard": "Heard: {{summary}}.",
     "disambiguate_ask": "Which one did you mean?",
