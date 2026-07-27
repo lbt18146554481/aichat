@@ -299,35 +299,19 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
             <p className="mt-0.5 text-[12.5px] text-muted-foreground">
               {loc.occupation} · {loc.city}
             </p>
-            {loc.portrait && (
+            {loc.bio ? (
+              <p className="mt-1.5 text-[12.5px] text-muted-foreground leading-relaxed">
+                {loc.bio}
+              </p>
+            ) : loc.portrait ? (
               <p className="mt-1.5 text-[12.5px] text-muted-foreground leading-relaxed">
                 {loc.portrait}
               </p>
-            )}
+            ) : null}
           </div>
         </button>
 
-        {/* Signals — compact chip row directly under header */}
-        {signalChips.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-1.5">
-            {signalChips.map((s) => (
-              <span
-                key={s}
-                className="inline-flex items-center px-2 py-0.5 rounded-full border border-border bg-secondary text-[11px] text-foreground/85"
-              >
-                {t(`signal.${s}`, { defaultValue: s })}
-              </span>
-            ))}
-          </div>
-        )}
 
-        {/* Agent's footnote — one italic muted line, reads as a note not a block */}
-        {angleText && (
-          <p className="mt-3 text-[12.5px] text-muted-foreground leading-relaxed italic">
-            <span className="mr-1 not-italic text-muted-foreground/70">⌇</span>
-            {angleText}
-          </p>
-        )}
 
         {/* One Moment — TA's own voice, clickable to quote & compose */}
         {moments.length > 0 && (
