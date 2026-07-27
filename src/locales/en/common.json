@@ -421,7 +421,9 @@
       "orientation": "Orientation",
       "orientation_placeholder": "Prefer not to say",
       "mbti": "MBTI",
-      "mbti_placeholder": "Prefer not to say"
+      "mbti_placeholder": "Prefer not to say",
+      "bio": "One-sentence intro",
+      "bio_placeholder": "One sentence about you — short, specific, true."
     },
     "gender": {
       "female": "Female",
