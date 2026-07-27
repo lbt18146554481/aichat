@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Plus, BookOpen, Film, Music, Landmark, UtensilsCrossed, Dumbbell, Sparkles, ChevronDown } from "lucide-react";
+import { X, Plus, BookOpen, Film, Music, Landmark, UtensilsCrossed, Dumbbell, Sparkles, ChevronDown, Eye, EyeOff } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
 import {
@@ -17,11 +17,13 @@ import {
   MIN_MOMENTS,
   MAX_FAVORITES,
   addFavorite,
+  isHidden,
   isProfileComplete,
   loadProfile,
   removeFavorite,
   removeMoment,
   saveProfile,
+  toggleHidden,
   updateFavorite,
   upsertMoment,
   type Favorite,
@@ -84,6 +86,9 @@ export function ProfileForm({ lang, compact = false }: Props) {
   function dropMoment(promptId: string) {
     setProfile((p) => removeMoment(p, promptId));
   }
+  function flipHide(key: string) {
+    setProfile((p) => toggleHidden(p, key));
+  }
   function handleAddFavorite() {
     setProfile((p) => addFavorite(p, { kind: "book", title: "", why: "" }));
   }
@@ -111,6 +116,8 @@ export function ProfileForm({ lang, compact = false }: Props) {
         <AvatarField
           value={profile.avatar}
           name={profile.name}
+          hidden={isHidden(profile, "avatar")}
+          onToggleHide={() => flipHide("avatar")}
           onChange={(dataUrl) => updateField("avatar", dataUrl)}
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -121,7 +128,11 @@ export function ProfileForm({ lang, compact = false }: Props) {
               className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
             />
           </Field>
-          <Field label={t("profile.f.age")}>
+          <Field
+            label={t("profile.f.age")}
+            hidden={isHidden(profile, "age")}
+            onToggleHide={() => flipHide("age")}
+          >
             <input
               type="number" min={18} max={99}
               value={profile.age ?? ""}
@@ -143,7 +154,11 @@ export function ProfileForm({ lang, compact = false }: Props) {
               className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
             />
           </Field>
-          <Field label={`${t("profile.f.gender")} · ${t("profile.optional")}`}>
+          <Field
+            label={`${t("profile.f.gender")} · ${t("profile.optional")}`}
+            hidden={isHidden(profile, "gender")}
+            onToggleHide={() => flipHide("gender")}
+          >
             <select
               value={profile.gender}
               onChange={(e) => updateField("gender", e.target.value as Gender)}
@@ -155,7 +170,11 @@ export function ProfileForm({ lang, compact = false }: Props) {
               ))}
             </select>
           </Field>
-          <Field label={`${t("profile.f.orientation")} · ${t("profile.optional")}`}>
+          <Field
+            label={`${t("profile.f.orientation")} · ${t("profile.optional")}`}
+            hidden={isHidden(profile, "orientation")}
+            onToggleHide={() => flipHide("orientation")}
+          >
             <select
               value={profile.orientation}
               onChange={(e) => updateField("orientation", e.target.value as Orientation)}
@@ -167,7 +186,11 @@ export function ProfileForm({ lang, compact = false }: Props) {
               ))}
             </select>
           </Field>
-          <Field label={`${t("profile.f.mbti")} · ${t("profile.optional")}`}>
+          <Field
+            label={`${t("profile.f.mbti")} · ${t("profile.optional")}`}
+            hidden={isHidden(profile, "mbti")}
+            onToggleHide={() => flipHide("mbti")}
+          >
             <select
               value={profile.mbti}
               onChange={(e) => updateField("mbti", e.target.value)}
@@ -181,6 +204,7 @@ export function ProfileForm({ lang, compact = false }: Props) {
           </Field>
         </div>
       </section>
+
 
       {/* — 02 Moments — */}
       <section className="space-y-4">
@@ -211,15 +235,23 @@ export function ProfileForm({ lang, compact = false }: Props) {
                       {localizedHint(p, lang)}
                     </div>
                   </div>
-                  {active && (
-                    <button
-                      onClick={() => dropMoment(p.id)}
-                      aria-label={t("profile.moment.remove")}
-                      className="shrink-0 p-1 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                  <div className="shrink-0 flex items-center gap-1">
+                    {active && (
+                      <VisibilityToggle
+                        hidden={isHidden(profile, `moment:${p.id}`)}
+                        onClick={() => flipHide(`moment:${p.id}`)}
+                      />
+                    )}
+                    {active && (
+                      <button
+                        onClick={() => dropMoment(p.id)}
+                        aria-label={t("profile.moment.remove")}
+                        className="p-1 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <textarea
                   rows={active ? 3 : 1}
@@ -258,6 +290,8 @@ export function ProfileForm({ lang, compact = false }: Props) {
                 else if (capped.length > 0) setProfile((p) => addFavorite(p, { ...f, why: capped }));
               }}
               onRemove={hasStoredFavs ? () => dropFavorite(i) : undefined}
+              hidden={hasStoredFavs ? isHidden(profile, `favorite:${i}`) : false}
+              onToggleHide={hasStoredFavs ? () => flipHide(`favorite:${i}`) : undefined}
             />
           ))}
         </ul>
@@ -298,12 +332,16 @@ function FavoriteRow({
   onTitle,
   onWhy,
   onRemove,
+  hidden,
+  onToggleHide,
 }: {
   favorite: Favorite;
   onKind: (k: WorkKind) => void;
   onTitle: (v: string) => void;
   onWhy: (v: string) => void;
   onRemove?: () => void;
+  hidden?: boolean;
+  onToggleHide?: () => void;
 }) {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -375,15 +413,20 @@ function FavoriteRow({
         />
       </div>
 
-      {onRemove && (
-        <button
-          onClick={onRemove}
-          aria-label={t("profile.favorite.remove")}
-          className="mt-1.5 p-1 text-muted-foreground/0 group-hover:text-muted-foreground hover:!text-foreground transition-colors"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
-      )}
+      <div className="mt-1.5 flex items-center gap-0.5">
+        {onToggleHide && (favorite.title.trim() || favorite.why.trim()) && (
+          <VisibilityToggle hidden={!!hidden} onClick={onToggleHide} />
+        )}
+        {onRemove && (
+          <button
+            onClick={onRemove}
+            aria-label={t("profile.favorite.remove")}
+            className="p-1 text-muted-foreground/0 group-hover:text-muted-foreground hover:!text-foreground transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
     </li>
   );
 }
@@ -409,22 +452,62 @@ function SectionHeader({ index, title, hint, badge }: {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hidden,
+  onToggleHide,
+  children,
+}: {
+  label: string;
+  hidden?: boolean;
+  onToggleHide?: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <label className="block">
-      <span className="text-[10.5px] font-mono uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="flex items-center justify-between gap-2">
+        <span className="text-[10.5px] font-mono uppercase tracking-wide text-muted-foreground">{label}</span>
+        {onToggleHide && (
+          <VisibilityToggle hidden={!!hidden} onClick={onToggleHide} />
+        )}
+      </span>
       {children}
     </label>
+  );
+}
+
+function VisibilityToggle({ hidden, onClick }: { hidden: boolean; onClick: () => void }) {
+  const { t } = useTranslation();
+  const Icon = hidden ? EyeOff : Eye;
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.preventDefault(); onClick(); }}
+      aria-label={hidden ? t("profile.visibility.show") : t("profile.visibility.hide")}
+      title={hidden ? t("profile.visibility.hidden_hint") : t("profile.visibility.shown_hint")}
+      className={
+        "inline-flex items-center justify-center w-6 h-6 rounded-full transition-colors " +
+        (hidden
+          ? "text-muted-foreground/70 hover:text-foreground"
+          : "text-muted-foreground/40 hover:text-foreground")
+      }
+    >
+      <Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
+    </button>
   );
 }
 
 function AvatarField({
   value,
   name,
+  hidden,
+  onToggleHide,
   onChange,
 }: {
   value: string;
   name: string;
+  hidden?: boolean;
+  onToggleHide?: () => void;
   onChange: (dataUrl: string) => void;
 }) {
   const { t } = useTranslation();
@@ -478,6 +561,9 @@ function AvatarField({
               {t("profile.avatar.remove")}
             </button>
           )}
+          {value && onToggleHide && (
+            <VisibilityToggle hidden={!!hidden} onClick={onToggleHide} />
+          )}
         </div>
         <p className="text-[11.5px] text-muted-foreground leading-snug">
           {error ?? t("profile.avatar.hint")}
@@ -490,11 +576,19 @@ function AvatarField({
 
 function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
   const { t } = useTranslation();
-  const favs = profile.favorites.filter((f) => f.title.trim() && f.why.trim()).slice(0, 3);
+  // Respect the user's per-field visibility toggles here — the preview is
+  // the truth of what others will see.
+  const showAvatar = !isHidden(profile, "avatar") && !!profile.avatar;
+  const showAge = !isHidden(profile, "age") && profile.age != null;
+  const showMbti = !isHidden(profile, "mbti") && !!profile.mbti;
+  const favs = profile.favorites
+    .map((f, i) => ({ f, i }))
+    .filter(({ f, i }) => f.title.trim() && f.why.trim() && !isHidden(profile, `favorite:${i}`))
+    .slice(0, 3);
   return (
     <div className="rounded-xl border border-border bg-card px-5 py-5">
       <div className="flex items-start gap-4">
-        {profile.avatar ? (
+        {showAvatar ? (
           <img src={profile.avatar} alt="" className="w-14 h-14 rounded-full object-cover border border-border shrink-0" />
         ) : (
           <div className="w-14 h-14 rounded-full border border-border bg-secondary/60 flex items-center justify-center shrink-0">
@@ -506,8 +600,10 @@ function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
         <div className="min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
             <h3 className="text-[18px] font-semibold tracking-tight text-foreground">{profile.name}</h3>
-            <span className="text-[12px] font-mono text-muted-foreground tabular-nums">{profile.age}</span>
-            {profile.mbti && (
+            {showAge && (
+              <span className="text-[12px] font-mono text-muted-foreground tabular-nums">{profile.age}</span>
+            )}
+            {showMbti && (
               <span className="text-[10.5px] font-mono uppercase tracking-wide text-muted-foreground">{profile.mbti}</span>
             )}
           </div>
@@ -517,19 +613,21 @@ function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
 
 
       <div className="mt-6 space-y-4">
-        {profile.moments.filter((m) => m.answer.trim()).map((m) => {
-          const prompt = getMomentPromptById(m.promptId);
-          return (
-            <article key={m.promptId} className="border-l-2 border-border pl-3">
-              {prompt && (
-                <div className="text-[11px] text-muted-foreground italic mb-1">
-                  {localizedMomentPrompt(prompt, lang)}
-                </div>
-              )}
-              <p className="text-[14px] leading-[1.65] text-foreground">{m.answer}</p>
-            </article>
-          );
-        })}
+        {profile.moments
+          .filter((m) => m.answer.trim() && !isHidden(profile, `moment:${m.promptId}`))
+          .map((m) => {
+            const prompt = getMomentPromptById(m.promptId);
+            return (
+              <article key={m.promptId} className="border-l-2 border-border pl-3">
+                {prompt && (
+                  <div className="text-[11px] text-muted-foreground italic mb-1">
+                    {localizedMomentPrompt(prompt, lang)}
+                  </div>
+                )}
+                <p className="text-[14px] leading-[1.65] text-foreground">{m.answer}</p>
+              </article>
+            );
+          })}
       </div>
 
       {favs.length > 0 && (
@@ -538,7 +636,7 @@ function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
             {t("intro.favorites_label")}
           </div>
           <ul className="space-y-2">
-            {favs.map((f, i) => {
+            {favs.map(({ f, i }) => {
               const Icon = KIND_ICONS[f.kind];
               return (
                 <li key={i} className="flex items-start gap-2.5 text-[13px] leading-snug">
