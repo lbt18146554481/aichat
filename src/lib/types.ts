@@ -62,6 +62,9 @@ export interface Person {
   occupation_zh: string;
   portrait: string;
   portrait_zh: string;
+  /** One-sentence self-introduction — the public "bio" field. */
+  bio?: string;
+  bio_zh?: string;
   signals: string[];
   angles: Angle[];
   activities: Activity[];
