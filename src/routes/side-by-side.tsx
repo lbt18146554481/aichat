@@ -540,65 +540,29 @@ function SideBySidePage() {
     }
   }
 
-  function handleStartChat() { actWith((s) => startChat(s)); }
-  function handleRevoke()    { actWith((s) => revokeAndReset(s, sessionId)); }
-  function handleTryNearMiss(intentId: string) { actWith((s) => tryNearMiss(s, intentId)); }
+  // Right-pane actions are silent on the left Agent — they don't inject
+  // narration into the private chat. The user's own typed prompts still do.
+  function handleStartChat() { setState((s) => startChat(s)); }
+  function handleRevoke()    { setState((s) => revokeAndReset(s, sessionId)); }
+  function handleTryNearMiss(intentId: string) { setState((s) => tryNearMiss(s, intentId)); }
   function handleSave() {
-    setThinking(true);
-    window.setTimeout(() => {
-      const current = stateRef.current;
-      const currentId = current.matchIntentId;
-      // Global saved writes are side effects; run them once outside React's
-      // state updater so StrictMode cannot double-toggle Save.
-      const wasSaved = currentId ? isSavedGlobal(currentId) : false;
-      const next = saveCurrent(current, sessionId);
-      const line = wasSaved
-        ? t("intent.narrate_unsaved")
-        : t("intent.narrate_saved");
-      setState({ ...next, messages: [...next.messages, msg("assistant", line)] });
-      setThinking(false);
-    }, 220);
+    setState((s) => saveCurrent(s, sessionId));
   }
 
   function handleUnsave(intentId: string) {
     setState((s) => unsave(s, intentId));
   }
   function handleChatWithSaved(intentId: string) {
-    actWith((s) => chatWithSaved(s, intentId));
+    setState((s) => chatWithSaved(s, intentId));
   }
   function handleEditWish(patch: { when?: WhenTier; level?: LevelTier; city?: string }) {
-    const bits: string[] = [];
-    if (patch.when) bits.push(t(`meet.when.${patch.when}`));
-    if (patch.level) bits.push(t(`meet.level.${patch.level}`));
-    if (patch.city !== undefined) {
-      const label = patch.city.trim() || loadProfile().city;
-      if (label) bits.push(label);
-    }
-    const userText = bits.length ? t("intent.edited_user_msg", { changes: bits.join(" · ") }) : undefined;
-    actWith((s) => editWish(s, patch), userText);
+    setState((s) => editWish(s, patch));
   }
   function handleSkip() {
-    setThinking(true);
-    window.setTimeout(() => {
-      setState((s) => {
-        const next = skipMatch(s);
-        const line = next.matchIntentId
-          ? t("intent.narrate_next_match")
-          : t("intent.narrate_pool_exhausted");
-        return { ...next, messages: [...next.messages, msg("assistant", line)] };
-      });
-      setThinking(false);
-    }, 320);
+    setState((s) => skipMatch(s));
   }
   function handleRevokeReshare() {
-    setThinking(true);
-    window.setTimeout(() => {
-      setState((s) => {
-        const next = revokeAndReset(s, sessionId);
-        return { ...next, messages: [...next.messages, msg("assistant", t("intent.narrate_revoked"))] };
-      });
-      setThinking(false);
-    }, 320);
+    setState((s) => revokeAndReset(s, sessionId));
   }
   function handleSendChat(text: string) {
     setState((s) => sendChatMessage(s, text));
@@ -607,6 +571,7 @@ function SideBySidePage() {
 
   function handleBackToCandidate() { setState((s) => backToCandidate(s)); }
   function handleDraftConsumed()   { setState((s) => clearPendingDraft(s)); }
+
 
   // "New wish" from the header — go home, focus composer, start fresh.
   function handleReset() {
