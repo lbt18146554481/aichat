@@ -116,9 +116,13 @@ export function Home() {
                 to="/connections"
                 className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               >
-                <MessageCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
+                <MessageCircle className={`w-3.5 h-3.5 ${unseen ? "text-red-500" : ""}`} strokeWidth={1.75} />
                 <span suppressHydrationWarning>{mounted ? t("home.connections") : ""}</span>
-                {unseen && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-primary" />}
+                {unseen && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-500 text-white text-[10px] font-medium leading-[16px] text-center ring-2 ring-background">
+                    •
+                  </span>
+                )}
               </Link>
             )}
             {mounted && user && <SavedTrigger />}
