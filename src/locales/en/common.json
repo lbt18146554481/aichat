@@ -392,6 +392,12 @@
       "favorites_hint": "A book, a film, a record, a show, a dish — one line each on why it stayed with you. Start with one book."
     },
     "optional": "Optional",
+    "visibility": {
+      "hide": "Hide from others",
+      "show": "Show to others",
+      "hidden_hint": "Hidden — nobody but you sees this.",
+      "shown_hint": "Visible to people you meet."
+    },
     "favorite": {
       "remove": "Remove",
       "why_placeholder": "One line — why it stayed",
