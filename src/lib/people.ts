@@ -576,6 +576,7 @@ export function localized(person: Person, lang: Lang) {
     city: isZh ? person.city_zh : person.city,
     occupation: isZh ? person.occupation_zh : person.occupation,
     portrait: isZh ? person.portrait_zh : person.portrait,
+    bio: isZh ? (person.bio_zh ?? "") : (person.bio ?? ""),
   };
 }
 
