@@ -552,6 +552,10 @@ export const PEOPLE: Person[] = CORE.map((p) => ({
   personBrief: DEMO_CONTENT[p.id]?.personBrief,
   openerSuggestion: DEMO_CONTENT[p.id]?.openerSuggestion,
   replyHints: DEMO_CONTENT[p.id]?.replyHints,
+  // Demo bio = personBrief (one-sentence self-introduction), so both
+  // the user's profile and demo people render from the same shape.
+  bio: DEMO_CONTENT[p.id]?.personBrief.en,
+  bio_zh: DEMO_CONTENT[p.id]?.personBrief.zh,
 }));
 
 
