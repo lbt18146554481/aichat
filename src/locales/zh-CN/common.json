@@ -392,6 +392,12 @@
       "favorites_hint": "书、电影、音乐、展览、食物——每样写一句为什么留下了。可以先从一本书开始。"
     },
     "optional": "可选",
+    "visibility": {
+      "hide": "对他人隐藏",
+      "show": "对他人显示",
+      "hidden_hint": "已隐藏——只有你能看到。",
+      "shown_hint": "会展示给你遇到的人。"
+    },
     "favorite": {
       "remove": "移除",
       "why_placeholder": "一句话——为什么它留下了",
