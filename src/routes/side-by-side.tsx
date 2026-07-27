@@ -211,7 +211,8 @@ function SideBySidePage() {
     const city = loadProfile().city.trim();
     if (!city) {
       try {
-        window.sessionStorage.setItem("kindred:profile:return", "/side-by-side");
+        const url = window.location.pathname + window.location.search;
+        window.sessionStorage.setItem("kindred:profile:return", url);
         window.sessionStorage.setItem("kindred:profile:focus", "city");
       } catch {}
       void navigate({ to: "/profile" });

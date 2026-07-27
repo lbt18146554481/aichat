@@ -59,18 +59,40 @@ export function MeetCanvas(props: Props) {
 
 function EmptyCanvas() {
   const { t } = useTranslation();
+  const examples = t("meet.examples", { returnObjects: true }) as unknown;
+  const exampleList = Array.isArray(examples) ? (examples as string[]) : [];
   return (
-    <div className="h-full grid place-items-center px-8 py-12">
-      <div className="max-w-sm text-center">
+    <div className="h-full overflow-y-auto px-6 py-10">
+      <div className="mx-auto max-w-md">
         <div className="mx-auto w-14 h-14 rounded-full bg-secondary border border-border grid place-items-center text-muted-foreground">
           <Users className="w-6 h-6" />
         </div>
-        <h2 className="mt-5 text-[18px] font-medium text-foreground leading-snug">
+        <h2 className="mt-5 text-[18px] font-medium text-foreground leading-snug text-center">
           {t("meet.empty_title")}
         </h2>
-        <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed">
+        <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed text-center">
           {t("meet.empty_hint")}
         </p>
+
+        {exampleList.length > 0 && (
+          <section className="mt-8">
+            <div className="text-[10px] uppercase tracking-[0.18em] font-mono text-muted-foreground text-center">
+              {t("meet.examples_label")}
+            </div>
+            <ul className="mt-3 space-y-2">
+              {exampleList.map((ex, i) => (
+                <li key={i} className="rounded-xl border border-border bg-card px-4 py-3 text-[13px] text-foreground/85 leading-relaxed">
+                  <span className="text-muted-foreground mr-1.5">“</span>
+                  {ex}
+                  <span className="text-muted-foreground ml-0.5">”</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-[11.5px] text-muted-foreground leading-relaxed text-center">
+              {t("meet.examples_footnote")}
+            </p>
+          </section>
+        )}
       </div>
     </div>
   );

@@ -51,7 +51,8 @@ function ProfilePage() {
 
   // Once the profile is complete, return the user to whatever they were
   // doing before landing here — the say-hello flow, a wish canvas, or the
-  // signup welcome return. Falls back to home when nothing is stored.
+  // signup welcome return. Full URL (path + query) is stored so we land
+  // back on the exact session, not a bare route.
   useEffect(() => {
     if (!isProfileComplete(loadProfile())) return;
     let back: string | null = null;
@@ -64,7 +65,9 @@ function ProfilePage() {
       window.sessionStorage.removeItem("kindred:profile:focus");
     } catch { /* noop */ }
     const dest = back && back.startsWith("/") ? back : "/";
-    void navigate({ to: dest as "/", replace: true });
+    // Use a full location change so any `?session=…` query is preserved
+    // and the target route re-parses its search params.
+    window.location.assign(dest);
   }, [progress, navigate]);
 
   function handleBack() {
@@ -74,17 +77,21 @@ function ProfilePage() {
       window.sessionStorage.removeItem("kindred:profile:return");
       window.sessionStorage.removeItem("kindred:profile:focus");
     } catch { /* noop */ }
-    if (back === "/matchmaker") void navigate({ to: "/matchmaker" });
-    else if (back === "/side-by-side") void navigate({ to: "/side-by-side" });
-    else void navigate({ to: "/" });
+    if (back && back.startsWith("/")) {
+      window.location.assign(back);
+      return;
+    }
+    void navigate({ to: "/" });
   }
 
   if (!ready || !hydrated) return <div className="min-h-screen bg-background" />;
 
+  const isMatchmakerReturn = returnTo?.startsWith("/matchmaker");
+  const isSideBySideReturn = returnTo?.startsWith("/side-by-side");
   const backLabel =
-    returnTo === "/matchmaker"
+    isMatchmakerReturn
       ? t("hello.gate.back_to_matchmaker")
-      : returnTo === "/side-by-side"
+      : isSideBySideReturn
       ? t("hello.gate.back_to_sidebyside")
       : isWelcome
       ? t("profile.skip_for_now")
