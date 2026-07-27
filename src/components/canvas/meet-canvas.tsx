@@ -249,14 +249,12 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
 
       </div>
 
-      <PersonProfileSheet
+      <PublicProfileSheet
+        person={getPersonById(other.ownerId) ?? null}
         open={openProfile}
         onOpenChange={setOpenProfile}
-        mine={mine}
-        other={other}
-        lang={lang}
-        onStartChat={() => { setOpenProfile(false); onStartChat(); }}
       />
+
 
     </div>
   );
