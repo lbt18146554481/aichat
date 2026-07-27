@@ -46,7 +46,7 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer
 export function UserBubble({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[80%] rounded-2xl rounded-br-md bg-primary text-primary-foreground px-4 py-2.5 text-[14px] leading-relaxed">
+      <div className="max-w-[80%] rounded-2xl rounded-br-md bg-secondary text-foreground px-4 py-2.5 text-[14px] leading-relaxed border border-border/60">
         {text}
       </div>
     </div>

@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Plus, BookOpen, Film, Music, Landmark, UtensilsCrossed, Sparkles } from "lucide-react";
+import { X, Plus, BookOpen, Film, Music, Landmark, UtensilsCrossed, Dumbbell, Sparkles, ChevronDown } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
 import {
@@ -25,6 +25,8 @@ import {
   updateFavorite,
   upsertMoment,
   type Favorite,
+  type Gender,
+  type Orientation,
   type Profile,
   type WorkKind,
 } from "@/lib/profile";
@@ -35,15 +37,18 @@ import {
   localizedMomentPrompt,
 } from "@/lib/questions";
 
-const WORK_KINDS: WorkKind[] = ["book", "film", "music", "exhibition", "food", "other"];
+const WORK_KINDS: WorkKind[] = ["book", "film", "music", "exhibition", "food", "sport", "other"];
 const KIND_ICONS: Record<WorkKind, LucideIcon> = {
   book: BookOpen,
   film: Film,
   music: Music,
   exhibition: Landmark,
   food: UtensilsCrossed,
+  sport: Dumbbell,
   other: Sparkles,
 };
+const GENDERS: Gender[] = ["female", "male", "nonbinary", "prefer_not_to_say"];
+const ORIENTATIONS: Orientation[] = ["straight", "gay", "lesbian", "bi", "pan", "asexual", "prefer_not_to_say"];
 const MBTI_TYPES = [
   "INTJ","INTP","ENTJ","ENTP",
   "INFJ","INFP","ENFJ","ENFP",
@@ -137,6 +142,30 @@ export function ProfileForm({ lang, compact = false }: Props) {
               onChange={(e) => updateField("occupation", e.target.value)}
               className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
             />
+          </Field>
+          <Field label={`${t("profile.f.gender")} · ${t("profile.optional")}`}>
+            <select
+              value={profile.gender}
+              onChange={(e) => updateField("gender", e.target.value as Gender)}
+              className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
+            >
+              <option value="">{t("profile.f.gender_placeholder")}</option>
+              {GENDERS.map((g) => (
+                <option key={g} value={g}>{t(`profile.gender.${g}`)}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label={`${t("profile.f.orientation")} · ${t("profile.optional")}`}>
+            <select
+              value={profile.orientation}
+              onChange={(e) => updateField("orientation", e.target.value as Orientation)}
+              className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
+            >
+              <option value="">{t("profile.f.orientation_placeholder")}</option>
+              {ORIENTATIONS.map((o) => (
+                <option key={o} value={o}>{t(`profile.orientation.${o}`)}</option>
+              ))}
+            </select>
           </Field>
           <Field label={`${t("profile.f.mbti")} · ${t("profile.optional")}`}>
             <select
@@ -292,18 +321,20 @@ function FavoriteRow({
 
   return (
     <li ref={rootRef} className="group relative flex items-start gap-3 py-3">
-      <div className="relative pt-1.5">
+      <div className="relative pt-0.5">
         <button
           type="button"
           onClick={() => setPickerOpen((v) => !v)}
           aria-label={t("profile.favorite.kind_label")}
-          title={t(`profile.kind.${favorite.kind}`)}
-          className="w-7 h-7 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-foreground/50 flex items-center justify-center transition-colors"
+          aria-expanded={pickerOpen}
+          className="inline-flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-full border border-border bg-secondary/60 text-[11.5px] text-foreground/80 hover:border-foreground/40 hover:text-foreground transition-colors"
         >
           <Icon className="w-3.5 h-3.5" />
+          <span>{t(`profile.kind.${favorite.kind}`)}</span>
+          <ChevronDown className={"w-3 h-3 transition-transform " + (pickerOpen ? "rotate-180" : "")} />
         </button>
         {pickerOpen && (
-          <div className="absolute left-0 top-9 z-10 rounded-lg border border-border bg-popover shadow-md p-1 flex gap-0.5">
+          <div className="absolute left-0 top-9 z-10 rounded-lg border border-border bg-popover shadow-md p-1 flex flex-col min-w-[9rem]">
             {WORK_KINDS.map((k) => {
               const KI = KIND_ICONS[k];
               const active = favorite.kind === k;
@@ -312,13 +343,15 @@ function FavoriteRow({
                   key={k}
                   type="button"
                   onClick={() => { onKind(k); setPickerOpen(false); }}
-                  title={t(`profile.kind.${k}`)}
                   className={
-                    "w-7 h-7 rounded-md flex items-center justify-center transition-colors " +
-                    (active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground")
+                    "flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12.5px] text-left transition-colors " +
+                    (active
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground/80 hover:bg-secondary hover:text-foreground")
                   }
                 >
                   <KI className="w-3.5 h-3.5" />
+                  <span>{t(`profile.kind.${k}`)}</span>
                 </button>
               );
             })}

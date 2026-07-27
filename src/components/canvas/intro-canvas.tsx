@@ -182,7 +182,8 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     const p = loadProfile();
     if (!hasName(p) || !isVitalsComplete(p)) {
       try {
-        window.sessionStorage.setItem("kindred:profile:return", "/matchmaker");
+        const url = window.location.pathname + window.location.search;
+        window.sessionStorage.setItem("kindred:profile:return", url);
       } catch { /* noop */ }
       void navigate({ to: "/profile" });
       return;

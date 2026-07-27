@@ -236,10 +236,10 @@ export function ConnectionThread({ personId }: Props) {
         </div>
       </div>
 
-      {/* Bottom: composer or state footer */}
-      <div className="border-t border-border bg-background px-4 py-3">
-        <div className="max-w-md mx-auto">
-          {composerEnabled ? (
+      {/* Bottom: composer only when the conversation is actionable. */}
+      {composerEnabled && (
+        <div className="border-t border-border bg-background px-4 py-3">
+          <div className="max-w-md mx-auto">
             <div className="relative">
               <textarea
                 value={text}
@@ -259,24 +259,9 @@ export function ConnectionThread({ personId }: Props) {
                 <ArrowUp className="w-4 h-4" />
               </button>
             </div>
-          ) : isSent ? (
-            <p className="text-center text-[12px] text-muted-foreground py-2">
-              {t("connection.waiting_hint")}
-            </p>
-          ) : (
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[12px] text-muted-foreground">{t("connection.faded_body_short")}</span>
-              <button
-                type="button"
-                onClick={tryAgain}
-                className="px-3 h-8 rounded-md bg-primary text-primary-foreground text-[12.5px] hover:opacity-90 transition-opacity shrink-0"
-              >
-                {t("connection.say_hello_again")}
-              </button>
-            </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       <PublicProfileSheet person={person} open={profileOpen} onOpenChange={setProfileOpen} />
     </div>

@@ -202,6 +202,13 @@
     "opening": "这周想做点什么，又想找个人一起？用自己的话跟我说就行——池子里如果有人也在等这件事，我就把你们对上。",
     "empty_title": "双向匹配，一次一个。",
     "empty_hint": "说一件想和人一起做的事——两边都把这条心愿发到池子里，才算对上。",
+    "examples_label": "匹配成功大概是这样",
+    "examples": [
+      "周六上午在上海打网球 · 中级 —— 和 Mia 对上了，她是文案，周末打着玩。",
+      "北京工作日晚上沿河跑步 · 慢跑节奏 —— 和 Leo 对上了，18:30 起跑热身。",
+      "成都周日下午想去某家新开的书店 —— 和 Yuki 对上了，她也一直想去同一家。"
+    ],
+    "examples_footnote": "两边都发布心愿。活动、时间、城市对上了，就会在这里出现——直接开始聊。",
     "truncated_hint": "内容有点多，我只抓了前面这段的关键词。",
     "heard": "听到的：{{summary}}。",
     "disambiguate_ask": "你说的是哪一个？",
@@ -404,8 +411,27 @@
       "age": "年龄",
       "city": "所在城市",
       "occupation": "你做什么",
+      "gender": "性别",
+      "gender_placeholder": "不填",
+      "orientation": "性取向",
+      "orientation_placeholder": "不填",
       "mbti": "MBTI",
       "mbti_placeholder": "不填"
+    },
+    "gender": {
+      "female": "女",
+      "male": "男",
+      "nonbinary": "非二元",
+      "prefer_not_to_say": "不填"
+    },
+    "orientation": {
+      "straight": "异性恋",
+      "gay": "男同性恋",
+      "lesbian": "女同性恋",
+      "bi": "双性恋",
+      "pan": "泛性恋",
+      "asexual": "无性恋",
+      "prefer_not_to_say": "不填"
     },
     "avatar": {
       "upload": "上传头像",
@@ -422,6 +448,7 @@
       "music": "音乐",
       "exhibition": "展览",
       "food": "食物",
+      "sport": "运动",
       "other": "其他"
     },
     "moment": {
