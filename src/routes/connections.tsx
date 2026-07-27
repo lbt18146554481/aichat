@@ -173,7 +173,6 @@ function Row({ conn, lang, active, dot, onSelect }: {
 
   // Subtitle: latest chat message > hello quote > status fallback.
   let subtitle = "";
-  let tail = "";
   const dim = conn.status === "faded";
   if (last) {
     subtitle = last.text;
@@ -181,7 +180,6 @@ function Row({ conn, lang, active, dot, onSelect }: {
     subtitle = conn.fromThem.reply;
   } else if (conn.status === "sent" && conn.fromMe) {
     subtitle = conn.fromMe.reply;
-    tail = t("connection.waiting_tail");
   } else if (conn.status === "connected" && conn.fromThem) {
     subtitle = conn.fromThem.reply;
   } else if (conn.status === "faded") {
@@ -189,6 +187,15 @@ function Row({ conn, lang, active, dot, onSelect }: {
   } else {
     subtitle = loc.occupation;
   }
+
+  // Status pill — surfaces the variety of conversation states at a glance.
+  const statusMap: Record<Connection["status"], { key: string; tone: string }> = {
+    incoming:  { key: "connection.section_incoming",  tone: "bg-primary/10 text-primary border-primary/20" },
+    sent:      { key: "connection.section_sent",      tone: "bg-secondary text-muted-foreground border-border" },
+    connected: { key: "connection.section_connected", tone: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20" },
+    faded:     { key: "connection.section_faded",     tone: "bg-muted text-muted-foreground border-border" },
+  };
+  const pill = statusMap[conn.status];
 
   return (
     <li>
@@ -205,16 +212,19 @@ function Row({ conn, lang, active, dot, onSelect }: {
             "w-10 h-10 rounded-full border border-border bg-secondary",
             dim ? "grayscale" : "",
           ].join(" ")} />
-          {dot && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary ring-2 ring-background" />}
+          {dot && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[13.5px] font-medium text-foreground truncate">{loc.name}</div>
-          <div className="text-[12px] text-muted-foreground truncate">
-            {subtitle}
-            {tail && <span className="ml-1 text-muted-foreground/70">· {tail}</span>}
+          <div className="flex items-center gap-2">
+            <div className="text-[13.5px] font-medium text-foreground truncate flex-1">{loc.name}</div>
+            <span className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] font-mono uppercase tracking-wide ${pill.tone}`}>
+              {t(pill.key)}
+            </span>
           </div>
+          <div className="text-[12px] text-muted-foreground truncate">{subtitle}</div>
         </div>
       </button>
     </li>
   );
 }
+
