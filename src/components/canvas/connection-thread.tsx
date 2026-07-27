@@ -262,8 +262,6 @@ export function ConnectionThread({ personId }: Props) {
           </div>
         </div>
       )}
-      {/* Suppress `tryAgain` unused warning — kept for the ⋯ menu action. */}
-      <span className="hidden" aria-hidden="true" data-fn={tryAgain.name} />
 
       <PublicProfileSheet person={person} open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
