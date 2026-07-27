@@ -321,18 +321,20 @@ function FavoriteRow({
 
   return (
     <li ref={rootRef} className="group relative flex items-start gap-3 py-3">
-      <div className="relative pt-1.5">
+      <div className="relative pt-0.5">
         <button
           type="button"
           onClick={() => setPickerOpen((v) => !v)}
           aria-label={t("profile.favorite.kind_label")}
-          title={t(`profile.kind.${favorite.kind}`)}
-          className="w-7 h-7 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-foreground/50 flex items-center justify-center transition-colors"
+          aria-expanded={pickerOpen}
+          className="inline-flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-full border border-border bg-secondary/60 text-[11.5px] text-foreground/80 hover:border-foreground/40 hover:text-foreground transition-colors"
         >
           <Icon className="w-3.5 h-3.5" />
+          <span>{t(`profile.kind.${favorite.kind}`)}</span>
+          <ChevronDown className={"w-3 h-3 transition-transform " + (pickerOpen ? "rotate-180" : "")} />
         </button>
         {pickerOpen && (
-          <div className="absolute left-0 top-9 z-10 rounded-lg border border-border bg-popover shadow-md p-1 flex gap-0.5">
+          <div className="absolute left-0 top-9 z-10 rounded-lg border border-border bg-popover shadow-md p-1 flex flex-col min-w-[9rem]">
             {WORK_KINDS.map((k) => {
               const KI = KIND_ICONS[k];
               const active = favorite.kind === k;
@@ -341,13 +343,15 @@ function FavoriteRow({
                   key={k}
                   type="button"
                   onClick={() => { onKind(k); setPickerOpen(false); }}
-                  title={t(`profile.kind.${k}`)}
                   className={
-                    "w-7 h-7 rounded-md flex items-center justify-center transition-colors " +
-                    (active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground")
+                    "flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12.5px] text-left transition-colors " +
+                    (active
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground/80 hover:bg-secondary hover:text-foreground")
                   }
                 >
                   <KI className="w-3.5 h-3.5" />
+                  <span>{t(`profile.kind.${k}`)}</span>
                 </button>
               );
             })}
