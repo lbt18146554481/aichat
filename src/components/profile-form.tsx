@@ -576,11 +576,19 @@ function AvatarField({
 
 function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
   const { t } = useTranslation();
-  const favs = profile.favorites.filter((f) => f.title.trim() && f.why.trim()).slice(0, 3);
+  // Respect the user's per-field visibility toggles here — the preview is
+  // the truth of what others will see.
+  const showAvatar = !isHidden(profile, "avatar") && !!profile.avatar;
+  const showAge = !isHidden(profile, "age") && profile.age != null;
+  const showMbti = !isHidden(profile, "mbti") && !!profile.mbti;
+  const favs = profile.favorites
+    .map((f, i) => ({ f, i }))
+    .filter(({ f, i }) => f.title.trim() && f.why.trim() && !isHidden(profile, `favorite:${i}`))
+    .slice(0, 3);
   return (
     <div className="rounded-xl border border-border bg-card px-5 py-5">
       <div className="flex items-start gap-4">
-        {profile.avatar ? (
+        {showAvatar ? (
           <img src={profile.avatar} alt="" className="w-14 h-14 rounded-full object-cover border border-border shrink-0" />
         ) : (
           <div className="w-14 h-14 rounded-full border border-border bg-secondary/60 flex items-center justify-center shrink-0">
@@ -592,8 +600,10 @@ function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
         <div className="min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
             <h3 className="text-[18px] font-semibold tracking-tight text-foreground">{profile.name}</h3>
-            <span className="text-[12px] font-mono text-muted-foreground tabular-nums">{profile.age}</span>
-            {profile.mbti && (
+            {showAge && (
+              <span className="text-[12px] font-mono text-muted-foreground tabular-nums">{profile.age}</span>
+            )}
+            {showMbti && (
               <span className="text-[10.5px] font-mono uppercase tracking-wide text-muted-foreground">{profile.mbti}</span>
             )}
           </div>
@@ -603,19 +613,21 @@ function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
 
 
       <div className="mt-6 space-y-4">
-        {profile.moments.filter((m) => m.answer.trim()).map((m) => {
-          const prompt = getMomentPromptById(m.promptId);
-          return (
-            <article key={m.promptId} className="border-l-2 border-border pl-3">
-              {prompt && (
-                <div className="text-[11px] text-muted-foreground italic mb-1">
-                  {localizedMomentPrompt(prompt, lang)}
-                </div>
-              )}
-              <p className="text-[14px] leading-[1.65] text-foreground">{m.answer}</p>
-            </article>
-          );
-        })}
+        {profile.moments
+          .filter((m) => m.answer.trim() && !isHidden(profile, `moment:${m.promptId}`))
+          .map((m) => {
+            const prompt = getMomentPromptById(m.promptId);
+            return (
+              <article key={m.promptId} className="border-l-2 border-border pl-3">
+                {prompt && (
+                  <div className="text-[11px] text-muted-foreground italic mb-1">
+                    {localizedMomentPrompt(prompt, lang)}
+                  </div>
+                )}
+                <p className="text-[14px] leading-[1.65] text-foreground">{m.answer}</p>
+              </article>
+            );
+          })}
       </div>
 
       {favs.length > 0 && (
@@ -624,7 +636,7 @@ function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
             {t("intro.favorites_label")}
           </div>
           <ul className="space-y-2">
-            {favs.map((f, i) => {
+            {favs.map(({ f, i }) => {
               const Icon = KIND_ICONS[f.kind];
               return (
                 <li key={i} className="flex items-start gap-2.5 text-[13px] leading-snug">
