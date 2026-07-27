@@ -10,6 +10,7 @@ import type { ActivityKind } from "@/lib/types";
 import { avatarUrl, getPersonById } from "@/lib/people";
 import { Sparkles } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { PublicProfileSheet } from "@/components/public-profile-sheet";
 
 import { useIsSaved } from "@/components/saved-trigger";
 import { loadProfile } from "@/lib/profile";
