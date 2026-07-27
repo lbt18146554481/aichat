@@ -143,6 +143,30 @@ export function ProfileForm({ lang, compact = false }: Props) {
               className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
             />
           </Field>
+          <Field label={`${t("profile.f.gender")} · ${t("profile.optional")}`}>
+            <select
+              value={profile.gender}
+              onChange={(e) => updateField("gender", e.target.value as Gender)}
+              className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
+            >
+              <option value="">{t("profile.f.gender_placeholder")}</option>
+              {GENDERS.map((g) => (
+                <option key={g} value={g}>{t(`profile.gender.${g}`)}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label={`${t("profile.f.orientation")} · ${t("profile.optional")}`}>
+            <select
+              value={profile.orientation}
+              onChange={(e) => updateField("orientation", e.target.value as Orientation)}
+              className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
+            >
+              <option value="">{t("profile.f.orientation_placeholder")}</option>
+              {ORIENTATIONS.map((o) => (
+                <option key={o} value={o}>{t(`profile.orientation.${o}`)}</option>
+              ))}
+            </select>
+          </Field>
           <Field label={`${t("profile.f.mbti")} · ${t("profile.optional")}`}>
             <select
               value={profile.mbti}
