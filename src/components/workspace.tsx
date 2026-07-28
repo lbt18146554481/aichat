@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { Lang } from "@/lib/i18n";
 import { Composer, AssistantBubble, UserBubble, ThinkingRow, ChipRow, type ChipOption } from "./chat-primitives";
 import { WorkspaceHeader } from "./workspace-header";
+import { AgentAskCard, AgentAskResolved, type AgentAsk } from "./agent-ask";
 
 export interface AgentMsg {
   id: string;
@@ -11,6 +12,10 @@ export interface AgentMsg {
   text: string;
   /** Optional chip choices attached to an assistant message. */
   chips?: ChipOption[];
+  /** Inline "补充 / 确认" card. Only the last unresolved ask is interactive. */
+  ask?: AgentAsk;
+  /** Human-readable summary shown after an ask is resolved (collapsed pill). */
+  askResolvedLabel?: string;
 }
 
 interface Props {
