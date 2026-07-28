@@ -4,6 +4,7 @@ import type { Lang } from "@/lib/i18n";
 import { Composer, AssistantBubble, UserBubble, ThinkingRow, ChipRow, type ChipOption } from "./chat-primitives";
 import { WorkspaceHeader } from "./workspace-header";
 import { AgentAskCard, AgentAskResolved, type AgentAsk } from "./agent-ask";
+import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
 
 export interface AgentMsg {
   id: string;
@@ -70,10 +71,21 @@ export function Workspace({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const askRef = useRef<HTMLDivElement>(null);
+  const kbInset = useKeyboardInset();
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages.length, thinking]);
+
+  // When the software keyboard opens on iOS, keep the active ask card visible
+  // above the composer (visualViewport shrinks; safe-area alone doesn't cover it).
+  useEffect(() => {
+    if (kbInset > 0 && askRef.current) {
+      askRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    } else if (kbInset > 0 && scrollRef.current) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    }
+  }, [kbInset]);
 
   // Autofocus is desktop-only — see Home for rationale.
   useEffect(() => {
@@ -170,7 +182,13 @@ export function Workspace({
       </div>
 
 
-      <div className="border-t border-border bg-background pb-[max(env(safe-area-inset-bottom),8px)]">
+      <div
+        className="border-t border-border bg-background transition-[padding] duration-150"
+        style={{
+          paddingBottom:
+            kbInset > 0 ? `${kbInset + 8}px` : "max(env(safe-area-inset-bottom), 8px)",
+        }}
+      >
         <div className="max-w-xl mx-auto px-4 md:px-5 py-3">
           {activeChips && activeChips.length > 0 && (
             <div className="mb-2">
