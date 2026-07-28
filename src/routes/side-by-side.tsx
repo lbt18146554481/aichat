@@ -202,21 +202,10 @@ function SideBySidePage() {
   useEffect(() => { stateRef.current = state; }, [state]);
 
   // Every side-by-side page must live under a session; no id → home.
-  // Also: matching is city-scoped, so we hard-require Profile.city before
-  // any wish can be published. Missing → detour to /profile?need=city and
-  // remember to come back here.
+  // (City is required for matching, but instead of kicking the user to
+  // /profile we ask inline via an Agent Ask when they submit a wish.)
   useEffect(() => {
     if (!sessionId) { void navigate({ to: "/" }); return; }
-    if (typeof window === "undefined") return;
-    const city = loadProfile().city.trim();
-    if (!city) {
-      try {
-        const url = window.location.pathname + window.location.search;
-        window.sessionStorage.setItem("kindred:profile:return", url);
-        window.sessionStorage.setItem("kindred:profile:focus", "city");
-      } catch {}
-      void navigate({ to: "/profile" });
-    }
   }, [sessionId, navigate]);
 
   useEffect(() => { setHydrated(true); }, []);
