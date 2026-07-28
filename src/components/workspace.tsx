@@ -113,6 +113,21 @@ export function Workspace({
     }
   }
   const activeAsk = activeAskMsgIndex >= 0 ? messages[activeAskMsgIndex].ask : undefined;
+  const activeAskId = activeAsk?.id;
+
+  // When a new ask appears, (a) on mobile force-switch to the chat tab so
+  // the user actually sees the required action, and (b) scroll the ask
+  // card into view so it isn't hidden under the composer/keyboard.
+  useEffect(() => {
+    if (!activeAskId) return;
+    setMobileTab("chat");
+    // Wait for layout + tab swap.
+    const id = window.setTimeout(() => {
+      askRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [activeAskId]);
+
 
   // Only the last assistant message's chips are actionable — and only when
   // no ask is currently on screen.
