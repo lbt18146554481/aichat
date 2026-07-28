@@ -323,7 +323,10 @@
     "narrate_new_activity": "Fresh start. What do you want to do this time?",
     "narrate_new_activity_with_memory": "Fresh start. Last time you said you wanted someone {{trait}} — same direction now?",
     "left_placeholder_match": "Ask me about TA, or say you want someone different…",
-    "left_placeholder_chat": "Ask me what to say, or draft a line…"
+    "left_placeholder_chat": "Ask me what to say, or draft a line…",
+    "ask_city_prompt": "One thing first — which city are you in? Matching only shows people close by, so I need this to run your wish.",
+    "ask_city_placeholder": "e.g. Kyoto, Berlin, 上海",
+    "ask_revoke_prompt": "Take this wish back? It'll come off the board and I'll stop looking."
   },
   "activity": {
     "kind": {
