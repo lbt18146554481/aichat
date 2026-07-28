@@ -71,10 +71,21 @@ export function Workspace({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const askRef = useRef<HTMLDivElement>(null);
+  const kbInset = useKeyboardInset();
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages.length, thinking]);
+
+  // When the software keyboard opens on iOS, keep the active ask card visible
+  // above the composer (visualViewport shrinks; safe-area alone doesn't cover it).
+  useEffect(() => {
+    if (kbInset > 0 && askRef.current) {
+      askRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    } else if (kbInset > 0 && scrollRef.current) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    }
+  }, [kbInset]);
 
   // Autofocus is desktop-only — see Home for rationale.
   useEffect(() => {
