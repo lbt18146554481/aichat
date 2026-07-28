@@ -623,7 +623,7 @@ function SideBySidePage() {
         actWith((s) => tryNearMiss(s, a.intentId));
         break;
       case "revoke":
-        actWith((s) => revokeAndReset(s, sessionId));
+        askRevokeConfirm();
         break;
       case "check_back":
         // Wish stays published; user goes back to home. The session stays
