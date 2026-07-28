@@ -24,6 +24,10 @@ export interface Message {
   role: Role;
   t: number;
   text: string;
+  /** Inline "补充 / 确认" card attached to an assistant message. */
+  ask?: import("@/components/agent-ask").AgentAsk;
+  /** When set, the ask is treated as resolved and shown as a collapsed pill. */
+  askResolvedLabel?: string;
 }
 
 export interface MatchmakerState {
