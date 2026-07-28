@@ -150,12 +150,14 @@ export function Workspace({
               <li key={m.id}>
                 {m.role === "user" ? <UserBubble text={m.text} /> : <AssistantBubble text={m.text} />}
                 {m.role === "assistant" && m.ask && idx === activeAskMsgIndex && (
-                  <AgentAskCard
-                    ask={m.ask}
-                    disabled={thinking || composerDisabled}
-                    onResolve={(v) => onAskResolve?.(m.ask!.id, v)}
-                    onOpenProfile={onOpenFullProfile}
-                  />
+                  <div ref={askRef}>
+                    <AgentAskCard
+                      ask={m.ask}
+                      disabled={thinking || composerDisabled}
+                      onResolve={(v) => onAskResolve?.(m.ask!.id, v)}
+                      onOpenProfile={onOpenFullProfile}
+                    />
+                  </div>
                 )}
                 {m.role === "assistant" && m.askResolvedLabel && (
                   <AgentAskResolved label={m.askResolvedLabel} />
