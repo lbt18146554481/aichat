@@ -559,5 +559,17 @@
       "copy": "Copy",
       "used": "used"
     }
+  },
+  "ask": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "skip": "Skip",
+    "open_profile": "Open profile",
+    "composer_locked": "Answer above to continue…",
+    "resolved_city": "Saved city: {{city}}",
+    "revoke_yes": "Yes, take it back",
+    "revoke_no": "Keep it up",
+    "resolved_revoke_yes": "Wish taken back.",
+    "resolved_revoke_no": "Kept the wish up."
   }
 }
