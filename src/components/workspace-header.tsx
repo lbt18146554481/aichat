@@ -78,7 +78,7 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           {alert && alertPerson ? (
             <Link
               to="/connections"
@@ -87,7 +87,7 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
                   ? t("notify.replied", { name: alertName })
                   : t("notify.new_hello", { name: alertName })
               }
-              className="relative inline-flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full border border-border bg-card hover:bg-secondary transition-colors"
+              className="relative inline-flex items-center gap-2 pl-1 pr-1 sm:pr-2.5 py-1 rounded-full border border-border bg-card hover:bg-secondary transition-colors"
             >
               <span className="relative">
                 <img
@@ -97,7 +97,7 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
                 />
                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />
               </span>
-              <span className="text-[11.5px] text-foreground max-w-[9rem] truncate">
+              <span className="hidden sm:inline text-[11.5px] text-foreground max-w-[9rem] truncate">
                 {alert.status === "connected"
                   ? t("notify.replied", { name: alertName })
                   : t("notify.new_hello", { name: alertName })}
@@ -106,10 +106,11 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
           ) : connCount > 0 ? (
             <Link
               to="/connections"
+              aria-label={t("header.connections")}
               className="relative inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
             >
-              <MessageCircle className="w-3.5 h-3.5" />
-              <span>{t("header.connections")}</span>
+              <MessageCircle className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">{t("header.connections")}</span>
               {unseen && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-primary" />}
             </Link>
           ) : null}
@@ -118,7 +119,7 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
           <Link
             to="/profile"
             aria-label={t("header.profile")}
-            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
           >
             <UserCircle className="w-3.5 h-3.5" />
             <span>{t("header.profile")}</span>
@@ -129,13 +130,14 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
               aria-label={t("header.reset")}
               className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-mono text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
             >
-              <RotateCcw className="w-3 h-3" />
-              {t("header.reset")}
+              <RotateCcw className="w-4 h-4 sm:w-3 sm:h-3" />
+              <span className="hidden sm:inline">{t("header.reset")}</span>
             </button>
           )}
-          <LangSwitcher />
+          <div className="hidden sm:block"><LangSwitcher /></div>
           <AccountMenu compact />
         </div>
+
       </div>
     </header>
   );
