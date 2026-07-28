@@ -102,7 +102,6 @@ function MatchmakerPage() {
   }
 
   // Inline Agent ask when Say hello is blocked by a missing profile field.
-  const { t } = useTranslation();
   function handleNeedProfile(field: "name" | "city", personId: string) {
     const askId = `${field}-${personId}-${Date.now()}`;
     const prompt = field === "name"
