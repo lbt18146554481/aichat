@@ -69,6 +69,7 @@ export function Workspace({
   const [mobileTab, setMobileTab] = useState<"chat" | "canvas">("chat");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const askRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -92,6 +93,7 @@ export function Workspace({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rightPane]);
   useEffect(() => { if (mobileTab === "canvas") setCanvasDot(false); }, [mobileTab]);
+
 
   function submit() {
     const text = input.trim();
