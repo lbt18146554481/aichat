@@ -116,7 +116,13 @@
     "public_profile_title": "公开资料",
     "about_them": "关于 TA",
     "signals_label": "关键词",
-    "what_they_do": "TA 平时在做的"
+    "what_they_do": "TA 平时在做的",
+    "ask_name_prompt": "在把你介绍出去之前——你希望对方怎么称呼你？名就好。",
+    "ask_name_placeholder": "你的名",
+    "ask_city_prompt": "还差一件小事——你在哪个城市？打招呼时提一下，会显得没那么突兀。",
+    "ask_city_placeholder": "例如：京都、上海、Berlin",
+    "ask_resolved_name": "已记下称呼：{{name}}",
+    "ask_resolved_city": "已记下城市：{{city}}"
   },
   "moment": {
     "about_them": "TA 是这样说的",

@@ -116,7 +116,13 @@
     "public_profile_title": "Public profile",
     "about_them": "About them",
     "signals_label": "Signals",
-    "what_they_do": "What they do"
+    "what_they_do": "What they do",
+    "ask_name_prompt": "Before I introduce you — what should they call you? Just your first name is fine.",
+    "ask_name_placeholder": "Your first name",
+    "ask_city_prompt": "One more thing — which city are you in? I mention it so hellos don't feel out-of-nowhere.",
+    "ask_city_placeholder": "e.g. Kyoto, Berlin, 上海",
+    "ask_resolved_name": "Saved name: {{name}}",
+    "ask_resolved_city": "Saved city: {{city}}"
   },
   "moment": {
     "about_them": "In their own words",
