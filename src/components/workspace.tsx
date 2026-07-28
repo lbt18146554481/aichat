@@ -34,6 +34,10 @@ interface Props {
   placeholderOverride?: string;
   /** Called when the user taps a chip inside an assistant message. */
   onChipClick?: (action: unknown) => void;
+  /** Called when the user resolves an inline Agent ask. value=null means skip/cancel. */
+  onAskResolve?: (askId: string, value: string | null) => void;
+  /** Called when a text-ask "open full profile" button is tapped. */
+  onOpenFullProfile?: () => void;
   /** Context-aware suggestion strings rendered above the composer; clicking one pre-fills the input. */
   suggestions?: string[];
   lang?: Lang; // kept for parity, not currently used internally
