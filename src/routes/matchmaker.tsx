@@ -35,7 +35,7 @@ export const Route = createFileRoute("/matchmaker")({
 
 function MatchmakerPage() {
   const { ready } = useRequireAuth();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
   const search = Route.useSearch();
