@@ -1,91 +1,96 @@
+# 详情页左侧 Agent 的"补充 / 确认"交互
 
-## 核心问题诊断
+## 你实际想要的
 
-现在两个"人物详情"存在数据源混乱：
+不是"缺 Profile 才跳 /profile"这一个点，而是**左侧 Agent 在对话过程中，需要向用户要一小段补充或让用户确认某件事时，统一的一种交互**。像我现在给你回复计划时那样：**在对话流里就地问一句，用户就地答一句，答完就地继续，不打断整个流程、不跳页、不刷屏**。
 
-- **用户自己的 Profile**（`src/lib/profile.ts`）字段：avatar / name / age / city / occupation / gender / orientation / mbti / moments / favorites（+ hidden 可见性）。
-- **Demo 人物数据**（`src/lib/people.ts` 中的 `Person`）多出来一堆：`portrait`（一段文学化描述）、`personBrief`（"About TA"）、`signals`（标签）、`angles`（"⌇ 为什么想到你"）、`activities`（What they do）、`whyPersonLine`（一起做点什么的匹配理由）。这些字段**用户自己在 Profile 里根本无法填写**，只有 seed 数据里硬编码存在。
-- 因此两个详情页在"真实用户"和"demo 用户"上会长得完全不一样，且用户提问"About TA / signals / What they do 从哪来"——答案是"AI 编的 / seed 硬写的"，站不住脚。
+## 触发这种交互的典型时刻
 
-## 设计原则
+两个板块都在用同一个 Agent 对话框，以下情况都应走同一种"内嵌卡片"模式，而不是各自散着写：
 
-**同一个数据模型 = 用户填的 Profile。所有展示层（个人卡、Introduce 详情、Do Something Together 详情）都从这一个模型渲染。** demo 人物 = "预先填好 Profile 的用户"。
+**Do something together（`meet-canvas` 左侧 Agent）**
+- 用户第一次发心愿，缺城市 → "先确认下你在哪个城市？"
+- 用户说"周末打网球"，缺水平 → "你的水平大概是？初学 / 一般 / 进阶"
+- 用户按了 Save for later → "记下来了。要不要顺便说下你希望 TA 是怎样的人？（可选）"
+- 用户按了 Start chat 前 → "要不要用这条开场白？可改。"（预填 draft 让用户确认）
+- 撤回心愿前 → "确认撤回？这条会从池子里移除。"
 
-匹配相关的说明（"为什么合适 / 你说 / TA 说 / aligning tag"）不属于 Profile，是**匹配层的产物**，独立成一个块，不要塞进 Profile Sheet。
+**Introduce someone（`intro-canvas` 左侧 Agent）**
+- 用户按 Say hello 缺 name → "打招呼用哪个名字？"
+- 用户按 Say hello 缺 city → "你在哪个城市？（用于展示给 TA）"
+- Agent 建议了一条开场白 → "用这条发，还是改一改？"
+- 用户说"想认识画画的人" → "记住了。要不要立刻按这个刷新一批人？"
 
-## Profile 模型调整
+## 统一的交互形态
 
-在 `Profile` 增加一个字段：
-
-- **`bio: string`**（可选，≤ 140 字的一句话自我介绍）——替代原来 seed 里那种散文式的 `portrait` / `personBrief`。用户能填、能编辑、能通过 hidden 隐藏。
-- 保留：avatar / name / age / city / occupation / gender / orientation / mbti / bio / favorites / moments / hidden。
-- **删除展示层里没有真实来源的概念**：`signals`、`angles`、`portrait`（文学化那段）、`personBrief`、`activities`、`what they do`。
-
-## Seed 数据（`people.ts`）改造
-
-把每个 demo Person 改成"预先填好的 Profile"：只保留 name / age / city / occupation / gender / orientation / mbti / bio / favorites / moments 这些字段（多语言仍保留 `_zh`）。
-
-- 匹配用的元数据（`whyPersonLine`、`openerSuggestion`、`replyHints`、`Intent.rawText` 等）**保留在匹配层**，不进 Profile Sheet。
-- `signals` 如果匹配算法内部还需要，可以保留成**内部字段**，但**不再向用户暴露**。
-- `activities` 已被弃用于用户端，seed 也一并移除。
-
-## 三个显示位统一
-
-新建**一个** `PublicProfileView` 组件（或复用现有 `PublicProfileSheet` 改造），字段顺序固定：
+**一张"Agent Ask"卡片**，出现在最新 Agent 消息下面（就是现在 `ChipRow` 的位置，取代或并列）：
 
 ```
-[头像 · name · age] · [city · occupation]  (gender / orientation / mbti 若未 hidden 追加)
-—— bio ——
-—— Favorites ——
-—— Moments ——
+┌ Agent 气泡 ────────────────────────────
+│  先确认下你在哪个城市？
+├────────────────────────────────────────
+│  [ Kyoto___________________ ]     ← 单个 input / select
+│  (Save & continue)  (Skip)         ← 主按钮 + 副按钮
+└────────────────────────────────────────
 ```
 
-严格按 `hidden[]` 过滤。所有其他字段一律不显示。
+规则：
+- **一次只问一件事**。多个字段排队问，不并列。
+- 主按钮：`Save & continue` / `Confirm` / `Use this` —— 保存后卡片折叠为一句灰色确认（`✓ 记下了：Kyoto`），Agent 立即接着说下一句。
+- 副按钮：`Skip` / `Not now` —— 记为已问过，本会话内不再重复问；如果这项是**阻塞流程的必填**（如"发心愿必须有城市"），副按钮改为 `Open full profile ↗` 兜底跳 `/profile`（保留现有 return-URL 机制）。
+- **确认类**（撤回、发送、跳转候选人）只出两个按钮，无输入框：`Confirm` / `Cancel`。
+- **预填草稿类**（开场白）：input 预填 Agent 建议文案，用户可改可直接发。
 
-使用位置：
+## 移动端
 
-- 首页 / TabBar "我" 的自查预览。
-- Introduce Someone 详情页头像点击（现在的 `PublicProfileSheet`）。
-- Do Something Together 匹配卡头像点击（现在 meet-canvas 内部的 `PersonProfileSheet` 删掉，改为直接复用同一个组件）。
+- 卡片宽度 `w-full`，input `h-11`，按钮 `min-h-11`，主副按钮上下堆叠、`sm:` 起再横排。
+- 卡片本体活在对话滚动流内，**不**做 fixed / sheet；键盘弹起时依赖浏览器自身把输入滚入视区，避免与底部 TabBar / composer 抢层级。
+- 打字时 composer 顶部要留出足够 padding，保证卡片按钮不被系统输入条挡住（复用现有 `env(safe-area-inset-bottom)`）。
+- Web 端沿用同一组件，天然响应式。
 
-## Introduce Someone 右侧列表页重构
+## 改动清单
 
-现在混在一起的：identity + signals + angle + moment + actions。重构成**清晰的三段**：
+1. **新组件 `src/components/agent-ask.tsx`**
+   一个受控组件，props：
+   ```ts
+   type AgentAsk =
+     | { kind: "text"; prompt: string; placeholder?: string; initial?: string;
+         confirmLabel: string; skipLabel?: string; skipTo?: "profile" | "dismiss" }
+     | { kind: "select"; prompt: string; options: {value:string;label:string}[];
+         confirmLabel: string; skipLabel?: string }
+     | { kind: "confirm"; prompt: string; confirmLabel: string; cancelLabel: string;
+         tone?: "default" | "danger" };
+   ```
+   只负责 UI + 触控热区 + 折叠动画；无业务逻辑。
 
-1. **人**（可点击展开完整 Profile Sheet）——头像 / 姓名 / 年龄 / 城市 / 职业 / bio 一句。**去掉** signals chips 和 `⌇ angle` 那行斜体（这两个都是 AI 编的/来源不明）。
-2. **一个 Moment**——TA 自己写的一段话，可点击"引用并回复"。这是匹配理由里最能站住的部分（引用的是 TA 亲自写的内容）。
-3. **动作区**——Say hello / Save / See someone else（保持现状）。
+2. **`SideState` / `IntroState`（左侧 Agent 状态机）**
+   在两个 canvas 的 state 里各加：
+   ```ts
+   pendingAsk?: { id: string; ask: AgentAsk; resolve: (v: string | null) => Action }
+   ```
+   或者更简单：在 `SideMsg` 里加可选 `ask` 字段，Agent 消息可直接携带一次 ask；`ChipRow` 位置根据 `msg.ask` 或 `msg.chips` 二选一渲染。
 
-匹配理由如果要展示，用**一行**："因为 TA 也写过 …"（quote 那条 moment）——不再另起一段"Why I thought of you"。
+3. **改造现有跳转与提示为 ask**
+   - `src/routes/side-by-side.tsx:208-220`：城市缺失不再 `navigate`，改为 push 一条带 `kind:"text"` ask 的 Agent 消息。用户提交后 `saveProfile({city})` 并 replay 原本要做的动作。
+   - `src/components/canvas/intro-canvas.tsx:181-190`：Say hello 缺 name / city 同上。
+   - `refineWhen` / `refineLevel` 当前用的是 chips，保留，不改。
+   - `revokeAndReset` 前插一次 `kind:"confirm"` ask。
+   - Start chat 前，若 Agent 有 `pendingDraft`，改为 `kind:"text"` ask 让用户确认或修改草稿再发送。
 
-## Do Something Together 匹配卡重构
+4. **多语言**
+   `en/zh` 新增一组通用 key：`ask.city.prompt/placeholder`、`ask.level.prompt/options.*`、`ask.confirm_revoke.*`、`ask.confirm_send.*`、`ask.trait.prompt`、共 ~10 条；同时清理 `awaitingTrait` 相关旧文案里已不再使用的引导句。
 
-`meet-canvas.tsx` 里的 `PersonProfileSheet`（About TA / One Work / Moments / Aligning）拆成两块：
+5. **验证**
+   - 375 宽 mobile 视口下依次触发：发心愿缺城市 / Say hello 缺 name / 撤回确认 / 编辑开场白，四种 ask 都能在流内完成、TabBar 不遮挡、键盘正常。
+   - 桌面端 976 宽视口同上。
 
-- **Profile Sheet 部分**（About TA / One Work / Moments）→ **删掉本地实现，改用统一的 `PublicProfileView`**，直接读该人的 Profile（无 bio 时该段不显示，同 hidden 规则）。
-- **Aligning 部分**（你说 / TA 说 / kind·when·level 芯片）→ 保留，但作为匹配卡主页面的一个独立小节，**不放进 Profile Sheet**。这是"为什么这次匹配"，与"TA 是谁"分开。
+## 明确不做
 
-主卡片保留：identity 行（点开 Profile）、one-liner 匹配理由、你说 / TA 说、Start chat / Save / Next。
+- 不把 bio / MBTI / 性别做成 ask —— 那些不阻塞任何流程，用户自己去 Profile 编辑就好。
+- 不改右侧候选卡 / 详情页 UI。
+- 不引入真正的 LLM 或后端；ask 仍由前端规则触发，与当前的 seed / 匹配逻辑衔接。
+- 不动 `/profile`、邀请码、登录流。
 
-## 技术改动清单
+## 需要你拍板
 
-- `src/lib/profile.ts`：`Profile` 增加 `bio: string`；`EMPTY_PROFILE` / `loadProfile` 兼容旧数据；`hidden` 支持 `"bio"` key。
-- `src/lib/types.ts`：`Person` 删除 `portrait / portrait_zh / signals（对外）/ angles / activities`；保留 `moments / favorites / whyPersonLine / openerSuggestion / replyHints`；新增 `bio / bio_zh`。
-- `src/lib/people.ts`：seed 每个人补 `bio`，删除对应字段；`localized()` 相应调整。
-- `src/components/profile-form.tsx`：加 bio 输入 + eye 开关。
-- `src/components/public-profile-sheet.tsx`：删除 signals / activities / portrait 段；按新顺序渲染；按 hidden 过滤（含 bio）。
-- `src/components/canvas/intro-canvas.tsx`：删除 signals chips + angleText；简化到 identity + one moment + actions。
-- `src/components/canvas/meet-canvas.tsx`：删除本地 `PersonProfileSheet`，改用统一 `PublicProfileSheet`；把 Aligning 段留在主卡片。
-- `src/components/agents/matchmaker.ts`：如果 `pickBestAngle` 只服务被删的 angle 展示，一并清理（保留 `pickBestMoment`）。
-- `src/locales/*/common.json`：删除 `intro.about_them / signals_label / what_they_do / intent.sheet.about_ta / one_work` 等已不使用的键；新增 `profile.bio_label / bio_placeholder / bio_hint`。
-
-## 用户可见变化
-
-- Profile 编辑页多一个"一句话介绍自己"输入框（可眼睛图标隐藏）。
-- 三处"看某人详情"看到**同样的结构**，字段全部来自 TA 自己填的 Profile。
-- Introduce / Do Together 详情页更短、更聚焦，没有来源不明的 signals / What they do / portrait / About TA 描述段。
-- 匹配理由（一起做什么）依然在匹配卡上可见，但不再伪装成"TA 是谁"。
-
-## 确认点
-
-如果你希望**保留** signals（作为用户可手动打的标签）或**保留** portrait（作为用户可选的一段文学化自我描述而不是 AI 编造），告诉我，我把它并入 Profile 的可编辑字段而不是删掉。默认按上面"删除来源不明字段、加一个 bio 替代"来实施。
+我按上面这版直接落地，一次只问一件事、内嵌卡片形态、四类触发场景（缺城市 / 缺水平 / 撤回确认 / 开场白确认）。**如果你希望把 Save for later 之后的"要不要顺便说下希望 TA 是怎样的人"也做成 ask**（会稍微增加提问频率），告诉我，我加进去；否则默认不打扰。
