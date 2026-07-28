@@ -211,6 +211,9 @@ export interface SideState {
   /** When true, the next user message in the left composer is treated as
    *  a "what kind of person do you want" answer (feeds Agent memory + skips). */
   awaitingTrait?: boolean;
+  /** Pending user-supplied wish text stashed while we ask for missing profile
+   *  fields (currently: city). Replayed via submitPrompt after resolution. */
+  pendingWishText?: string;
 }
 
 export const EMPTY: SideState = {
