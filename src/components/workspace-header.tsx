@@ -57,26 +57,27 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
 
   return (
     <header className="w-full border-b border-border bg-background/90 backdrop-blur sticky top-0 z-30">
-      <div className="max-w-7xl mx-auto px-5 h-14 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="max-w-7xl mx-auto px-3 sm:px-5 h-14 flex items-center justify-between gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Link
             to="/"
-            className="inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1 min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 -ml-2 sm:ml-0 px-2 sm:px-0 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
             aria-label={t("nav.home")}
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="font-mono uppercase tracking-wide">Kindred</span>
+            <ArrowLeft className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+            <span className="font-mono uppercase tracking-wide hidden sm:inline">Kindred</span>
           </Link>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/40 hidden sm:inline">/</span>
           <div className="flex flex-col leading-tight min-w-0">
             <span className="text-[13.5px] font-semibold tracking-tight text-foreground truncate">
               {t(agentNameKey)}
             </span>
-            <span className="text-[10px] font-mono tracking-wide text-muted-foreground uppercase truncate">
+            <span className="text-[10px] font-mono tracking-wide text-muted-foreground uppercase truncate hidden sm:inline">
               {t(agentSubtitleKey)}
             </span>
           </div>
         </div>
+
         <div className="flex items-center gap-2">
           {alert && alertPerson ? (
             <Link
