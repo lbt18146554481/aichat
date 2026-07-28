@@ -69,6 +69,7 @@ export function Workspace({
   const [mobileTab, setMobileTab] = useState<"chat" | "canvas">("chat");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const askRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -93,6 +94,7 @@ export function Workspace({
   }, [rightPane]);
   useEffect(() => { if (mobileTab === "canvas") setCanvasDot(false); }, [mobileTab]);
 
+
   function submit() {
     const text = input.trim();
     if (!text || thinking) return;
@@ -111,6 +113,21 @@ export function Workspace({
     }
   }
   const activeAsk = activeAskMsgIndex >= 0 ? messages[activeAskMsgIndex].ask : undefined;
+  const activeAskId = activeAsk?.id;
+
+  // When a new ask appears, (a) on mobile force-switch to the chat tab so
+  // the user actually sees the required action, and (b) scroll the ask
+  // card into view so it isn't hidden under the composer/keyboard.
+  useEffect(() => {
+    if (!activeAskId) return;
+    setMobileTab("chat");
+    // Wait for layout + tab swap.
+    const id = window.setTimeout(() => {
+      askRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [activeAskId]);
+
 
   // Only the last assistant message's chips are actionable — and only when
   // no ask is currently on screen.
@@ -133,12 +150,14 @@ export function Workspace({
               <li key={m.id}>
                 {m.role === "user" ? <UserBubble text={m.text} /> : <AssistantBubble text={m.text} />}
                 {m.role === "assistant" && m.ask && idx === activeAskMsgIndex && (
-                  <AgentAskCard
-                    ask={m.ask}
-                    disabled={thinking || composerDisabled}
-                    onResolve={(v) => onAskResolve?.(m.ask!.id, v)}
-                    onOpenProfile={onOpenFullProfile}
-                  />
+                  <div ref={askRef}>
+                    <AgentAskCard
+                      ask={m.ask}
+                      disabled={thinking || composerDisabled}
+                      onResolve={(v) => onAskResolve?.(m.ask!.id, v)}
+                      onOpenProfile={onOpenFullProfile}
+                    />
+                  </div>
                 )}
                 {m.role === "assistant" && m.askResolvedLabel && (
                   <AgentAskResolved label={m.askResolvedLabel} />

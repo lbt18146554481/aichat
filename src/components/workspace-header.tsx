@@ -57,27 +57,28 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
 
   return (
     <header className="w-full border-b border-border bg-background/90 backdrop-blur sticky top-0 z-30">
-      <div className="max-w-7xl mx-auto px-5 h-14 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="max-w-7xl mx-auto px-3 sm:px-5 h-14 flex items-center justify-between gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Link
             to="/"
-            className="inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1 min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 -ml-2 sm:ml-0 px-2 sm:px-0 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
             aria-label={t("nav.home")}
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="font-mono uppercase tracking-wide">Kindred</span>
+            <ArrowLeft className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+            <span className="font-mono uppercase tracking-wide hidden sm:inline">Kindred</span>
           </Link>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/40 hidden sm:inline">/</span>
           <div className="flex flex-col leading-tight min-w-0">
             <span className="text-[13.5px] font-semibold tracking-tight text-foreground truncate">
               {t(agentNameKey)}
             </span>
-            <span className="text-[10px] font-mono tracking-wide text-muted-foreground uppercase truncate">
+            <span className="text-[10px] font-mono tracking-wide text-muted-foreground uppercase truncate hidden sm:inline">
               {t(agentSubtitleKey)}
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-1 sm:gap-2">
           {alert && alertPerson ? (
             <Link
               to="/connections"
@@ -86,7 +87,7 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
                   ? t("notify.replied", { name: alertName })
                   : t("notify.new_hello", { name: alertName })
               }
-              className="relative inline-flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full border border-border bg-card hover:bg-secondary transition-colors"
+              className="relative inline-flex items-center gap-2 pl-1 pr-1 sm:pr-2.5 py-1 rounded-full border border-border bg-card hover:bg-secondary transition-colors"
             >
               <span className="relative">
                 <img
@@ -96,7 +97,7 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
                 />
                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />
               </span>
-              <span className="text-[11.5px] text-foreground max-w-[9rem] truncate">
+              <span className="hidden sm:inline text-[11.5px] text-foreground max-w-[9rem] truncate">
                 {alert.status === "connected"
                   ? t("notify.replied", { name: alertName })
                   : t("notify.new_hello", { name: alertName })}
@@ -105,10 +106,11 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
           ) : connCount > 0 ? (
             <Link
               to="/connections"
+              aria-label={t("header.connections")}
               className="relative inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
             >
-              <MessageCircle className="w-3.5 h-3.5" />
-              <span>{t("header.connections")}</span>
+              <MessageCircle className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">{t("header.connections")}</span>
               {unseen && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-primary" />}
             </Link>
           ) : null}
@@ -117,7 +119,7 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
           <Link
             to="/profile"
             aria-label={t("header.profile")}
-            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
           >
             <UserCircle className="w-3.5 h-3.5" />
             <span>{t("header.profile")}</span>
@@ -128,13 +130,14 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
               aria-label={t("header.reset")}
               className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-mono text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
             >
-              <RotateCcw className="w-3 h-3" />
-              {t("header.reset")}
+              <RotateCcw className="w-4 h-4 sm:w-3 sm:h-3" />
+              <span className="hidden sm:inline">{t("header.reset")}</span>
             </button>
           )}
-          <LangSwitcher />
+          <div className="hidden sm:block"><LangSwitcher /></div>
           <AccountMenu compact />
         </div>
+
       </div>
     </header>
   );
