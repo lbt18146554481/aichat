@@ -185,8 +185,8 @@ export function Workspace({
             value={input}
             onChange={setInput}
             onSend={submit}
-            disabled={thinking || composerDisabled}
-            placeholder={placeholderOverride ?? t(placeholderKey)}
+            disabled={thinking || composerDisabled || !!activeAsk}
+            placeholder={activeAsk ? t("ask.composer_locked") : (placeholderOverride ?? t(placeholderKey))}
           />
         </div>
       </div>
