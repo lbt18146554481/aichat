@@ -27,6 +27,9 @@ interface Props {
   /** Advance to the next person WITHOUT marking current as passed. Used
    *  after Say hello / connected / faded — the user isn't rejecting them. */
   onSeeNextPerson: () => void;
+  /** Called when Say hello is blocked by missing profile fields. Parent
+   *  (matchmaker route) reacts by pushing an inline Agent Ask. */
+  onNeedProfile?: (field: "name" | "city", personId: string) => void;
 }
 
 // Per-person composer draft — survives a jump to /profile and back so the
