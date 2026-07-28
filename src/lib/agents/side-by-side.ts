@@ -178,6 +178,10 @@ export interface SideMsg {
   t: number;
   text: string;
   chips?: { id: string; label: string; action: ChipAction }[];
+  /** Inline "补充 / 确认" card attached to an assistant message. */
+  ask?: import("@/components/agent-ask").AgentAsk;
+  /** When set, the ask is treated as resolved and shown as a collapsed pill. */
+  askResolvedLabel?: string;
 }
 
 export interface ChatMsg { id: string; from: "me" | "them"; text: string; t: number; }
