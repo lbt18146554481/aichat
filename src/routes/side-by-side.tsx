@@ -9,7 +9,7 @@ import { consumeSeed } from "@/lib/seed";
 import { findMatch, findNearMisses, getIntentById } from "@/lib/intents";
 import { getPersonById } from "@/lib/people";
 import { lastTrait, rememberTrait } from "@/lib/agent-memory";
-import { loadProfile } from "@/lib/profile";
+import { loadProfile, saveProfile } from "@/lib/profile";
 import type { Lang } from "@/lib/i18n";
 import { isSaved as isSavedGlobal } from "@/lib/saved-intents";
 import {
@@ -202,21 +202,10 @@ function SideBySidePage() {
   useEffect(() => { stateRef.current = state; }, [state]);
 
   // Every side-by-side page must live under a session; no id → home.
-  // Also: matching is city-scoped, so we hard-require Profile.city before
-  // any wish can be published. Missing → detour to /profile?need=city and
-  // remember to come back here.
+  // (City is required for matching, but instead of kicking the user to
+  // /profile we ask inline via an Agent Ask when they submit a wish.)
   useEffect(() => {
     if (!sessionId) { void navigate({ to: "/" }); return; }
-    if (typeof window === "undefined") return;
-    const city = loadProfile().city.trim();
-    if (!city) {
-      try {
-        const url = window.location.pathname + window.location.search;
-        window.sessionStorage.setItem("kindred:profile:return", url);
-        window.sessionStorage.setItem("kindred:profile:focus", "city");
-      } catch {}
-      void navigate({ to: "/profile" });
-    }
   }, [sessionId, navigate]);
 
   useEffect(() => { setHydrated(true); }, []);
@@ -496,8 +485,112 @@ function SideBySidePage() {
       // Fall through: user typed a new wish mid-chat — publish it.
     }
 
+    // City gate: matching is city-scoped, but we no longer redirect to
+    // /profile. Instead the Agent asks inline for the missing city, and
+    // once the user answers we replay their wish text.
+    const city = loadProfile().city.trim();
+    if (!city) {
+      setState((s) => ({
+        ...s,
+        pendingWishText: text,
+        messages: [
+          ...s.messages,
+          msg("user", text),
+          {
+            id: uid(),
+            role: "assistant",
+            t: Date.now(),
+            text: t("intent.ask_city_prompt"),
+            ask: {
+              kind: "text",
+              id: "city-" + Date.now(),
+              placeholder: t("intent.ask_city_placeholder"),
+              confirmLabel: t("ask.save"),
+              skipLabel: t("ask.open_profile"),
+              skipToProfile: true,
+            },
+          },
+        ],
+      }));
+      return;
+    }
+
     actWith((s) => submitPrompt(s, text), text);
   }
+
+  function handleAskResolve(askId: string, value: string | null) {
+    // City ask: value=null means the user tapped "open profile" — send them
+    // to /profile with a return path so they can finish there.
+    if (askId.startsWith("city-")) {
+      if (value === null) {
+        // Skipped → open Profile with return path.
+        try {
+          window.sessionStorage.setItem(
+            "kindred:profile:return",
+            window.location.pathname + window.location.search,
+          );
+          window.sessionStorage.setItem("kindred:profile:focus", "city");
+        } catch { /* noop */ }
+        void navigate({ to: "/profile" });
+        return;
+      }
+      const trimmed = value.trim();
+      if (!trimmed) return;
+      const p = loadProfile();
+      saveProfile({ ...p, city: trimmed });
+      // Mark the ask resolved with a summary pill, then replay the wish.
+      setState((s) => {
+        const nextMessages = s.messages.map((m) =>
+          m.ask?.id === askId
+            ? { ...m, ask: undefined, askResolvedLabel: t("ask.resolved_city", { city: trimmed }) }
+            : m,
+        );
+        return { ...s, messages: nextMessages, pendingWishText: undefined };
+      });
+      const wish = state.pendingWishText;
+      if (wish) {
+        window.setTimeout(() => actWith((s) => submitPrompt(s, wish), undefined), 60);
+      }
+      return;
+    }
+    // Revoke confirm ask.
+    if (askId.startsWith("revoke-")) {
+      const summary = value === "yes"
+        ? t("ask.resolved_revoke_yes")
+        : t("ask.resolved_revoke_no");
+      setState((s) => {
+        const nextMessages = s.messages.map((m) =>
+          m.ask?.id === askId ? { ...m, ask: undefined, askResolvedLabel: summary } : m,
+        );
+        if (value === "yes") return { ...revokeAndReset(s, sessionId), messages: nextMessages };
+        return { ...s, messages: nextMessages };
+      });
+      return;
+    }
+  }
+
+  function askRevokeConfirm() {
+    setState((s) => ({
+      ...s,
+      messages: [
+        ...s.messages,
+        {
+          id: uid(),
+          role: "assistant",
+          t: Date.now(),
+          text: t("intent.ask_revoke_prompt"),
+          ask: {
+            kind: "confirm",
+            id: "revoke-" + Date.now(),
+            confirmLabel: t("ask.revoke_yes"),
+            cancelLabel: t("ask.revoke_no"),
+            tone: "danger",
+          },
+        },
+      ],
+    }));
+  }
+
 
   function handleChipClick(rawAction: unknown) {
     const a = rawAction as ChipAction;
@@ -530,7 +623,7 @@ function SideBySidePage() {
         actWith((s) => tryNearMiss(s, a.intentId));
         break;
       case "revoke":
-        actWith((s) => revokeAndReset(s, sessionId));
+        askRevokeConfirm();
         break;
       case "check_back":
         // Wish stays published; user goes back to home. The session stays
@@ -543,7 +636,7 @@ function SideBySidePage() {
   // Right-pane actions are silent on the left Agent — they don't inject
   // narration into the private chat. The user's own typed prompts still do.
   function handleStartChat() { setState((s) => startChat(s)); }
-  function handleRevoke()    { setState((s) => revokeAndReset(s, sessionId)); }
+  function handleRevoke()    { askRevokeConfirm(); }
   function handleTryNearMiss(intentId: string) { setState((s) => tryNearMiss(s, intentId)); }
   function handleSave() {
     setState((s) => saveCurrent(s, sessionId));
@@ -599,6 +692,8 @@ function SideBySidePage() {
       onSend={handleSend}
       onReset={handleReset}
       onChipClick={handleChipClick}
+      onAskResolve={handleAskResolve}
+      onOpenFullProfile={() => { void navigate({ to: "/profile" }); }}
       rightPane={
         <MeetCanvas
           state={state}

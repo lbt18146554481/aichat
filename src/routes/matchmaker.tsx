@@ -6,6 +6,7 @@ import type { Lang } from "@/lib/i18n";
 import { Workspace, type AgentMsg } from "@/components/workspace";
 import { IntroCanvas } from "@/components/canvas/intro-canvas";
 import { consumeFocusPerson, consumeSeed } from "@/lib/seed";
+import { loadProfile, saveProfile } from "@/lib/profile";
 import {
   EMPTY,
   actAnotherPerson,
@@ -34,7 +35,7 @@ export const Route = createFileRoute("/matchmaker")({
 
 function MatchmakerPage() {
   const { ready } = useRequireAuth();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
   const search = Route.useSearch();
@@ -100,8 +101,85 @@ function MatchmakerPage() {
     }, 450);
   }
 
-  if (!ready || !hydrated || !sessionId) return <div className="min-h-screen bg-background" />;
+  // Inline Agent ask when Say hello is blocked by a missing profile field.
+  function handleNeedProfile(field: "name" | "city", personId: string) {
+    const askId = `${field}-${personId}-${Date.now()}`;
+    const prompt = field === "name"
+      ? t("intro.ask_name_prompt")
+      : t("intro.ask_city_prompt");
+    const placeholder = field === "name"
+      ? t("intro.ask_name_placeholder")
+      : t("intro.ask_city_placeholder");
+    setState((s) => ({
+      ...s,
+      messages: [
+        ...s.messages,
+        {
+          id: Math.random().toString(36).slice(2, 10),
+          role: "assistant",
+          t: Date.now(),
+          text: prompt,
+          ask: {
+            kind: "text",
+            id: askId,
+            placeholder,
+            confirmLabel: t("ask.save"),
+            skipLabel: t("ask.open_profile"),
+            skipToProfile: true,
+          },
+        },
+      ],
+    }));
+  }
 
+  function handleAskResolve(askId: string, value: string | null) {
+    // Skip → open full profile with a return path.
+    if (value === null) {
+      try {
+        window.sessionStorage.setItem(
+          "kindred:profile:return",
+          window.location.pathname + window.location.search,
+        );
+      } catch { /* noop */ }
+      void navigate({ to: "/profile" });
+      return;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    const field: "name" | "city" | null = askId.startsWith("name-")
+      ? "name"
+      : askId.startsWith("city-")
+        ? "city"
+        : null;
+    if (!field) return;
+
+    const p = loadProfile();
+    saveProfile({ ...p, [field]: trimmed });
+    const summary = field === "name"
+      ? t("intro.ask_resolved_name", { name: trimmed })
+      : t("intro.ask_resolved_city", { city: trimmed });
+    // Remember the person so IntroCanvas can auto-resume the Say hello flow.
+    const personId = askId.split("-")[1];
+    try {
+      window.sessionStorage.setItem("kindred:intro:resume-hello", personId);
+    } catch { /* noop */ }
+    setState((s) => ({
+      ...s,
+      messages: s.messages.map((m) =>
+        m.ask?.id === askId
+          ? { ...m, ask: undefined, askResolvedLabel: summary }
+          : m,
+      ),
+    }));
+    // If both name+city were missing, chain: check again post-save and ask
+    // for the remaining one immediately.
+    const nextProfile = loadProfile();
+    if (field === "name" && !nextProfile.city.trim()) {
+      window.setTimeout(() => handleNeedProfile("city", personId), 60);
+    }
+  }
+
+  if (!ready || !hydrated || !sessionId) return <div className="min-h-screen bg-background" />;
 
   const messages: AgentMsg[] = state.messages;
 
@@ -114,6 +192,8 @@ function MatchmakerPage() {
       thinking={thinking}
       onSend={send}
       onReset={handleReset}
+      onAskResolve={handleAskResolve}
+      onOpenFullProfile={() => { void navigate({ to: "/profile" }); }}
       suggestions={suggestChips(state, lang)}
       rightPane={
         <IntroCanvas
@@ -121,6 +201,7 @@ function MatchmakerPage() {
           sessionId={sessionId}
           onPassAndNext={() => trigger(actAnotherPerson)}
           onSeeNextPerson={() => trigger(seeNextPerson)}
+          onNeedProfile={handleNeedProfile}
         />
       }
     />

@@ -178,6 +178,10 @@ export interface SideMsg {
   t: number;
   text: string;
   chips?: { id: string; label: string; action: ChipAction }[];
+  /** Inline "补充 / 确认" card attached to an assistant message. */
+  ask?: import("@/components/agent-ask").AgentAsk;
+  /** When set, the ask is treated as resolved and shown as a collapsed pill. */
+  askResolvedLabel?: string;
 }
 
 export interface ChatMsg { id: string; from: "me" | "them"; text: string; t: number; }
@@ -207,6 +211,9 @@ export interface SideState {
   /** When true, the next user message in the left composer is treated as
    *  a "what kind of person do you want" answer (feeds Agent memory + skips). */
   awaitingTrait?: boolean;
+  /** Pending user-supplied wish text stashed while we ask for missing profile
+   *  fields (currently: city). Replayed via submitPrompt after resolution. */
+  pendingWishText?: string;
 }
 
 export const EMPTY: SideState = {

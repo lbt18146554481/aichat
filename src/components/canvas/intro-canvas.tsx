@@ -27,6 +27,9 @@ interface Props {
   /** Advance to the next person WITHOUT marking current as passed. Used
    *  after Say hello / connected / faded — the user isn't rejecting them. */
   onSeeNextPerson: () => void;
+  /** Called when Say hello is blocked by missing profile fields. Parent
+   *  (matchmaker route) reacts by pushing an inline Agent Ask. */
+  onNeedProfile?: (field: "name" | "city", personId: string) => void;
 }
 
 // Per-person composer draft — survives a jump to /profile and back so the
@@ -53,7 +56,7 @@ function clearDraft(personId: string) {
 // jump to /connections so "back to intro" lands where the user left off.
 const scrollKey = (personId: string) => `kindred:intro:scroll:${personId}`;
 
-export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }: Props) {
+export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, onNeedProfile }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
@@ -158,6 +161,27 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id, conn?.status]);
 
+  // Resume flag: after the Agent's inline ask fills the missing profile
+  // field, matchmaker sets `kindred:intro:resume-hello=<personId>`. When we
+  // land back here with a complete profile, auto-open the composer.
+  const resumeCheckedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!person || typeof window === "undefined") return;
+    if (resumeCheckedRef.current === person.id) return;
+    try {
+      const flag = window.sessionStorage.getItem("kindred:intro:resume-hello");
+      if (flag === person.id) {
+        const p = loadProfile();
+        if (hasName(p) && isVitalsComplete(p)) {
+          window.sessionStorage.removeItem("kindred:intro:resume-hello");
+          resumeCheckedRef.current = person.id;
+          setComposing(true);
+        }
+      }
+    } catch { /* noop */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [person?.id, state.messages.length]);
+
   if (!person) {
     return (
       <div className="h-full grid place-items-center px-8 py-12">
@@ -180,7 +204,18 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
 
   function requestSayHello(opts?: { pickedMomentId?: string | null; draftReply?: string }) {
     const p = loadProfile();
+    // Missing name / city — instead of redirecting, hand off to the left
+    // Agent so it can ask inline. If the parent didn't wire the callback,
+    // fall back to the old redirect.
     if (!hasName(p) || !isVitalsComplete(p)) {
+      const missing: "name" | "city" = !hasName(p) ? "name" : "city";
+      if (onNeedProfile && person) {
+        // Persist the draft in progress so it comes back after the ask.
+        if (opts?.pickedMomentId !== undefined) setDraftPicked(opts.pickedMomentId);
+        if (opts?.draftReply !== undefined) setDraftReply(opts.draftReply);
+        onNeedProfile(missing, person.id);
+        return;
+      }
       try {
         const url = window.location.pathname + window.location.search;
         window.sessionStorage.setItem("kindred:profile:return", url);
