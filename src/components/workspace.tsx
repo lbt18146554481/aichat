@@ -4,6 +4,7 @@ import type { Lang } from "@/lib/i18n";
 import { Composer, AssistantBubble, UserBubble, ThinkingRow, ChipRow, type ChipOption } from "./chat-primitives";
 import { WorkspaceHeader } from "./workspace-header";
 import { AgentAskCard, AgentAskResolved, type AgentAsk } from "./agent-ask";
+import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
 
 export interface AgentMsg {
   id: string;
