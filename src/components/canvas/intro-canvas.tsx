@@ -183,7 +183,18 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
 
   function requestSayHello(opts?: { pickedMomentId?: string | null; draftReply?: string }) {
     const p = loadProfile();
+    // Missing name / city — instead of redirecting, hand off to the left
+    // Agent so it can ask inline. If the parent didn't wire the callback,
+    // fall back to the old redirect.
     if (!hasName(p) || !isVitalsComplete(p)) {
+      const missing: "name" | "city" = !hasName(p) ? "name" : "city";
+      if (onNeedProfile && person) {
+        // Persist the draft in progress so it comes back after the ask.
+        if (opts?.pickedMomentId !== undefined) setDraftPicked(opts.pickedMomentId);
+        if (opts?.draftReply !== undefined) setDraftReply(opts.draftReply);
+        onNeedProfile(missing, person.id);
+        return;
+      }
       try {
         const url = window.location.pathname + window.location.search;
         window.sessionStorage.setItem("kindred:profile:return", url);
