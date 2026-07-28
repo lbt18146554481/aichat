@@ -161,6 +161,27 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id, conn?.status]);
 
+  // Resume flag: after the Agent's inline ask fills the missing profile
+  // field, matchmaker sets `kindred:intro:resume-hello=<personId>`. When we
+  // land back here with a complete profile, auto-open the composer.
+  const resumeCheckedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!person || typeof window === "undefined") return;
+    if (resumeCheckedRef.current === person.id) return;
+    try {
+      const flag = window.sessionStorage.getItem("kindred:intro:resume-hello");
+      if (flag === person.id) {
+        const p = loadProfile();
+        if (hasName(p) && isVitalsComplete(p)) {
+          window.sessionStorage.removeItem("kindred:intro:resume-hello");
+          resumeCheckedRef.current = person.id;
+          setComposing(true);
+        }
+      }
+    } catch { /* noop */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [person?.id, state.messages.length]);
+
   if (!person) {
     return (
       <div className="h-full grid place-items-center px-8 py-12">
