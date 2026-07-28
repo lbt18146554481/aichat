@@ -692,6 +692,8 @@ function SideBySidePage() {
       onSend={handleSend}
       onReset={handleReset}
       onChipClick={handleChipClick}
+      onAskResolve={handleAskResolve}
+      onOpenFullProfile={() => { void navigate({ to: "/profile" }); }}
       rightPane={
         <MeetCanvas
           state={state}
