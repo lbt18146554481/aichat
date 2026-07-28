@@ -55,6 +55,8 @@ export function Workspace({
   composerDisabled,
   placeholderOverride,
   onChipClick,
+  onAskResolve,
+  onOpenFullProfile,
   suggestions,
 }: Props) {
   const { t } = useTranslation();
