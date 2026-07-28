@@ -100,12 +100,27 @@ export function Workspace({
     onSend(text);
   }
 
-  // Only the last assistant message's chips are actionable.
-  let activeChips: ChipOption[] | undefined;
+  // Find the newest assistant message with an unresolved ask. When one is
+  // active it takes precedence over chips (single call-to-action at a time).
+  let activeAskMsgIndex = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "assistant" && messages[i].chips && messages[i].chips!.length > 0) {
-      activeChips = messages[i].chips;
+    const m = messages[i];
+    if (m.role === "assistant" && m.ask && !m.askResolvedLabel) {
+      activeAskMsgIndex = i;
       break;
+    }
+  }
+  const activeAsk = activeAskMsgIndex >= 0 ? messages[activeAskMsgIndex].ask : undefined;
+
+  // Only the last assistant message's chips are actionable — and only when
+  // no ask is currently on screen.
+  let activeChips: ChipOption[] | undefined;
+  if (!activeAsk) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "assistant" && messages[i].chips && messages[i].chips!.length > 0) {
+        activeChips = messages[i].chips;
+        break;
+      }
     }
   }
 
@@ -114,15 +129,27 @@ export function Workspace({
       <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain-y">
         <div className="max-w-xl mx-auto px-4 md:px-5 py-5 md:py-6">
           <ul className="space-y-4">
-            {messages.map((m) => (
+            {messages.map((m, idx) => (
               <li key={m.id}>
                 {m.role === "user" ? <UserBubble text={m.text} /> : <AssistantBubble text={m.text} />}
+                {m.role === "assistant" && m.ask && idx === activeAskMsgIndex && (
+                  <AgentAskCard
+                    ask={m.ask}
+                    disabled={thinking || composerDisabled}
+                    onResolve={(v) => onAskResolve?.(m.ask!.id, v)}
+                    onOpenProfile={onOpenFullProfile}
+                  />
+                )}
+                {m.role === "assistant" && m.askResolvedLabel && (
+                  <AgentAskResolved label={m.askResolvedLabel} />
+                )}
               </li>
             ))}
             {thinking && <li><ThinkingRow /></li>}
           </ul>
         </div>
       </div>
+
 
       <div className="border-t border-border bg-background pb-[max(env(safe-area-inset-bottom),8px)]">
         <div className="max-w-xl mx-auto px-4 md:px-5 py-3">
