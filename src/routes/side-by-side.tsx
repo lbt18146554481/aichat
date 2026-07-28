@@ -9,7 +9,7 @@ import { consumeSeed } from "@/lib/seed";
 import { findMatch, findNearMisses, getIntentById } from "@/lib/intents";
 import { getPersonById } from "@/lib/people";
 import { lastTrait, rememberTrait } from "@/lib/agent-memory";
-import { loadProfile } from "@/lib/profile";
+import { loadProfile, saveProfile } from "@/lib/profile";
 import type { Lang } from "@/lib/i18n";
 import { isSaved as isSavedGlobal } from "@/lib/saved-intents";
 import {
