@@ -636,7 +636,7 @@ function SideBySidePage() {
   // Right-pane actions are silent on the left Agent — they don't inject
   // narration into the private chat. The user's own typed prompts still do.
   function handleStartChat() { setState((s) => startChat(s)); }
-  function handleRevoke()    { setState((s) => revokeAndReset(s, sessionId)); }
+  function handleRevoke()    { askRevokeConfirm(); }
   function handleTryNearMiss(intentId: string) { setState((s) => tryNearMiss(s, intentId)); }
   function handleSave() {
     setState((s) => saveCurrent(s, sessionId));
