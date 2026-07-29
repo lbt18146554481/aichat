@@ -38,8 +38,6 @@ interface Props {
   /** Called when the user resolves an inline Agent ask. value=null means skip/cancel.
    *  `writeback` is only set for text asks with writebackToProfile: true. */
   onAskResolve?: (askId: string, value: string | null, writeback?: boolean) => void;
-  /** Called when a text-ask "open full profile" button is tapped. */
-  onOpenFullProfile?: () => void;
   /** Context-aware suggestion strings rendered above the composer; clicking one pre-fills the input. */
   suggestions?: string[];
   lang?: Lang; // kept for parity, not currently used internally
