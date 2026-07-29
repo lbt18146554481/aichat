@@ -1,5 +1,5 @@
 // The user's own Profile — the SOURCE OF TRUTH for "who you are" inside
-// Kindred. Three sections, each with a clear reader:
+// Maitri. Three sections, each with a clear reader:
 //   01 Vitals      → identity + system hard-filter (same city)
 //   02 Moments     → other real people (Introduce Someone right pane)
 //   03 Favorites   → other real people (cultural taste; multi-entry)

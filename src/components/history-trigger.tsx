@@ -48,9 +48,6 @@ export function HistoryTrigger({ variant = "default" }: Props) {
               <ArrowRight className="w-3 h-3" strokeWidth={1.75} />
             </Link>
           </div>
-          <p className="text-[12px] text-muted-foreground text-left">
-            {t("history.subtitle")}
-          </p>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto px-6 py-4" onClick={() => setOpen(false)}>
           <SessionList limit={8} embedded />

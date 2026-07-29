@@ -108,7 +108,7 @@ export function Home() {
                 <span aria-label={t("home.connections")} className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />
               )}
             </span>
-            <span className="text-[14px] font-semibold tracking-tight text-foreground">Kindred</span>
+            <span className="text-[14px] font-semibold tracking-tight text-foreground">Maitri</span>
           </div>
           <div className="flex items-center gap-3">
             {mounted && user && connCount > 0 && (
@@ -143,7 +143,7 @@ export function Home() {
                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />
               )}
             </span>
-            <span className="text-[13.5px] font-semibold tracking-tight text-foreground">Kindred</span>
+            <span className="text-[13.5px] font-semibold tracking-tight text-foreground">Maitri</span>
           </div>
 
           <div className="flex items-center gap-1">

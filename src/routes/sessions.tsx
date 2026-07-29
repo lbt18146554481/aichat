@@ -8,8 +8,8 @@ export const Route = createFileRoute("/sessions")({
   component: SessionsPage,
   head: () => ({
     meta: [
-      { title: "History — Kindred" },
-      { name: "description", content: "Every wish and conversation you've started with Kindred." },
+      { title: "History — Maitri" },
+      { name: "description", content: "Every wish and conversation you've started with Maitri." },
     ],
   }),
 });
@@ -37,9 +37,6 @@ function SessionsPage() {
           <h1 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-foreground mb-1">
             {t("history.page_title")}
           </h1>
-          <p className="text-[13px] text-muted-foreground mb-6">
-            {t("history.subtitle")}
-          </p>
           <SessionList />
         </div>
       </main>

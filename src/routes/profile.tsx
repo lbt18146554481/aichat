@@ -18,8 +18,8 @@ export const Route = createFileRoute("/profile")({
   component: ProfilePage,
   head: () => ({
     meta: [
-      { title: "Your profile — Kindred" },
-      { name: "description", content: "Edit how you appear to people Kindred introduces you to." },
+      { title: "Your profile — Maitri" },
+      { name: "description", content: "Edit how you appear to people Maitri introduces you to." },
     ],
   }),
 });
@@ -95,7 +95,7 @@ function ProfilePage() {
       ? t("hello.gate.back_to_sidebyside")
       : isWelcome
       ? t("profile.skip_for_now")
-      : "Kindred";
+      : "Maitri";
 
 
   return (
