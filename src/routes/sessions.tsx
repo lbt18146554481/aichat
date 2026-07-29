@@ -37,9 +37,6 @@ function SessionsPage() {
           <h1 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-foreground mb-1">
             {t("history.page_title")}
           </h1>
-          <p className="text-[13px] text-muted-foreground mb-6">
-            {t("history.subtitle")}
-          </p>
           <SessionList />
         </div>
       </main>
