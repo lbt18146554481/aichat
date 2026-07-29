@@ -279,16 +279,7 @@ function TextAsk({
         >
           {ask.confirmLabel}
         </button>
-        {ask.skipToProfile && onOpenProfile ? (
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={onOpenProfile}
-            className="min-h-11 sm:min-h-9 px-4 rounded-lg text-[13px] text-foreground/80 border border-border hover:border-foreground/30 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {ask.skipLabel ?? t("ask.open_full_profile")}
-          </button>
-        ) : ask.skipLabel ? (
+        {ask.skipLabel ? (
           <button
             type="button"
             disabled={disabled}
