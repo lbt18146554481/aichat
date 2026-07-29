@@ -133,11 +133,13 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
     otherCity,
     otherOccupation,
   ].filter((s) => s && s.trim().length > 0);
-  // A one-line "who is TA" preview — bio when we have one, portrait otherwise.
-  // Gives the card enough substance that the user doesn't feel forced to
-  // tap into the profile sheet just to read anything about the person.
+  // One-line self-introduction — the person's bio in their own words.
+  // We DON'T fall back to `portrait` (a system-authored third-person blurb)
+  // because it isn't sourced content and misleads the reader about what
+  // the system actually knows. If bio is missing we just show nothing here
+  // and let the signals row carry the summary instead.
   const personBioLine = person
-    ? (lang === "zh-CN" ? person.portrait_zh : person.portrait)
+    ? (lang === "zh-CN" ? person.bio_zh ?? "" : person.bio ?? "")
     : "";
 
   const quality = state.matchQuality ?? "exact";
