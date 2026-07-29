@@ -8,7 +8,7 @@ import type { MatchmakerState } from "@/lib/agents/matchmaker";
 import { pickBestMoment } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
-import { hasName, isVitalsComplete, loadProfile } from "@/lib/profile";
+import { hasName, loadProfile } from "@/lib/profile";
 import {
   isPersonSaved,
   removeSavedPerson,
@@ -30,6 +30,10 @@ interface Props {
   /** Called when Say hello is blocked by missing profile fields. Parent
    *  (matchmaker route) reacts by pushing an inline Agent Ask. */
   onNeedProfile?: (field: "name" | "city", personId: string) => void;
+  /** Ephemeral, per-session identity supplied by the left Agent's inline
+   *  asks. Overrides missing Profile values for THIS action only — never
+   *  written back to Profile. */
+  oneShotIdentity?: { name?: string; city?: string; personId?: string };
 }
 
 // Per-person composer draft — survives a jump to /profile and back so the
@@ -56,7 +60,7 @@ function clearDraft(personId: string) {
 // jump to /connections so "back to intro" lands where the user left off.
 const scrollKey = (personId: string) => `kindred:intro:scroll:${personId}`;
 
-export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, onNeedProfile }: Props) {
+export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, onNeedProfile, oneShotIdentity }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
@@ -161,9 +165,10 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id, conn?.status]);
 
-  // Resume flag: after the Agent's inline ask fills the missing profile
-  // field, matchmaker sets `kindred:intro:resume-hello=<personId>`. When we
-  // land back here with a complete profile, auto-open the composer.
+  // Resume flag: after the Agent's inline ask, matchmaker sets
+  // `kindred:intro:resume-hello=<personId>`. When the flag matches this
+  // person AND we have a usable name (from Profile OR the one-shot ref
+  // supplied by the parent), reopen the composer.
   const resumeCheckedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!person || typeof window === "undefined") return;
@@ -172,7 +177,8 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
       const flag = window.sessionStorage.getItem("kindred:intro:resume-hello");
       if (flag === person.id) {
         const p = loadProfile();
-        if (hasName(p) && isVitalsComplete(p)) {
+        const haveName = hasName(p) || !!oneShotIdentity?.name;
+        if (haveName) {
           window.sessionStorage.removeItem("kindred:intro:resume-hello");
           resumeCheckedRef.current = person.id;
           setComposing(true);
@@ -180,7 +186,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
       }
     } catch { /* noop */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [person?.id, state.messages.length]);
+  }, [person?.id, state.messages.length, oneShotIdentity?.name]);
 
   if (!person) {
     return (
@@ -204,16 +210,15 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
 
   function requestSayHello(opts?: { pickedMomentId?: string | null; draftReply?: string }) {
     const p = loadProfile();
-    // Missing name / city — instead of redirecting, hand off to the left
-    // Agent so it can ask inline. If the parent didn't wire the callback,
-    // fall back to the old redirect.
-    if (!hasName(p) || !isVitalsComplete(p)) {
-      const missing: "name" | "city" = !hasName(p) ? "name" : "city";
+    // Say hello only NEEDS a first name to introduce the user. If we don't
+    // have one in Profile and the parent didn't supply one via the ephemeral
+    // one-shot ref, hand off to the left Agent to ask for it.
+    const haveName = hasName(p) || !!oneShotIdentity?.name;
+    if (!haveName) {
       if (onNeedProfile && person) {
-        // Persist the draft in progress so it comes back after the ask.
         if (opts?.pickedMomentId !== undefined) setDraftPicked(opts.pickedMomentId);
         if (opts?.draftReply !== undefined) setDraftReply(opts.draftReply);
-        onNeedProfile(missing, person.id);
+        onNeedProfile("name", person.id);
         return;
       }
       try {
@@ -335,13 +340,14 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
               {loc.occupation} · {loc.city}
             </p>
             {loc.bio ? (
-              <p className="mt-1.5 text-[12.5px] text-muted-foreground leading-relaxed">
-                {loc.bio}
-              </p>
-            ) : loc.portrait ? (
-              <p className="mt-1.5 text-[12.5px] text-muted-foreground leading-relaxed">
-                {loc.portrait}
-              </p>
+              <div className="mt-1.5">
+                <span className="text-[9.5px] uppercase tracking-[0.16em] font-mono text-muted-foreground/70 mr-1.5">
+                  {t("attribution.self_words")}
+                </span>
+                <span className="text-[12.5px] text-muted-foreground leading-relaxed">
+                  {loc.bio}
+                </span>
+              </div>
             ) : null}
           </div>
         </button>

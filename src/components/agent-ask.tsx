@@ -1,41 +1,21 @@
-// AgentAsk — the Agent's inline "补充 / 确认" card.
+// AgentAsk — the Agent's inline "just-for-this" confirmation card.
 //
 // Renders inside the chat stream, attached to the last assistant message.
-// The Agent uses this whenever it needs something from you to continue —
-// a fact, a choice, or a yes/no on an action. Not tied to Profile: the
-// answer drives the current action; if a Profile field is involved, an
-// explicit "☐ Also save to my profile" checkbox controls the side effect.
+// This is a TEMPORARY, one-shot prompt. It never writes to Profile and is
+// not remembered across actions — think Lovable's inline clarifications:
+// the Agent needs one thing to keep going, the user answers, we move on.
 //
 // Presentation only — the caller owns state via `onResolve(value | null)`.
 // value: string for text/select, "confirm" | "cancel" for confirm.
-// The optional 2nd arg `writeback` tells the caller whether the user opted
-// in to persisting the value to their Profile (only meaningful for text
-// asks with `writebackToProfile: true`).
+// null  = user pressed Cancel / dismissed.
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Sparkles,
-  MessageCircle,
-  User,
-  AlertTriangle,
-  Pencil,
-  Check,
-} from "lucide-react";
-
-export type AskScope = "wish" | "hello" | "profile" | "action";
-
-interface ScopeMeta {
-  /** Optional label override; defaults to a scoped translation key. */
-  label?: string;
-}
+import { Check } from "lucide-react";
 
 interface CommonFields {
   id: string;
   prompt?: string;
-  /** What this ask serves. Shown as a small tag at the top of the card. */
-  scope?: AskScope;
-  scopeMeta?: ScopeMeta;
 }
 
 export type AgentAsk =
@@ -46,19 +26,13 @@ export type AgentAsk =
       /** Multi-line textarea instead of single-line input. */
       multiline?: boolean;
       confirmLabel: string;
-      skipLabel?: string;
-      /** When set, the card shows a "☐ Also save to my profile" checkbox.
-       *  Caller reads the second argument of onResolve to decide the writeback. */
-      writebackToProfile?: boolean;
-      /** Default state of the writeback checkbox (defaults to true). */
-      writebackDefault?: boolean;
-      /** Label for the writeback checkbox (falls back to i18n default). */
-      writebackLabel?: string;
+      /** Text of the secondary "cancel this ask" button. Defaults to i18n Cancel. */
+      cancelLabel?: string;
     })
   | (CommonFields & {
       kind: "select";
       options: { value: string; label: string }[];
-      skipLabel?: string;
+      cancelLabel?: string;
     })
   | (CommonFields & {
       kind: "confirm";
@@ -70,35 +44,17 @@ export type AgentAsk =
 interface Props {
   ask: AgentAsk;
   disabled?: boolean;
-  /** value === null when the user passed / skipped. `writeback` is only
-   *  meaningful when the ask is `text` + `writebackToProfile: true`. */
-  onResolve: (value: string | null, writeback?: boolean) => void;
+  /** value === null when the user cancelled the ask. */
+  onResolve: (value: string | null) => void;
 }
 
-/** Small scoped tag at the top of an ask card. Makes it obvious what the
- *  Agent is asking *for* — a wish, a hello, a profile field, or an action. */
-function ScopeTag({ scope, meta }: { scope?: AskScope; meta?: ScopeMeta }) {
+/** Small one-liner at the top of the card — signals "this is temporary,
+ *  I'm only using it for the current action, and I'm not saving it anywhere". */
+function EphemeralHint() {
   const { t } = useTranslation();
-  if (!scope) return null;
-  const Icon =
-    scope === "wish"
-      ? Sparkles
-      : scope === "hello"
-        ? MessageCircle
-        : scope === "profile"
-          ? User
-          : AlertTriangle;
-  const isDanger = scope === "action";
-  const label = meta?.label ?? t(`ask.scope.${scope}`);
   return (
-    <div
-      className={[
-        "flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] font-mono mb-2",
-        isDanger ? "text-destructive/85" : "text-muted-foreground",
-      ].join(" ")}
-    >
-      <Icon className="w-3 h-3" />
-      <span>{label}</span>
+    <div className="text-[10px] uppercase tracking-[0.14em] font-mono text-muted-foreground/80 mb-2">
+      {t("ask.ephemeral_hint")}
     </div>
   );
 }
@@ -107,19 +63,12 @@ export function AgentAskCard({ ask, disabled, onResolve }: Props) {
   const { t } = useTranslation();
 
   if (ask.kind === "text") {
-    return (
-      <TextAsk
-        ask={ask}
-        disabled={disabled}
-        onResolve={onResolve}
-        t={t}
-      />
-    );
+    return <TextAsk ask={ask} disabled={disabled} onResolve={onResolve} t={t} />;
   }
   if (ask.kind === "select") {
     return (
       <div className="mt-2 rounded-2xl border border-border bg-card px-3.5 py-3">
-        <ScopeTag scope={ask.scope} meta={ask.scopeMeta} />
+        <EphemeralHint />
         {ask.prompt && (
           <p className="text-[13.5px] text-foreground leading-relaxed mb-2.5">
             {ask.prompt}
@@ -137,22 +86,19 @@ export function AgentAskCard({ ask, disabled, onResolve }: Props) {
               {o.label}
             </button>
           ))}
-          {ask.skipLabel && (
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => onResolve(null)}
-              className="min-h-11 sm:min-h-9 px-3 py-1.5 rounded-full text-[12.5px] text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {ask.skipLabel}
-            </button>
-          )}
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onResolve(null)}
+            className="min-h-11 sm:min-h-9 px-3 py-1.5 rounded-full text-[12.5px] text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {ask.cancelLabel ?? t("ask.cancel")}
+          </button>
         </div>
       </div>
     );
   }
   // confirm
-  const scope: AskScope | undefined = ask.scope ?? (ask.tone === "danger" ? "action" : undefined);
   return (
     <div
       className={[
@@ -160,7 +106,7 @@ export function AgentAskCard({ ask, disabled, onResolve }: Props) {
         ask.tone === "danger" ? "border-destructive/25 bg-destructive/5" : "border-border bg-card",
       ].join(" ")}
     >
-      <ScopeTag scope={scope} meta={ask.scopeMeta} />
+      <EphemeralHint />
       {ask.prompt && (
         <p className="text-[13.5px] text-foreground leading-relaxed mb-2.5">
           {ask.prompt}
@@ -201,21 +147,20 @@ function TextAsk({
 }: {
   ask: Extract<AgentAsk, { kind: "text" }>;
   disabled?: boolean;
-  onResolve: (v: string | null, writeback?: boolean) => void;
+  onResolve: (v: string | null) => void;
   t: ReturnType<typeof useTranslation>["t"];
 }) {
   const [value, setValue] = useState(ask.initial ?? "");
-  const [writeback, setWriteback] = useState<boolean>(ask.writebackDefault ?? true);
   const canSubmit = value.trim().length > 0 && !disabled;
 
   function submit() {
     if (!canSubmit) return;
-    onResolve(value.trim(), ask.writebackToProfile ? writeback : undefined);
+    onResolve(value.trim());
   }
 
   return (
     <div className="mt-2 rounded-2xl border border-border bg-card px-3.5 py-3">
-      <ScopeTag scope={ask.scope} meta={ask.scopeMeta} />
+      <EphemeralHint />
       {ask.prompt && (
         <p className="text-[13.5px] text-foreground leading-relaxed mb-2.5">
           {ask.prompt}
@@ -255,21 +200,6 @@ function TextAsk({
         />
       )}
 
-      {ask.writebackToProfile && (
-        <label className="mt-2.5 flex items-start gap-2 text-[12.5px] text-muted-foreground cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={writeback}
-            onChange={(e) => setWriteback(e.target.checked)}
-            disabled={disabled}
-            className="mt-[3px] w-3.5 h-3.5 rounded border-border accent-primary"
-          />
-          <span className="leading-relaxed">
-            {ask.writebackLabel ?? t("ask.writeback_default")}
-          </span>
-        </label>
-      )}
-
       <div className="mt-2 flex flex-col sm:flex-row gap-2">
         <button
           type="button"
@@ -279,48 +209,27 @@ function TextAsk({
         >
           {ask.confirmLabel}
         </button>
-        {ask.skipLabel ? (
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => onResolve(null)}
-            className="min-h-11 sm:min-h-9 px-4 rounded-lg text-[13px] text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {ask.skipLabel}
-          </button>
-        ) : null}
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onResolve(null)}
+          className="min-h-11 sm:min-h-9 px-4 rounded-lg text-[13px] text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {ask.cancelLabel ?? t("ask.cancel")}
+        </button>
       </div>
     </div>
   );
 }
 
-/** Collapsed pill shown after the user resolved an ask — feeds a sense
- *  of "the Agent noted it and moved on". Rendered inline in place of the
- *  original card. Includes an optional "edit" affordance so the user is
- *  never locked into their first answer. */
-export function AgentAskResolved({
-  label,
-  onEdit,
-}: {
-  label: string;
-  onEdit?: () => void;
-}) {
-  const { t } = useTranslation();
+/** Collapsed pill shown after an ask has been resolved — reinforces the
+ *  "used once, moved on" model. No edit affordance: the user simply
+ *  cancels their current action and starts again if they want to change. */
+export function AgentAskResolved({ label }: { label: string }) {
   return (
     <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-2.5 py-1 text-[12px] text-muted-foreground">
       <Check className="w-3 h-3 text-primary" />
-      <span className="truncate max-w-[240px]">{label}</span>
-      {onEdit && (
-        <button
-          type="button"
-          onClick={onEdit}
-          className="ml-1 inline-flex items-center gap-0.5 text-[11.5px] text-muted-foreground/85 hover:text-foreground transition-colors"
-          aria-label={t("ask.edit")}
-        >
-          <Pencil className="w-2.5 h-2.5" />
-          {t("ask.edit")}
-        </button>
-      )}
+      <span className="truncate max-w-[280px]">{label}</span>
     </div>
   );
 }

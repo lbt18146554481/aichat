@@ -51,12 +51,18 @@ export function PublicProfileSheet({ person, open, onOpenChange }: Props) {
           </div>
         </div>
 
-        {/* Bio — falls back to the person's one-line portrait so this section
-         *  never feels empty even before someone writes a formal bio. */}
-        {(loc.bio || loc.portrait) && (
-          <p className="mt-5 text-[13.5px] text-foreground/90 leading-relaxed">
-            {loc.bio || loc.portrait}
-          </p>
+        {/* Bio — only shown when the person actually wrote one. We do NOT
+         *  fall back to `portrait` (system-authored third-person copy) here:
+         *  that misleads the reader about what the person themselves said. */}
+        {loc.bio && (
+          <div className="mt-5">
+            <div className="text-[9.5px] uppercase tracking-[0.16em] font-mono text-muted-foreground/70 mb-1">
+              {t("attribution.self_words")}
+            </div>
+            <p className="text-[13.5px] text-foreground/90 leading-relaxed">
+              {loc.bio}
+            </p>
+          </div>
         )}
 
         {/* Signals — small tag row for quick sense of the person. */}

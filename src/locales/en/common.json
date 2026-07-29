@@ -122,7 +122,9 @@
     "ask_city_prompt": "One more thing — which city are you in? I mention it so hellos don't feel out-of-nowhere.",
     "ask_city_placeholder": "e.g. Kyoto, Berlin, 上海",
     "ask_resolved_name": "Saved name: {{name}}",
-    "ask_resolved_city": "Saved city: {{city}}"
+    "ask_resolved_city": "Saved city: {{city}}",
+    "ask_resolved_name_once": "Using {{name}} for this hello.",
+    "ask_resolved_city_once": "Using {{city}} for this hello."
   },
   "moment": {
     "about_them": "In their own words",
@@ -574,22 +576,24 @@
     "cancel": "Cancel",
     "skip": "Skip",
     "edit": "Edit",
-    "open_profile": "Open profile",
-    "open_full_profile": "Open full profile",
+    "continue": "Continue",
     "composer_locked": "Answer above to continue…",
-    "writeback_default": "Also remember this in my profile.",
     "pass": "Pass",
+    "ephemeral_hint": "Just for this — not saved to your profile.",
     "resolved_skipped": "Skipped.",
-    "resolved_city": "Saved city: {{city}}",
+    "resolved_cancelled": "Cancelled.",
+    "resolved_city_once": "Using {{city}} for this wish.",
     "revoke_yes": "Yes, take it back",
     "revoke_no": "Keep it up",
     "resolved_revoke_yes": "Wish taken back.",
-    "resolved_revoke_no": "Kept the wish up.",
-    "scope": {
-      "wish": "For your wish",
-      "hello": "For this hello",
-      "profile": "For your profile",
-      "action": "Confirm action"
-    }
+    "resolved_revoke_no": "Kept the wish up."
+  },
+  "attribution": {
+    "self_words": "In their words",
+    "agent_read": "Agent's read",
+    "signals": "Signals",
+    "what_they_do": "What they do",
+    "favorites": "Favorites",
+    "moments": "Moments"
   }
 }

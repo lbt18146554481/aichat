@@ -273,15 +273,21 @@ function rematchAfterUpdate(state: SideState, intentId: string): SideState {
 
 export function start(): SideState { return { ...EMPTY }; }
 
-export function submitPrompt(state: SideState, text: string): SideState {
+export function submitPrompt(
+  state: SideState,
+  text: string,
+  opts?: { cityOverride?: string },
+): SideState {
   // Revoke any prior wish — one active wish at a time keeps the demo legible.
   if (state.myIntentId) revokeMyIntent(state.myIntentId);
   const parsed = parseIntent(text);
-  // City precedence: explicit override in the raw text > Profile.city.
-  // The route guards on Profile.city being non-empty before we get here.
+  // City precedence: explicit override passed in (from a one-shot Agent ask,
+  // never persisted to Profile) > city mentioned inline in the text >
+  // Profile.city. The route guards on there being SOME city before we run.
   const profile = loadProfile();
-  const cityEn = parsed.city ?? profile.city;
-  const cityZh = parsed.city_zh ?? profile.city;
+  const overrideCity = opts?.cityOverride?.trim();
+  const cityEn = overrideCity || parsed.city || profile.city;
+  const cityZh = overrideCity || parsed.city_zh || profile.city;
   const mine = publishMyIntent({
     kind: parsed.kind,
     when: parsed.when,
