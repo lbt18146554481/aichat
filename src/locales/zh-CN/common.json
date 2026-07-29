@@ -578,6 +578,8 @@
     "open_full_profile": "打开完整资料",
     "composer_locked": "先回答上面再继续…",
     "writeback_default": "顺便记到我的个人资料里。",
+    "pass": "跳过",
+    "resolved_skipped": "已跳过。",
     "resolved_city": "已记下城市：{{city}}",
     "revoke_yes": "确认收回",
     "revoke_no": "先留着",
