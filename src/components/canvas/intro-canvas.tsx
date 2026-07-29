@@ -165,9 +165,10 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id, conn?.status]);
 
-  // Resume flag: after the Agent's inline ask fills the missing profile
-  // field, matchmaker sets `kindred:intro:resume-hello=<personId>`. When we
-  // land back here with a complete profile, auto-open the composer.
+  // Resume flag: after the Agent's inline ask, matchmaker sets
+  // `kindred:intro:resume-hello=<personId>`. When the flag matches this
+  // person AND we have a usable name (from Profile OR the one-shot ref
+  // supplied by the parent), reopen the composer.
   const resumeCheckedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!person || typeof window === "undefined") return;
@@ -176,7 +177,8 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
       const flag = window.sessionStorage.getItem("kindred:intro:resume-hello");
       if (flag === person.id) {
         const p = loadProfile();
-        if (hasName(p) && isVitalsComplete(p)) {
+        const haveName = hasName(p) || !!oneShotIdentity?.name;
+        if (haveName) {
           window.sessionStorage.removeItem("kindred:intro:resume-hello");
           resumeCheckedRef.current = person.id;
           setComposing(true);
@@ -184,7 +186,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
       }
     } catch { /* noop */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [person?.id, state.messages.length]);
+  }, [person?.id, state.messages.length, oneShotIdentity?.name]);
 
   if (!person) {
     return (
