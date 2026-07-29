@@ -18,7 +18,7 @@
     "history": "历史",
     "gate": {
       "title": "Agent 需要先认识你。",
-      "body": "Kindred 给别人看的是你亲手写下的字，不是我们替你归纳的标签。花五分钟把资料填完，然后再回来。",
+      "body": "Maitri 给别人看的是你亲手写下的字，不是我们替你归纳的标签。花五分钟把资料填完，然后再回来。",
       "cta": "去填资料 · {{done}}/{{total}}"
     },
     "banner": {
@@ -53,7 +53,7 @@
   "history": {
     "title": "历史",
     "page_title": "历史",
-    "subtitle": "每一次你发起的心愿与对话，都在这里。随时回来，接着说。",
+    "subtitle": "",
     "empty": "还没有记录。回到首页说出一件事，它就会出现在这里。",
     "view_all": "查看全部"
   },
@@ -385,12 +385,12 @@
   },
   "profile": {
     "gate": {
-      "need_city": "Kindred 只在同城之间匹配。填一下你的城市再继续。"
+      "need_city": "Maitri 只在同城之间匹配。填一下你的城市再继续。"
     },
     "heading_setup": "完善你的资料",
     "heading_edit": "你的资料",
     "subhead": "别人看到的就是这一页，原文一字不改。短句、具体、真实——胜过任何漂亮话。Agent 只会读这些，绝不会替你编。",
-    "welcome_sub": "欢迎来到 Kindred。花一分钟简单介绍下自己——之后随时可以回来修改，也可以先跳过。",
+    "welcome_sub": "欢迎来到 Maitri。花一分钟简单介绍下自己——之后随时可以回来修改，也可以先跳过。",
     "skip_for_now": "先跳过",
     "progress": "第 {{done}} / {{total}} 步",
     "section": {
@@ -518,7 +518,7 @@
     "header": "收藏 · {{count}}",
     "header_aria": "打开收藏",
     "title": "先收藏起来",
-    "subtitle": "你先放着的人和心愿。留在这里，直到你采取下一步或手动移出。",
+    "subtitle": "",
     "empty": "暂无收藏。",
     "from_wish": "来自",
     "start_chat": "开始聊",
@@ -534,15 +534,15 @@
     "sign_out": "退出登录",
     "your_profile": "我的资料",
     "account_menu": "账号菜单",
-    "title_signin": "登录 Kindred。",
-    "title_signup": "加入 Kindred — 需要邀请码。",
+    "title_signin": "登录 Maitri。",
+    "title_signup": "加入 Maitri — 需要邀请码。",
     "sub_signin": "使用你注册时的方式继续。新朋友？在下方用邀请码加入即可。",
     "sub_signup": "选择一种登录方式,我们只用它来识别你。",
     "invite_step_title": "先输入邀请码。",
-    "invite_step_sub": "Kindred 目前仅限受邀加入。输入邀请码后继续。",
+    "invite_step_sub": "Maitri 目前仅限受邀加入。输入邀请码后继续。",
     "provider_step_title_signup": "选择注册方式。",
     "invite_label": "邀请码",
-    "invite_placeholder": "例如 KINDRED2026",
+    "invite_placeholder": "例如 MAITRI2026",
     "invite_hint": "向已经在里面的朋友要一个邀请码。",
     "invite_verify": "继续",
     "invite_change": "换一个",
