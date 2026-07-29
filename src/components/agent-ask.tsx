@@ -197,13 +197,11 @@ function TextAsk({
   ask,
   disabled,
   onResolve,
-  onOpenProfile,
   t,
 }: {
   ask: Extract<AgentAsk, { kind: "text" }>;
   disabled?: boolean;
   onResolve: (v: string | null, writeback?: boolean) => void;
-  onOpenProfile?: () => void;
   t: ReturnType<typeof useTranslation>["t"];
 }) {
   const [value, setValue] = useState(ask.initial ?? "");
