@@ -1,10 +1,10 @@
 {
   "app": {
-    "name": "Kindred",
-    "tagline": "两个 Agent。两种相遇的方式。"
+    "name": "Maitri",
+    "tagline": "遇见善良的人。"
   },
   "home": {
-    "greeting": "今晚，你想怎样遇见一个人？",
+    "greeting": "今晚，你想遇见谁？",
     "placeholder": "用你自己的话说说——想认识什么样的人，或者想和人一起做点什么……",
     "placeholder_locked": "先把你的资料填完——Agent 得先认识你，才能给你介绍人。",
     "send": "发送",
