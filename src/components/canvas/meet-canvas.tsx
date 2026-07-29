@@ -246,7 +246,7 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
         <div className="mt-4 flex items-center gap-2">
           <button
             onClick={onStartChat}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-md bg-primary text-primary-foreground text-[13.5px] font-medium hover:opacity-90 transition-opacity"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 min-h-11 px-4 rounded-md bg-primary text-primary-foreground text-[13.5px] font-medium hover:opacity-90 transition-opacity"
           >
             <MessageCircle className="w-3.5 h-3.5" />
             {t("intent.start_chat")}
@@ -257,7 +257,7 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
               aria-pressed={isSaved}
               title={isSaved ? t("intent.unsave") : t("intent.save_hint")}
               className={
-                "inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md border text-[13px] transition-colors " +
+                "inline-flex items-center gap-1.5 min-h-11 px-3 rounded-md border text-[13px] transition-colors " +
                 (isSaved
                   ? "bg-primary text-primary-foreground border-foreground hover:opacity-90"
                   : "border-border text-foreground/85 hover:bg-secondary")
@@ -271,7 +271,7 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
             onClick={onSkip}
             disabled={remaining === 0}
             title={remaining === 0 ? t("intent.pool_empty_hint") : undefined}
-            className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md border border-border text-[13px] text-foreground/85 hover:bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1.5 min-h-11 px-3 rounded-md border border-border text-[13px] text-foreground/85 hover:bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <SkipForward className="w-3.5 h-3.5" />
             {t("intent.next_match")}

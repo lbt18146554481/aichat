@@ -273,7 +273,7 @@ export function Workspace({
         <section
           className={[
             "min-h-0 overflow-y-auto overscroll-contain-y bg-secondary/30",
-            mobileTab === "canvas" ? "block pb-[max(env(safe-area-inset-bottom),8px)]" : "hidden lg:block",
+            mobileTab === "canvas" ? "block pb-[max(env(safe-area-inset-bottom),1rem)]" : "hidden lg:block",
           ].join(" ")}
         >
           {rightPane}

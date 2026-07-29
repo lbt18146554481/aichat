@@ -308,7 +308,8 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
   }
 
   return (
-    <div ref={rootRef} className="h-full px-8 py-10">
+    <div ref={rootRef} className="h-full px-6 sm:px-8 pt-8 sm:pt-10 pb-[max(env(safe-area-inset-bottom),1rem)]">
+
       <div className="mx-auto max-w-md">
         {/* Header — clickable identity opens the public profile sheet */}
         <button
@@ -377,7 +378,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => requestSayHello()}
-                  className="flex-1 sm:flex-none px-4 py-2.5 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity"
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center min-h-11 px-4 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity"
                 >
                   {t("connection.say_hello")}
                 </button>
@@ -389,7 +390,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
                   }}
                   aria-pressed={saved}
                   className={[
-                    "inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-md border text-[13px] font-medium transition-colors",
+                    "inline-flex items-center justify-center gap-1.5 min-h-11 px-4 rounded-md border text-[13px] font-medium transition-colors",
                     saved
                       ? "border-foreground/70 bg-secondary text-foreground"
                       : "border-border text-foreground/85 hover:bg-secondary",
@@ -409,7 +410,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
                 </button>
                 <button
                   onClick={onPassAndNext}
-                  className="px-3 py-2.5 rounded-md text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+                  className="inline-flex items-center justify-center min-h-11 px-3 rounded-md text-[13px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                 >
                   {t("intro.see_someone_else")}
                 </button>
@@ -420,11 +421,11 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
 
           {!conn && composing && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between -mx-2">
                 <button
                   type="button"
                   onClick={handleCancel}
-                  className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+                  className="inline-flex items-center min-h-11 px-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {t("intro.back_to_actions")}
                 </button>
@@ -435,7 +436,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
                     if (!saved) savePerson(person.id, sessionId);
                     handleCancel();
                   }}
-                  className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+                  className="inline-flex items-center gap-1.5 min-h-11 px-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <BookmarkPlus className="w-3 h-3" strokeWidth={1.75} />
                   {t("connection.save_and_later")}
