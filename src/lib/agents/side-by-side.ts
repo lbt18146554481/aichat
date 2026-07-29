@@ -29,11 +29,11 @@ import {
 } from "../intents";
 import { getSession, updateSession, deriveDoSomethingStatus } from "../sessions";
 import {
-  isSaved as isSavedGlobal,
   removeSaved as removeSavedGlobal,
   removeSavedForSession as removeSavedForSessionGlobal,
   saveIntent as saveIntentGlobal,
 } from "../saved-intents";
+
 
 export type { LevelTier, WhenTier } from "../intents";
 
@@ -355,22 +355,19 @@ export function skipMatch(state: SideState): SideState {
 export function saveCurrent(state: SideState, sessionId?: string | null): SideState {
   if (!state.myIntentId || !state.matchIntentId) return state;
   const id = state.matchIntentId;
-  const already = isSavedGlobal(id);
-  if (already) {
-    removeSavedGlobal(id);
-  } else {
-    // Always write globally so the Header entry lights up — sessionId is only
-    // used as an optional back-link for the drawer, never a gate.
-    saveIntentGlobal(id, sessionId || state.myIntentId || id);
-  }
   const currentSaved = state.savedIntentIds ?? [];
-  const saved = already
-    ? currentSaved.filter((x) => x !== id)
-    : currentSaved.includes(id)
-      ? currentSaved
-      : [...currentSaved, id];
-  return { ...state, savedIntentIds: saved };
+  // Truth for the toggle is in-memory state, not the global store.
+  // React StrictMode double-invokes state updaters in dev; deriving from
+  // localStorage would flip the save on the second run and cancel it out.
+  const already = currentSaved.includes(id);
+  if (already) {
+    removeSavedGlobal(id); // idempotent
+    return { ...state, savedIntentIds: currentSaved.filter((x) => x !== id) };
+  }
+  saveIntentGlobal(id, sessionId || state.myIntentId || id); // idempotent
+  return { ...state, savedIntentIds: [...currentSaved, id] };
 }
+
 
 
 /** Remove from saved list and put the person back into the pool as the

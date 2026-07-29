@@ -573,12 +573,21 @@
     "save": "保存",
     "cancel": "取消",
     "skip": "跳过",
+    "edit": "修改",
     "open_profile": "去个人资料填写",
+    "open_full_profile": "打开完整资料",
     "composer_locked": "先回答上面再继续…",
+    "writeback_default": "顺便记到我的个人资料里。",
     "resolved_city": "已记下城市：{{city}}",
     "revoke_yes": "确认收回",
     "revoke_no": "先留着",
     "resolved_revoke_yes": "已把心愿收回。",
-    "resolved_revoke_no": "心愿仍然挂着。"
+    "resolved_revoke_no": "心愿仍然挂着。",
+    "scope": {
+      "wish": "为本次心愿",
+      "hello": "为本次打招呼",
+      "profile": "关于个人资料",
+      "action": "确认操作"
+    }
   }
 }
