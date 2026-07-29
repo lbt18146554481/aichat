@@ -167,7 +167,7 @@ export function Workspace({
                     <AgentAskCard
                       ask={m.ask}
                       disabled={thinking || composerDisabled}
-                      onResolve={(v) => onAskResolve?.(m.ask!.id, v)}
+                      onResolve={(v, wb) => onAskResolve?.(m.ask!.id, v, wb)}
                       onOpenProfile={onOpenFullProfile}
                     />
                   </div>
