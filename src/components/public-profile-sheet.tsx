@@ -51,11 +51,26 @@ export function PublicProfileSheet({ person, open, onOpenChange }: Props) {
           </div>
         </div>
 
-        {/* Bio — one-sentence self-introduction (from the user's own profile) */}
-        {loc.bio && (
+        {/* Bio — falls back to the person's one-line portrait so this section
+         *  never feels empty even before someone writes a formal bio. */}
+        {(loc.bio || loc.portrait) && (
           <p className="mt-5 text-[13.5px] text-foreground/90 leading-relaxed">
-            {loc.bio}
+            {loc.bio || loc.portrait}
           </p>
+        )}
+
+        {/* Signals — small tag row for quick sense of the person. */}
+        {person.signals && person.signals.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {person.signals.slice(0, 6).map((s) => (
+              <span
+                key={s}
+                className="px-2 py-0.5 rounded-full border border-border bg-secondary/60 text-[11px] text-muted-foreground"
+              >
+                {t(`signal.${s}`, { defaultValue: s })}
+              </span>
+            ))}
+          </div>
         )}
 
         {/* Favorites */}
