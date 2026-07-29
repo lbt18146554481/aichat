@@ -521,7 +521,7 @@ function SideBySidePage() {
     actWith((s) => submitPrompt(s, text), text);
   }
 
-  function handleAskResolve(askId: string, value: string | null) {
+  function handleAskResolve(askId: string, value: string | null, writeback?: boolean) {
     // City ask: value=null means the user tapped "open profile" — send them
     // to /profile with a return path so they can finish there.
     if (askId.startsWith("city-")) {
@@ -539,8 +539,11 @@ function SideBySidePage() {
       }
       const trimmed = value.trim();
       if (!trimmed) return;
-      const p = loadProfile();
-      saveProfile({ ...p, city: trimmed });
+      // Only persist to Profile when the user opted in (default true).
+      if (writeback !== false) {
+        const p = loadProfile();
+        saveProfile({ ...p, city: trimmed });
+      }
       // Mark the ask resolved with a summary pill, then replay the wish.
       setState((s) => {
         const nextMessages = s.messages.map((m) =>
