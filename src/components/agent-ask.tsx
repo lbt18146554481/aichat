@@ -47,8 +47,6 @@ export type AgentAsk =
       multiline?: boolean;
       confirmLabel: string;
       skipLabel?: string;
-      /** When set, the skip button links to /profile via return-URL. */
-      skipToProfile?: boolean;
       /** When set, the card shows a "☐ Also save to my profile" checkbox.
        *  Caller reads the second argument of onResolve to decide the writeback. */
       writebackToProfile?: boolean;
@@ -72,11 +70,9 @@ export type AgentAsk =
 interface Props {
   ask: AgentAsk;
   disabled?: boolean;
-  /** value === null when the user skipped / cancelled. `writeback` is only
+  /** value === null when the user passed / skipped. `writeback` is only
    *  meaningful when the ask is `text` + `writebackToProfile: true`. */
   onResolve: (value: string | null, writeback?: boolean) => void;
-  /** For text asks with skipToProfile — the caller wires the return URL. */
-  onOpenProfile?: () => void;
 }
 
 /** Small scoped tag at the top of an ask card. Makes it obvious what the
@@ -107,7 +103,7 @@ function ScopeTag({ scope, meta }: { scope?: AskScope; meta?: ScopeMeta }) {
   );
 }
 
-export function AgentAskCard({ ask, disabled, onResolve, onOpenProfile }: Props) {
+export function AgentAskCard({ ask, disabled, onResolve }: Props) {
   const { t } = useTranslation();
 
   if (ask.kind === "text") {
@@ -116,7 +112,6 @@ export function AgentAskCard({ ask, disabled, onResolve, onOpenProfile }: Props)
         ask={ask}
         disabled={disabled}
         onResolve={onResolve}
-        onOpenProfile={onOpenProfile}
         t={t}
       />
     );
@@ -202,13 +197,11 @@ function TextAsk({
   ask,
   disabled,
   onResolve,
-  onOpenProfile,
   t,
 }: {
   ask: Extract<AgentAsk, { kind: "text" }>;
   disabled?: boolean;
   onResolve: (v: string | null, writeback?: boolean) => void;
-  onOpenProfile?: () => void;
   t: ReturnType<typeof useTranslation>["t"];
 }) {
   const [value, setValue] = useState(ask.initial ?? "");
@@ -286,16 +279,7 @@ function TextAsk({
         >
           {ask.confirmLabel}
         </button>
-        {ask.skipToProfile && onOpenProfile ? (
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={onOpenProfile}
-            className="min-h-11 sm:min-h-9 px-4 rounded-lg text-[13px] text-foreground/80 border border-border hover:border-foreground/30 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {ask.skipLabel ?? t("ask.open_full_profile")}
-          </button>
-        ) : ask.skipLabel ? (
+        {ask.skipLabel ? (
           <button
             type="button"
             disabled={disabled}

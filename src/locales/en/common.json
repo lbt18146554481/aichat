@@ -578,6 +578,8 @@
     "open_full_profile": "Open full profile",
     "composer_locked": "Answer above to continue…",
     "writeback_default": "Also remember this in my profile.",
+    "pass": "Pass",
+    "resolved_skipped": "Skipped.",
     "resolved_city": "Saved city: {{city}}",
     "revoke_yes": "Yes, take it back",
     "revoke_no": "Keep it up",

@@ -124,24 +124,25 @@ function MatchmakerPage() {
             id: askId,
             placeholder,
             confirmLabel: t("ask.save"),
-            skipLabel: t("ask.open_profile"),
-            skipToProfile: true,
+            skipLabel: t("ask.pass"),
+            writebackToProfile: true,
           },
         },
       ],
     }));
   }
 
-  function handleAskResolve(askId: string, value: string | null) {
-    // Skip → open full profile with a return path.
+  function handleAskResolve(askId: string, value: string | null, writeback?: boolean) {
+    // Pass → mark ask resolved with a "passed" pill; don't navigate.
     if (value === null) {
-      try {
-        window.sessionStorage.setItem(
-          "kindred:profile:return",
-          window.location.pathname + window.location.search,
-        );
-      } catch { /* noop */ }
-      void navigate({ to: "/profile" });
+      setState((s) => ({
+        ...s,
+        messages: s.messages.map((m) =>
+          m.ask?.id === askId
+            ? { ...m, ask: undefined, askResolvedLabel: t("ask.resolved_skipped") }
+            : m,
+        ),
+      }));
       return;
     }
     const trimmed = value.trim();
@@ -153,8 +154,10 @@ function MatchmakerPage() {
         : null;
     if (!field) return;
 
-    const p = loadProfile();
-    saveProfile({ ...p, [field]: trimmed });
+    if (writeback !== false) {
+      const p = loadProfile();
+      saveProfile({ ...p, [field]: trimmed });
+    }
     const summary = field === "name"
       ? t("intro.ask_resolved_name", { name: trimmed })
       : t("intro.ask_resolved_city", { city: trimmed });
@@ -193,7 +196,7 @@ function MatchmakerPage() {
       onSend={send}
       onReset={handleReset}
       onAskResolve={handleAskResolve}
-      onOpenFullProfile={() => { void navigate({ to: "/profile" }); }}
+      
       suggestions={suggestChips(state, lang)}
       rightPane={
         <IntroCanvas

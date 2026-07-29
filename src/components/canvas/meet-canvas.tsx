@@ -133,6 +133,12 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
     otherCity,
     otherOccupation,
   ].filter((s) => s && s.trim().length > 0);
+  // A one-line "who is TA" preview — bio when we have one, portrait otherwise.
+  // Gives the card enough substance that the user doesn't feel forced to
+  // tap into the profile sheet just to read anything about the person.
+  const personBioLine = person
+    ? (lang === "zh-CN" ? person.portrait_zh : person.portrait)
+    : "";
 
   const quality = state.matchQuality ?? "exact";
   const labelKey =
@@ -187,6 +193,12 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
             <ChevronRight className="w-4 h-4" />
           </div>
         </button>
+
+        {personBioLine && (
+          <p className="mt-2 text-[12.5px] text-foreground/80 leading-relaxed">
+            {personBioLine}
+          </p>
+        )}
 
         <WhyPersonBox otherOwnerId={other.ownerId} lang={lang} />
 
