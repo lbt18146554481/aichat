@@ -194,6 +194,12 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
           </div>
         </button>
 
+        {personBioLine && (
+          <p className="mt-2 text-[12.5px] text-foreground/80 leading-relaxed">
+            {personBioLine}
+          </p>
+        )}
+
         <WhyPersonBox otherOwnerId={other.ownerId} lang={lang} />
 
         <div className="mt-3 text-[11.5px] text-muted-foreground leading-relaxed">
