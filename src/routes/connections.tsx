@@ -19,7 +19,7 @@ export const Route = createFileRoute("/connections")({
   component: ConnectionsPage,
   head: () => ({
     meta: [
-      { title: "Conversations — Kindred" },
+      { title: "Conversations — Maitri" },
       { name: "description", content: "Your ongoing conversations." },
     ],
   }),

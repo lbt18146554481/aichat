@@ -29,8 +29,8 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
   head: () => ({
     meta: [
-      { title: "Sign in — Kindred" },
-      { name: "description", content: "Sign in or join Kindred with an invite." },
+      { title: "Sign in — Maitri" },
+      { name: "description", content: "Sign in or join Maitri with an invite." },
     ],
   }),
 });

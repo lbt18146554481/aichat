@@ -18,8 +18,8 @@ export const Route = createFileRoute("/profile")({
   component: ProfilePage,
   head: () => ({
     meta: [
-      { title: "Your profile — Kindred" },
-      { name: "description", content: "Edit how you appear to people Kindred introduces you to." },
+      { title: "Your profile — Maitri" },
+      { name: "description", content: "Edit how you appear to people Maitri introduces you to." },
     ],
   }),
 });
