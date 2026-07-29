@@ -103,7 +103,7 @@ function ScopeTag({ scope, meta }: { scope?: AskScope; meta?: ScopeMeta }) {
   );
 }
 
-export function AgentAskCard({ ask, disabled, onResolve, onOpenProfile }: Props) {
+export function AgentAskCard({ ask, disabled, onResolve }: Props) {
   const { t } = useTranslation();
 
   if (ask.kind === "text") {
@@ -112,7 +112,6 @@ export function AgentAskCard({ ask, disabled, onResolve, onOpenProfile }: Props)
         ask={ask}
         disabled={disabled}
         onResolve={onResolve}
-        onOpenProfile={onOpenProfile}
         t={t}
       />
     );
