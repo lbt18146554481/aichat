@@ -340,13 +340,14 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
               {loc.occupation} · {loc.city}
             </p>
             {loc.bio ? (
-              <p className="mt-1.5 text-[12.5px] text-muted-foreground leading-relaxed">
-                {loc.bio}
-              </p>
-            ) : loc.portrait ? (
-              <p className="mt-1.5 text-[12.5px] text-muted-foreground leading-relaxed">
-                {loc.portrait}
-              </p>
+              <div className="mt-1.5">
+                <span className="text-[9.5px] uppercase tracking-[0.16em] font-mono text-muted-foreground/70 mr-1.5">
+                  {t("attribution.self_words")}
+                </span>
+                <span className="text-[12.5px] text-muted-foreground leading-relaxed">
+                  {loc.bio}
+                </span>
+              </div>
             ) : null}
           </div>
         </button>
