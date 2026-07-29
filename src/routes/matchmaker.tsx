@@ -196,7 +196,7 @@ function MatchmakerPage() {
       onSend={send}
       onReset={handleReset}
       onAskResolve={handleAskResolve}
-      onOpenFullProfile={() => { void navigate({ to: "/profile" }); }}
+      
       suggestions={suggestChips(state, lang)}
       rightPane={
         <IntroCanvas
