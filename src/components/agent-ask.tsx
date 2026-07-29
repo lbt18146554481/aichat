@@ -47,8 +47,6 @@ export type AgentAsk =
       multiline?: boolean;
       confirmLabel: string;
       skipLabel?: string;
-      /** When set, the skip button links to /profile via return-URL. */
-      skipToProfile?: boolean;
       /** When set, the card shows a "☐ Also save to my profile" checkbox.
        *  Caller reads the second argument of onResolve to decide the writeback. */
       writebackToProfile?: boolean;
@@ -72,11 +70,9 @@ export type AgentAsk =
 interface Props {
   ask: AgentAsk;
   disabled?: boolean;
-  /** value === null when the user skipped / cancelled. `writeback` is only
+  /** value === null when the user passed / skipped. `writeback` is only
    *  meaningful when the ask is `text` + `writebackToProfile: true`. */
   onResolve: (value: string | null, writeback?: boolean) => void;
-  /** For text asks with skipToProfile — the caller wires the return URL. */
-  onOpenProfile?: () => void;
 }
 
 /** Small scoped tag at the top of an ask card. Makes it obvious what the
