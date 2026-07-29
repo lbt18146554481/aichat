@@ -521,19 +521,18 @@ function SideBySidePage() {
   }
 
   function handleAskResolve(askId: string, value: string | null, writeback?: boolean) {
-    // City ask: value=null means the user tapped "open profile" — send them
-    // to /profile with a return path so they can finish there.
+    // City ask: value=null means "Pass" — drop the pending wish, don't navigate.
     if (askId.startsWith("city-")) {
       if (value === null) {
-        // Skipped → open Profile with return path.
-        try {
-          window.sessionStorage.setItem(
-            "kindred:profile:return",
-            window.location.pathname + window.location.search,
-          );
-          window.sessionStorage.setItem("kindred:profile:focus", "city");
-        } catch { /* noop */ }
-        void navigate({ to: "/profile" });
+        setState((s) => ({
+          ...s,
+          pendingWishText: undefined,
+          messages: s.messages.map((m) =>
+            m.ask?.id === askId
+              ? { ...m, ask: undefined, askResolvedLabel: t("ask.resolved_skipped") }
+              : m,
+          ),
+        }));
         return;
       }
       const trimmed = value.trim();
