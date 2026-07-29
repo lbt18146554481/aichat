@@ -60,7 +60,7 @@ function clearDraft(personId: string) {
 // jump to /connections so "back to intro" lands where the user left off.
 const scrollKey = (personId: string) => `kindred:intro:scroll:${personId}`;
 
-export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, onNeedProfile }: Props) {
+export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, onNeedProfile, oneShotIdentity }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
