@@ -17,15 +17,19 @@ export function useRequireAuth(): { ready: boolean } {
     if (user) return;
     // Never bounce /auth → /auth (would nest the redirect param on itself).
     if (location.pathname === "/auth") return;
-    // Use pathname+search (never location.href — that could be an absolute
-    // URL and re-encoding it here is what produced the nested loop).
-    const target = location.pathname + (location.search ?? "");
+    // TanStack Router's `location.search` is a *parsed object*, not a string —
+    // concatenating it into a URL throws "Cannot convert object to primitive
+    // value" on iOS Safari (strict Symbol.toPrimitive). Grab the raw query
+    // from window.location instead.
+    const rawSearch =
+      typeof window !== "undefined" ? window.location.search : "";
+    const target = location.pathname + (rawSearch || "");
     void navigate({
       to: "/auth",
       search: { mode: "signin", redirect: target },
       replace: true,
     });
-  }, [hydrated, user, navigate, location.pathname, location.search]);
+  }, [hydrated, user, navigate, location.pathname]);
 
   return { ready: hydrated && !!user };
 }
