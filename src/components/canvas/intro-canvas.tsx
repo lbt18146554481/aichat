@@ -210,16 +210,15 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
 
   function requestSayHello(opts?: { pickedMomentId?: string | null; draftReply?: string }) {
     const p = loadProfile();
-    // Missing name / city — instead of redirecting, hand off to the left
-    // Agent so it can ask inline. If the parent didn't wire the callback,
-    // fall back to the old redirect.
-    if (!hasName(p) || !isVitalsComplete(p)) {
-      const missing: "name" | "city" = !hasName(p) ? "name" : "city";
+    // Say hello only NEEDS a first name to introduce the user. If we don't
+    // have one in Profile and the parent didn't supply one via the ephemeral
+    // one-shot ref, hand off to the left Agent to ask for it.
+    const haveName = hasName(p) || !!oneShotIdentity?.name;
+    if (!haveName) {
       if (onNeedProfile && person) {
-        // Persist the draft in progress so it comes back after the ask.
         if (opts?.pickedMomentId !== undefined) setDraftPicked(opts.pickedMomentId);
         if (opts?.draftReply !== undefined) setDraftReply(opts.draftReply);
-        onNeedProfile(missing, person.id);
+        onNeedProfile("name", person.id);
         return;
       }
       try {
