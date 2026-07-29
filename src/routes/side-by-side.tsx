@@ -485,9 +485,10 @@ function SideBySidePage() {
       // Fall through: user typed a new wish mid-chat — publish it.
     }
 
-    // City gate: matching is city-scoped, but we no longer redirect to
-    // /profile. Instead the Agent asks inline for the missing city, and
-    // once the user answers we replay their wish text.
+    // City gate: matching is city-scoped. We no longer redirect to /profile
+    // NOR write back to Profile. Instead the Agent asks inline for a city
+    // to use *just for this wish*; the answer flows through as a one-shot
+    // cityOverride and Profile is left untouched.
     const city = loadProfile().city.trim();
     if (!city) {
       setState((s) => ({
@@ -504,12 +505,8 @@ function SideBySidePage() {
             ask: {
               kind: "text",
               id: "city-" + Date.now(),
-              scope: "wish",
               placeholder: t("intent.ask_city_placeholder"),
-              confirmLabel: t("ask.save"),
-              skipLabel: t("ask.pass"),
-              writebackToProfile: true,
-              writebackDefault: true,
+              confirmLabel: t("ask.continue"),
             },
           },
         ],
@@ -520,8 +517,8 @@ function SideBySidePage() {
     actWith((s) => submitPrompt(s, text), text);
   }
 
-  function handleAskResolve(askId: string, value: string | null, writeback?: boolean) {
-    // City ask: value=null means "Pass" — drop the pending wish, don't navigate.
+  function handleAskResolve(askId: string, value: string | null) {
+    // City ask: value=null means cancel — drop the pending wish.
     if (askId.startsWith("city-")) {
       if (value === null) {
         setState((s) => ({
@@ -529,7 +526,7 @@ function SideBySidePage() {
           pendingWishText: undefined,
           messages: s.messages.map((m) =>
             m.ask?.id === askId
-              ? { ...m, ask: undefined, askResolvedLabel: t("ask.resolved_skipped") }
+              ? { ...m, ask: undefined, askResolvedLabel: t("ask.resolved_cancelled") }
               : m,
           ),
         }));
@@ -537,23 +534,22 @@ function SideBySidePage() {
       }
       const trimmed = value.trim();
       if (!trimmed) return;
-      // Only persist to Profile when the user opted in (default true).
-      if (writeback !== false) {
-        const p = loadProfile();
-        saveProfile({ ...p, city: trimmed });
-      }
-      // Mark the ask resolved with a summary pill, then replay the wish.
+      // Mark the ask resolved (one-shot pill), then replay the wish with the
+      // temporary city override. Profile is NOT touched.
       setState((s) => {
         const nextMessages = s.messages.map((m) =>
           m.ask?.id === askId
-            ? { ...m, ask: undefined, askResolvedLabel: t("ask.resolved_city", { city: trimmed }) }
+            ? { ...m, ask: undefined, askResolvedLabel: t("ask.resolved_city_once", { city: trimmed }) }
             : m,
         );
         return { ...s, messages: nextMessages, pendingWishText: undefined };
       });
       const wish = state.pendingWishText;
       if (wish) {
-        window.setTimeout(() => actWith((s) => submitPrompt(s, wish), undefined), 60);
+        window.setTimeout(
+          () => actWith((s) => submitPrompt(s, wish, { cityOverride: trimmed }), undefined),
+          60,
+        );
       }
       return;
     }
