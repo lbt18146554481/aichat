@@ -276,10 +276,13 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
 }
 
 
-// ---- Why is TA (demo copy from PEOPLE.whyPersonLine) -------------------
-
-
-const TOLD_KEY = "kindred:told-agent-pref";
+// ---- Why is TA — the Agent's own read, clearly attributed --------------
+//
+// This used to also render an inline "tell the Agent" input. We pulled it:
+// any info the Agent needs about the user belongs in the left chat, not
+// scattered across the canvas. This box now does ONE thing: show a short
+// line the Agent thinks about this person, labeled so the user sees it
+// as the Agent's interpretation — not first-person from the other user.
 
 function WhyPersonBox({ otherOwnerId, lang }: { otherOwnerId: string; lang: Lang }) {
   const { t } = useTranslation();
@@ -287,72 +290,17 @@ function WhyPersonBox({ otherOwnerId, lang }: { otherOwnerId: string; lang: Lang
   const line = person?.whyPersonLine
     ? (lang === "zh-CN" ? person.whyPersonLine.zh : person.whyPersonLine.en)
     : null;
-
-  // Demo "fallback" state: user hasn't told the Agent yet.
-  // Triggered by `?fresh=1` in the URL. Once they type a line, we flip to told.
-  const [hasTold, setHasTold] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    const fresh = new URLSearchParams(window.location.search).get("fresh") === "1";
-    if (!fresh) return true;
-    return window.localStorage.getItem(TOLD_KEY) === "1";
-  });
-  const [draft, setDraft] = useState("");
-  const [justSaved, setJustSaved] = useState(false);
-
-  function submit() {
-    const v = draft.trim();
-    if (!v) return;
-    try { window.localStorage.setItem(TOLD_KEY, "1"); } catch {}
-    setHasTold(true);
-    setJustSaved(true);
-  }
-
-  if (!hasTold) {
-    return (
-      <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3.5">
-        <div className="flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.14em] font-mono text-amber-700 dark:text-amber-400">
-          <Sparkles className="w-3 h-3" />
-          {t("intent.why_person_label")}
-        </div>
-        <p className="mt-1.5 text-[13px] text-foreground/85 leading-relaxed">
-          {t("intent.tell_agent_empty")}
-        </p>
-        <div className="mt-2.5 flex items-center gap-1.5">
-          <input
-            type="text"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-            placeholder={t("intent.tell_agent_placeholder")}
-            className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-[12.5px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-foreground/40"
-          />
-          <button
-            onClick={submit}
-            className="inline-flex items-center px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-[12px] font-medium hover:opacity-90 transition-opacity"
-          >
-            {t("intent.tell_agent_submit")}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const fallback = !line ? t("intent.why_person_fallback") : null;
+  if (!line) return null;
 
   return (
-    <div className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3.5">
-      <div className="flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.14em] font-mono text-emerald-700 dark:text-emerald-400">
+    <div className="mt-5 rounded-xl border border-border bg-secondary/40 px-4 py-3">
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
         <Sparkles className="w-3 h-3" />
-        {t("intent.why_person_label")}
+        {t("attribution.agent_read")}
       </div>
-      <p className="mt-1.5 text-[14px] text-foreground leading-relaxed">
-        {line ?? fallback}
+      <p className="mt-1.5 text-[13.5px] text-foreground/90 leading-relaxed">
+        {line}
       </p>
-      {justSaved && (
-        <p className="mt-2 text-[11.5px] text-emerald-700 dark:text-emerald-400">
-          {t("intent.tell_agent_thanks")}
-        </p>
-      )}
     </div>
   );
 }
