@@ -504,10 +504,13 @@ function SideBySidePage() {
             ask: {
               kind: "text",
               id: "city-" + Date.now(),
+              scope: "wish",
               placeholder: t("intent.ask_city_placeholder"),
               confirmLabel: t("ask.save"),
               skipLabel: t("ask.open_profile"),
               skipToProfile: true,
+              writebackToProfile: true,
+              writebackDefault: true,
             },
           },
         ],
