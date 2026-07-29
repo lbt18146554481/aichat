@@ -30,6 +30,10 @@ interface Props {
   /** Called when Say hello is blocked by missing profile fields. Parent
    *  (matchmaker route) reacts by pushing an inline Agent Ask. */
   onNeedProfile?: (field: "name" | "city", personId: string) => void;
+  /** Ephemeral, per-session identity supplied by the left Agent's inline
+   *  asks. Overrides missing Profile values for THIS action only — never
+   *  written back to Profile. */
+  oneShotIdentity?: { name?: string; city?: string; personId?: string };
 }
 
 // Per-person composer draft — survives a jump to /profile and back so the
