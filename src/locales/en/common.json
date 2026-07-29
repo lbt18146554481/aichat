@@ -1,10 +1,10 @@
 {
   "app": {
-    "name": "Kindred",
-    "tagline": "Two agents. Two ways to meet someone."
+    "name": "Maitri",
+    "tagline": "Meet someone kind."
   },
   "home": {
-    "greeting": "Tonight, how do you want to meet someone?",
+    "greeting": "Who do you want to meet tonight?",
     "placeholder": "Say it in your own words — who you'd like to meet, or what you'd love to do with someone…",
     "placeholder_locked": "Set up your profile first — the Agent needs to know you before it can introduce anyone.",
     "send": "Send",
@@ -18,7 +18,7 @@
     "history": "History",
     "gate": {
       "title": "The Agents need to know you first.",
-      "body": "Kindred shows people the words you write — not labels we infer. Take five minutes to set up your profile, then come back.",
+      "body": "Maitri shows people the words you write — not labels we infer. Take five minutes to set up your profile, then come back.",
       "cta": "Set up profile · {{done}}/{{total}}"
     },
     "banner": {
@@ -53,7 +53,7 @@
   "history": {
     "title": "History",
     "page_title": "History",
-    "subtitle": "Every wish and conversation you've started. Pick one up where you left it.",
+    "subtitle": "",
     "empty": "Nothing yet. Start a wish from the home page and it'll show up here.",
     "view_all": "View all"
   },
@@ -385,12 +385,12 @@
   },
   "profile": {
     "gate": {
-      "need_city": "Kindred matches people in the same city. Add your city to keep going."
+      "need_city": "Maitri matches people in the same city. Add your city to keep going."
     },
     "heading_setup": "Set up your profile",
     "heading_edit": "Your profile",
     "subhead": "This is exactly how others see you. Write it in your own words — short, specific, true. The Agents read this, they never invent it.",
-    "welcome_sub": "Welcome to Kindred. Take a minute to introduce yourself — you can always come back and edit. Skip whenever you like.",
+    "welcome_sub": "Welcome to Maitri. Take a minute to introduce yourself — you can always come back and edit. Skip whenever you like.",
     "skip_for_now": "Skip for now",
     "progress": "Step {{done}} of {{total}}",
     "section": {
@@ -518,7 +518,7 @@
     "header": "Saved · {{count}}",
     "header_aria": "Open saved list",
     "title": "Saved for later",
-    "subtitle": "People and wishes you parked. They stay here until you take action or remove them.",
+    "subtitle": "",
     "empty": "Nothing saved yet.",
     "from_wish": "From",
     "start_chat": "Start chatting",
@@ -534,15 +534,15 @@
     "sign_out": "Sign out",
     "your_profile": "Your profile",
     "account_menu": "Account menu",
-    "title_signin": "Sign in to Kindred.",
-    "title_signup": "Join Kindred — by invite.",
+    "title_signin": "Sign in to Maitri.",
+    "title_signup": "Join Maitri — by invite.",
     "sub_signin": "Continue with the account you signed up with. New here? Join with an invite code below.",
     "sub_signup": "Choose how you'd like to sign in. We'll use it just to identify you.",
     "invite_step_title": "You'll need an invite.",
-    "invite_step_sub": "Kindred is invite-only for now. Enter a code to continue.",
+    "invite_step_sub": "Maitri is invite-only for now. Enter a code to continue.",
     "provider_step_title_signup": "Choose how to sign up.",
     "invite_label": "Invite code",
-    "invite_placeholder": "e.g. KINDRED2026",
+    "invite_placeholder": "e.g. MAITRI2026",
     "invite_hint": "Ask a friend who's already inside for their code.",
     "invite_verify": "Continue",
     "invite_change": "Change",
@@ -551,7 +551,7 @@
     "continue_wechat": "Continue with WeChat",
     "coming_soon": "Soon",
     "wechat_coming_soon": "WeChat sign-in is coming soon.",
-    "switch_to_signup_lead": "New to Kindred?",
+    "switch_to_signup_lead": "New to Maitri?",
     "switch_to_signup_cta": "Join with an invite",
     "switch_to_signin_lead": "Already have an account?",
     "switch_to_signin_cta": "Sign in",
