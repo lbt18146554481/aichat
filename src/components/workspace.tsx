@@ -166,7 +166,7 @@ export function Workspace({
                       ask={m.ask}
                       disabled={thinking || composerDisabled}
                       onResolve={(v, wb) => onAskResolve?.(m.ask!.id, v, wb)}
-                      onOpenProfile={onOpenFullProfile}
+                      
                     />
                   </div>
                 )}
