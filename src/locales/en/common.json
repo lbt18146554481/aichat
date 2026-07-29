@@ -122,7 +122,9 @@
     "ask_city_prompt": "One more thing — which city are you in? I mention it so hellos don't feel out-of-nowhere.",
     "ask_city_placeholder": "e.g. Kyoto, Berlin, 上海",
     "ask_resolved_name": "Saved name: {{name}}",
-    "ask_resolved_city": "Saved city: {{city}}"
+    "ask_resolved_city": "Saved city: {{city}}",
+    "ask_resolved_name_once": "Using {{name}} for this hello.",
+    "ask_resolved_city_once": "Using {{city}} for this hello."
   },
   "moment": {
     "about_them": "In their own words",
