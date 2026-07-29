@@ -100,7 +100,13 @@ function MatchmakerPage() {
     }, 450);
   }
 
-  // Inline Agent ask when Say hello is blocked by a missing profile field.
+  // One-shot identity buffer — the left Agent may ask for a name when we
+  // need to introduce the user for a Say hello. The answer lives only in
+  // this ref, is used exactly once, and is never written to Profile. If
+  // the user refreshes the page, we ask again — that's the point.
+  const oneShotIdentity = useRef<{ name?: string; city?: string; personId?: string }>({});
+
+  // Inline Agent ask when Say hello needs a name / city we don't have yet.
   function handleNeedProfile(field: "name" | "city", personId: string) {
     const askId = `${field}-${personId}-${Date.now()}`;
     const prompt = field === "name"
@@ -109,6 +115,7 @@ function MatchmakerPage() {
     const placeholder = field === "name"
       ? t("intro.ask_name_placeholder")
       : t("intro.ask_city_placeholder");
+    oneShotIdentity.current = { ...oneShotIdentity.current, personId };
     setState((s) => ({
       ...s,
       messages: [
@@ -122,23 +129,21 @@ function MatchmakerPage() {
             kind: "text",
             id: askId,
             placeholder,
-            confirmLabel: t("ask.save"),
-            skipLabel: t("ask.pass"),
-            writebackToProfile: true,
+            confirmLabel: t("ask.continue"),
           },
         },
       ],
     }));
   }
 
-  function handleAskResolve(askId: string, value: string | null, writeback?: boolean) {
-    // Pass → mark ask resolved with a "passed" pill; don't navigate.
+  function handleAskResolve(askId: string, value: string | null) {
+    // Cancel → drop the ask; the Say hello flow simply stays gated.
     if (value === null) {
       setState((s) => ({
         ...s,
         messages: s.messages.map((m) =>
           m.ask?.id === askId
-            ? { ...m, ask: undefined, askResolvedLabel: t("ask.resolved_skipped") }
+            ? { ...m, ask: undefined, askResolvedLabel: t("ask.resolved_cancelled") }
             : m,
         ),
       }));
@@ -153,14 +158,12 @@ function MatchmakerPage() {
         : null;
     if (!field) return;
 
-    if (writeback !== false) {
-      const p = loadProfile();
-      saveProfile({ ...p, [field]: trimmed });
-    }
+    // Stash the value in the ephemeral one-shot buffer. NOT persisted.
+    oneShotIdentity.current = { ...oneShotIdentity.current, [field]: trimmed };
     const summary = field === "name"
-      ? t("intro.ask_resolved_name", { name: trimmed })
-      : t("intro.ask_resolved_city", { city: trimmed });
-    // Remember the person so IntroCanvas can auto-resume the Say hello flow.
+      ? t("intro.ask_resolved_name_once", { name: trimmed })
+      : t("intro.ask_resolved_city_once", { city: trimmed });
+    // Remember which person we were mid-flow with so IntroCanvas resumes.
     const personId = askId.split("-")[1];
     try {
       window.sessionStorage.setItem("kindred:intro:resume-hello", personId);
@@ -173,12 +176,6 @@ function MatchmakerPage() {
           : m,
       ),
     }));
-    // If both name+city were missing, chain: check again post-save and ask
-    // for the remaining one immediately.
-    const nextProfile = loadProfile();
-    if (field === "name" && !nextProfile.city.trim()) {
-      window.setTimeout(() => handleNeedProfile("city", personId), 60);
-    }
   }
 
   if (!ready || !hydrated || !sessionId) return <div className="min-h-screen bg-background" />;
