@@ -117,9 +117,6 @@ export function SavedTrigger({ variant = "default" }: Props) {
           <SheetTitle className="text-[16px] font-semibold tracking-tight text-foreground text-left">
             {t("saved.title")}
           </SheetTitle>
-          <p className="text-[12px] text-muted-foreground text-left">
-            {t("saved.subtitle")}
-          </p>
         </SheetHeader>
         <Tabs
           defaultValue={people.length > 0 || saved.length === 0 ? "people" : "wishes"}
