@@ -201,6 +201,7 @@ function MatchmakerPage() {
           onPassAndNext={() => trigger(actAnotherPerson)}
           onSeeNextPerson={() => trigger(seeNextPerson)}
           onNeedProfile={handleNeedProfile}
+          oneShotIdentity={oneShotIdentity.current}
         />
       }
     />
