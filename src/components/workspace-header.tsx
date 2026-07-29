@@ -56,8 +56,9 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
   const alertName = alertPerson ? localized(alertPerson, lang).name : "";
 
   return (
-    <header className="w-full border-b border-border bg-background/90 backdrop-blur sticky top-0 z-30">
+    <header className="w-full border-b border-border bg-background/90 backdrop-blur sticky top-0 z-30 pt-safe">
       <div className="max-w-7xl mx-auto px-3 sm:px-5 h-14 flex items-center justify-between gap-2 sm:gap-3">
+
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Link
             to="/"
