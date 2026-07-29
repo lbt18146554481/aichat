@@ -154,8 +154,10 @@ function MatchmakerPage() {
         : null;
     if (!field) return;
 
-    const p = loadProfile();
-    saveProfile({ ...p, [field]: trimmed });
+    if (writeback !== false) {
+      const p = loadProfile();
+      saveProfile({ ...p, [field]: trimmed });
+    }
     const summary = field === "name"
       ? t("intro.ask_resolved_name", { name: trimmed })
       : t("intro.ask_resolved_city", { city: trimmed });
