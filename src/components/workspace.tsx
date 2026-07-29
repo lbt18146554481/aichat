@@ -164,7 +164,7 @@ export function Workspace({
                     <AgentAskCard
                       ask={m.ask}
                       disabled={thinking || composerDisabled}
-                      onResolve={(v, wb) => onAskResolve?.(m.ask!.id, v, wb)}
+                      onResolve={(v) => onAskResolve?.(m.ask!.id, v)}
                       
                     />
                   </div>
