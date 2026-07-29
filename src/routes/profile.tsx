@@ -95,7 +95,7 @@ function ProfilePage() {
       ? t("hello.gate.back_to_sidebyside")
       : isWelcome
       ? t("profile.skip_for_now")
-      : "Kindred";
+      : "Maitri";
 
 
   return (

@@ -106,12 +106,12 @@ function ConnectionsPage() {
           ) : (
             <Link to="/" className="inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="font-mono uppercase tracking-wide">Kindred</span>
+              <span className="font-mono uppercase tracking-wide">Maitri</span>
             </Link>
           )}
           {activeId && (
             <Link to="/" className="hidden lg:inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors">
-              <span className="font-mono uppercase tracking-wide">Kindred</span>
+              <span className="font-mono uppercase tracking-wide">Maitri</span>
             </Link>
           )}
           <div className="text-[13.5px] font-semibold tracking-tight">{t("connection.title")}</div>
