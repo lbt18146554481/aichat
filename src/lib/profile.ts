@@ -124,6 +124,7 @@ export function loadProfile(): Profile {
       ...rest,
       moments: Array.isArray(parsed.moments) ? parsed.moments : [],
       favorites,
+      interests: Array.isArray(parsed.interests) ? (parsed.interests as string[]) : [],
       hidden: Array.isArray(parsed.hidden) ? (parsed.hidden as string[]) : [],
     };
   } catch {
