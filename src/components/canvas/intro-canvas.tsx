@@ -341,19 +341,15 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
               {loc.occupation} · {loc.city}
             </p>
             {loc.bio ? (
-              <div className="mt-1.5">
-                <span className="text-[9.5px] uppercase tracking-[0.16em] font-mono text-muted-foreground/70 mr-1.5">
-                  {t("attribution.self_words")}
-                </span>
-                <span className="text-[12.5px] text-muted-foreground leading-relaxed">
-                  {loc.bio}
-                </span>
-              </div>
+              <p className="mt-1.5 text-[12.5px] text-muted-foreground leading-relaxed">
+                {loc.bio}
+              </p>
             ) : null}
           </div>
         </button>
 
-
+        {/* Why this person — reasons, each traceable to a real source. */}
+        {!composing && <WhyThisPerson person={person} lang={lang} understanding={state.understanding} />}
 
         {/* One Moment — TA's own voice, clickable to quote & compose */}
         {moments.length > 0 && (
