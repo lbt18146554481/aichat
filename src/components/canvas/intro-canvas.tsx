@@ -202,6 +202,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
 
   const loc = localized(person, lang);
   const moments = person.moments;
+  const personId = person.id;
 
 
   function requestSayHello(opts?: { pickedMomentId?: string | null; draftReply?: string }) {
@@ -212,13 +213,13 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
         picked: opts?.pickedMomentId ?? draftPicked,
         reply: opts?.draftReply ?? draftReply,
       };
-      saveDraft(person.id, nextDraft);
+      saveDraft(personId, nextDraft);
       try {
         const url = window.location.pathname + window.location.search;
         window.sessionStorage.setItem("kindred:profile:return", url);
-        window.sessionStorage.setItem("kindred:intro:resume-hello", person.id);
+        window.sessionStorage.setItem("kindred:intro:resume-hello", personId);
         const el = getScrollParent();
-        if (el) window.sessionStorage.setItem(scrollKey(person.id), String(el.scrollTop));
+        if (el) window.sessionStorage.setItem(scrollKey(personId), String(el.scrollTop));
       } catch { /* noop */ }
       void navigate({ to: "/profile", search: { welcome: 1 } });
       return;

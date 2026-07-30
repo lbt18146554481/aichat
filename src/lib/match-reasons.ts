@@ -29,7 +29,7 @@ const SIGNAL_EVIDENCE: Record<string, Record<string, string>> = {
   isa: { reading: "isa-1", quiet: "isa-2", rain: "isa-2", travel: "isa-1" },
   june: { kind: "june-2", quiet: "june-2", city: "june-1" },
   theo: { music: "theo-2", quiet: "theo-1", brave: "theo-4" },
-  mira: { art: "mira-2", quiet: "mira-3", outdoors: "mira-3", morning: "mira-1" },
+  mira: { art: "mira-2", quiet: "mira-3", morning: "mira-1" },
   hugo: { curious: "hugo-3", writing: "hugo-3", travel: "hugo-1" },
   noa: { kind: "noa-1", reading: "noa-3", cooking: "noa-2", brave: "noa-1" },
   kai: { outdoors: "kai-3", travel: "kai-1" },
