@@ -139,10 +139,31 @@ function ConnectionsPage() {
           // Hide list on mobile once a thread is open.
           activeId ? "hidden lg:block" : "block",
         ].join(" ")}>
-          {items.length === 0 ? (
-            <p className="px-5 py-8 text-[13px] text-muted-foreground leading-relaxed">{t("connection.empty")}</p>
+          {!loaded ? (
+            <ul data-testid="chats-loading" aria-busy="true">
+              {[0, 1, 2].map((i) => (
+                <li key={i} className="px-4 py-3 flex items-center gap-3">
+                  <Skeleton className="w-10 h-10 rounded-full shrink-0" />
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-3 w-40 max-w-full" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : items.length === 0 ? (
+            <div data-testid="chats-empty" className="px-6 py-12 text-center">
+              <MessagesSquare className="w-6 h-6 mx-auto mb-3 text-muted-foreground opacity-60" strokeWidth={1.5} />
+              <p className="text-[13px] text-muted-foreground leading-relaxed">{t("connection.empty")}</p>
+              <Link
+                to="/"
+                className="mt-4 inline-flex items-center justify-center min-h-11 px-4 rounded-md bg-primary text-primary-foreground text-[13px] font-medium"
+              >
+                {t("connection.empty_cta")}
+              </Link>
+            </div>
           ) : (
-            <ul>
+            <ul data-testid="chats-list">
               {items.map((c) => (
                 <Row
                   key={c.personId}
@@ -155,6 +176,7 @@ function ConnectionsPage() {
               ))}
             </ul>
           )}
+
         </aside>
 
         <section className={[
