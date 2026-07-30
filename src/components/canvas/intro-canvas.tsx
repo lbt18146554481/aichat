@@ -185,31 +185,8 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id, conn?.status]);
 
-  // Resume Say hello after the first-time profile gate. The gate stores the
-  // person we were about to greet; if the pane happens to show someone else
-  // when we come back, we still resume (and carry the draft over) instead of
-  // silently dropping the user back at the "Say hello" button.
-  const resumeCheckedRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!person || typeof window === "undefined") return;
-    if (resumeCheckedRef.current === person.id) return;
-    try {
-      const flag = window.sessionStorage.getItem("kindred:intro:resume-hello");
-      if (!flag) return;
-      if (!isProfileComplete(loadProfile())) return;
-      window.sessionStorage.removeItem("kindred:intro:resume-hello");
-      resumeCheckedRef.current = person.id;
-      if (flag !== person.id) {
-        const carried = loadDraft(flag);
-        if (carried) {
-          setDraftPicked(null);
-          setDraftReply(carried.reply);
-        }
-      }
-      setComposing(true);
-    } catch { /* noop */ }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [person?.id]);
+
+
 
 
   if (!person) {
