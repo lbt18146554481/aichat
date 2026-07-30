@@ -343,10 +343,8 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
               <h2 className="text-[19px] font-semibold tracking-tight text-foreground">
                 {loc.name}
               </h2>
-              <span className="text-[12px] font-mono text-muted-foreground tabular-nums">
-                {person.age}
-              </span>
             </div>
+
             <p className="mt-0.5 text-[12.5px] text-muted-foreground">
               {loc.occupation} · {loc.city}
             </p>
