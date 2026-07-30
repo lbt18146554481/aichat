@@ -108,15 +108,18 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
 
   useEffect(() => {
     setConn(person ? get(person.id) : null);
-    // Restore composer draft for this person (if any).
+    // Restore composer draft for this person (if any), and resume the
+    // Say hello composer if we left for the first-time profile gate.
     if (person) {
-      const d = loadDraft(person.id);
+      const resumeId = readResumeHello();
+      const resuming = resumeId !== null && isProfileComplete(loadProfile());
+      const d = loadDraft(person.id) ?? (resuming && resumeId !== person.id ? loadDraft(resumeId!) : null);
       if (d) {
-        setComposing(d.composing);
+        setComposing(d.composing || resuming);
         setDraftPicked(d.picked);
         setDraftReply(d.reply);
       } else {
-        setComposing(false);
+        setComposing(resuming);
         setDraftPicked(null);
         setDraftReply("");
       }
@@ -126,6 +129,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     return () => { unsub(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id]);
+
 
   // Persist draft whenever it changes (only after restore has run).
   useEffect(() => {
