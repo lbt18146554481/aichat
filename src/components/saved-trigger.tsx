@@ -38,6 +38,11 @@ import type { Lang } from "@/lib/i18n";
 
 interface Props {
   variant?: "default" | "compact";
+  /** Controlled open state — lets other surfaces (e.g. the mobile Me page)
+   *  reuse the same drawer without rendering the header pill. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }
 
 function useSavedList(): SavedRecord[] {
@@ -110,15 +115,17 @@ export function SavedTrigger({ variant = "default", open: openProp, onOpenChange
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <button
-        type="button"
-        className={btnClass}
-        aria-label={t("saved.header_aria")}
-        onClick={() => setOpen(true)}
-      >
-        <BookmarkCheck className="w-3.5 h-3.5" strokeWidth={1.75} />
-        <span>{t("saved.header", { count })}</span>
-      </button>
+      {!hideTrigger && (
+        <button
+          type="button"
+          className={btnClass}
+          aria-label={t("saved.header_aria")}
+          onClick={() => setOpen(true)}
+        >
+          <BookmarkCheck className="w-3.5 h-3.5" strokeWidth={1.75} />
+          <span>{t("saved.header", { count })}</span>
+        </button>
+      )}
       <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
         <SheetHeader className="px-6 pt-6 pb-3 border-b border-border">
           <SheetTitle className="text-[16px] font-semibold tracking-tight text-foreground text-left">
