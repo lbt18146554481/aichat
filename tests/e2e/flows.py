@@ -40,7 +40,7 @@ async def shot(page, name):
 async def register(page, code="WELCOME"):
     """Walk the real signup UI: invite step -> provider step."""
     await page.goto(f"{BASE}/auth?mode=signup", wait_until="domcontentloaded")
-    await page.get_by_label("Invite code").fill(code)
+    await page.locator("input[type=text]").first.fill(code)
     await page.get_by_role("button", name="Continue", exact=True).click()
     await page.get_by_role("button", name="Continue with Google").click()
     await page.wait_for_url(lambda u: "/auth" not in u, timeout=15000)
@@ -76,13 +76,13 @@ async def flow_registration(context):
     page = await context.new_page()
     await page.goto(f"{BASE}/auth?mode=signup", wait_until="domcontentloaded")
 
-    await page.get_by_label("Invite code").fill("TOTALLY-BOGUS")
+    await page.locator("input[type=text]").first.fill("TOTALLY-BOGUS")
     await page.get_by_role("button", name="Continue", exact=True).click()
     await page.wait_for_timeout(600)
     body = await page.locator("body").inner_text()
     record("registration: invalid invite is rejected", "isn't valid" in body, body[:120])
 
-    await page.get_by_label("Invite code").fill("WELCOME")
+    await page.locator("input[type=text]").first.fill("WELCOME")
     await page.get_by_role("button", name="Continue", exact=True).click()
     await page.get_by_role("button", name="Continue with Google").click()
     await page.wait_for_url(lambda u: "/auth" not in u, timeout=15000)
