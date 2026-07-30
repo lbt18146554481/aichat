@@ -111,7 +111,7 @@ export function Home() {
             <span className="text-[14px] font-semibold tracking-tight text-foreground">Maitri</span>
           </div>
           <div className="flex items-center gap-3">
-            {mounted && user && connCount > 0 && (
+            {mounted && user && (
               <Link
                 to="/connections"
                 className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"

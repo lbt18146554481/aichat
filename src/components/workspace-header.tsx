@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, MessageCircle, RotateCcw, UserCircle } from "lucide-react";
+import { ArrowLeft, MessageCircle, RotateCcw } from "lucide-react";
 import { LangSwitcher } from "./lang-switcher";
 import { HistoryTrigger } from "./history-trigger";
 import { SavedTrigger } from "./saved-trigger";
