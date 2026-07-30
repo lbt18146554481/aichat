@@ -33,7 +33,6 @@ function pickAlert(items: Connection[]): Connection | null {
 export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
-  const [connCount, setConnCount] = useState(0);
   const [unseen, setUnseen] = useState(false);
   const [alert, setAlert] = useState<Connection | null>(null);
 

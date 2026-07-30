@@ -40,7 +40,6 @@ export function Home() {
   const [text, setText] = useState("");
   const [selected, setSelected] = useState<AgentId | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [connCount, setConnCount] = useState(0);
   const [unseen, setUnseen] = useState(false);
 
 
