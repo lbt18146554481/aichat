@@ -68,16 +68,23 @@ function useSavedPeopleList(): SavedPersonRecord[] {
   }
 }
 
-export function SavedTrigger({ variant = "default" }: Props) {
+export function SavedTrigger({ variant = "default", open: openProp, onOpenChange, hideTrigger }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? !!openProp : openState;
+  const setOpen = (v: boolean) => {
+    if (!controlled) setOpenState(v);
+    onOpenChange?.(v);
+  };
   const saved = useSavedList();
   const people = useSavedPeopleList();
   const count = saved.length + people.length;
 
-  if (count === 0) return null;
+  if (count === 0 && !controlled) return null;
+
 
   const btnClass =
     variant === "compact"
