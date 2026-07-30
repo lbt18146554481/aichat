@@ -260,7 +260,7 @@ function isUnavailable(personId: string): boolean {
 }
 
 function pickNext(state: MatchmakerState, excludeCurrent = false): Person | null {
-  const available = PEOPLE.filter((p) => !isUnavailable(p.id));
+  const available = PEOPLE.filter((p) => !isUnavailable(p.id) && reasonCount(p, state.understanding) > 0);
   const fresh = available.filter(
     (p) => !state.passedIds.includes(p.id)
       && (!excludeCurrent || p.id !== state.currentPersonId)
@@ -310,6 +310,10 @@ const L = {
   none_left: {
     en: "I'm out of people who fit. Try giving me a quality I don't know yet — or loosen one you've mentioned.",
     zh: "按你说的，我手上的人介绍完了。再告诉我一个我还不知道的特质——或者放宽一个。",
+  },
+  need_more: {
+    en: "Give me one thing that matters to you — a way of living, a value, or something you love. Then I'll have a real reason for the introduction.",
+    zh: "再告诉我一件你真正在意的事吧——一种生活方式、一个价值观，或你喜欢的东西。有了真实依据，我再介绍。",
   },
 };
 
@@ -361,7 +365,12 @@ export function userTurn(state: MatchmakerState, text: string, lang: "en" | "zh-
 
 function introduce(state: MatchmakerState, lang: "en" | "zh-CN"): MatchmakerState {
   const person = pickNext(state, true);
-  if (!person) return pushA(state, lang === "zh-CN" ? L.none_left.zh : L.none_left.en);
+  if (!person) {
+    const hasEvidence = PEOPLE.some((p) => reasonCount(p, state.understanding) > 0);
+    return pushA(state, lang === "zh-CN"
+      ? (hasEvidence ? L.none_left.zh : L.need_more.zh)
+      : (hasEvidence ? L.none_left.en : L.need_more.en));
+  }
   const next: MatchmakerState = {
     ...state,
     phase: "introducing",

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
@@ -34,11 +34,14 @@ function ProfilePage() {
   const [hydrated, setHydrated] = useState(false);
   const [returnTo, setReturnTo] = useState<string | null>(null);
   const [needCity, setNeedCity] = useState(false);
+  const [currentProfile, setCurrentProfile] = useState(() => loadProfile());
 
   const isWelcome = search.welcome === 1 && !returnTo;
 
   useEffect(() => {
-    setProgress(profileProgress(loadProfile()));
+    const loaded = loadProfile();
+    setCurrentProfile(loaded);
+    setProgress(profileProgress(loaded));
     try {
       setReturnTo(window.sessionStorage.getItem("kindred:profile:return"));
       setNeedCity(window.sessionStorage.getItem("kindred:profile:focus") === "city");
@@ -54,7 +57,7 @@ function ProfilePage() {
   // signup welcome return. Full URL (path + query) is stored so we land
   // back on the exact session, not a bare route.
   useEffect(() => {
-    if (!isProfileComplete(loadProfile())) return;
+    if (!isProfileComplete(currentProfile)) return;
     let back: string | null = null;
     try {
       back =
@@ -68,7 +71,12 @@ function ProfilePage() {
     // Use a full location change so any `?session=…` query is preserved
     // and the target route re-parses its search params.
     window.location.assign(dest);
-  }, [progress, navigate]);
+  }, [currentProfile]);
+
+  const handleProfileChange = useCallback((profile: ReturnType<typeof loadProfile>) => {
+    setCurrentProfile(profile);
+    setProgress(profileProgress(profile));
+  }, []);
 
   function handleBack() {
     let back: string | null = null;
@@ -141,7 +149,7 @@ function ProfilePage() {
           </p>
         </div>
 
-        <ProfileForm lang={lang} />
+        <ProfileForm lang={lang} onChange={handleProfileChange} />
       </main>
     </div>
   );

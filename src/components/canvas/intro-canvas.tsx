@@ -8,7 +8,7 @@ import type { MatchmakerState } from "@/lib/agents/matchmaker";
 import { pickBestMoment } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
-import { hasName, loadProfile, type Profile } from "@/lib/profile";
+import { isProfileComplete, loadProfile, type Profile } from "@/lib/profile";
 import { buildReasons, type Reason } from "@/lib/match-reasons";
 import type { UserUnderstanding } from "@/lib/understanding";
 import type { Person } from "@/lib/types";
@@ -30,13 +30,6 @@ interface Props {
   /** Advance to the next person WITHOUT marking current as passed. Used
    *  after Say hello / connected / faded — the user isn't rejecting them. */
   onSeeNextPerson: () => void;
-  /** Called when Say hello is blocked by missing profile fields. Parent
-   *  (matchmaker route) reacts by pushing an inline Agent Ask. */
-  onNeedProfile?: (field: "name" | "city", personId: string) => void;
-  /** Ephemeral, per-session identity supplied by the left Agent's inline
-   *  asks. Overrides missing Profile values for THIS action only — never
-   *  written back to Profile. */
-  oneShotIdentity?: { name?: string; city?: string; personId?: string };
 }
 
 // Per-person composer draft — survives a jump to /profile and back so the
@@ -63,7 +56,7 @@ function clearDraft(personId: string) {
 // jump to /connections so "back to intro" lands where the user left off.
 const scrollKey = (personId: string) => `kindred:intro:scroll:${personId}`;
 
-export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, onNeedProfile, oneShotIdentity }: Props) {
+export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
@@ -172,10 +165,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id, conn?.status]);
 
-  // Resume flag: after the Agent's inline ask, matchmaker sets
-  // `kindred:intro:resume-hello=<personId>`. When the flag matches this
-  // person AND we have a usable name (from Profile OR the one-shot ref
-  // supplied by the parent), reopen the composer.
+  // Resume Say hello after the first-time profile gate.
   const resumeCheckedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!person || typeof window === "undefined") return;
@@ -184,8 +174,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
       const flag = window.sessionStorage.getItem("kindred:intro:resume-hello");
       if (flag === person.id) {
         const p = loadProfile();
-        const haveName = hasName(p) || !!oneShotIdentity?.name;
-        if (haveName) {
+        if (isProfileComplete(p)) {
           window.sessionStorage.removeItem("kindred:intro:resume-hello");
           resumeCheckedRef.current = person.id;
           setComposing(true);
@@ -193,7 +182,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
       }
     } catch { /* noop */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [person?.id, state.messages.length, oneShotIdentity?.name]);
+  }, [person?.id]);
 
   if (!person) {
     return (
@@ -213,26 +202,26 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
 
   const loc = localized(person, lang);
   const moments = person.moments;
+  const personId = person.id;
 
 
   function requestSayHello(opts?: { pickedMomentId?: string | null; draftReply?: string }) {
     const p = loadProfile();
-    // Say hello only NEEDS a first name to introduce the user. If we don't
-    // have one in Profile and the parent didn't supply one via the ephemeral
-    // one-shot ref, hand off to the left Agent to ask for it.
-    const haveName = hasName(p) || !!oneShotIdentity?.name;
-    if (!haveName) {
-      if (onNeedProfile && person) {
-        if (opts?.pickedMomentId !== undefined) setDraftPicked(opts.pickedMomentId);
-        if (opts?.draftReply !== undefined) setDraftReply(opts.draftReply);
-        onNeedProfile("name", person.id);
-        return;
-      }
+    if (!isProfileComplete(p)) {
+      const nextDraft = {
+        composing: true,
+        picked: opts?.pickedMomentId ?? draftPicked,
+        reply: opts?.draftReply ?? draftReply,
+      };
+      saveDraft(personId, nextDraft);
       try {
         const url = window.location.pathname + window.location.search;
         window.sessionStorage.setItem("kindred:profile:return", url);
+        window.sessionStorage.setItem("kindred:intro:resume-hello", personId);
+        const el = getScrollParent();
+        if (el) window.sessionStorage.setItem(scrollKey(personId), String(el.scrollTop));
       } catch { /* noop */ }
-      void navigate({ to: "/profile" });
+      void navigate({ to: "/profile", search: { welcome: 1 } });
       return;
     }
     const el = getScrollParent();
@@ -357,7 +346,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
 
         {/* Why this person — reasons, each traceable to a real source. */}
         {!composing && myProfile && (
-          <WhyThisPerson person={person} lang={lang} profile={myProfile} reasons={reasons} />
+          <WhyThisPerson person={person} lang={lang} reasons={reasons} />
         )}
 
         {/* One Moment — TA's own voice, clickable to quote & compose.
@@ -569,7 +558,7 @@ function YourHelloRecap({
 
 function WhyThisPerson({
   person, lang, reasons,
-}: { person: Person; lang: Lang; profile: Profile; reasons: Reason[] }) {
+}: { person: Person; lang: Lang; reasons: Reason[] }) {
   const { t } = useTranslation();
   const name = localized(person, lang).name;
 
@@ -579,11 +568,7 @@ function WhyThisPerson({
       <div className="text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
         {t("why.title", { name })}
       </div>
-      {reasons.length === 0 ? (
-        <p className="mt-2 text-[12.5px] text-muted-foreground leading-relaxed">
-          {t("why.not_enough")}
-        </p>
-      ) : (
+      {reasons.length > 0 && (
         <ul className="mt-3 space-y-3.5">
           {reasons.map((r, i) => (
             <li key={i} className="text-[13px] leading-relaxed">
