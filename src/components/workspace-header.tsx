@@ -104,7 +104,7 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
                   : t("notify.new_hello", { name: alertName })}
               </span>
             </Link>
-          ) : connCount > 0 ? (
+          ) : (
             <Link
               to="/connections"
               aria-label={t("header.connections")}
@@ -114,17 +114,10 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
               <span className="hidden sm:inline">{t("header.connections")}</span>
               {unseen && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-primary" />}
             </Link>
-          ) : null}
+          )}
           <SavedTrigger variant="compact" />
           <HistoryTrigger variant="compact" />
-          <Link
-            to="/profile"
-            aria-label={t("header.profile")}
-            className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            <UserCircle className="w-3.5 h-3.5" />
-            <span>{t("header.profile")}</span>
-          </Link>
+
           {onReset && (
             <button
               onClick={onReset}
