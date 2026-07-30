@@ -181,7 +181,8 @@
     "faded_subtitle": "Didn't land",
     "waiting_tail": "waiting",
     "incoming_hint": "Reply to open the conversation…",
-    "faded_body_short": "No reply this time."
+    "faded_body_short": "No reply this time.",
+    "empty_cta": "Find someone to meet"
   },
   "incoming": {
     "label": "Someone read you",
@@ -526,7 +527,8 @@
     "section_wishes": "Wishes",
     "people_empty": "Nothing saved yet from introductions.",
     "wishes_empty": "No wishes kept for later.",
-    "remove": "Remove"
+    "remove": "Remove",
+    "loading": "Loading your saved list…"
   },
   "auth": {
     "sign_in": "Sign in",
@@ -606,6 +608,8 @@
     "saved_sub": "People and wishes you parked",
     "invites": "Invites",
     "invites_sub": "Invite people you'd vouch for",
-    "signout": "Sign out"
+    "signout": "Sign out",
+    "loading": "Loading…",
+    "invites_empty": "No codes yet. Generate one to invite someone you'd vouch for."
   }
 }
