@@ -11,7 +11,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "audit": "node scripts/audit-deps.mjs --level=high",
+    "audit:all": "node scripts/audit-deps.mjs --level=low"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
