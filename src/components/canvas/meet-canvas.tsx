@@ -133,18 +133,8 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
     otherCity,
     otherOccupation,
   ].filter((s) => s && s.trim().length > 0);
-  // One-line self-introduction — the person's bio in their own words.
-  // We DON'T fall back to `portrait` (a system-authored third-person blurb)
-  // because it isn't sourced content and misleads the reader about what
-  // the system actually knows. If bio is missing we just show nothing here
-  // and let the signals row carry the summary instead.
-  const personBioLine = person
-    ? (lang === "zh-CN" ? person.bio_zh ?? "" : person.bio ?? "")
-    : "";
 
   const quality = state.matchQuality ?? "exact";
-  const labelKey =
-    quality === "exact" ? "intent.match_label" : "intent.match_label_close";
   const closeReasonKey =
     quality === "relaxed-when" ? "intent.close_reason_when"
     : quality === "relaxed-level" ? "intent.close_reason_level"
@@ -153,24 +143,18 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
       <div className="mx-auto max-w-lg">
-        <div className="flex items-center gap-3">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
-            {t(labelKey)}
-          </div>
-        </div>
         {closeReasonKey && (
-          <p className="mt-1.5 text-[12px] text-muted-foreground leading-relaxed">
+          <p className="text-[12px] text-muted-foreground leading-relaxed">
             {t(closeReasonKey)}
           </p>
         )}
-
 
         {/* Identity row — the whole block is a button that opens the profile sheet. */}
         <button
           type="button"
           onClick={() => setOpenProfile(true)}
           aria-label={t("intent.open_profile", { name: otherName })}
-          className="mt-4 w-full flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left hover:bg-muted/40 hover:border-foreground/25 transition-colors"
+          className="w-full flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left hover:bg-muted/40 hover:border-foreground/25 transition-colors"
         >
           <img
             src={avatarUrl(other.ownerId)}
@@ -180,7 +164,6 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
           <div className="min-w-0 flex-1">
             <div className="text-[15px] font-medium text-foreground truncate">
               {otherName}
-              {person?.age ? <span className="text-muted-foreground font-normal">, {person.age}</span> : null}
             </div>
             {identityMetaParts.length > 0 && (
               <div className="text-[12px] text-muted-foreground truncate">
@@ -196,44 +179,20 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
           </div>
         </button>
 
-        {personBioLine ? (
-          <p className="mt-2 text-[12.5px] text-foreground/80 leading-relaxed">
-            {personBioLine}
-          </p>
-        ) : person && person.signals.length > 0 ? (
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {person.signals.slice(0, 5).map((s) => (
-              <span key={s} className="px-2 py-0.5 rounded-full border border-border text-[11px] text-muted-foreground">
-                {t(`signal.${s}`, { defaultValue: s })}
-              </span>
-            ))}
-          </div>
-        ) : null}
-
         <WhyPersonBox otherOwnerId={other.ownerId} lang={lang} />
 
-        <div className="mt-3 text-[11.5px] text-muted-foreground leading-relaxed">
-          <span className="uppercase tracking-[0.14em] font-mono text-[10px] mr-2 opacity-70">
+        {/* Why you're matched — the result itself, no "he said / you said". */}
+        <div className="mt-3 rounded-xl border border-border bg-card px-4 py-3">
+          <div className="text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
             {t("intent.aligned_label")}
-          </span>
-          {t("intent.aligned_body", {
-            kind: alignedKind,
-            when: alignedWhen,
-            level: alignedLevel,
-          })}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <Tag>{KIND_EMOJI[mine.kind]} {alignedKind}</Tag>
+            <Tag>{alignedWhen}</Tag>
+            <Tag>{alignedLevel}</Tag>
+          </div>
         </div>
 
-        {/* Their own words + yours — human evidence backing the aligned tag. */}
-        <div className="mt-3 space-y-1.5">
-          <QuoteLine
-            label={t("intent.you_said")}
-            text={lang === "zh-CN" ? mine.rawText_zh : mine.rawText}
-          />
-          <QuoteLine
-            label={t("intent.they_said")}
-            text={lang === "zh-CN" ? other.rawText_zh : other.rawText}
-          />
-        </div>
 
         <div className="mt-4 flex items-center gap-2">
           <button
