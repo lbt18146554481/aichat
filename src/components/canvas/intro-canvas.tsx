@@ -9,6 +9,7 @@ import { pickBestMoment } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
 import { isProfileComplete, loadProfile, type Profile } from "@/lib/profile";
+import { setFocusPerson } from "@/lib/seed";
 import { buildReasons, type Reason } from "@/lib/match-reasons";
 import type { UserUnderstanding } from "@/lib/understanding";
 import type { Person } from "@/lib/types";
