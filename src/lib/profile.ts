@@ -34,13 +34,33 @@ export interface Profile {
   mbti: string;          // optional, "" or one of 16 types
   /** One-sentence self-introduction (≤ 140 chars). Optional. */
   bio: string;
+  /** A few lightweight interest tags (keys from the shared `signal.*` set).
+   *  Optional — used to compute the "you both care about X" match reason. */
+  interests: string[];
   // L2 specificity
   moments: ProfileMoment[];
   favorites: Favorite[];
   /** Field keys the user has chosen to hide from others.
    *  Keys: "avatar", "age", "gender", "orientation", "mbti", "bio",
-   *        `moment:<promptId>`, `favorite:<index>` */
+   *        "interests", `moment:<promptId>`, `favorite:<index>` */
   hidden: string[];
+}
+
+/** The shared interest vocabulary — same keys the curated people use as
+ *  `signals`, so the two sides can actually be compared. */
+export const INTEREST_TAGS = [
+  "reading", "music", "film", "art", "writing", "travel", "outdoors",
+  "cooking", "coffee", "quiet", "curious", "funny", "kind", "brave",
+  "ambitious", "city", "animals", "rain", "morning", "night",
+] as const;
+
+export const MAX_INTERESTS = 5;
+
+export function toggleInterest(p: Profile, tag: string): Profile {
+  const cur = Array.isArray(p.interests) ? p.interests : [];
+  if (cur.includes(tag)) return { ...p, interests: cur.filter((x) => x !== tag) };
+  if (cur.length >= MAX_INTERESTS) return p;
+  return { ...p, interests: [...cur, tag] };
 }
 
 export const EMPTY_PROFILE: Profile = {
@@ -53,6 +73,7 @@ export const EMPTY_PROFILE: Profile = {
   orientation: "",
   mbti: "",
   bio: "",
+  interests: [],
   moments: [],
   favorites: [],
   hidden: [],
@@ -103,6 +124,7 @@ export function loadProfile(): Profile {
       ...rest,
       moments: Array.isArray(parsed.moments) ? parsed.moments : [],
       favorites,
+      interests: Array.isArray(parsed.interests) ? (parsed.interests as string[]) : [],
       hidden: Array.isArray(parsed.hidden) ? (parsed.hidden as string[]) : [],
     };
   } catch {

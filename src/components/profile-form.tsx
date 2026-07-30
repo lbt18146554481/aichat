@@ -16,6 +16,9 @@ import {
   EMPTY_PROFILE,
   MIN_MOMENTS,
   MAX_FAVORITES,
+  MAX_INTERESTS,
+  INTEREST_TAGS,
+  toggleInterest,
   addFavorite,
   isHidden,
   isProfileComplete,
@@ -216,6 +219,39 @@ export function ProfileForm({ lang, compact = false }: Props) {
             maxLength={140}
             className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14px] leading-relaxed resize-none"
           />
+        </Field>
+
+        {/* Interest tags — the only structured signal the matcher can compare
+            against another person's tags, so "you both care about X" is a
+            real, attributable reason instead of copy. */}
+        <Field
+          label={`${t("profile.f.interests")} · ${t("profile.optional")}`}
+          hidden={isHidden(profile, "interests")}
+          onToggleHide={() => flipHide("interests")}
+        >
+          <div className="pt-1 flex flex-wrap gap-1.5">
+            {INTEREST_TAGS.map((tag) => {
+              const on = (profile.interests ?? []).includes(tag);
+              const full = (profile.interests ?? []).length >= MAX_INTERESTS;
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  aria-pressed={on}
+                  disabled={!on && full}
+                  onClick={() => setProfile((p) => toggleInterest(p, tag))}
+                  className={[
+                    "px-2.5 py-1 rounded-full border text-[12.5px] transition-colors",
+                    on
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border text-muted-foreground hover:border-foreground/40 disabled:opacity-35",
+                  ].join(" ")}
+                >
+                  {t(`signal.${tag}`, { defaultValue: tag })}
+                </button>
+              );
+            })}
+          </div>
         </Field>
       </section>
 

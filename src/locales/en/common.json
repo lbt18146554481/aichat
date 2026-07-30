@@ -424,6 +424,7 @@
     },
     "f": {
       "name": "Name",
+      "interests": "Interests",
       "age": "Age",
       "city": "City",
       "occupation": "What you do",
@@ -588,12 +589,14 @@
     "resolved_revoke_yes": "Wish taken back.",
     "resolved_revoke_no": "Kept the wish up."
   },
-  "attribution": {
-    "self_words": "In their words",
+  "why": {
+    "title": "Why {{name}}",
+    "same_city": "You're both in {{city}}.",
+    "shared": "You both put down {{items}}.",
+    "join": ", ",
+    "you_said": "You said ",
+    "they_wrote": "{{name}} wrote ",
     "agent_read": "Agent's read",
-    "signals": "Signals",
-    "what_they_do": "What they do",
-    "favorites": "Favorites",
-    "moments": "Moments"
+    "not_enough": "Not enough to go on yet — tell the Agent one more thing on the left and I'll bring someone closer."
   }
 }

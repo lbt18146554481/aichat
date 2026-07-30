@@ -8,7 +8,10 @@ import type { MatchmakerState } from "@/lib/agents/matchmaker";
 import { pickBestMoment } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
-import { hasName, loadProfile } from "@/lib/profile";
+import { hasName, loadProfile, type Profile } from "@/lib/profile";
+import { buildReasons } from "@/lib/match-reasons";
+import type { UserUnderstanding } from "@/lib/understanding";
+import type { Person } from "@/lib/types";
 import {
   isPersonSaved,
   removeSavedPerson,
@@ -341,19 +344,15 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
               {loc.occupation} · {loc.city}
             </p>
             {loc.bio ? (
-              <div className="mt-1.5">
-                <span className="text-[9.5px] uppercase tracking-[0.16em] font-mono text-muted-foreground/70 mr-1.5">
-                  {t("attribution.self_words")}
-                </span>
-                <span className="text-[12.5px] text-muted-foreground leading-relaxed">
-                  {loc.bio}
-                </span>
-              </div>
+              <p className="mt-1.5 text-[12.5px] text-muted-foreground leading-relaxed">
+                {loc.bio}
+              </p>
             ) : null}
           </div>
         </button>
 
-
+        {/* Why this person — reasons, each traceable to a real source. */}
+        {!composing && <WhyThisPerson person={person} lang={lang} understanding={state.understanding} />}
 
         {/* One Moment — TA's own voice, clickable to quote & compose */}
         {moments.length > 0 && (
@@ -549,5 +548,66 @@ function YourHelloRecap({
       </div>
       <p className="text-[13px] text-foreground leading-snug">"{fromMe.reply}"</p>
     </div>
+  );
+}
+
+// ---- Why this person ------------------------------------------------------
+//
+// Answers the only question that matters on this pane: why is this person in
+// front of me? Every line here is computed from a real source (your city,
+// your own words in the left chat, tags/works you both listed). When nothing
+// can be computed we say so and point back to the chat — we never invent a
+// reason.
+
+function WhyThisPerson({
+  person, lang, understanding,
+}: { person: Person; lang: Lang; understanding: UserUnderstanding }) {
+  const { t } = useTranslation();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  useEffect(() => { setProfile(loadProfile()); }, []);
+  if (!profile) return null;
+
+  const reasons = buildReasons(person, profile, understanding, lang);
+  const name = localized(person, lang).name;
+
+  return (
+    <section className="mt-5 rounded-xl border border-border bg-secondary/35 px-4 py-3">
+      <div className="text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
+        {t("why.title", { name })}
+      </div>
+      {reasons.length === 0 ? (
+        <p className="mt-2 text-[12.5px] text-muted-foreground leading-relaxed">
+          {t("why.not_enough")}
+        </p>
+      ) : (
+        <ul className="mt-2 space-y-2">
+          {reasons.map((r, i) => (
+            <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-foreground/90">
+              <span className="mt-[7px] w-1 h-1 rounded-full bg-muted-foreground shrink-0" />
+              <span className="min-w-0">
+                {r.kind === "same_city" && t("why.same_city", { city: r.city })}
+                {r.kind === "shared" &&
+                  t("why.shared", {
+                    items: [
+                      ...r.signals.map((s) => t(`signal.${s}`, { defaultValue: s })),
+                      ...r.titles,
+                    ].join(t("why.join")),
+                  })}
+                {r.kind === "you_said" && (
+                  <>
+                    <span className="text-muted-foreground">{t("why.you_said")}</span>
+                    <span>“{r.yours}”</span>
+                    <span className="block mt-0.5 text-muted-foreground">
+                      {t("why.they_wrote", { name })}
+                      <span className="text-foreground/85">“{r.theirs}”</span>
+                    </span>
+                  </>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

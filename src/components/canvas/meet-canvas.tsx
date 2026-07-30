@@ -197,22 +197,14 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
         </button>
 
         {personBioLine ? (
-          <div className="mt-2">
-            <span className="text-[9.5px] uppercase tracking-[0.16em] font-mono text-muted-foreground/70 mr-1.5">
-              {t("attribution.self_words")}
-            </span>
-            <span className="text-[12.5px] text-foreground/80 leading-relaxed">
-              {personBioLine}
-            </span>
-          </div>
+          <p className="mt-2 text-[12.5px] text-foreground/80 leading-relaxed">
+            {personBioLine}
+          </p>
         ) : person && person.signals.length > 0 ? (
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <span className="text-[9.5px] uppercase tracking-[0.16em] font-mono text-muted-foreground/70 mr-0.5">
-              {t("attribution.signals")}
-            </span>
             {person.signals.slice(0, 5).map((s) => (
               <span key={s} className="px-2 py-0.5 rounded-full border border-border text-[11px] text-muted-foreground">
-                {s}
+                {t(`signal.${s}`, { defaultValue: s })}
               </span>
             ))}
           </div>
@@ -312,7 +304,7 @@ function WhyPersonBox({ otherOwnerId, lang }: { otherOwnerId: string; lang: Lang
     <div className="mt-5 rounded-xl border border-border bg-secondary/40 px-4 py-3">
       <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
         <Sparkles className="w-3 h-3" />
-        {t("attribution.agent_read")}
+        {t("why.agent_read")}
       </div>
       <p className="mt-1.5 text-[13.5px] text-foreground/90 leading-relaxed">
         {line}

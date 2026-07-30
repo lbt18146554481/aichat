@@ -424,6 +424,7 @@
     },
     "f": {
       "name": "名字",
+      "interests": "兴趣标签",
       "age": "年龄",
       "city": "所在城市",
       "occupation": "你做什么",
@@ -588,12 +589,14 @@
     "resolved_revoke_yes": "已把心愿收回。",
     "resolved_revoke_no": "心愿仍然挂着。"
   },
-  "attribution": {
-    "self_words": "TA 的自述",
+  "why": {
+    "title": "为什么是 {{name}}",
+    "same_city": "你们都在 {{city}}。",
+    "shared": "你们都写了 {{items}}。",
+    "join": "、",
+    "you_said": "你说过 ",
+    "they_wrote": "{{name}} 写道 ",
     "agent_read": "Agent 的判断",
-    "signals": "标签",
-    "what_they_do": "在做的事",
-    "favorites": "喜欢的",
-    "moments": "TA 说过的"
+    "not_enough": "还不够了解你 —— 在左边再多说一句，我会换更合适的人。"
   }
 }
