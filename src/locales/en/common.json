@@ -588,11 +588,12 @@
   },
   "why": {
     "title": "Why {{name}}",
-    "you_said": "You said ",
-    "they_wrote": "{{name}} wrote ",
     "agent_read": "Agent's read",
     "not_enough": "Nothing solid to point at yet — tell the Agent one more thing on the left and I'll bring someone closer.",
-    "same_favorite": "You both put down {{title}}."
+    "same_favorite": "You both put down {{title}}.",
+    "tag_lifestyle": "Lives like this",
+    "tag_values": "Cares about",
+    "tag_favorite": "You both love"
   },
   "profile_public": {
     "answers": "What they answered"

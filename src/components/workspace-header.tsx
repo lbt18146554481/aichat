@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, MessageCircle, RotateCcw, UserCircle } from "lucide-react";
+import { ArrowLeft, MessageCircle, RotateCcw } from "lucide-react";
 import { LangSwitcher } from "./lang-switcher";
 import { HistoryTrigger } from "./history-trigger";
 import { SavedTrigger } from "./saved-trigger";
@@ -33,14 +33,12 @@ function pickAlert(items: Connection[]): Connection | null {
 export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
-  const [connCount, setConnCount] = useState(0);
   const [unseen, setUnseen] = useState(false);
   const [alert, setAlert] = useState<Connection | null>(null);
 
   useEffect(() => {
     const update = () => {
       const items = list();
-      setConnCount(items.length);
       setUnseen(hasUnseen());
       setAlert(pickAlert(items));
     };
@@ -104,7 +102,7 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
                   : t("notify.new_hello", { name: alertName })}
               </span>
             </Link>
-          ) : connCount > 0 ? (
+          ) : (
             <Link
               to="/connections"
               aria-label={t("header.connections")}
@@ -114,17 +112,10 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
               <span className="hidden sm:inline">{t("header.connections")}</span>
               {unseen && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-primary" />}
             </Link>
-          ) : null}
+          )}
           <SavedTrigger variant="compact" />
           <HistoryTrigger variant="compact" />
-          <Link
-            to="/profile"
-            aria-label={t("header.profile")}
-            className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            <UserCircle className="w-3.5 h-3.5" />
-            <span>{t("header.profile")}</span>
-          </Link>
+
           {onReset && (
             <button
               onClick={onReset}

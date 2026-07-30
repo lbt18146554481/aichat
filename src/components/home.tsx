@@ -40,7 +40,6 @@ export function Home() {
   const [text, setText] = useState("");
   const [selected, setSelected] = useState<AgentId | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [connCount, setConnCount] = useState(0);
   const [unseen, setUnseen] = useState(false);
 
 
@@ -63,7 +62,7 @@ export function Home() {
   }, [mounted]);
   useEffect(() => {
     rehydrate();
-    const update = () => { setConnCount(list().length); setUnseen(hasUnseen()); };
+    const update = () => { setUnseen(hasUnseen()); };
     update();
     const unsub = subscribe(update);
     return () => { unsub(); };
@@ -111,7 +110,7 @@ export function Home() {
             <span className="text-[14px] font-semibold tracking-tight text-foreground">Maitri</span>
           </div>
           <div className="flex items-center gap-3">
-            {mounted && user && connCount > 0 && (
+            {mounted && user && (
               <Link
                 to="/connections"
                 className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"

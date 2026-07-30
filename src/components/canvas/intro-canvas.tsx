@@ -8,7 +8,7 @@ import type { MatchmakerState } from "@/lib/agents/matchmaker";
 import { pickBestMoment } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
-import { isProfileComplete, loadProfile, type Profile } from "@/lib/profile";
+import { isVitalsComplete, loadProfile, type Profile } from "@/lib/profile";
 import { setFocusPerson } from "@/lib/seed";
 import { buildReasons, type Reason } from "@/lib/match-reasons";
 import type { UserUnderstanding } from "@/lib/understanding";
@@ -127,7 +127,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     // Say hello composer if we left for the first-time profile gate.
     if (person) {
       const resumeId = readResumeHello();
-      const resuming = resumeId !== null && isProfileComplete(loadProfile());
+      const resuming = resumeId !== null && isVitalsComplete(loadProfile());
       const d = loadDraft(person.id) ?? (resuming && resumeId !== person.id ? loadDraft(resumeId!) : null);
       if (d) {
         setComposing(d.composing || resuming);
@@ -212,7 +212,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
 
   function requestSayHello(opts?: { pickedMomentId?: string | null; draftReply?: string }) {
     const p = loadProfile();
-    if (!isProfileComplete(p)) {
+    if (!isVitalsComplete(p)) {
       const nextDraft = {
         composing: true,
         picked: opts?.pickedMomentId ?? draftPicked,
@@ -343,10 +343,8 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
               <h2 className="text-[19px] font-semibold tracking-tight text-foreground">
                 {loc.name}
               </h2>
-              <span className="text-[12px] font-mono text-muted-foreground tabular-nums">
-                {person.age}
-              </span>
             </div>
+
             <p className="mt-0.5 text-[12.5px] text-muted-foreground">
               {loc.occupation} · {loc.city}
             </p>
@@ -579,50 +577,39 @@ function WhyThisPerson({
         {t("why.title", { name })}
       </div>
       {reasons.length > 0 && (
-        <ul className="mt-3 space-y-3.5">
+        <ul className="mt-3 space-y-3">
           {reasons.map((r, i) => (
-            <li key={i} className="text-[13px] leading-relaxed">
+            <li key={i} className="border-l-2 border-border pl-3">
               {r.kind === "you_said" && (
-                <div className="space-y-1">
-                  <p className="text-muted-foreground">
-                    {t("why.you_said")}
-                    <span className="text-foreground/85">“{r.yours}”</span>
-                  </p>
-                  <div className="border-l-2 border-border pl-2.5">
-                    {r.prompt && (
-                      <div className="text-[11px] italic text-muted-foreground leading-snug">
-                        {r.prompt}
-                      </div>
-                    )}
-                    <p className="text-foreground/90">
-                      {t("why.they_wrote", { name })}
-                      <span>“{r.theirs}”</span>
-                    </p>
+                <>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
+                    {t(r.category === "values" ? "why.tag_values" : "why.tag_lifestyle")}
                   </div>
-                </div>
+                  <p className="mt-1 text-[13px] leading-relaxed text-foreground/90">“{r.theirs}”</p>
+                </>
               )}
               {r.kind === "favorite" && (
-                <div className="space-y-0.5">
-                  <p className="text-foreground/90">{t("why.same_favorite", { title: r.title })}</p>
-                  <p className="text-[12.5px] text-muted-foreground">
-                    {t("why.they_wrote", { name })}
-                    <span>“{r.theirWhy}”</span>
-                  </p>
-                </div>
+                <>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
+                    {t("why.tag_favorite")} · {r.title}
+                  </div>
+                  <p className="mt-1 text-[13px] leading-relaxed text-foreground/90">“{r.theirWhy}”</p>
+                </>
               )}
               {r.kind === "values" && (
-                <div className="border-l-2 border-border pl-2.5">
-                  <div className="text-[11px] italic text-muted-foreground leading-snug">
-                    {r.prompt}
+                <>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
+                    {t("why.tag_values")}
                   </div>
-                  <p className="text-foreground/90">“{r.theirs}”</p>
-                </div>
+                  <p className="mt-1 text-[13px] leading-relaxed text-foreground/90">“{r.theirs}”</p>
+                </>
               )}
             </li>
           ))}
         </ul>
       )}
     </section>
+
   );
 }
 

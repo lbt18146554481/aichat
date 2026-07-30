@@ -588,11 +588,12 @@
   },
   "why": {
     "title": "为什么是 {{name}}",
-    "you_said": "你说过 ",
-    "they_wrote": "{{name}} 写道 ",
     "agent_read": "Agent 的判断",
     "not_enough": "目前还没有可靠的依据 —— 在左边再多说一句，我会换更合适的人。",
-    "same_favorite": "你们都写了《{{title}}》。"
+    "same_favorite": "你们都写了《{{title}}》。",
+    "tag_lifestyle": "生活方式",
+    "tag_values": "在意的事",
+    "tag_favorite": "你们都喜欢"
   },
   "profile_public": {
     "answers": "TA 回答过的问题"
