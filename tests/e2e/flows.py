@@ -37,9 +37,16 @@ async def shot(page, name):
     await page.screenshot(path=str(SHOTS / f"{name}.png"))
 
 
+async def hydrated(page):
+    """Submitting before React hydrates does a native form GET, so wait."""
+    await page.wait_for_selector("input[type=text], textarea", timeout=15000)
+    await page.wait_for_timeout(1200)
+
+
 async def register(page, code="WELCOME"):
     """Walk the real signup UI: invite step -> provider step."""
     await page.goto(f"{BASE}/auth?mode=signup", wait_until="domcontentloaded")
+    await hydrated(page)
     await page.locator("input[type=text]").first.fill(code)
     await page.get_by_role("button", name="Continue", exact=True).click()
     await page.get_by_role("button", name="Continue with Google").click()
@@ -62,6 +69,7 @@ async def seed_profile(page, complete=True):
 
 
 async def submit_wish(page, text):
+    await hydrated(page)
     ta = page.locator("textarea").first
     await ta.click()
     await ta.fill(text)
@@ -75,6 +83,7 @@ async def submit_wish(page, text):
 async def flow_registration(context):
     page = await context.new_page()
     await page.goto(f"{BASE}/auth?mode=signup", wait_until="domcontentloaded")
+    await hydrated(page)
 
     await page.locator("input[type=text]").first.fill("TOTALLY-BOGUS")
     await page.get_by_role("button", name="Continue", exact=True).click()
