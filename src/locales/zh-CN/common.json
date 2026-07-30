@@ -181,7 +181,8 @@
     "faded_subtitle": "没有回音",
     "waiting_tail": "等待中",
     "incoming_hint": "回复即建立联系……",
-    "faded_body_short": "这次没接上。"
+    "faded_body_short": "这次没接上。",
+    "empty_cta": "去认识一个人"
   },
   "incoming": {
     "label": "有人读到了你",
@@ -526,7 +527,8 @@
     "section_wishes": "心愿",
     "people_empty": "还没有从「介绍认识」里收藏任何人。",
     "wishes_empty": "还没有先收着的心愿。",
-    "remove": "移出"
+    "remove": "移出",
+    "loading": "正在载入收藏…"
   },
   "auth": {
     "sign_in": "登录",
@@ -591,9 +593,9 @@
     "title": "为什么是 {{name}}",
     "agent_read": "Agent 的判断",
     "not_enough": "目前还没有可靠的依据 —— 在左边再多说一句，我会换更合适的人。",
-    "same_favorite": "你们都写了《{{title}}》。",
-    "lead_lifestyle": "{{name}} 的日常和你描述的很接近。",
-    "lead_values": "{{name}} 在意的事和你说的是同一件。"
+    "same_favorite": "你们都写下了《{{title}}》。",
+    "lead_lifestyle": "{{name}} 的日常节奏，和你描述的那种人很接近。",
+    "lead_values": "{{name}} 在意的，正是你说过重要的那件事。"
   },
   "profile_public": {
     "answers": "TA 回答过的问题"
@@ -606,6 +608,8 @@
     "saved_sub": "你收藏的人和心愿",
     "invites": "邀请码",
     "invites_sub": "邀请你愿意担保的人",
-    "signout": "退出登录"
+    "signout": "退出登录",
+    "loading": "加载中…",
+    "invites_empty": "还没有邀请码。生成一个，邀请你愿意担保的人。"
   }
 }

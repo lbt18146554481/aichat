@@ -181,7 +181,8 @@
     "faded_subtitle": "Didn't land",
     "waiting_tail": "waiting",
     "incoming_hint": "Reply to open the conversation…",
-    "faded_body_short": "No reply this time."
+    "faded_body_short": "No reply this time.",
+    "empty_cta": "Find someone to meet"
   },
   "incoming": {
     "label": "Someone read you",
@@ -526,7 +527,8 @@
     "section_wishes": "Wishes",
     "people_empty": "Nothing saved yet from introductions.",
     "wishes_empty": "No wishes kept for later.",
-    "remove": "Remove"
+    "remove": "Remove",
+    "loading": "Loading your saved list…"
   },
   "auth": {
     "sign_in": "Sign in",
@@ -592,8 +594,8 @@
     "agent_read": "Agent's read",
     "not_enough": "Nothing solid to point at yet — tell the Agent one more thing on the left and I'll bring someone closer.",
     "same_favorite": "You both put down {{title}}.",
-    "lead_lifestyle": "{{name}} lives close to what you described.",
-    "lead_values": "{{name}} cares about the same thing you named."
+    "lead_lifestyle": "{{name}}'s everyday rhythm lines up with the kind of person you asked for.",
+    "lead_values": "{{name}} cares about the same thing you said matters to you."
   },
   "profile_public": {
     "answers": "What they answered"
@@ -606,6 +608,8 @@
     "saved_sub": "People and wishes you parked",
     "invites": "Invites",
     "invites_sub": "Invite people you'd vouch for",
-    "signout": "Sign out"
+    "signout": "Sign out",
+    "loading": "Loading…",
+    "invites_empty": "No codes yet. Generate one to invite someone you'd vouch for."
   }
 }

@@ -569,37 +569,42 @@ function WhyThisPerson({
   const { t } = useTranslation();
   const name = localized(person, lang).name;
 
-  function lead(r: Reason): string {
+  // Reason only — the Agent states why this person fits. No quotes, no
+  // "you said / they said" attribution: the source lives one tap away in
+  // the profile sheet, not in the middle of the reasoning.
+  function reasonText(r: Reason): string {
     if (r.kind === "favorite") return t("why.same_favorite", { title: r.title });
     if (r.kind === "values") return t("why.lead_values", { name });
     return r.category === "values"
       ? t("why.lead_values", { name })
       : t("why.lead_lifestyle", { name });
   }
-  function quote(r: Reason): string {
-    return r.kind === "favorite" ? r.theirWhy : r.theirs;
-  }
 
   if (reasons.length === 0) return null;
+
+  // Distinct sentences only — two overlaps of the same kind read as padding.
+  const lines: string[] = [];
+  for (const r of reasons) {
+    const text = reasonText(r);
+    if (!lines.includes(text)) lines.push(text);
+  }
 
   return (
     <section className="mt-5 rounded-xl border border-border bg-secondary/35 px-4 py-3.5">
       <div className="text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
         {t("why.title", { name })}
       </div>
-      <ul className="mt-3 space-y-3.5">
-        {reasons.map((r, i) => (
+      <ul className="mt-2.5 space-y-2">
+        {lines.map((line, i) => (
           <li key={i} className="flex gap-2.5">
-            <span className="mt-[7px] w-1.5 h-1.5 rounded-full bg-primary/70 shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[13.5px] leading-snug text-foreground">{lead(r)}</p>
-              <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">“{quote(r)}”</p>
-            </div>
+            <span className="mt-[8px] w-1 h-1 rounded-full bg-primary/70 shrink-0" />
+            <p className="text-[13.5px] leading-relaxed text-foreground">{line}</p>
           </li>
         ))}
       </ul>
     </section>
   );
 }
+
 
 

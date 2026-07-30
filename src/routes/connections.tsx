@@ -2,7 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useRequireAuth } from "@/lib/auth-guard";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MessagesSquare } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
 import type { Lang } from "@/lib/i18n";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import { LangSwitcher } from "@/components/lang-switcher";
@@ -39,6 +41,9 @@ function ConnectionsPage() {
   const navigate = useNavigate();
   const { open } = Route.useSearch();
   const [items, setItems] = useState<Connection[]>([]);
+  // `loaded` separates "still reading local storage" from "genuinely empty",
+  // so the list can show skeletons first and the empty state only once.
+  const [loaded, setLoaded] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const consumedOpenRef = useRef<string | null>(null);
   // Phones use master → detail navigation: the list is the landing surface and
@@ -49,11 +54,15 @@ function ConnectionsPage() {
   useEffect(() => {
     if (!ready) return;
     rehydrate();
-    const update = () => setItems(list().sort((a, b) => activityAt(b) - activityAt(a)));
+    const update = () => {
+      setItems(list().sort((a, b) => activityAt(b) - activityAt(a)));
+      setLoaded(true);
+    };
     update();
     const unsub = subscribe(update);
     return () => { unsub(); };
   }, [ready]);
+
 
   useEffect(() => {
     if (!open || consumedOpenRef.current === open) return;
@@ -89,7 +98,27 @@ function ConnectionsPage() {
     if (!isMobile && items.length > 0) setActiveId(items[0].personId);
   }, [items, activeId, isMobile]);
 
-  if (!ready) return <div className="min-h-screen bg-background" />;
+  if (!ready) {
+    return (
+      <div className="min-h-dvh bg-background pt-safe" data-testid="chats-auth-loading">
+        <div className="max-w-7xl mx-auto px-4 md:px-5 h-14 flex items-center">
+          <Skeleton className="h-4 w-28" />
+        </div>
+        <div className="max-w-7xl mx-auto px-4 md:px-5 space-y-4 pt-4">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-3">
+              <Skeleton className="w-10 h-10 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <div className="h-dvh flex flex-col bg-background pb-tabbar lg:pb-0">
@@ -130,10 +159,31 @@ function ConnectionsPage() {
           // Hide list on mobile once a thread is open.
           activeId ? "hidden lg:block" : "block",
         ].join(" ")}>
-          {items.length === 0 ? (
-            <p className="px-5 py-8 text-[13px] text-muted-foreground leading-relaxed">{t("connection.empty")}</p>
+          {!loaded ? (
+            <ul data-testid="chats-loading" aria-busy="true">
+              {[0, 1, 2].map((i) => (
+                <li key={i} className="px-4 py-3 flex items-center gap-3">
+                  <Skeleton className="w-10 h-10 rounded-full shrink-0" />
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-3 w-40 max-w-full" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : items.length === 0 ? (
+            <div data-testid="chats-empty" className="px-6 py-12 text-center">
+              <MessagesSquare className="w-6 h-6 mx-auto mb-3 text-muted-foreground opacity-60" strokeWidth={1.5} />
+              <p className="text-[13px] text-muted-foreground leading-relaxed">{t("connection.empty")}</p>
+              <Link
+                to="/"
+                className="mt-4 inline-flex items-center justify-center min-h-11 px-4 rounded-md bg-primary text-primary-foreground text-[13px] font-medium"
+              >
+                {t("connection.empty_cta")}
+              </Link>
+            </div>
           ) : (
-            <ul>
+            <ul data-testid="chats-list">
               {items.map((c) => (
                 <Row
                   key={c.personId}
@@ -146,6 +196,7 @@ function ConnectionsPage() {
               ))}
             </ul>
           )}
+
         </aside>
 
         <section className={[

@@ -14,6 +14,7 @@ import { signOut, useAuth } from "@/lib/auth";
 import { useRequireAuth } from "@/lib/auth-guard";
 import { loadProfile } from "@/lib/profile";
 import { LangSwitcher } from "@/components/lang-switcher";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SavedTrigger } from "@/components/saved-trigger";
 import { generateInvite, listMyCodes, remainingInvites, type InviteCode } from "@/lib/invites";
 
@@ -53,7 +54,26 @@ function MePage() {
     setRemaining(remainingInvites(user.id));
   }, [user, invitesOpen]);
 
-  if (!ready) return <div className="min-h-dvh bg-background" />;
+  if (!ready) {
+    return (
+      <div className="min-h-dvh bg-background pt-safe pb-tabbar" data-testid="me-loading" aria-busy="true">
+        <div className="max-w-2xl mx-auto px-5 h-12 flex items-center">
+          <Skeleton className="h-4 w-16" />
+        </div>
+        <div className="max-w-2xl mx-auto px-5 py-6 space-y-6">
+          <div className="flex items-center gap-3">
+            <Skeleton className="w-14 h-14 rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-40" />
+            </div>
+          </div>
+          <Skeleton className="h-[160px] w-full rounded-2xl" />
+          <Skeleton className="h-[52px] w-full rounded-2xl" />
+        </div>
+      </div>
+    );
+  }
 
   const displayName = (profile?.name && profile.name.trim()) || user?.name || user?.email || "";
   const avatar = profile?.avatar || user?.avatar || "";
@@ -149,6 +169,11 @@ function MePage() {
                 >
                   {t("auth.invites.generate")}
                 </button>
+                {codes.length === 0 && (
+                  <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
+                    {t("me.invites_empty")}
+                  </p>
+                )}
                 {codes.length > 0 && (
                   <ul className="mt-3 space-y-1.5">
                     {codes.map((c) => (
