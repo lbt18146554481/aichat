@@ -18,6 +18,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   listSaved,
   removeSaved,
@@ -86,6 +87,10 @@ export function SavedTrigger({ variant = "default", open: openProp, onOpenChange
   };
   const saved = useSavedList();
   const people = useSavedPeopleList();
+  // localStorage is only readable after hydration; until then show skeletons
+  // instead of flashing "nothing saved yet" at someone who has saved people.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { setHydrated(true); }, []);
   const count = saved.length + people.length;
 
   if (count === 0 && !controlled) return null;
@@ -148,7 +153,19 @@ export function SavedTrigger({ variant = "default", open: openProp, onOpenChange
           </div>
 
           <TabsContent value="people" className="flex-1 overflow-y-auto px-6 py-4 mt-0">
-            {people.length === 0 ? (
+            {!hydrated ? (
+              <ul className="space-y-3" data-testid="saved-loading" aria-busy="true">
+                {[0, 1].map((i) => (
+                  <li key={i} className="rounded-lg border border-border bg-card p-4 flex items-center gap-3">
+                    <Skeleton className="w-10 h-10 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-3 w-36" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : people.length === 0 ? (
               <div className="text-center py-10 text-muted-foreground">
                 <Bookmark className="w-6 h-6 mx-auto mb-2 opacity-50" />
                 <p className="text-[13px]">{t("saved.people_empty")}</p>
@@ -202,7 +219,19 @@ export function SavedTrigger({ variant = "default", open: openProp, onOpenChange
           </TabsContent>
 
           <TabsContent value="wishes" className="flex-1 overflow-y-auto px-6 py-4 mt-0">
-            {saved.length === 0 ? (
+            {!hydrated ? (
+              <ul className="space-y-3" data-testid="saved-loading" aria-busy="true">
+                {[0, 1].map((i) => (
+                  <li key={i} className="rounded-lg border border-border bg-card p-4 flex items-center gap-3">
+                    <Skeleton className="w-10 h-10 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-3 w-36" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : saved.length === 0 ? (
               <div className="text-center py-10 text-muted-foreground">
                 <Bookmark className="w-6 h-6 mx-auto mb-2 opacity-50" />
                 <p className="text-[13px]">{t("saved.wishes_empty")}</p>
