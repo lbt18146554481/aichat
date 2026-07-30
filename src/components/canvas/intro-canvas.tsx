@@ -222,7 +222,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
       try {
         const url = window.location.pathname + window.location.search;
         window.sessionStorage.setItem("kindred:profile:return", url);
-        window.sessionStorage.setItem("kindred:intro:resume-hello", personId);
+        window.sessionStorage.setItem(RESUME_KEY, personId);
         // Come back to this exact person, not whoever ranks first after the
         // profile changed.
         setFocusPerson(personId);
@@ -241,6 +241,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
 
   function handleHello(quotedMomentId: string | null, reply: string) {
     sayHello(person!.id, { quotedMomentId, reply }, sessionId);
+    clearResumeHello();
     setComposing(false);
     setDraftPicked(null);
     setDraftReply("");
@@ -249,6 +250,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   }
 
   function handleCancel() {
+    clearResumeHello();
     setComposing(false);
     setDraftPicked(null);
     setDraftReply("");
