@@ -592,8 +592,8 @@
     "agent_read": "Agent's read",
     "not_enough": "Nothing solid to point at yet — tell the Agent one more thing on the left and I'll bring someone closer.",
     "same_favorite": "You both put down {{title}}.",
-    "lead_lifestyle": "{{name}} lives close to what you described.",
-    "lead_values": "{{name}} cares about the same thing you named."
+    "lead_lifestyle": "{{name}}'s everyday rhythm lines up with the kind of person you asked for.",
+    "lead_values": "{{name}} cares about the same thing you said matters to you."
   },
   "profile_public": {
     "answers": "What they answered"

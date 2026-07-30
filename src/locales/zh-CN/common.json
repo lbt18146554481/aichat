@@ -591,9 +591,9 @@
     "title": "为什么是 {{name}}",
     "agent_read": "Agent 的判断",
     "not_enough": "目前还没有可靠的依据 —— 在左边再多说一句，我会换更合适的人。",
-    "same_favorite": "你们都写了《{{title}}》。",
-    "lead_lifestyle": "{{name}} 的日常和你描述的很接近。",
-    "lead_values": "{{name}} 在意的事和你说的是同一件。"
+    "same_favorite": "你们都写下了《{{title}}》。",
+    "lead_lifestyle": "{{name}} 的日常节奏，和你描述的那种人很接近。",
+    "lead_values": "{{name}} 在意的，正是你说过重要的那件事。"
   },
   "profile_public": {
     "answers": "TA 回答过的问题"
