@@ -39,7 +39,6 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
   useEffect(() => {
     const update = () => {
       const items = list();
-      setConnCount(items.length);
       setUnseen(hasUnseen());
       setAlert(pickAlert(items));
     };

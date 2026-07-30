@@ -62,7 +62,7 @@ export function Home() {
   }, [mounted]);
   useEffect(() => {
     rehydrate();
-    const update = () => { setConnCount(list().length); setUnseen(hasUnseen()); };
+    const update = () => { setUnseen(hasUnseen()); };
     update();
     const unsub = subscribe(update);
     return () => { unsub(); };
