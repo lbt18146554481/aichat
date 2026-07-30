@@ -9,6 +9,7 @@ import { pickBestMoment } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
 import { isProfileComplete, loadProfile, type Profile } from "@/lib/profile";
+import { setFocusPerson } from "@/lib/seed";
 import { buildReasons, type Reason } from "@/lib/match-reasons";
 import type { UserUnderstanding } from "@/lib/understanding";
 import type { Person } from "@/lib/types";
@@ -55,6 +56,21 @@ function clearDraft(personId: string) {
 // Per-person scroll position on the right-pane scroller — persists across a
 // jump to /connections so "back to intro" lands where the user left off.
 const scrollKey = (personId: string) => `kindred:intro:scroll:${personId}`;
+
+// Set only when the first-time profile gate interrupted a Say hello. Kept in
+// place until the user actually sends or cancels, so a remount (or landing on
+// a differently ranked person) still reopens the composer instead of asking
+// for the profile again.
+const RESUME_KEY = "kindred:intro:resume-hello";
+function readResumeHello(): string | null {
+  if (typeof window === "undefined") return null;
+  try { return window.sessionStorage.getItem(RESUME_KEY); } catch { return null; }
+}
+function clearResumeHello() {
+  if (typeof window === "undefined") return;
+  try { window.sessionStorage.removeItem(RESUME_KEY); } catch { /* noop */ }
+}
+
 
 export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }: Props) {
   const { t, i18n } = useTranslation();
@@ -107,15 +123,18 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
 
   useEffect(() => {
     setConn(person ? get(person.id) : null);
-    // Restore composer draft for this person (if any).
+    // Restore composer draft for this person (if any), and resume the
+    // Say hello composer if we left for the first-time profile gate.
     if (person) {
-      const d = loadDraft(person.id);
+      const resumeId = readResumeHello();
+      const resuming = resumeId !== null && isProfileComplete(loadProfile());
+      const d = loadDraft(person.id) ?? (resuming && resumeId !== person.id ? loadDraft(resumeId!) : null);
       if (d) {
-        setComposing(d.composing);
+        setComposing(d.composing || resuming);
         setDraftPicked(d.picked);
         setDraftReply(d.reply);
       } else {
-        setComposing(false);
+        setComposing(resuming);
         setDraftPicked(null);
         setDraftReply("");
       }
@@ -125,6 +144,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     return () => { unsub(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id]);
+
 
   // Persist draft whenever it changes (only after restore has run).
   useEffect(() => {
@@ -165,24 +185,9 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id, conn?.status]);
 
-  // Resume Say hello after the first-time profile gate.
-  const resumeCheckedRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!person || typeof window === "undefined") return;
-    if (resumeCheckedRef.current === person.id) return;
-    try {
-      const flag = window.sessionStorage.getItem("kindred:intro:resume-hello");
-      if (flag === person.id) {
-        const p = loadProfile();
-        if (isProfileComplete(p)) {
-          window.sessionStorage.removeItem("kindred:intro:resume-hello");
-          resumeCheckedRef.current = person.id;
-          setComposing(true);
-        }
-      }
-    } catch { /* noop */ }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [person?.id]);
+
+
+
 
   if (!person) {
     return (
@@ -217,7 +222,10 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
       try {
         const url = window.location.pathname + window.location.search;
         window.sessionStorage.setItem("kindred:profile:return", url);
-        window.sessionStorage.setItem("kindred:intro:resume-hello", personId);
+        window.sessionStorage.setItem(RESUME_KEY, personId);
+        // Come back to this exact person, not whoever ranks first after the
+        // profile changed.
+        setFocusPerson(personId);
         const el = getScrollParent();
         if (el) window.sessionStorage.setItem(scrollKey(personId), String(el.scrollTop));
       } catch { /* noop */ }
@@ -233,6 +241,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
 
   function handleHello(quotedMomentId: string | null, reply: string) {
     sayHello(person!.id, { quotedMomentId, reply }, sessionId);
+    clearResumeHello();
     setComposing(false);
     setDraftPicked(null);
     setDraftReply("");
@@ -241,6 +250,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   }
 
   function handleCancel() {
+    clearResumeHello();
     setComposing(false);
     setDraftPicked(null);
     setDraftReply("");
