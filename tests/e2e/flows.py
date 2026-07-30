@@ -143,12 +143,18 @@ async def flow_say_hello_gate(context):
 
     if returned:
         hello = page.get_by_role("button", name="Say hello")
+        composer = page.locator("textarea")
         if await hello.count() > 0:
             await hello.first.click()
             await page.wait_for_timeout(1500)
-            not_gated = "/profile" not in page.url
-            record("say hello: complete profile is NOT re-asked", not_gated, page.url)
-            await shot(page, "5_hello")
+            record("say hello: complete profile is NOT re-asked",
+                   "/profile" not in page.url, page.url)
+        else:
+            # The gate resumes straight into the hello composer on return,
+            # which is the same guarantee: no second profile bounce.
+            record("say hello: complete profile is NOT re-asked",
+                   "/profile" not in page.url and await composer.count() > 0, page.url)
+        await shot(page, "5_hello")
     await page.close()
 
 
