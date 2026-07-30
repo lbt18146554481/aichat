@@ -41,6 +41,9 @@ function ConnectionsPage() {
   const navigate = useNavigate();
   const { open } = Route.useSearch();
   const [items, setItems] = useState<Connection[]>([]);
+  // `loaded` separates "still reading local storage" from "genuinely empty",
+  // so the list can show skeletons first and the empty state only once.
+  const [loaded, setLoaded] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const consumedOpenRef = useRef<string | null>(null);
   // Phones use master → detail navigation: the list is the landing surface and
@@ -51,11 +54,15 @@ function ConnectionsPage() {
   useEffect(() => {
     if (!ready) return;
     rehydrate();
-    const update = () => setItems(list().sort((a, b) => activityAt(b) - activityAt(a)));
+    const update = () => {
+      setItems(list().sort((a, b) => activityAt(b) - activityAt(a)));
+      setLoaded(true);
+    };
     update();
     const unsub = subscribe(update);
     return () => { unsub(); };
   }, [ready]);
+
 
   useEffect(() => {
     if (!open || consumedOpenRef.current === open) return;
