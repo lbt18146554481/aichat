@@ -8,7 +8,10 @@ import type { MatchmakerState } from "@/lib/agents/matchmaker";
 import { pickBestMoment } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
-import { hasName, loadProfile } from "@/lib/profile";
+import { hasName, loadProfile, type Profile } from "@/lib/profile";
+import { buildReasons } from "@/lib/match-reasons";
+import type { UserUnderstanding } from "@/lib/understanding";
+import type { Person } from "@/lib/types";
 import {
   isPersonSaved,
   removeSavedPerson,
