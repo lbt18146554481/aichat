@@ -2,7 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useRequireAuth } from "@/lib/auth-guard";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MessagesSquare } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
 import type { Lang } from "@/lib/i18n";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import { LangSwitcher } from "@/components/lang-switcher";
