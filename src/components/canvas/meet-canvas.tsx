@@ -304,7 +304,7 @@ function WhyPersonBox({ otherOwnerId, lang }: { otherOwnerId: string; lang: Lang
     <div className="mt-5 rounded-xl border border-border bg-secondary/40 px-4 py-3">
       <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
         <Sparkles className="w-3 h-3" />
-        {t("attribution.agent_read")}
+        {t("why.agent_read")}
       </div>
       <p className="mt-1.5 text-[13.5px] text-foreground/90 leading-relaxed">
         {line}
