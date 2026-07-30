@@ -77,7 +77,8 @@
     "home": "首页",
     "chats": "对话",
     "history": "历史",
-    "me": "我的"
+    "me": "我的",
+    "saved": "收藏"
   },
   "header": {
     "reset": "+ 新一件事",
@@ -591,11 +592,20 @@
     "agent_read": "Agent 的判断",
     "not_enough": "目前还没有可靠的依据 —— 在左边再多说一句，我会换更合适的人。",
     "same_favorite": "你们都写了《{{title}}》。",
-    "tag_lifestyle": "生活方式",
-    "tag_values": "在意的事",
-    "tag_favorite": "你们都喜欢"
+    "lead_lifestyle": "{{name}} 的日常和你描述的很接近。",
+    "lead_values": "{{name}} 在意的事和你说的是同一件。"
   },
   "profile_public": {
     "answers": "TA 回答过的问题"
+  },
+  "me": {
+    "title": "我的",
+    "profile": "个人资料",
+    "profile_sub": "别人看到的你",
+    "saved": "收藏",
+    "saved_sub": "你收藏的人和心愿",
+    "invites": "邀请码",
+    "invites_sub": "邀请你愿意担保的人",
+    "signout": "退出登录"
   }
 }
