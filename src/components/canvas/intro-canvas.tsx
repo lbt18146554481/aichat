@@ -226,6 +226,9 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
         const url = window.location.pathname + window.location.search;
         window.sessionStorage.setItem("kindred:profile:return", url);
         window.sessionStorage.setItem("kindred:intro:resume-hello", personId);
+        // Come back to this exact person, not whoever ranks first after the
+        // profile changed.
+        setFocusPerson(personId);
         const el = getScrollParent();
         if (el) window.sessionStorage.setItem(scrollKey(personId), String(el.scrollTop));
       } catch { /* noop */ }
