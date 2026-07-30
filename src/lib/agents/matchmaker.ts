@@ -8,6 +8,8 @@ import { getPersonById, PEOPLE } from "../people";
 import { getQuestionById } from "../questions";
 import type { Person, Reflection } from "../types";
 import { loadProfile } from "../profile";
+import { buildReasons } from "../match-reasons";
+
 import { get as getConnection } from "../connections";
 import {
   digest,
@@ -230,6 +232,14 @@ function reflectionAffinity(p: Person, u: UserUnderstanding): number {
   return best;
 }
 
+function reasonCount(p: Person, u: UserUnderstanding): number {
+  try {
+    return buildReasons(p, loadProfile(), u, "en").length;
+  } catch {
+    return 0; // profile unavailable (SSR)
+  }
+}
+
 function scorePerson(p: Person, u: UserUnderstanding, passedIds: string[], shownIds: string[]): number {
   if (passedIds.includes(p.id)) return -Infinity;
   let s = p.signals.filter((sig) => u.positive.includes(sig)).length * 2;
@@ -238,6 +248,7 @@ function scorePerson(p: Person, u: UserUnderstanding, passedIds: string[], shown
   if (shownIds.includes(p.id)) s -= 5;
   return s;
 }
+
 
 function isUnavailable(personId: string): boolean {
   if (typeof window === "undefined") return false;
@@ -259,13 +270,19 @@ function pickNext(state: MatchmakerState, excludeCurrent = false): Person | null
     (p) => !state.passedIds.includes(p.id) && (!excludeCurrent || p.id !== state.currentPersonId),
   );
   if (pool.length === 0) return null;
-  const ranked = [...pool].sort(
-    (a, b) =>
+  // Primary key: can we explain this person with a real, quotable reason?
+  // Someone we can justify always beats someone we can only "feel".
+  const ranked = [...pool].sort((a, b) => {
+    const dr = reasonCount(b, state.understanding) - reasonCount(a, state.understanding);
+    if (dr !== 0) return dr;
+    return (
       scorePerson(b, state.understanding, state.passedIds, state.shownIds) -
-      scorePerson(a, state.understanding, state.passedIds, state.shownIds),
-  );
+      scorePerson(a, state.understanding, state.passedIds, state.shownIds)
+    );
+  });
   return ranked[0];
 }
+
 
 // ---- Lines ---------------------------------------------------------------
 

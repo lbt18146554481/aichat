@@ -32,35 +32,13 @@ export interface Profile {
   gender: Gender;        // optional
   orientation: Orientation; // optional
   mbti: string;          // optional, "" or one of 16 types
-  /** One-sentence self-introduction (≤ 140 chars). Optional. */
-  bio: string;
-  /** A few lightweight interest tags (keys from the shared `signal.*` set).
-   *  Optional — used to compute the "you both care about X" match reason. */
-  interests: string[];
   // L2 specificity
   moments: ProfileMoment[];
   favorites: Favorite[];
   /** Field keys the user has chosen to hide from others.
-   *  Keys: "avatar", "age", "gender", "orientation", "mbti", "bio",
-   *        "interests", `moment:<promptId>`, `favorite:<index>` */
+   *  Keys: "avatar", "age", "gender", "orientation", "mbti",
+   *        `moment:<promptId>`, `favorite:<index>` */
   hidden: string[];
-}
-
-/** The shared interest vocabulary — same keys the curated people use as
- *  `signals`, so the two sides can actually be compared. */
-export const INTEREST_TAGS = [
-  "reading", "music", "film", "art", "writing", "travel", "outdoors",
-  "cooking", "coffee", "quiet", "curious", "funny", "kind", "brave",
-  "ambitious", "city", "animals", "rain", "morning", "night",
-] as const;
-
-export const MAX_INTERESTS = 5;
-
-export function toggleInterest(p: Profile, tag: string): Profile {
-  const cur = Array.isArray(p.interests) ? p.interests : [];
-  if (cur.includes(tag)) return { ...p, interests: cur.filter((x) => x !== tag) };
-  if (cur.length >= MAX_INTERESTS) return p;
-  return { ...p, interests: [...cur, tag] };
 }
 
 export const EMPTY_PROFILE: Profile = {
@@ -72,12 +50,11 @@ export const EMPTY_PROFILE: Profile = {
   gender: "",
   orientation: "",
   mbti: "",
-  bio: "",
-  interests: [],
   moments: [],
   favorites: [],
   hidden: [],
 };
+
 
 /** Is this field currently hidden from others? */
 export function isHidden(p: Profile, key: string): boolean {
@@ -102,6 +79,9 @@ interface LegacyProfile extends Partial<Profile> {
   oneWork?: { kind: WorkKind; title: string; why: string } | null;
   compatibility?: unknown;
   activities?: unknown;
+  /** Removed fields — read and dropped so old data can't leak into the UI. */
+  bio?: string;
+  interests?: string[];
   hidden?: string[];
 }
 
@@ -116,21 +96,26 @@ export function loadProfile(): Profile {
       : parsed.oneWork && parsed.oneWork.title
       ? [{ kind: parsed.oneWork.kind, title: parsed.oneWork.title, why: parsed.oneWork.why }]
       : [];
-    // Drop legacy fields (activities, compatibility, oneWork) silently.
-    const { activities: _a, compatibility: _c, oneWork: _o, ...rest } = parsed;
-    void _a; void _c; void _o;
+    // Drop retired fields (activities, compatibility, oneWork, bio,
+    // interests) silently — they no longer exist in the product.
+    const {
+      activities: _a, compatibility: _c, oneWork: _o, bio: _b, interests: _i, ...rest
+    } = parsed;
+    void _a; void _c; void _o; void _b; void _i;
     return {
       ...EMPTY_PROFILE,
       ...rest,
       moments: Array.isArray(parsed.moments) ? parsed.moments : [],
       favorites,
-      interests: Array.isArray(parsed.interests) ? (parsed.interests as string[]) : [],
-      hidden: Array.isArray(parsed.hidden) ? (parsed.hidden as string[]) : [],
+      hidden: Array.isArray(parsed.hidden)
+        ? (parsed.hidden as string[]).filter((k) => k !== "bio" && k !== "interests")
+        : [],
     };
   } catch {
     return EMPTY_PROFILE;
   }
 }
+
 
 export function saveProfile(p: Profile) {
   if (typeof window === "undefined") return;
