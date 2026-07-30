@@ -8,7 +8,7 @@ import type { MatchmakerState } from "@/lib/agents/matchmaker";
 import { pickBestMoment } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
-import { isProfileComplete, loadProfile, type Profile } from "@/lib/profile";
+import { isVitalsComplete, loadProfile, type Profile } from "@/lib/profile";
 import { setFocusPerson } from "@/lib/seed";
 import { buildReasons, type Reason } from "@/lib/match-reasons";
 import type { UserUnderstanding } from "@/lib/understanding";
@@ -127,7 +127,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     // Say hello composer if we left for the first-time profile gate.
     if (person) {
       const resumeId = readResumeHello();
-      const resuming = resumeId !== null && isProfileComplete(loadProfile());
+      const resuming = resumeId !== null && isVitalsComplete(loadProfile());
       const d = loadDraft(person.id) ?? (resuming && resumeId !== person.id ? loadDraft(resumeId!) : null);
       if (d) {
         setComposing(d.composing || resuming);
@@ -212,7 +212,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
 
   function requestSayHello(opts?: { pickedMomentId?: string | null; draftReply?: string }) {
     const p = loadProfile();
-    if (!isProfileComplete(p)) {
+    if (!isVitalsComplete(p)) {
       const nextDraft = {
         composing: true,
         picked: opts?.pickedMomentId ?? draftPicked,
