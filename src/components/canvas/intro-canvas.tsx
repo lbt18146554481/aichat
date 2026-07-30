@@ -128,6 +128,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     if (person) {
       const resumeId = readResumeHello();
       const resuming = resumeId !== null && isProfileComplete(loadProfile());
+      console.log("DBG restore", person.id, resumeId, resuming, JSON.stringify(loadDraft(person.id)));
       const d = loadDraft(person.id) ?? (resuming && resumeId !== person.id ? loadDraft(resumeId!) : null);
       if (d) {
         setComposing(d.composing || resuming);
@@ -250,6 +251,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   }
 
   function handleCancel() {
+    console.log("DBG cancel");
     clearResumeHello();
     setComposing(false);
     setDraftPicked(null);
