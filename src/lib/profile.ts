@@ -73,6 +73,7 @@ export const EMPTY_PROFILE: Profile = {
   orientation: "",
   mbti: "",
   bio: "",
+  interests: [],
   moments: [],
   favorites: [],
   hidden: [],
