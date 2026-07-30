@@ -57,6 +57,21 @@ function clearDraft(personId: string) {
 // jump to /connections so "back to intro" lands where the user left off.
 const scrollKey = (personId: string) => `kindred:intro:scroll:${personId}`;
 
+// Set only when the first-time profile gate interrupted a Say hello. Kept in
+// place until the user actually sends or cancels, so a remount (or landing on
+// a differently ranked person) still reopens the composer instead of asking
+// for the profile again.
+const RESUME_KEY = "kindred:intro:resume-hello";
+function readResumeHello(): string | null {
+  if (typeof window === "undefined") return null;
+  try { return window.sessionStorage.getItem(RESUME_KEY); } catch { return null; }
+}
+function clearResumeHello() {
+  if (typeof window === "undefined") return;
+  try { window.sessionStorage.removeItem(RESUME_KEY); } catch { /* noop */ }
+}
+
+
 export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
