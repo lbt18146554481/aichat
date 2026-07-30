@@ -129,12 +129,13 @@ async def flow_say_hello_gate(context):
     await seed_profile(page, complete=True)
     await page.reload(wait_until="domcontentloaded")
     await page.wait_for_timeout(800)
-    back = page.get_by_role("button", name="Save").or_(page.get_by_role("link", name="Back"))
-    if await back.count() > 0:
-        try:
-            await back.first.click(timeout=3000)
-        except Exception:
-            pass
+    # The profile header's first control is the contextual return
+    # ("Back to introductions" when we were gated out of a match).
+    back = page.locator("header button").first
+    try:
+        await back.click(timeout=5000)
+    except Exception:
+        pass
     await page.wait_for_timeout(2000)
     returned = "/matchmaker" in page.url
     record("profile completion returns to the result", returned, page.url)
