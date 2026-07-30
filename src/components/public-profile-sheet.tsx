@@ -51,21 +51,15 @@ export function PublicProfileSheet({ person, open, onOpenChange }: Props) {
           </div>
         </div>
 
-        {/* Bio — only shown when the person actually wrote one. We do NOT
-         *  fall back to `portrait` (system-authored third-person copy) here:
-         *  that misleads the reader about what the person themselves said. */}
+        {/* Whatever they chose to say about themselves — no system label
+         *  wrapped around it. The page shows what they put up, in their own
+         *  order: intro, tags, favorites, moments. */}
         {loc.bio && (
-          <div className="mt-5">
-            <div className="text-[9.5px] uppercase tracking-[0.16em] font-mono text-muted-foreground/70 mb-1">
-              {t("attribution.self_words")}
-            </div>
-            <p className="text-[13.5px] text-foreground/90 leading-relaxed">
-              {loc.bio}
-            </p>
-          </div>
+          <p className="mt-5 text-[13.5px] text-foreground/90 leading-relaxed">
+            {loc.bio}
+          </p>
         )}
 
-        {/* Signals — small tag row for quick sense of the person. */}
         {person.signals && person.signals.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-1.5">
             {person.signals.slice(0, 6).map((s) => (
