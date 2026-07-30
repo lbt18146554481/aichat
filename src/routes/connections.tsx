@@ -98,7 +98,27 @@ function ConnectionsPage() {
     if (!isMobile && items.length > 0) setActiveId(items[0].personId);
   }, [items, activeId, isMobile]);
 
-  if (!ready) return <div className="min-h-screen bg-background" />;
+  if (!ready) {
+    return (
+      <div className="min-h-dvh bg-background pt-safe" data-testid="chats-auth-loading">
+        <div className="max-w-7xl mx-auto px-4 md:px-5 h-14 flex items-center">
+          <Skeleton className="h-4 w-28" />
+        </div>
+        <div className="max-w-7xl mx-auto px-4 md:px-5 space-y-4 pt-4">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-3">
+              <Skeleton className="w-10 h-10 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <div className="h-dvh flex flex-col bg-background pb-tabbar lg:pb-0">
