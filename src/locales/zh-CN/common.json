@@ -424,6 +424,7 @@
     },
     "f": {
       "name": "名字",
+      "interests": "兴趣标签",
       "age": "年龄",
       "city": "所在城市",
       "occupation": "你做什么",
