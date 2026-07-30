@@ -424,6 +424,7 @@
     },
     "f": {
       "name": "Name",
+      "interests": "Interests",
       "age": "Age",
       "city": "City",
       "occupation": "What you do",
