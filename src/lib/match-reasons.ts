@@ -18,9 +18,24 @@ import type { Lang } from "./i18n";
 import { getMomentPromptById } from "./questions";
 
 export type Reason =
-  | { kind: "you_said"; yours: string; theirs: string; prompt: string | null }
-  | { kind: "favorite"; title: string; theirWhy: string }
-  | { kind: "values"; prompt: string; theirs: string };
+  | { kind: "you_said"; category: "lifestyle" | "values"; sourceId: string; yours: string; theirs: string; prompt: string | null }
+  | { kind: "favorite"; sourceId: string; title: string; theirWhy: string }
+  | { kind: "values"; sourceId: string; prompt: string; theirs: string };
+
+// Demo-pool evidence index. Every entry points to a public Moment written by
+// that person; the signal is only retrieval metadata and is never displayed
+// as if it were something the person said.
+const SIGNAL_EVIDENCE: Record<string, Record<string, string>> = {
+  isa: { reading: "isa-1", quiet: "isa-2", rain: "isa-2", travel: "isa-1" },
+  june: { kind: "june-2", quiet: "june-2", city: "june-1" },
+  theo: { music: "theo-2", quiet: "theo-1", brave: "theo-4" },
+  mira: { art: "mira-2", quiet: "mira-3", outdoors: "mira-3", morning: "mira-1" },
+  hugo: { curious: "hugo-3", writing: "hugo-3", travel: "hugo-1" },
+  noa: { kind: "noa-1", reading: "noa-3", cooking: "noa-2", brave: "noa-1" },
+  kai: { outdoors: "kai-3", travel: "kai-1" },
+  leo: { reading: "leo-1", writing: "leo-2", animals: "leo-3" },
+  elena: { cooking: "elena-1", reading: "elena-3", kind: "elena-3" },
+};
 
 const STOP = new Set([
   "the","a","an","and","or","but","of","to","in","on","at","for","with","is","am","are","was","were","be",
@@ -87,14 +102,14 @@ export function buildReasons(
   const wantTokens = tokens(wantText);
 
   // 1 — something the user said ↔ something this person wrote.
-  let best: { yours: string; theirs: string; promptId: string; score: number } | null = null;
+  let best: { yours: string; theirs: string; promptId: string; sourceId: string; score: number } | null = null;
   for (const note of notes) {
     const nt = tokens(note);
     for (const m of person.moments) {
       const theirs = zh ? m.answer_zh : m.answer;
       const score = sharedCount(nt, tokens(theirs));
       if (score >= 1 && (!best || score > best.score)) {
-        best = { yours: clip(note), theirs: clip(theirs, 96), promptId: m.promptId, score };
+        best = { yours: clip(note), theirs: clip(theirs, 96), promptId: m.promptId, sourceId: m.id, score };
       }
     }
   }
@@ -102,10 +117,37 @@ export function buildReasons(
     const p = getMomentPromptById(best.promptId);
     out.push({
       kind: "you_said",
+      category: p?.tier === "values" ? "values" : "lifestyle",
+      sourceId: best.sourceId,
       yours: best.yours,
       theirs: best.theirs,
       prompt: p ? (zh ? p.text_zh : p.text) : null,
     });
+  }
+
+  // If literal words do not overlap, use the bilingual intent signals already
+  // extracted from the user's request. The evidence still has to be a mapped,
+  // public Moment; this prevents vague tags or authored blurbs becoming proof.
+  if (!best) {
+    const evidence = SIGNAL_EVIDENCE[person.id] ?? {};
+    const matchedSignal = (understanding.positive ?? []).find(
+      (signal) => person.signals.includes(signal) && Boolean(evidence[signal]),
+    );
+    const moment = matchedSignal
+      ? person.moments.find((item) => item.id === evidence[matchedSignal])
+      : undefined;
+    const yours = [...notes].reverse().find((note) => note.trim().length > 0);
+    if (moment && yours) {
+      const p = getMomentPromptById(moment.promptId);
+      out.push({
+        kind: "you_said",
+        category: p?.tier === "values" ? "values" : "lifestyle",
+        sourceId: moment.id,
+        yours: clip(yours),
+        theirs: clip(zh ? moment.answer_zh : moment.answer, 96),
+        prompt: p ? (zh ? p.text_zh : p.text) : null,
+      });
+    }
   }
 
   // 2 — a work you BOTH listed.
@@ -120,6 +162,7 @@ export function buildReasons(
       if (key && mine.has(key)) {
         out.push({
           kind: "favorite",
+          sourceId: `${person.id}:favorite:${key}`,
           title: mine.get(key)!,
           theirWhy: clip(zh ? f.why_zh : f.why, 96),
         });
@@ -142,7 +185,10 @@ export function buildReasons(
         bestValue = { prompt: zh ? p.text_zh : p.text, theirs: clip(theirs, 96), score };
       }
     }
-    if (bestValue) out.push({ kind: "values", prompt: bestValue.prompt, theirs: bestValue.theirs });
+    if (bestValue) {
+      const source = person.moments.find((m) => clip(zh ? m.answer_zh : m.answer, 96) === bestValue?.theirs);
+      if (source) out.push({ kind: "values", sourceId: source.id, prompt: bestValue.prompt, theirs: bestValue.theirs });
+    }
   }
 
   return out.slice(0, 3);

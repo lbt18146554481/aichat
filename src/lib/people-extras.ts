@@ -149,6 +149,7 @@ export const MOMENTS: Record<string, Moment[]> = {
     m("theo-1", "defend", "Silence in conversation. Most people fill it because they're scared. I'd rather know what we both actually mean.", "对话里的沉默。大多数人填它是因为害怕。我宁愿真的弄明白两个人在说什么。"),
     m("theo-2", "lose-time", "Three minutes of a piece, played over until I can't tell if it's good anymore.", "一段三分钟的曲子，弹到自己分不清它好不好为止。"),
     m("theo-3", "unexpected-home", "A friend's kitchen in Lisbon. Stayed two days. Felt more at home than my own flat for a long time.", "里斯本一个朋友的厨房。住了两天。比我自己住的公寓更像家，持续了很久。"),
+    m("theo-4", "defend", "Honesty. I'd rather end something kindly than perform it.", "诚实。我宁愿好好结束一段关系，也不愿假装维持。"),
   ],
   mira: [
     m("mira-1", "small-thing", "Setting two cups out in the morning, even when I'm alone.", "早晨摆两个杯子，哪怕只有我一个人。"),
