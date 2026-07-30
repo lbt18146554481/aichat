@@ -65,15 +65,20 @@ interface Props {
   lang: Lang;
   /** When true, renders in a slightly denser layout. */
   compact?: boolean;
+  onChange?: (profile: Profile) => void;
 }
 
-export function ProfileForm({ lang, compact = false }: Props) {
+export function ProfileForm({ lang, compact = false, onChange }: Props) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState<Profile>(EMPTY_PROFILE);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => { setProfile(loadProfile()); setHydrated(true); }, []);
-  useEffect(() => { if (hydrated) saveProfile(profile); }, [profile, hydrated]);
+  useEffect(() => {
+    if (!hydrated) return;
+    saveProfile(profile);
+    onChange?.(profile);
+  }, [profile, hydrated, onChange]);
 
   const complete = isProfileComplete(profile);
   const filledMoments = profile.moments.filter((m) => m.answer.trim().length > 0);

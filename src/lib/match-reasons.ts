@@ -159,11 +159,12 @@ export function buildReasons(
   for (const f of person.favorites ?? []) {
     for (const cand of [f.title, f.title_zh]) {
       const key = normTitle(cand);
-      if (key && mine.has(key)) {
+      const sharedTitle = key ? mine.get(key) : undefined;
+      if (key && sharedTitle) {
         out.push({
           kind: "favorite",
           sourceId: `${person.id}:favorite:${key}`,
-          title: mine.get(key)!,
+          title: sharedTitle,
           theirWhy: clip(zh ? f.why_zh : f.why, 96),
         });
         break;

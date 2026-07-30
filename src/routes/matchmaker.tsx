@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRequireAuth } from "@/lib/auth-guard";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Lang } from "@/lib/i18n";
 import { Workspace, type AgentMsg } from "@/components/workspace";
@@ -100,42 +100,6 @@ function MatchmakerPage() {
     }, 450);
   }
 
-  // One-shot identity buffer — the left Agent may ask for a name when we
-  // need to introduce the user for a Say hello. The answer lives only in
-  // this ref, is used exactly once, and is never written to Profile. If
-  // the user refreshes the page, we ask again — that's the point.
-  const oneShotIdentity = useRef<{ name?: string; city?: string; personId?: string }>({});
-
-  // Inline Agent ask when Say hello needs a name / city we don't have yet.
-  function handleNeedProfile(field: "name" | "city", personId: string) {
-    const askId = `${field}-${personId}-${Date.now()}`;
-    const prompt = field === "name"
-      ? t("intro.ask_name_prompt")
-      : t("intro.ask_city_prompt");
-    const placeholder = field === "name"
-      ? t("intro.ask_name_placeholder")
-      : t("intro.ask_city_placeholder");
-    oneShotIdentity.current = { ...oneShotIdentity.current, personId };
-    setState((s) => ({
-      ...s,
-      messages: [
-        ...s.messages,
-        {
-          id: Math.random().toString(36).slice(2, 10),
-          role: "assistant",
-          t: Date.now(),
-          text: prompt,
-          ask: {
-            kind: "text",
-            id: askId,
-            placeholder,
-            confirmLabel: t("ask.continue"),
-          },
-        },
-      ],
-    }));
-  }
-
   function handleAskResolve(askId: string, value: string | null) {
     // Cancel → drop the ask; the Say hello flow simply stays gated.
     if (value === null) {
@@ -151,23 +115,7 @@ function MatchmakerPage() {
     }
     const trimmed = value.trim();
     if (!trimmed) return;
-    const field: "name" | "city" | null = askId.startsWith("name-")
-      ? "name"
-      : askId.startsWith("city-")
-        ? "city"
-        : null;
-    if (!field) return;
-
-    // Stash the value in the ephemeral one-shot buffer. NOT persisted.
-    oneShotIdentity.current = { ...oneShotIdentity.current, [field]: trimmed };
-    const summary = field === "name"
-      ? t("intro.ask_resolved_name_once", { name: trimmed })
-      : t("intro.ask_resolved_city_once", { city: trimmed });
-    // Remember which person we were mid-flow with so IntroCanvas resumes.
-    const personId = askId.split("-")[1];
-    try {
-      window.sessionStorage.setItem("kindred:intro:resume-hello", personId);
-    } catch { /* noop */ }
+    const summary = trimmed;
     setState((s) => ({
       ...s,
       messages: s.messages.map((m) =>
@@ -200,8 +148,6 @@ function MatchmakerPage() {
           sessionId={sessionId}
           onPassAndNext={() => trigger(actAnotherPerson)}
           onSeeNextPerson={() => trigger(seeNextPerson)}
-          onNeedProfile={handleNeedProfile}
-          oneShotIdentity={oneShotIdentity.current}
         />
       }
     />

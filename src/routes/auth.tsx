@@ -80,10 +80,9 @@ function AuthPage() {
 
   function finishAfterAuth(justSignedUp: boolean) {
     if (justSignedUp) {
-      // Remember where to return once the welcome profile setup completes.
-      const back = safeRedirect(search.redirect);
-      try { window.sessionStorage.setItem("kindred:profile:welcome_return", back); } catch { /* noop */ }
-      void navigate({ to: "/profile", search: { welcome: 1 } as never, replace: true });
+      // Let a new member first see the value of the product. Profile setup is
+      // required at the meaningful commitment point: Say hello.
+      void navigate({ to: safeRedirect(search.redirect) as "/", replace: true });
       return;
     }
     void navigate({ to: safeRedirect(search.redirect) as "/", replace: true });
