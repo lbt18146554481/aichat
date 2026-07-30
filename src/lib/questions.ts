@@ -97,9 +97,23 @@ export const MOMENT_PROMPTS: MomentPrompt[] = [
     hint_zh: "不是简历里的话——是亲近的朋友真的会说的那句。" },
 ];
 
+// Older prompt ids still present in the demo pool's answers. They map onto
+// the current, shorter prompt set so every quoted answer can show the
+// question it was answering.
+const PROMPT_ALIASES: Record<string, string> = {
+  "lose-time": "obsessed",
+  "small-thing": "weeknight",
+  "unexpected-home": "city-spot",
+  "unusual-skill": "learning",
+  "changed": "defend",
+  "compliment": "remembered",
+};
+
 export function getMomentPromptById(id: string): MomentPrompt | undefined {
-  return MOMENT_PROMPTS.find((p) => p.id === id);
+  const key = PROMPT_ALIASES[id] ?? id;
+  return MOMENT_PROMPTS.find((p) => p.id === key);
 }
+
 
 export function localizedMomentPrompt(p: MomentPrompt, lang: "en" | "zh-CN"): string {
   return lang === "zh-CN" ? p.text_zh : p.text;

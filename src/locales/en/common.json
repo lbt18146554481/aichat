@@ -424,7 +424,6 @@
     },
     "f": {
       "name": "Name",
-      "interests": "Interests",
       "age": "Age",
       "city": "City",
       "occupation": "What you do",
@@ -433,9 +432,7 @@
       "orientation": "Orientation",
       "orientation_placeholder": "Prefer not to say",
       "mbti": "MBTI",
-      "mbti_placeholder": "Prefer not to say",
-      "bio": "One-sentence intro",
-      "bio_placeholder": "One sentence about you — short, specific, true."
+      "mbti_placeholder": "Prefer not to say"
     },
     "gender": {
       "female": "Female",
@@ -591,12 +588,13 @@
   },
   "why": {
     "title": "Why {{name}}",
-    "same_city": "You're both in {{city}}.",
-    "shared": "You both put down {{items}}.",
-    "join": ", ",
     "you_said": "You said ",
     "they_wrote": "{{name}} wrote ",
     "agent_read": "Agent's read",
-    "not_enough": "Not enough to go on yet — tell the Agent one more thing on the left and I'll bring someone closer."
+    "not_enough": "Nothing solid to point at yet — tell the Agent one more thing on the left and I'll bring someone closer.",
+    "same_favorite": "You both put down {{title}}."
+  },
+  "profile_public": {
+    "answers": "What they answered"
   }
 }

@@ -163,11 +163,6 @@ export function SavedTrigger({ variant = "default" }: Props) {
                           </div>
                         </div>
                       </div>
-                      {loc.portrait && (
-                        <p className="mt-2 text-[12.5px] text-foreground/85 leading-relaxed line-clamp-2">
-                          {loc.portrait}
-                        </p>
-                      )}
                       <div className="mt-3 flex items-center gap-2">
                         <button
                           onClick={() => handleOpenPerson(rec)}

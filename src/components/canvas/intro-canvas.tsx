@@ -9,7 +9,7 @@ import { pickBestMoment } from "@/lib/agents/matchmaker";
 import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
 import { HelloComposer } from "@/components/hello-composer";
 import { hasName, loadProfile, type Profile } from "@/lib/profile";
-import { buildReasons } from "@/lib/match-reasons";
+import { buildReasons, type Reason } from "@/lib/match-reasons";
 import type { UserUnderstanding } from "@/lib/understanding";
 import type { Person } from "@/lib/types";
 import {
@@ -76,6 +76,10 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
   const [draftReply, setDraftReply] = useState("");
   const [saved, setSaved] = useState<boolean>(() => (person ? isPersonSaved(person.id) : false));
   const [profileOpen, setProfileOpen] = useState(false);
+  // My own profile, used to work out why this person might fit.
+  const [myProfile, setMyProfile] = useState<Profile | null>(null);
+  useEffect(() => { setMyProfile(loadProfile()); }, []);
+
   const restoredRef = useRef<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   // Scroll position on the right-pane scroll container, captured when
@@ -265,7 +269,11 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
   }
 
 
+  const reasons = person && myProfile
+    ? buildReasons(person, myProfile, state.understanding, lang)
+    : [];
   const bestMoment = pickBestMoment(person, state.understanding);
+
 
   function renderMoment(m: NonNullable<typeof bestMoment>, opts: { clickable: boolean; mode: "select" | "quoteAndCompose" }) {
     const prompt = getMomentPromptById(m.promptId);
@@ -343,19 +351,19 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
             <p className="mt-0.5 text-[12.5px] text-muted-foreground">
               {loc.occupation} · {loc.city}
             </p>
-            {loc.bio ? (
-              <p className="mt-1.5 text-[12.5px] text-muted-foreground leading-relaxed">
-                {loc.bio}
-              </p>
-            ) : null}
           </div>
         </button>
 
-        {/* Why this person — reasons, each traceable to a real source. */}
-        {!composing && <WhyThisPerson person={person} lang={lang} understanding={state.understanding} />}
 
-        {/* One Moment — TA's own voice, clickable to quote & compose */}
-        {moments.length > 0 && (
+        {/* Why this person — reasons, each traceable to a real source. */}
+        {!composing && myProfile && (
+          <WhyThisPerson person={person} lang={lang} profile={myProfile} reasons={reasons} />
+        )}
+
+        {/* One Moment — TA's own voice, clickable to quote & compose.
+            Skipped when the "why" card already quotes them, so the same
+            sentence never appears twice. */}
+        {moments.length > 0 && (composing || reasons.length === 0) && (
           <div className="mt-5 space-y-4">
             {composing && (
               <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
@@ -367,6 +375,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson, 
               : bestMoment && renderMoment(bestMoment, { clickable: true, mode: "quoteAndCompose" })}
           </div>
         )}
+
 
 
         {/* Primary closed-loop actions — Say hello / Save side by side,
@@ -553,25 +562,20 @@ function YourHelloRecap({
 
 // ---- Why this person ------------------------------------------------------
 //
-// Answers the only question that matters on this pane: why is this person in
-// front of me? Every line here is computed from a real source (your city,
-// your own words in the left chat, tags/works you both listed). When nothing
-// can be computed we say so and point back to the chat — we never invent a
-// reason.
+// The only question this pane has to answer: why might this person fit what
+// I just asked for? Every line quotes a real source — your own words in the
+// left chat, a work you both listed, or one of their own answers. Nothing is
+// summarised or invented. With no evidence we say so and point back to chat.
 
 function WhyThisPerson({
-  person, lang, understanding,
-}: { person: Person; lang: Lang; understanding: UserUnderstanding }) {
+  person, lang, reasons,
+}: { person: Person; lang: Lang; profile: Profile; reasons: Reason[] }) {
   const { t } = useTranslation();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  useEffect(() => { setProfile(loadProfile()); }, []);
-  if (!profile) return null;
-
-  const reasons = buildReasons(person, profile, understanding, lang);
   const name = localized(person, lang).name;
 
+
   return (
-    <section className="mt-5 rounded-xl border border-border bg-secondary/35 px-4 py-3">
+    <section className="mt-5 rounded-xl border border-border bg-secondary/35 px-4 py-3.5">
       <div className="text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
         {t("why.title", { name })}
       </div>
@@ -580,30 +584,45 @@ function WhyThisPerson({
           {t("why.not_enough")}
         </p>
       ) : (
-        <ul className="mt-2 space-y-2">
+        <ul className="mt-3 space-y-3.5">
           {reasons.map((r, i) => (
-            <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-foreground/90">
-              <span className="mt-[7px] w-1 h-1 rounded-full bg-muted-foreground shrink-0" />
-              <span className="min-w-0">
-                {r.kind === "same_city" && t("why.same_city", { city: r.city })}
-                {r.kind === "shared" &&
-                  t("why.shared", {
-                    items: [
-                      ...r.signals.map((s) => t(`signal.${s}`, { defaultValue: s })),
-                      ...r.titles,
-                    ].join(t("why.join")),
-                  })}
-                {r.kind === "you_said" && (
-                  <>
-                    <span className="text-muted-foreground">{t("why.you_said")}</span>
-                    <span>“{r.yours}”</span>
-                    <span className="block mt-0.5 text-muted-foreground">
+            <li key={i} className="text-[13px] leading-relaxed">
+              {r.kind === "you_said" && (
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">
+                    {t("why.you_said")}
+                    <span className="text-foreground/85">“{r.yours}”</span>
+                  </p>
+                  <div className="border-l-2 border-border pl-2.5">
+                    {r.prompt && (
+                      <div className="text-[11px] italic text-muted-foreground leading-snug">
+                        {r.prompt}
+                      </div>
+                    )}
+                    <p className="text-foreground/90">
                       {t("why.they_wrote", { name })}
-                      <span className="text-foreground/85">“{r.theirs}”</span>
-                    </span>
-                  </>
-                )}
-              </span>
+                      <span>“{r.theirs}”</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+              {r.kind === "favorite" && (
+                <div className="space-y-0.5">
+                  <p className="text-foreground/90">{t("why.same_favorite", { title: r.title })}</p>
+                  <p className="text-[12.5px] text-muted-foreground">
+                    {t("why.they_wrote", { name })}
+                    <span>“{r.theirWhy}”</span>
+                  </p>
+                </div>
+              )}
+              {r.kind === "values" && (
+                <div className="border-l-2 border-border pl-2.5">
+                  <div className="text-[11px] italic text-muted-foreground leading-snug">
+                    {r.prompt}
+                  </div>
+                  <p className="text-foreground/90">“{r.theirs}”</p>
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -611,3 +630,4 @@ function WhyThisPerson({
     </section>
   );
 }
+
