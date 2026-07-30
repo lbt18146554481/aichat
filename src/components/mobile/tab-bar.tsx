@@ -21,7 +21,9 @@ import { hasUnseen, list, rehydrate, subscribe } from "@/lib/connections";
 const HIDE_ON: readonly string[] = ["/auth", "/matchmaker", "/side-by-side"];
 
 interface TabDef {
-  to: "/" | "/connections" | "/sessions" | "/profile";
+  to: "/" | "/connections" | "/sessions" | "/me";
+  /** Extra pathnames that should light this tab up (detail pages). */
+  also?: readonly string[];
   labelKey: string;
   Icon: typeof Home;
   /** true → active when pathname === to; false → active on prefix match. */
@@ -32,7 +34,7 @@ const TABS: TabDef[] = [
   { to: "/",            labelKey: "tabs.home",    Icon: Home,          exact: true },
   { to: "/connections", labelKey: "tabs.chats",   Icon: MessageCircle              },
   { to: "/sessions",    labelKey: "tabs.history", Icon: Clock                       },
-  { to: "/profile",     labelKey: "tabs.me",      Icon: UserCircle                  },
+  { to: "/me",          labelKey: "tabs.me",      Icon: UserCircle, also: ["/profile"] },
 ];
 
 export function MobileTabBar() {
@@ -69,7 +71,9 @@ export function MobileTabBar() {
     >
       <ul className="mx-auto max-w-md grid grid-cols-4">
         {TABS.map((tab) => {
-          const active = tab.exact ? path === tab.to : path === tab.to || path.startsWith(tab.to + "/");
+          const active = tab.exact
+            ? path === tab.to
+            : path === tab.to || path.startsWith(tab.to + "/") || (tab.also ?? []).some((p) => path === p || path.startsWith(p + "/"));
           const showBadge = tab.to === "/connections" && (connCount > 0 || unseen);
           const Icon = tab.Icon;
           return (

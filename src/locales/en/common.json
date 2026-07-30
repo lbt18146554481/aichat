@@ -77,7 +77,8 @@
     "home": "Home",
     "chats": "Chats",
     "history": "History",
-    "me": "Me"
+    "me": "Me",
+    "saved": "Saved"
   },
   "header": {
     "reset": "+ New wish",
@@ -591,11 +592,20 @@
     "agent_read": "Agent's read",
     "not_enough": "Nothing solid to point at yet — tell the Agent one more thing on the left and I'll bring someone closer.",
     "same_favorite": "You both put down {{title}}.",
-    "tag_lifestyle": "Lives like this",
-    "tag_values": "Cares about",
-    "tag_favorite": "You both love"
+    "lead_lifestyle": "{{name}} lives close to what you described.",
+    "lead_values": "{{name}} cares about the same thing you named."
   },
   "profile_public": {
     "answers": "What they answered"
+  },
+  "me": {
+    "title": "Me",
+    "profile": "Your profile",
+    "profile_sub": "How you appear to people we introduce",
+    "saved": "Saved",
+    "saved_sub": "People and wishes you parked",
+    "invites": "Invites",
+    "invites_sub": "Invite people you'd vouch for",
+    "signout": "Sign out"
   }
 }

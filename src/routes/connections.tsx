@@ -8,6 +8,7 @@ import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { ConnectionThread } from "@/components/canvas/connection-thread";
 import { hasUnseenFor, list, rehydrate, subscribe, type Connection } from "@/lib/connections";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const LAST_ACTIVE_KEY = "kindred:connections:last";
 
@@ -40,6 +41,10 @@ function ConnectionsPage() {
   const [items, setItems] = useState<Connection[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const consumedOpenRef = useRef<string | null>(null);
+  // Phones use master → detail navigation: the list is the landing surface and
+  // a thread only opens on tap. Auto-selecting the first row here is what made
+  // the back button look broken (it closed, then instantly reopened).
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!ready) return;
@@ -63,13 +68,13 @@ function ConnectionsPage() {
 
   const restoredRef = useRef(false);
   useEffect(() => {
-    if (restoredRef.current || items.length === 0 || open) return;
+    if (restoredRef.current || items.length === 0 || open || isMobile) return;
     restoredRef.current = true;
     try {
       const saved = window.sessionStorage.getItem(LAST_ACTIVE_KEY);
       if (saved && items.find((c) => c.personId === saved)) setActiveId(saved);
     } catch { /* noop */ }
-  }, [items, open]);
+  }, [items, open, isMobile]);
 
   useEffect(() => {
     if (!activeId) return;
@@ -81,8 +86,8 @@ function ConnectionsPage() {
       if (!items.find((c) => c.personId === activeId)) setActiveId(null);
       return;
     }
-    if (items.length > 0) setActiveId(items[0].personId);
-  }, [items, activeId]);
+    if (!isMobile && items.length > 0) setActiveId(items[0].personId);
+  }, [items, activeId, isMobile]);
 
   if (!ready) return <div className="min-h-screen bg-background" />;
 

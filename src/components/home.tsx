@@ -152,9 +152,11 @@ export function Home() {
         </div>
       </div>
 
-      <main className="flex-1 flex flex-col md:block px-5 md:px-6">
-        <div className="w-full max-w-3xl md:mx-auto flex-1 flex flex-col md:block md:pt-[16vh]">
-          <div className="flex-1 md:flex-none flex items-center md:block pt-6 md:pt-0">
+      <main className="flex-1 min-h-0 flex flex-col md:block px-5 md:px-6">
+        <div className="w-full max-w-3xl md:mx-auto flex-1 min-h-0 flex flex-col md:block md:pt-[16vh]">
+          {/* The greeting shrinks and scrolls instead of being pushed under the
+              notch when the software keyboard collapses the viewport. */}
+          <div className="flex-1 min-h-0 md:flex-none flex items-center justify-center md:block overflow-y-auto py-4 md:py-0">
             <h1
               className="w-full text-center md:text-left text-[28px] sm:text-[36px] md:text-[44px] font-semibold tracking-[-0.02em] leading-[1.15] text-foreground"
               suppressHydrationWarning
