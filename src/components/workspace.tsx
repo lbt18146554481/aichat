@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { Lang } from "@/lib/i18n";
-import { Composer, AssistantBubble, UserBubble, ThinkingRow, ChipRow, type ChipOption } from "./chat-primitives";
+import {
+  Composer,
+  AssistantBubble,
+  UserBubble,
+  ThinkingRow,
+  ChipRow,
+  type ChipOption,
+} from "./chat-primitives";
 import { WorkspaceHeader } from "./workspace-header";
 import { AgentAskCard, AgentAskResolved, type AgentAsk } from "./agent-ask";
 import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
@@ -55,7 +62,7 @@ export function Workspace({
   placeholderOverride,
   onChipClick,
   onAskResolve,
-  
+
   suggestions,
 }: Props) {
   const { t } = useTranslation();
@@ -99,11 +106,12 @@ export function Workspace({
   const [canvasDot, setCanvasDot] = useState(false);
   useEffect(() => {
     if (mobileTab === "chat") setCanvasDot(true);
-  // rightPane changes when the canvas re-renders (new match, etc.)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // rightPane changes when the canvas re-renders (new match, etc.)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rightPane]);
-  useEffect(() => { if (mobileTab === "canvas") setCanvasDot(false); }, [mobileTab]);
-
+  useEffect(() => {
+    if (mobileTab === "canvas") setCanvasDot(false);
+  }, [mobileTab]);
 
   function submit() {
     const text = input.trim();
@@ -138,7 +146,6 @@ export function Workspace({
     return () => window.clearTimeout(id);
   }, [activeAskId]);
 
-
   // Only the last assistant message's chips are actionable — and only when
   // no ask is currently on screen.
   let activeChips: ChipOption[] | undefined;
@@ -158,14 +165,17 @@ export function Workspace({
           <ul className="space-y-4">
             {messages.map((m, idx) => (
               <li key={m.id}>
-                {m.role === "user" ? <UserBubble text={m.text} /> : <AssistantBubble text={m.text} />}
+                {m.role === "user" ? (
+                  <UserBubble text={m.text} />
+                ) : (
+                  <AssistantBubble text={m.text} />
+                )}
                 {m.role === "assistant" && m.ask && idx === activeAskMsgIndex && (
                   <div ref={askRef}>
                     <AgentAskCard
                       ask={m.ask}
                       disabled={thinking || composerDisabled}
                       onResolve={(v) => onAskResolve?.(m.ask!.id, v)}
-                      
                     />
                   </div>
                 )}
@@ -174,17 +184,19 @@ export function Workspace({
                 )}
               </li>
             ))}
-            {thinking && <li><ThinkingRow /></li>}
+            {thinking && (
+              <li>
+                <ThinkingRow />
+              </li>
+            )}
           </ul>
         </div>
       </div>
 
-
       <div
         className="border-t border-border bg-background transition-[padding] duration-150"
         style={{
-          paddingBottom:
-            kbInset > 0 ? `${kbInset + 8}px` : "max(env(safe-area-inset-bottom), 8px)",
+          paddingBottom: kbInset > 0 ? `${kbInset + 8}px` : "max(env(safe-area-inset-bottom), 8px)",
         }}
       >
         <div className="max-w-xl mx-auto px-4 md:px-5 py-3">
@@ -221,7 +233,9 @@ export function Workspace({
             onChange={setInput}
             onSend={submit}
             disabled={thinking || composerDisabled || !!activeAsk}
-            placeholder={activeAsk ? t("ask.composer_locked") : (placeholderOverride ?? t(placeholderKey))}
+            placeholder={
+              activeAsk ? t("ask.composer_locked") : (placeholderOverride ?? t(placeholderKey))
+            }
           />
         </div>
       </div>
@@ -267,13 +281,21 @@ export function Workspace({
 
       {/* Desktop: side-by-side. Mobile: one pane at a time. */}
       <div className="flex-1 min-h-0 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-        <div className={mobileTab === "chat" ? "flex flex-col min-h-0 h-full" : "hidden lg:flex lg:flex-col lg:min-h-0"}>
+        <div
+          className={
+            mobileTab === "chat"
+              ? "flex flex-col min-h-0 h-full"
+              : "hidden lg:flex lg:flex-col lg:min-h-0"
+          }
+        >
           {chatPane}
         </div>
         <section
           className={[
             "min-h-0 overflow-y-auto overscroll-contain-y bg-secondary/30",
-            mobileTab === "canvas" ? "block pb-[max(env(safe-area-inset-bottom),1rem)]" : "hidden lg:block",
+            mobileTab === "canvas"
+              ? "block pb-[max(env(safe-area-inset-bottom),1rem)]"
+              : "hidden lg:block",
           ].join(" ")}
         >
           {rightPane}
@@ -282,4 +304,3 @@ export function Workspace({
     </div>
   );
 }
-

@@ -47,7 +47,10 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
     // Poll every 3s to catch background scheduleResolution flips while the
     // user is still on this page.
     const iv = window.setInterval(update, 3000);
-    return () => { unsub(); window.clearInterval(iv); };
+    return () => {
+      unsub();
+      window.clearInterval(iv);
+    };
   }, []);
 
   const alertPerson = alert ? getPersonById(alert.personId) : null;
@@ -56,7 +59,6 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
   return (
     <header className="w-full border-b border-border bg-background/90 backdrop-blur sticky top-0 z-30 pt-safe">
       <div className="max-w-7xl mx-auto px-3 sm:px-5 h-14 flex items-center justify-between gap-2 sm:gap-3">
-
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Link
             to="/"
@@ -110,7 +112,9 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
             >
               <MessageCircle className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span className="hidden sm:inline">{t("header.connections")}</span>
-              {unseen && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-primary" />}
+              {unseen && (
+                <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-primary" />
+              )}
             </Link>
           )}
           <SavedTrigger variant="compact" />
@@ -126,10 +130,11 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
               <span className="hidden sm:inline">{t("header.reset")}</span>
             </button>
           )}
-          <div className="hidden sm:block"><LangSwitcher /></div>
+          <div className="hidden sm:block">
+            <LangSwitcher />
+          </div>
           <AccountMenu compact />
         </div>
-
       </div>
     </header>
   );

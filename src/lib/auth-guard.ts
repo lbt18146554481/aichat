@@ -21,8 +21,7 @@ export function useRequireAuth(): { ready: boolean } {
     // concatenating it into a URL throws "Cannot convert object to primitive
     // value" on iOS Safari (strict Symbol.toPrimitive). Grab the raw query
     // from window.location instead.
-    const rawSearch =
-      typeof window !== "undefined" ? window.location.search : "";
+    const rawSearch = typeof window !== "undefined" ? window.location.search : "";
     const target = location.pathname + (rawSearch || "");
     void navigate({
       to: "/auth",

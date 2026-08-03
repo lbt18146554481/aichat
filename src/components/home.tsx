@@ -15,8 +15,6 @@ import { useAuth } from "@/lib/auth";
 import { EMPTY as EMPTY_SIDE } from "@/lib/agents/side-by-side";
 import { EMPTY as EMPTY_MATCHMAKER } from "@/lib/agents/matchmaker";
 
-
-
 interface Chip {
   id: AgentId;
   to: "/matchmaker" | "/side-by-side";
@@ -26,8 +24,20 @@ interface Chip {
 }
 
 const CHIPS: Chip[] = [
-  { id: "matchmaker", to: "/matchmaker",   labelKey: "home.chip.intro",    nameKey: "agents.matchmaker.name", Icon: UserSearch },
-  { id: "sidebyside", to: "/side-by-side", labelKey: "home.chip.together", nameKey: "agents.sidebyside.name", Icon: Users },
+  {
+    id: "matchmaker",
+    to: "/matchmaker",
+    labelKey: "home.chip.intro",
+    nameKey: "agents.matchmaker.name",
+    Icon: UserSearch,
+  },
+  {
+    id: "sidebyside",
+    to: "/side-by-side",
+    labelKey: "home.chip.together",
+    nameKey: "agents.sidebyside.name",
+    Icon: Users,
+  },
 ];
 
 export function Home() {
@@ -42,9 +52,9 @@ export function Home() {
   const [mounted, setMounted] = useState(false);
   const [unseen, setUnseen] = useState(false);
 
-
-
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   useEffect(() => {
     if (!mounted) return;
     // Force-focus flag set by "New wish" reset — focus on any viewport.
@@ -54,18 +64,25 @@ export function Home() {
         window.sessionStorage.removeItem("kindred:home:focus");
         forced = true;
       }
-    } catch { /* noop */ }
+    } catch {
+      /* noop */
+    }
     // Otherwise autofocus is desktop-only — on mobile it would summon the
     // keyboard immediately and hide the greeting.
-    const isDesktop = typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches;
+    const isDesktop =
+      typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches;
     if (forced || isDesktop) taRef.current?.focus();
   }, [mounted]);
   useEffect(() => {
     rehydrate();
-    const update = () => { setUnseen(hasUnseen()); };
+    const update = () => {
+      setUnseen(hasUnseen());
+    };
     update();
     const unsub = subscribe(update);
-    return () => { unsub(); };
+    return () => {
+      unsub();
+    };
   }, []);
 
   function submit() {
@@ -88,7 +105,6 @@ export function Home() {
     void navigate({ to: "/matchmaker", search: { session: s.id } });
   }
 
-
   function autosize(el: HTMLTextAreaElement | null) {
     if (!el) return;
     el.style.height = "0px";
@@ -102,9 +118,14 @@ export function Home() {
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="relative inline-flex">
-              <span className="w-6 h-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">K</span>
+              <span className="w-6 h-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">
+                K
+              </span>
               {mounted && user && unseen && (
-                <span aria-label={t("home.connections")} className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />
+                <span
+                  aria-label={t("home.connections")}
+                  className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background"
+                />
               )}
             </span>
             <span className="text-[14px] font-semibold tracking-tight text-foreground">Maitri</span>
@@ -115,7 +136,10 @@ export function Home() {
                 to="/connections"
                 className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               >
-                <MessageCircle className={`w-3.5 h-3.5 ${unseen ? "text-red-500" : ""}`} strokeWidth={1.75} />
+                <MessageCircle
+                  className={`w-3.5 h-3.5 ${unseen ? "text-red-500" : ""}`}
+                  strokeWidth={1.75}
+                />
                 <span suppressHydrationWarning>{mounted ? t("home.connections") : ""}</span>
                 {unseen && (
                   <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-500 text-white text-[10px] font-medium leading-[16px] text-center ring-2 ring-background">
@@ -137,12 +161,16 @@ export function Home() {
         <div className="px-5 h-12 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="relative inline-flex">
-              <span className="w-6 h-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">K</span>
+              <span className="w-6 h-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">
+                K
+              </span>
               {mounted && user && unseen && (
                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />
               )}
             </span>
-            <span className="text-[13.5px] font-semibold tracking-tight text-foreground">Maitri</span>
+            <span className="text-[13.5px] font-semibold tracking-tight text-foreground">
+              Maitri
+            </span>
           </div>
 
           <div className="flex items-center gap-1">
@@ -172,9 +200,15 @@ export function Home() {
                 <textarea
                   ref={taRef}
                   value={text}
-                  onChange={(e) => { setText(e.target.value); autosize(e.target); }}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    autosize(e.target);
+                  }}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      submit();
+                    }
                   }}
                   rows={2}
                   placeholder={mounted ? t("home.placeholder") : ""}
@@ -209,7 +243,6 @@ export function Home() {
                   })}
                 </div>
 
-
                 <button
                   type="button"
                   onClick={submit}
@@ -223,7 +256,6 @@ export function Home() {
               </div>
             </div>
           </div>
-
         </div>
       </main>
     </div>

@@ -27,7 +27,10 @@ export const Route = createFileRoute("/matchmaker")({
   head: () => ({
     meta: [
       { title: "Matchmaker — Maitri" },
-      { name: "description", content: "Describe who you're looking for. The Matchmaker introduces one person at a time." },
+      {
+        name: "description",
+        content: "Describe who you're looking for. The Matchmaker introduces one person at a time.",
+      },
     ],
   }),
 });
@@ -88,7 +91,11 @@ function MatchmakerPage() {
   }
 
   function handleReset() {
-    try { window.sessionStorage.setItem("kindred:home:focus", "1"); } catch { /* noop */ }
+    try {
+      window.sessionStorage.setItem("kindred:home:focus", "1");
+    } catch {
+      /* noop */
+    }
     void navigate({ to: "/" });
   }
 
@@ -119,9 +126,7 @@ function MatchmakerPage() {
     setState((s) => ({
       ...s,
       messages: s.messages.map((m) =>
-        m.ask?.id === askId
-          ? { ...m, ask: undefined, askResolvedLabel: summary }
-          : m,
+        m.ask?.id === askId ? { ...m, ask: undefined, askResolvedLabel: summary } : m,
       ),
     }));
   }
@@ -134,13 +139,14 @@ function MatchmakerPage() {
     <Workspace
       agentNameKey="agents.matchmaker.name"
       agentSubtitleKey="agents.matchmaker.tagline"
-      placeholderKey={state.phase === "clarifying" ? "chat.placeholder_first" : "chat.placeholder_followup"}
+      placeholderKey={
+        state.phase === "clarifying" ? "chat.placeholder_first" : "chat.placeholder_followup"
+      }
       messages={messages}
       thinking={thinking}
       onSend={send}
       onReset={handleReset}
       onAskResolve={handleAskResolve}
-      
       suggestions={suggestChips(state, lang)}
       rightPane={
         <IntroCanvas

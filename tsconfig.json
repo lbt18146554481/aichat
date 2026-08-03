@@ -1,5 +1,22 @@
 {
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "eslint.config.js"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "vite.config.ts",
+    "vite.native.config.ts",
+    "eslint.config.js",
+    "capacitor.config.ts"
+  ],
+  "exclude": [
+    "native/ios",
+    "native/android",
+    "native/www",
+    "dist",
+    "node_modules",
+    ".output",
+    ".vinxi"
+  ],
+
   "compilerOptions": {
     "target": "ES2022",
     "jsx": "react-jsx",

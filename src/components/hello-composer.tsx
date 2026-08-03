@@ -18,15 +18,25 @@ interface Props {
 }
 
 export function HelloComposer({
-  moments, lang, initialPicked, initialReply, onDraftChange, onSubmit, onCancel,
+  moments,
+  lang,
+  initialPicked,
+  initialReply,
+  onDraftChange,
+  onSubmit,
+  onCancel,
 }: Props) {
   const { t } = useTranslation();
   const [picked, setPicked] = useState<string | null>(initialPicked ?? null);
   const [reply, setReply] = useState(initialReply ?? "");
 
-  useEffect(() => { onDraftChange?.(picked, reply); }, [picked, reply, onDraftChange]);
+  useEffect(() => {
+    onDraftChange?.(picked, reply);
+  }, [picked, reply, onDraftChange]);
   // Follow external picked changes (user clicks a Moment above the composer).
-  useEffect(() => { setPicked(initialPicked ?? null); }, [initialPicked]);
+  useEffect(() => {
+    setPicked(initialPicked ?? null);
+  }, [initialPicked]);
 
   function submit() {
     const v = reply.trim();
@@ -34,7 +44,7 @@ export function HelloComposer({
     onSubmit(picked, v);
   }
 
-  const quoted = picked ? moments.find((m) => m.id === picked) ?? null : null;
+  const quoted = picked ? (moments.find((m) => m.id === picked) ?? null) : null;
   const quotedPrompt = quoted ? getMomentPromptById(quoted.promptId) : null;
 
   return (
@@ -69,9 +79,7 @@ export function HelloComposer({
         onChange={(e) => setReply(e.target.value)}
         rows={4}
         placeholder={
-          quoted
-            ? t("moment.reply_placeholder_quoted")
-            : t("moment.reply_placeholder_open")
+          quoted ? t("moment.reply_placeholder_quoted") : t("moment.reply_placeholder_open")
         }
         className="w-full resize-none rounded-lg border border-border bg-card px-3 py-2.5 text-[13.5px] leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-foreground/40"
       />

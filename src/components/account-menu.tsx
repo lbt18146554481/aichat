@@ -5,12 +5,7 @@ import { toast } from "sonner";
 import { Copy, LogOut, UserCircle, Ticket } from "lucide-react";
 import { signOut, useAuth } from "@/lib/auth";
 import { loadProfile } from "@/lib/profile";
-import {
-  generateInvite,
-  listMyCodes,
-  remainingInvites,
-  type InviteCode,
-} from "@/lib/invites";
+import { generateInvite, listMyCodes, remainingInvites, type InviteCode } from "@/lib/invites";
 
 /**
  * Header-right account affordance:
@@ -53,7 +48,10 @@ export function AccountMenu({ compact }: { compact?: boolean }) {
     return (
       <Link
         to="/auth"
-        search={{ mode: "signin", redirect: location.pathname === "/auth" ? "/" : location.pathname }}
+        search={{
+          mode: "signin",
+          redirect: location.pathname === "/auth" ? "/" : location.pathname,
+        }}
         className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] font-medium text-foreground hover:bg-secondary transition-colors"
       >
         {t("auth.sign_in")}

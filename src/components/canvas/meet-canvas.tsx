@@ -1,7 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { ArrowUp, ArrowLeft, MessageCircle, SkipForward, Users, X, ChevronRight, Bookmark, BookmarkCheck } from "lucide-react";
+import {
+  ArrowUp,
+  ArrowLeft,
+  MessageCircle,
+  SkipForward,
+  Users,
+  X,
+  ChevronRight,
+  Bookmark,
+  BookmarkCheck,
+} from "lucide-react";
 import type { Lang } from "@/lib/i18n";
 import type { SideState, ChatMsg, LevelTier, WhenTier } from "@/lib/agents/side-by-side";
 import { currentView } from "@/lib/agents/side-by-side";
@@ -14,7 +24,6 @@ import { PublicProfileSheet } from "@/components/public-profile-sheet";
 
 import { useIsSaved } from "@/components/saved-trigger";
 import { loadProfile } from "@/lib/profile";
-
 
 interface Props {
   state: SideState;
@@ -37,11 +46,14 @@ interface Props {
   onDraftConsumed?: () => void;
 }
 
-
-
-
 const KIND_EMOJI: Record<ActivityKind, string> = {
-  tennis: "🎾", run: "🏃", climb: "🧗", cook: "🍳", exhibition: "🖼", bookstore: "📚", other: "✨",
+  tennis: "🎾",
+  run: "🏃",
+  climb: "🧗",
+  cook: "🍳",
+  exhibition: "🖼",
+  bookstore: "📚",
+  other: "✨",
 };
 
 export function MeetCanvas(props: Props) {
@@ -55,7 +67,6 @@ export function MeetCanvas(props: Props) {
 
   return <div className="relative h-full">{content}</div>;
 }
-
 
 // ---- Empty ---------------------------------------------------------------
 
@@ -83,7 +94,10 @@ function EmptyCanvas() {
             </div>
             <ul className="mt-3 space-y-2">
               {exampleList.map((ex, i) => (
-                <li key={i} className="rounded-xl border border-border bg-card px-4 py-3 text-[13px] text-foreground/85 leading-relaxed">
+                <li
+                  key={i}
+                  className="rounded-xl border border-border bg-card px-4 py-3 text-[13px] text-foreground/85 leading-relaxed"
+                >
                   <span className="text-muted-foreground mr-1.5">“</span>
                   {ex}
                   <span className="text-muted-foreground ml-0.5">”</span>
@@ -127,26 +141,25 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
   const otherName = lang === "zh-CN" ? other.ownerName_zh : other.ownerName;
   const otherCity = lang === "zh-CN" ? other.ownerCity_zh : other.ownerCity;
   const otherOccupation = person
-    ? (lang === "zh-CN" ? person.occupation_zh : person.occupation)
+    ? lang === "zh-CN"
+      ? person.occupation_zh
+      : person.occupation
     : "";
-  const identityMetaParts = [
-    otherCity,
-    otherOccupation,
-  ].filter((s) => s && s.trim().length > 0);
+  const identityMetaParts = [otherCity, otherOccupation].filter((s) => s && s.trim().length > 0);
 
   const quality = state.matchQuality ?? "exact";
   const closeReasonKey =
-    quality === "relaxed-when" ? "intent.close_reason_when"
-    : quality === "relaxed-level" ? "intent.close_reason_level"
-    : null;
+    quality === "relaxed-when"
+      ? "intent.close_reason_when"
+      : quality === "relaxed-level"
+        ? "intent.close_reason_level"
+        : null;
 
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
       <div className="mx-auto max-w-lg">
         {closeReasonKey && (
-          <p className="text-[12px] text-muted-foreground leading-relaxed">
-            {t(closeReasonKey)}
-          </p>
+          <p className="text-[12px] text-muted-foreground leading-relaxed">{t(closeReasonKey)}</p>
         )}
 
         {/* Identity row — the whole block is a button that opens the profile sheet. */}
@@ -162,9 +175,7 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
             className="w-12 h-12 rounded-full border border-border shrink-0"
           />
           <div className="min-w-0 flex-1">
-            <div className="text-[15px] font-medium text-foreground truncate">
-              {otherName}
-            </div>
+            <div className="text-[15px] font-medium text-foreground truncate">{otherName}</div>
             {identityMetaParts.length > 0 && (
               <div className="text-[12px] text-muted-foreground truncate">
                 {identityMetaParts.join(" · ")}
@@ -187,12 +198,13 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
             {t("intent.aligned_label")}
           </div>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            <Tag>{KIND_EMOJI[mine.kind]} {alignedKind}</Tag>
+            <Tag>
+              {KIND_EMOJI[mine.kind]} {alignedKind}
+            </Tag>
             <Tag>{alignedWhen}</Tag>
             <Tag>{alignedLevel}</Tag>
           </div>
         </div>
-
 
         <div className="mt-4 flex items-center gap-2">
           <button
@@ -214,7 +226,11 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
                   : "border-border text-foreground/85 hover:bg-secondary")
               }
             >
-              {isSaved ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+              {isSaved ? (
+                <BookmarkCheck className="w-3.5 h-3.5" />
+              ) : (
+                <Bookmark className="w-3.5 h-3.5" />
+              )}
               {isSaved ? t("intent.saved") : t("intent.save")}
             </button>
           )}
@@ -228,7 +244,6 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
             {t("intent.next_match")}
           </button>
         </div>
-
       </div>
 
       <PublicProfileSheet
@@ -236,12 +251,9 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
         open={openProfile}
         onOpenChange={setOpenProfile}
       />
-
-
     </div>
   );
 }
-
 
 // ---- Why is TA — the Agent's own read, clearly attributed --------------
 //
@@ -255,7 +267,9 @@ function WhyPersonBox({ otherOwnerId, lang }: { otherOwnerId: string; lang: Lang
   const { t } = useTranslation();
   const person = getPersonById(otherOwnerId);
   const line = person?.whyPersonLine
-    ? (lang === "zh-CN" ? person.whyPersonLine.zh : person.whyPersonLine.en)
+    ? lang === "zh-CN"
+      ? person.whyPersonLine.zh
+      : person.whyPersonLine.en
     : null;
   if (!line) return null;
 
@@ -265,14 +279,10 @@ function WhyPersonBox({ otherOwnerId, lang }: { otherOwnerId: string; lang: Lang
         <Sparkles className="w-3 h-3" />
         {t("why.agent_read")}
       </div>
-      <p className="mt-1.5 text-[13.5px] text-foreground/90 leading-relaxed">
-        {line}
-      </p>
+      <p className="mt-1.5 text-[13.5px] text-foreground/90 leading-relaxed">{line}</p>
     </div>
   );
 }
-
-
 
 function EditWishPanel({
   intent,
@@ -287,15 +297,21 @@ function EditWishPanel({
   const lang = i18n.language as Lang;
   const currentWhen: WhenTier = intent.whenAny
     ? "any"
-    : intent.day === "sat" || intent.day === "sun" ? "weekend"
-    : intent.window === "evening" ? "weeknight" : "any";
+    : intent.day === "sat" || intent.day === "sun"
+      ? "weekend"
+      : intent.window === "evening"
+        ? "weeknight"
+        : "any";
   const [when, setWhen] = useState<WhenTier>(currentWhen);
   const [level, setLevel] = useState<LevelTier | "any">(intent.levelAny ? "any" : intent.level);
   // City is anchored to Profile; the panel only exposes a per-wish override.
   // Empty string here means "use my profile city" — which the reducer resolves.
-  const profileCity = (typeof window !== "undefined" ? loadProfileCity() : "");
+  const profileCity = typeof window !== "undefined" ? loadProfileCity() : "";
   const initialCity = intent.city || intent.ownerCity || "";
-  const isOverride = !!profileCity && !!initialCity && initialCity.trim().toLowerCase() !== profileCity.trim().toLowerCase();
+  const isOverride =
+    !!profileCity &&
+    !!initialCity &&
+    initialCity.trim().toLowerCase() !== profileCity.trim().toLowerCase();
   const [city, setCity] = useState<string>(isOverride ? initialCity : "");
 
   const whenOptions: WhenTier[] = ["weekend", "weeknight", "any"];
@@ -379,9 +395,7 @@ function EditWishPanel({
           placeholder={t("intent.edit_city_placeholder", { city: profileCity || "—" })}
           className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-foreground/40"
         />
-        <p className="mt-1.5 text-[11px] text-muted-foreground">
-          {t("intent.edit_city_hint")}
-        </p>
+        <p className="mt-1.5 text-[11px] text-muted-foreground">{t("intent.edit_city_hint")}</p>
       </div>
 
       <button
@@ -395,54 +409,74 @@ function EditWishPanel({
 }
 
 function loadProfileCity(): string {
-  try { return loadProfile().city || ""; } catch { return ""; }
+  try {
+    return loadProfile().city || "";
+  } catch {
+    return "";
+  }
 }
-
 
 function IntentCard({ intent, side, lang }: { intent: Intent; side: "me" | "them"; lang: Lang }) {
   const { t } = useTranslation();
   const raw = lang === "zh-CN" ? intent.rawText_zh : intent.rawText;
   const label = side === "me" ? t("intent.you_said") : t("intent.they_said");
-  const nameOrYou = side === "me"
-    ? t("intent.your_tag")
-    : `${lang === "zh-CN" ? intent.ownerName_zh : intent.ownerName}${(lang === "zh-CN" ? intent.ownerCity_zh : intent.ownerCity) ? " · " + (lang === "zh-CN" ? intent.ownerCity_zh : intent.ownerCity) : ""}`;
+  const nameOrYou =
+    side === "me"
+      ? t("intent.your_tag")
+      : `${lang === "zh-CN" ? intent.ownerName_zh : intent.ownerName}${(lang === "zh-CN" ? intent.ownerCity_zh : intent.ownerCity) ? " · " + (lang === "zh-CN" ? intent.ownerCity_zh : intent.ownerCity) : ""}`;
 
   return (
     <article className="rounded-xl border border-border bg-card p-4 flex flex-col">
       <div className="flex items-center gap-2">
         {side === "them" ? (
-          <img src={avatarUrl(intent.ownerId)} alt="" className="w-7 h-7 rounded-full border border-border" />
+          <img
+            src={avatarUrl(intent.ownerId)}
+            alt=""
+            className="w-7 h-7 rounded-full border border-border"
+          />
         ) : (
           <div className="w-7 h-7 rounded-full bg-secondary border border-border grid place-items-center text-[11px] font-mono text-muted-foreground">
             {t("intent.you_short")}
           </div>
         )}
         <div className="min-w-0">
-          <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">{label}</div>
+          <div className="text-[10.5px] uppercase tracking-[0.14em] font-mono text-muted-foreground">
+            {label}
+          </div>
           <div className="text-[12px] text-foreground/85 truncate">{nameOrYou}</div>
         </div>
       </div>
       <p className="mt-2.5 text-[13px] text-foreground leading-relaxed">"{raw}"</p>
       <div className="mt-2.5 flex flex-wrap gap-1.5">
-        <Tag>{KIND_EMOJI[intent.kind]} {t(`activity.kind.${intent.kind}`)}</Tag>
+        <Tag>
+          {KIND_EMOJI[intent.kind]} {t(`activity.kind.${intent.kind}`)}
+        </Tag>
         {(() => {
-          const cityLabel = lang === "zh-CN" ? (intent.city_zh || intent.city) : (intent.city || intent.city_zh);
+          const cityLabel =
+            lang === "zh-CN" ? intent.city_zh || intent.city : intent.city || intent.city_zh;
           if (!cityLabel) return null;
           // "This wish" badge only on my own card, when the wish city differs
           // from my profile city.
           const profile = side === "me" ? loadProfileCity() : "";
-          const overridden = side === "me" && !!profile && cityLabel.trim().toLowerCase() !== profile.trim().toLowerCase();
+          const overridden =
+            side === "me" &&
+            !!profile &&
+            cityLabel.trim().toLowerCase() !== profile.trim().toLowerCase();
           return (
             <Tag>
               📍 {cityLabel}
               {overridden && (
-                <span className="ml-1 text-muted-foreground">· {t("intent.city_override_badge")}</span>
+                <span className="ml-1 text-muted-foreground">
+                  · {t("intent.city_override_badge")}
+                </span>
               )}
             </Tag>
           );
         })()}
         {!intent.whenAny && (
-          <Tag>{t(`activity.day.${intent.day}`)} {t(`activity.window.${intent.window}`)}</Tag>
+          <Tag>
+            {t(`activity.day.${intent.day}`)} {t(`activity.window.${intent.window}`)}
+          </Tag>
         )}
         {!intent.levelAny && (intent.kind === "tennis" || intent.kind === "climb") && (
           <Tag>{t(`activity.level.${intent.level}`)}</Tag>
@@ -452,7 +486,6 @@ function IntentCard({ intent, side, lang }: { intent: Intent; side: "me" | "them
     </article>
   );
 }
-
 
 function Tag({ children }: { children: React.ReactNode }) {
   return (
@@ -464,12 +497,7 @@ function Tag({ children }: { children: React.ReactNode }) {
 
 // ---- No match — my published card + near-miss list ---------------------
 
-function NoMatchView({
-  state,
-  onRevoke,
-  onTryNearMiss,
-  onRevokeReshare,
-}: Props) {
+function NoMatchView({ state, onRevoke, onTryNearMiss, onRevokeReshare }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const mine = state.myIntentId ? getIntentById(state.myIntentId) : null;
@@ -501,7 +529,6 @@ function NoMatchView({
           </button>
         </div>
 
-
         {nears.length > 0 && (
           <div className="mt-6">
             <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
@@ -518,11 +545,18 @@ function NoMatchView({
                     className="w-full text-left rounded-lg border border-border bg-card p-3.5 hover:border-foreground/40 transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <img src={avatarUrl(n.ownerId)} alt="" className="w-6 h-6 rounded-full border border-border" />
+                      <img
+                        src={avatarUrl(n.ownerId)}
+                        alt=""
+                        className="w-6 h-6 rounded-full border border-border"
+                      />
                       <div className="text-[12px] text-foreground/85">
                         {lang === "zh-CN" ? n.ownerName_zh : n.ownerName}
                         {(lang === "zh-CN" ? n.ownerCity_zh : n.ownerCity) && (
-                          <span className="text-muted-foreground"> · {lang === "zh-CN" ? n.ownerCity_zh : n.ownerCity}</span>
+                          <span className="text-muted-foreground">
+                            {" "}
+                            · {lang === "zh-CN" ? n.ownerCity_zh : n.ownerCity}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -530,7 +564,9 @@ function NoMatchView({
                       "{lang === "zh-CN" ? n.rawText_zh : n.rawText}"
                     </p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      <Tag>{t(`activity.day.${n.day}`)} {t(`activity.window.${n.window}`)}</Tag>
+                      <Tag>
+                        {t(`activity.day.${n.day}`)} {t(`activity.window.${n.window}`)}
+                      </Tag>
                       <Tag>{t(`activity.level.${n.level}`)}</Tag>
                     </div>
                   </button>
@@ -544,10 +580,8 @@ function NoMatchView({
   );
 }
 
-
 // (The old session-scoped SavedDrawer has been replaced by the global
 // SavedTrigger in the header.)
-
 
 // ---- Chat view (in-canvas) ---------------------------------------------
 
@@ -613,9 +647,16 @@ function ChatView({ state, onSendChat, onBackToCandidate, onDraftConsumed }: Pro
           className="w-full text-left px-5 py-2.5 hover:bg-emerald-500/10 transition-colors"
         >
           <div className="flex items-center gap-3">
-            <img src={avatarUrl(other.ownerId)} alt="" className="w-8 h-8 rounded-full border border-border" />
+            <img
+              src={avatarUrl(other.ownerId)}
+              alt=""
+              className="w-8 h-8 rounded-full border border-border"
+            />
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-semibold text-foreground truncate">{otherName}{otherCity ? ` · ${otherCity}` : ""}</div>
+              <div className="text-[13px] font-semibold text-foreground truncate">
+                {otherName}
+                {otherCity ? ` · ${otherCity}` : ""}
+              </div>
               <div className="text-[11px] text-muted-foreground truncate">
                 {t("intent.aligned_slim", {
                   kind: t(`activity.kind.${mine.kind}`),
@@ -641,7 +682,9 @@ function ChatView({ state, onSendChat, onBackToCandidate, onDraftConsumed }: Pro
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4">
         <div className="max-w-md mx-auto">
           <ul className="space-y-2.5">
-            {state.chatMessages.map((m) => <ChatBubble key={m.id} m={m} />)}
+            {state.chatMessages.map((m) => (
+              <ChatBubble key={m.id} m={m} />
+            ))}
           </ul>
         </div>
       </div>
@@ -653,7 +696,12 @@ function ChatView({ state, onSendChat, onBackToCandidate, onDraftConsumed }: Pro
             ref={textareaRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submit();
+              }
+            }}
             rows={1}
             placeholder={t("intent.chat_placeholder")}
             className="w-full resize-none rounded-xl border border-border bg-card px-4 py-2.5 pr-11 text-[14px] leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-foreground/30"

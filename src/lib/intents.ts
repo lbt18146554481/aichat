@@ -18,7 +18,7 @@ export type LevelTier = "beginner" | "intermediate" | "advanced";
 /** One published intent. Same shape whether it came from a seed person or you. */
 export interface Intent {
   id: string;
-  ownerId: string;          // person.id, or "me"
+  ownerId: string; // person.id, or "me"
   ownerName: string;
   ownerName_zh: string;
   ownerCity: string;
@@ -68,7 +68,6 @@ export function sameCity(a: Intent, b: Intent): boolean {
   return false;
 }
 
-
 // ---- Compatibility ------------------------------------------------------
 
 export const LEVEL_KINDS: ActivityKind[] = ["tennis", "climb"];
@@ -85,7 +84,11 @@ export function whenCompatible(mine: WhenTier | undefined, theirs: WhenTier): bo
   return mine === theirs;
 }
 
-export function levelCompatible(kind: ActivityKind, mine: LevelTier | undefined, theirs: LevelTier): boolean {
+export function levelCompatible(
+  kind: ActivityKind,
+  mine: LevelTier | undefined,
+  theirs: LevelTier,
+): boolean {
   if (!LEVEL_KINDS.includes(kind)) return true;
   if (!mine) return true;
   return Math.abs(LEVEL_ORDER.indexOf(mine) - LEVEL_ORDER.indexOf(theirs)) <= 1;
@@ -107,18 +110,37 @@ function synthesize(
     other: "hang out",
   };
   const kindZh: Record<ActivityKind, string> = {
-    tennis: "打网球", run: "跑步", climb: "攀岩",
-    cook: "一起做饭", exhibition: "看展", bookstore: "逛书店",
+    tennis: "打网球",
+    run: "跑步",
+    climb: "攀岩",
+    cook: "一起做饭",
+    exhibition: "看展",
+    bookstore: "逛书店",
     other: "一起做点什么",
   };
   const dayEn: Record<Weekday, string> = {
-    mon: "Monday", tue: "Tuesday", wed: "Wednesday",
-    thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday",
+    mon: "Monday",
+    tue: "Tuesday",
+    wed: "Wednesday",
+    thu: "Thursday",
+    fri: "Friday",
+    sat: "Saturday",
+    sun: "Sunday",
   };
   const dayZh: Record<Weekday, string> = {
-    mon: "周一", tue: "周二", wed: "周三", thu: "周四", fri: "周五", sat: "周六", sun: "周日",
+    mon: "周一",
+    tue: "周二",
+    wed: "周三",
+    thu: "周四",
+    fri: "周五",
+    sat: "周六",
+    sun: "周日",
   };
-  const winEn: Record<string, string> = { morning: "morning", midday: "midday", evening: "evening" };
+  const winEn: Record<string, string> = {
+    morning: "morning",
+    midday: "midday",
+    evening: "evening",
+  };
   const winZh: Record<string, string> = { morning: "上午", midday: "中午", evening: "晚上" };
   const levelEn: Record<LevelTier, string> = {
     beginner: "just picked it up",
@@ -185,27 +207,38 @@ export function loadMyIntents(): Intent[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw) as Intent[];
     return Array.isArray(parsed) ? parsed : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 
 function saveMyIntents(list: Intent[]) {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(MY_KEY, JSON.stringify(list)); } catch { /* noop */ }
+  try {
+    window.localStorage.setItem(MY_KEY, JSON.stringify(list));
+  } catch {
+    /* noop */
+  }
 }
 
-function whenToSlot(when: WhenTier, kind: ActivityKind): { day: Weekday; window: "morning" | "midday" | "evening" } {
+function whenToSlot(
+  when: WhenTier,
+  kind: ActivityKind,
+): { day: Weekday; window: "morning" | "midday" | "evening" } {
   const day: Weekday = when === "weeknight" ? "wed" : "sat";
   const window: "morning" | "midday" | "evening" =
-    when === "weeknight" ? "evening"
-    : LEVEL_KINDS.includes(kind) || kind === "run" ? "morning"
-    : "evening";
+    when === "weeknight"
+      ? "evening"
+      : LEVEL_KINDS.includes(kind) || kind === "run"
+        ? "morning"
+        : "evening";
   return { day, window };
 }
 
 export function publishMyIntent(input: {
   kind: ActivityKind;
-  when?: WhenTier;      // undefined means "any"
-  level?: LevelTier;    // undefined means "any"
+  when?: WhenTier; // undefined means "any"
+  level?: LevelTier; // undefined means "any"
   rawText: string;
   /** Required for real matching: the city this wish is scoped to.
    *  Callers pass Profile.city, or a per-wish override parsed from the raw
@@ -220,13 +253,18 @@ export function publishMyIntent(input: {
   const intent: Intent = {
     id: `me:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
     ownerId: "me",
-    ownerName: "You", ownerName_zh: "你",
-    ownerCity: city, ownerCity_zh: city_zh,
-    city, city_zh,
+    ownerName: "You",
+    ownerName_zh: "你",
+    ownerCity: city,
+    ownerCity_zh: city_zh,
+    city,
+    city_zh,
     kind: input.kind,
     level: input.level ?? "intermediate",
-    day, window,
-    venue: "", venue_zh: "",
+    day,
+    window,
+    venue: "",
+    venue_zh: "",
     rawText: input.rawText,
     rawText_zh: input.rawText,
     whenAny: !input.when,
@@ -258,10 +296,13 @@ export function updateMyIntent(
   let next: Intent = { ...cur };
   if (patch.when !== undefined) {
     const { day, window } = whenToSlot(patch.when, cur.kind);
-    next.day = day; next.window = window; next.whenAny = patch.when === "any";
+    next.day = day;
+    next.window = window;
+    next.whenAny = patch.when === "any";
   }
   if (patch.level !== undefined) {
-    next.level = patch.level; next.levelAny = false;
+    next.level = patch.level;
+    next.levelAny = false;
   }
   if (patch.location !== undefined) {
     const v = patch.location.trim();
@@ -281,7 +322,6 @@ export function updateMyIntent(
   return next;
 }
 
-
 export function revokeMyIntent(id: string) {
   const list = loadMyIntents();
   saveMyIntents(list.filter((i) => i.id !== id));
@@ -294,20 +334,87 @@ export function clearMyIntents() {
 // ---- Keyword tokenizer (for kind="other" matching) ---------------------
 
 const STOPWORDS = new Set([
-  "want", "looking", "for", "some", "someone", "with", "the", "and", "a", "an", "to", "of",
-  "usually", "around", "around", "casual", "serious", "not", "too", "just", "picked", "up",
-  "morning", "mornings", "evening", "evenings", "midday", "afternoon",
-  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "weekend", "weeknight",
+  "want",
+  "looking",
+  "for",
+  "some",
+  "someone",
+  "with",
+  "the",
+  "and",
+  "a",
+  "an",
+  "to",
+  "of",
+  "usually",
+  "around",
+  "around",
+  "casual",
+  "serious",
+  "not",
+  "too",
+  "just",
+  "picked",
+  "up",
+  "morning",
+  "mornings",
+  "evening",
+  "evenings",
+  "midday",
+  "afternoon",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+  "weekend",
+  "weeknight",
   // Chinese single words/particles
-  "想", "找", "人", "一起", "和", "跟", "的", "了", "在", "有", "个", "点",
+  "想",
+  "找",
+  "人",
+  "一起",
+  "和",
+  "跟",
+  "的",
+  "了",
+  "在",
+  "有",
+  "个",
+  "点",
   // Chinese bigrams that show up in the seed template "想找人…" and in dates/levels
-  "想找", "找人", "人周", "常在", "会一", "一点", "不较", "较真",
-  "周一", "周二", "周三", "周四", "周五", "周六", "周日",
-  "早上", "上午", "中午", "下午", "晚上", "傍晚",
-  "新手", "中级", "进阶",
+  "想找",
+  "找人",
+  "人周",
+  "常在",
+  "会一",
+  "一点",
+  "不较",
+  "较真",
+  "周一",
+  "周二",
+  "周三",
+  "周四",
+  "周五",
+  "周六",
+  "周日",
+  "早上",
+  "上午",
+  "中午",
+  "下午",
+  "晚上",
+  "傍晚",
+  "新手",
+  "中级",
+  "进阶",
 ]);
 export function tokenize(text: string): Set<string> {
-  const t = text.toLowerCase().replace(/[\s\p{P}]+/gu, " ").trim();
+  const t = text
+    .toLowerCase()
+    .replace(/[\s\p{P}]+/gu, " ")
+    .trim();
   const out = new Set<string>();
   // English words length >= 3
   for (const w of t.split(/\s+/)) {
@@ -338,7 +445,8 @@ function score(mine: Intent, other: Intent): number {
   if (mine.day === other.day && mine.window === other.window) s += 5;
   else if (slotToWhen(mine.day, mine.window) === slotToWhen(other.day, other.window)) s += 2;
   if (mine.level === other.level) s += 3;
-  else if (Math.abs(LEVEL_ORDER.indexOf(mine.level) - LEVEL_ORDER.indexOf(other.level)) === 1) s += 1;
+  else if (Math.abs(LEVEL_ORDER.indexOf(mine.level) - LEVEL_ORDER.indexOf(other.level)) === 1)
+    s += 1;
   return s;
 }
 
@@ -365,23 +473,35 @@ export type MatchQuality = "exact" | "relaxed-when" | "relaxed-level";
  *  Matching is same-city first. If nothing lines up in the user's city, we
  *  fall back to a city-agnostic pass so the demo pool always has room to
  *  produce a match. Real deployments would keep the hard city filter. */
-export function findCandidatesTiered(mine: Intent, opts?: MatchOpts): {
+export function findCandidatesTiered(
+  mine: Intent,
+  opts?: MatchOpts,
+): {
   exact: Intent[];
   relaxedWhen: Intent[];
   relaxedLevel: Intent[];
 } {
   const excluded = new Set(opts?.exclude ?? []);
   const excludedOwners = new Set(opts?.excludeOwnerIds ?? []);
-  const mineWhen: WhenTier | undefined = mine.whenAny ? undefined : slotToWhen(mine.day, mine.window);
+  const mineWhen: WhenTier | undefined = mine.whenAny
+    ? undefined
+    : slotToWhen(mine.day, mine.window);
   const mineLevel: LevelTier | undefined = mine.levelAny ? undefined : mine.level;
 
   const build = (respectCity: boolean) => {
     const pool = [...seedPool(), ...loadMyIntents().filter((it) => it.id !== mine.id)]
-      .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id) && !excludedOwners.has(it.ownerId))
+      .filter(
+        (it) =>
+          it.ownerId !== mine.ownerId && !excluded.has(it.id) && !excludedOwners.has(it.ownerId),
+      )
       .filter((it) => (respectCity ? sameCity(mine, it) : true))
       .filter((it) => kindsCompatible(mine, it));
 
-    const buckets: { exact: Intent[]; when: Intent[]; level: Intent[] } = { exact: [], when: [], level: [] };
+    const buckets: { exact: Intent[]; when: Intent[]; level: Intent[] } = {
+      exact: [],
+      when: [],
+      level: [],
+    };
     for (const it of pool) {
       const theirWhen: WhenTier = it.whenAny ? "any" : slotToWhen(it.day, it.window);
       const kind = mine.kind !== "other" ? mine.kind : it.kind;
@@ -450,7 +570,6 @@ export function countAvailableMatches(mine: Intent, opts?: MatchOpts): number {
   return t.exact.length + t.relaxedWhen.length + t.relaxedLevel.length;
 }
 
-
 /** Same kind, but when/level don't line up — useful "you might want to shift" hints. */
 export function findNearMisses(mine: Intent, opts?: MatchOpts): Intent[] {
   const excluded = new Set(opts?.exclude ?? []);
@@ -458,10 +577,18 @@ export function findNearMisses(mine: Intent, opts?: MatchOpts): Intent[] {
   const mineWhen = slotToWhen(mine.day, mine.window);
   const seenOwners = new Set<string>();
   return seedPool()
-    .filter((it) => it.ownerId !== mine.ownerId && !excluded.has(it.id) && !excludedOwners.has(it.ownerId) && sameCity(mine, it) && kindsCompatible(mine, it))
-    .filter((it) =>
-      !whenCompatible(mineWhen, slotToWhen(it.day, it.window)) ||
-      !levelCompatible(mine.kind !== "other" ? mine.kind : it.kind, mine.level, it.level),
+    .filter(
+      (it) =>
+        it.ownerId !== mine.ownerId &&
+        !excluded.has(it.id) &&
+        !excludedOwners.has(it.ownerId) &&
+        sameCity(mine, it) &&
+        kindsCompatible(mine, it),
+    )
+    .filter(
+      (it) =>
+        !whenCompatible(mineWhen, slotToWhen(it.day, it.window)) ||
+        !levelCompatible(mine.kind !== "other" ? mine.kind : it.kind, mine.level, it.level),
     )
     .filter((it) => {
       if (seenOwners.has(it.ownerId)) return false;

@@ -31,10 +31,10 @@ interface TabDef {
 }
 
 const TABS: TabDef[] = [
-  { to: "/",            labelKey: "tabs.home",    Icon: Home,          exact: true },
-  { to: "/connections", labelKey: "tabs.chats",   Icon: MessageCircle              },
-  { to: "/sessions",    labelKey: "tabs.history", Icon: Clock                       },
-  { to: "/me",          labelKey: "tabs.me",      Icon: UserCircle, also: ["/profile"] },
+  { to: "/", labelKey: "tabs.home", Icon: Home, exact: true },
+  { to: "/connections", labelKey: "tabs.chats", Icon: MessageCircle },
+  { to: "/sessions", labelKey: "tabs.history", Icon: Clock },
+  { to: "/me", labelKey: "tabs.me", Icon: UserCircle, also: ["/profile"] },
 ];
 
 export function MobileTabBar() {
@@ -52,7 +52,9 @@ export function MobileTabBar() {
     };
     update();
     const unsub = subscribe(update);
-    return () => { unsub(); };
+    return () => {
+      unsub();
+    };
   }, []);
 
   const path = location.pathname;
@@ -73,7 +75,9 @@ export function MobileTabBar() {
         {TABS.map((tab) => {
           const active = tab.exact
             ? path === tab.to
-            : path === tab.to || path.startsWith(tab.to + "/") || (tab.also ?? []).some((p) => path === p || path.startsWith(p + "/"));
+            : path === tab.to ||
+              path.startsWith(tab.to + "/") ||
+              (tab.also ?? []).some((p) => path === p || path.startsWith(p + "/"));
           const showBadge = tab.to === "/connections" && (connCount > 0 || unseen);
           const Icon = tab.Icon;
           return (
@@ -95,9 +99,7 @@ export function MobileTabBar() {
                     <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-primary ring-2 ring-background" />
                   )}
                 </span>
-                <span className="text-[10px] tracking-wide leading-none">
-                  {t(tab.labelKey)}
-                </span>
+                <span className="text-[10px] tracking-wide leading-none">{t(tab.labelKey)}</span>
               </Link>
             </li>
           );

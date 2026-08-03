@@ -30,7 +30,6 @@ function relTime(ts: number, t: TFunction): string {
   return t("home.time.days", { n: days });
 }
 
-
 export function SessionList({ limit, showViewAll = false, embedded = false }: Props) {
   const { t } = useTranslation();
   const [rows, setRows] = useState<Session[] | null>(null);
@@ -44,9 +43,7 @@ export function SessionList({ limit, showViewAll = false, embedded = false }: Pr
   if (rows.length === 0) {
     if (!embedded) return null;
     return (
-      <p className="text-[12.5px] text-muted-foreground py-6 text-center">
-        {t("history.empty")}
-      </p>
+      <p className="text-[12.5px] text-muted-foreground py-6 text-center">{t("history.empty")}</p>
     );
   }
 
@@ -72,7 +69,6 @@ export function SessionList({ limit, showViewAll = false, embedded = false }: Pr
               search={search}
               className="group flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 transition-colors"
             >
-
               <div className="shrink-0 w-7 h-7 rounded-full bg-secondary text-foreground/70 grid place-items-center">
                 <Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
               </div>
@@ -84,7 +80,6 @@ export function SessionList({ limit, showViewAll = false, embedded = false }: Pr
                   {relTime(s.updatedAt, t)}
                 </div>
               </div>
-              
             </Link>
           </li>
         );
@@ -96,7 +91,7 @@ export function SessionList({ limit, showViewAll = false, embedded = false }: Pr
 
   return (
     <section className="mt-10 mb-4">
-      {(showViewAll && hasMore) && (
+      {showViewAll && hasMore && (
         <div className="flex items-baseline justify-end mb-3 px-1">
           <Link
             to="/sessions"

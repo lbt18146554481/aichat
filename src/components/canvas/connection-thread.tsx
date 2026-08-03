@@ -27,7 +27,9 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { setFocusPerson } from "@/lib/seed";
 
-interface Props { personId: string; }
+interface Props {
+  personId: string;
+}
 
 interface Bubble {
   id: string;
@@ -61,7 +63,9 @@ export function ConnectionThread({ personId }: Props) {
     setConn(get(personId));
     setTyping(isTyping(personId));
     markSeen(personId);
-    return () => { unsub(); };
+    return () => {
+      unsub();
+    };
   }, [personId]);
 
   const bubbles = useMemo<Bubble[]>(() => {
@@ -163,7 +167,9 @@ export function ConnectionThread({ personId }: Props) {
           />
           <div className="min-w-0">
             <div className="text-[13.5px] font-semibold text-foreground truncate">{loc.name}</div>
-            <div className="text-[11px] text-muted-foreground truncate">{loc.occupation} · {loc.city}</div>
+            <div className="text-[11px] text-muted-foreground truncate">
+              {loc.occupation} · {loc.city}
+            </div>
           </div>
         </button>
 
@@ -209,7 +215,12 @@ export function ConnectionThread({ personId }: Props) {
         <div className="max-w-md mx-auto">
           <ul className="space-y-2.5">
             {bubbles.map((b) => (
-              <li key={b.id} className={b.from === "me" ? "flex flex-col items-end" : "flex flex-col items-start"}>
+              <li
+                key={b.id}
+                className={
+                  b.from === "me" ? "flex flex-col items-end" : "flex flex-col items-start"
+                }
+              >
                 <div
                   className={[
                     "max-w-[80%] px-3.5 py-2 text-[14px] leading-relaxed",
@@ -244,7 +255,12 @@ export function ConnectionThread({ personId }: Props) {
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    submit();
+                  }
+                }}
                 rows={1}
                 placeholder={composerPlaceholder}
                 className="w-full resize-none rounded-xl border border-border bg-card px-4 py-2.5 pr-11 text-[14px] leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-foreground/30"

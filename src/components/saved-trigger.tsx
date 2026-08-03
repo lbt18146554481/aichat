@@ -11,20 +11,10 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Bookmark, BookmarkCheck, MessageCircle, UserRound, X } from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  listSaved,
-  removeSaved,
-  subscribeSaved,
-  type SavedRecord,
-} from "@/lib/saved-intents";
+import { listSaved, removeSaved, subscribeSaved, type SavedRecord } from "@/lib/saved-intents";
 import {
   listSavedPeople,
   removeSavedPerson,
@@ -74,7 +64,12 @@ function useSavedPeopleList(): SavedPersonRecord[] {
   }
 }
 
-export function SavedTrigger({ variant = "default", open: openProp, onOpenChange, hideTrigger }: Props) {
+export function SavedTrigger({
+  variant = "default",
+  open: openProp,
+  onOpenChange,
+  hideTrigger,
+}: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
@@ -90,11 +85,12 @@ export function SavedTrigger({ variant = "default", open: openProp, onOpenChange
   // localStorage is only readable after hydration; until then show skeletons
   // instead of flashing "nothing saved yet" at someone who has saved people.
   const [hydrated, setHydrated] = useState(false);
-  useEffect(() => { setHydrated(true); }, []);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
   const count = saved.length + people.length;
 
   if (count === 0 && !controlled) return null;
-
 
   const btnClass =
     variant === "compact"
@@ -156,7 +152,10 @@ export function SavedTrigger({ variant = "default", open: openProp, onOpenChange
             {!hydrated ? (
               <ul className="space-y-3" data-testid="saved-loading" aria-busy="true">
                 {[0, 1].map((i) => (
-                  <li key={i} className="rounded-lg border border-border bg-card p-4 flex items-center gap-3">
+                  <li
+                    key={i}
+                    className="rounded-lg border border-border bg-card p-4 flex items-center gap-3"
+                  >
                     <Skeleton className="w-10 h-10 rounded-full" />
                     <div className="flex-1 space-y-2">
                       <Skeleton className="h-3 w-24" />
@@ -187,7 +186,9 @@ export function SavedTrigger({ variant = "default", open: openProp, onOpenChange
                         <div className="min-w-0 flex-1">
                           <div className="text-[14px] font-medium text-foreground truncate">
                             {loc.name}
-                            <span className="text-muted-foreground font-normal">, {person.age}</span>
+                            <span className="text-muted-foreground font-normal">
+                              , {person.age}
+                            </span>
                           </div>
                           <div className="text-[11.5px] text-muted-foreground truncate">
                             {loc.occupation} · {loc.city}
@@ -222,7 +223,10 @@ export function SavedTrigger({ variant = "default", open: openProp, onOpenChange
             {!hydrated ? (
               <ul className="space-y-3" data-testid="saved-loading" aria-busy="true">
                 {[0, 1].map((i) => (
-                  <li key={i} className="rounded-lg border border-border bg-card p-4 flex items-center gap-3">
+                  <li
+                    key={i}
+                    className="rounded-lg border border-border bg-card p-4 flex items-center gap-3"
+                  >
                     <Skeleton className="w-10 h-10 rounded-full" />
                     <div className="flex-1 space-y-2">
                       <Skeleton className="h-3 w-24" />
@@ -245,7 +249,9 @@ export function SavedTrigger({ variant = "default", open: openProp, onOpenChange
                   const name = lang === "zh-CN" ? intent.ownerName_zh : intent.ownerName;
                   const city = lang === "zh-CN" ? intent.ownerCity_zh : intent.ownerCity;
                   const occ = person
-                    ? (lang === "zh-CN" ? person.occupation_zh : person.occupation)
+                    ? lang === "zh-CN"
+                      ? person.occupation_zh
+                      : person.occupation
                     : "";
                   const meta = [city, occ].filter((s) => s && s.trim()).join(" · ");
                   const raw = lang === "zh-CN" ? intent.rawText_zh : intent.rawText;
@@ -308,7 +314,6 @@ export function SavedTrigger({ variant = "default", open: openProp, onOpenChange
             )}
           </TabsContent>
         </Tabs>
-
       </SheetContent>
     </Sheet>
   );

@@ -35,22 +35,36 @@ interface Props {
 
 // Per-person composer draft — survives a jump to /profile and back so the
 // user never loses the reply they were writing.
-interface IntroDraft { composing: boolean; picked: string | null; reply: string }
+interface IntroDraft {
+  composing: boolean;
+  picked: string | null;
+  reply: string;
+}
 const draftKey = (personId: string) => `kindred:intro:draft:${personId}`;
 function loadDraft(personId: string): IntroDraft | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.sessionStorage.getItem(draftKey(personId));
     return raw ? (JSON.parse(raw) as IntroDraft) : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 function saveDraft(personId: string, d: IntroDraft) {
   if (typeof window === "undefined") return;
-  try { window.sessionStorage.setItem(draftKey(personId), JSON.stringify(d)); } catch { /* noop */ }
+  try {
+    window.sessionStorage.setItem(draftKey(personId), JSON.stringify(d));
+  } catch {
+    /* noop */
+  }
 }
 function clearDraft(personId: string) {
   if (typeof window === "undefined") return;
-  try { window.sessionStorage.removeItem(draftKey(personId)); } catch { /* noop */ }
+  try {
+    window.sessionStorage.removeItem(draftKey(personId));
+  } catch {
+    /* noop */
+  }
 }
 
 // Per-person scroll position on the right-pane scroller — persists across a
@@ -64,22 +78,27 @@ const scrollKey = (personId: string) => `kindred:intro:scroll:${personId}`;
 const RESUME_KEY = "kindred:intro:resume-hello";
 function readResumeHello(): string | null {
   if (typeof window === "undefined") return null;
-  try { return window.sessionStorage.getItem(RESUME_KEY); } catch { return null; }
+  try {
+    return window.sessionStorage.getItem(RESUME_KEY);
+  } catch {
+    return null;
+  }
 }
 function clearResumeHello() {
   if (typeof window === "undefined") return;
-  try { window.sessionStorage.removeItem(RESUME_KEY); } catch { /* noop */ }
+  try {
+    window.sessionStorage.removeItem(RESUME_KEY);
+  } catch {
+    /* noop */
+  }
 }
-
 
 export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
   const navigate = useNavigate();
   const person = state.currentPersonId ? getPersonById(state.currentPersonId) : null;
-  const [conn, setConn] = useState<Connection | null>(
-    person ? get(person.id) : null,
-  );
+  const [conn, setConn] = useState<Connection | null>(person ? get(person.id) : null);
   const [composing, setComposing] = useState(false);
   const [draftPicked, setDraftPicked] = useState<string | null>(null);
   const [draftReply, setDraftReply] = useState("");
@@ -87,7 +106,9 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   const [profileOpen, setProfileOpen] = useState(false);
   // My own profile, used to work out why this person might fit.
   const [myProfile, setMyProfile] = useState<Profile | null>(null);
-  useEffect(() => { setMyProfile(loadProfile()); }, []);
+  useEffect(() => {
+    setMyProfile(loadProfile());
+  }, []);
 
   const restoredRef = useRef<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -105,11 +126,13 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     return null;
   }
 
-
   // Track saved state for the current person; auto-remove once a real
   // connection begins — Save is a pre-decision holding pattern only.
   useEffect(() => {
-    if (!person) { setSaved(false); return; }
+    if (!person) {
+      setSaved(false);
+      return;
+    }
     const check = () => setSaved(isPersonSaved(person.id));
     check();
     return subscribeSavedPeople(check);
@@ -128,7 +151,8 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     if (person) {
       const resumeId = readResumeHello();
       const resuming = resumeId !== null && isVitalsComplete(loadProfile());
-      const d = loadDraft(person.id) ?? (resuming && resumeId !== person.id ? loadDraft(resumeId!) : null);
+      const d =
+        loadDraft(person.id) ?? (resuming && resumeId !== person.id ? loadDraft(resumeId!) : null);
       if (d) {
         setComposing(d.composing || resuming);
         setDraftPicked(d.picked);
@@ -141,10 +165,11 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
       restoredRef.current = person.id;
     }
     const unsub = subscribe(() => setConn(person ? get(person.id) : null));
-    return () => { unsub(); };
+    return () => {
+      unsub();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id]);
-
 
   // Persist draft whenever it changes (only after restore has run).
   useEffect(() => {
@@ -172,31 +197,35 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
         const top = raw ? parseInt(raw, 10) : NaN;
         if (!Number.isNaN(top)) {
           requestAnimationFrame(() => {
-            requestAnimationFrame(() => { el.scrollTo({ top }); });
+            requestAnimationFrame(() => {
+              el.scrollTo({ top });
+            });
           });
         }
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
     }
     const onScroll = () => {
-      try { window.sessionStorage.setItem(scrollKey(person.id), String(el.scrollTop)); } catch { /* noop */ }
+      try {
+        window.sessionStorage.setItem(scrollKey(person.id), String(el.scrollTop));
+      } catch {
+        /* noop */
+      }
     };
     el.addEventListener("scroll", onScroll, { passive: true });
-    return () => { el.removeEventListener("scroll", onScroll); };
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id, conn?.status]);
-
-
-
-
 
   if (!person) {
     return (
       <div className="h-full grid place-items-center px-8 py-12">
         <div className="max-w-sm text-center">
           <div className="w-10 h-10 mx-auto rounded-full border border-dashed border-border" />
-          <h2 className="mt-5 text-[15px] font-medium text-foreground">
-            {t("intro.empty_title")}
-          </h2>
+          <h2 className="mt-5 text-[15px] font-medium text-foreground">{t("intro.empty_title")}</h2>
           <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed">
             {t("intro.empty_hint")}
           </p>
@@ -208,7 +237,6 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   const loc = localized(person, lang);
   const moments = person.moments;
   const personId = person.id;
-
 
   function requestSayHello(opts?: { pickedMomentId?: string | null; draftReply?: string }) {
     const p = loadProfile();
@@ -228,7 +256,9 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
         setFocusPerson(personId);
         const el = getScrollParent();
         if (el) window.sessionStorage.setItem(scrollKey(personId), String(el.scrollTop));
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
       void navigate({ to: "/profile", search: { welcome: 1 } });
       return;
     }
@@ -267,14 +297,14 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     }
   }
 
-
-  const reasons = person && myProfile
-    ? buildReasons(person, myProfile, state.understanding, lang)
-    : [];
+  const reasons =
+    person && myProfile ? buildReasons(person, myProfile, state.understanding, lang) : [];
   const bestMoment = pickBestMoment(person, state.understanding);
 
-
-  function renderMoment(m: NonNullable<typeof bestMoment>, opts: { clickable: boolean; mode: "select" | "quoteAndCompose" }) {
+  function renderMoment(
+    m: NonNullable<typeof bestMoment>,
+    opts: { clickable: boolean; mode: "select" | "quoteAndCompose" },
+  ) {
     const prompt = getMomentPromptById(m.promptId);
     const active = composing && draftPicked === m.id;
     const content = (
@@ -318,8 +348,10 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   }
 
   return (
-    <div ref={rootRef} className="h-full px-6 sm:px-8 pt-8 sm:pt-10 pb-[max(env(safe-area-inset-bottom),1rem)]">
-
+    <div
+      ref={rootRef}
+      className="h-full px-6 sm:px-8 pt-8 sm:pt-10 pb-[max(env(safe-area-inset-bottom),1rem)]"
+    >
       <div className="mx-auto max-w-md">
         {/* Header — clickable identity opens the public profile sheet */}
         <button
@@ -351,11 +383,8 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
           </div>
         </button>
 
-
         {/* Why this person — reasons, each traceable to a real source. */}
-        {!composing && myProfile && (
-          <WhyThisPerson person={person} lang={lang} reasons={reasons} />
-        )}
+        {!composing && myProfile && <WhyThisPerson person={person} lang={lang} reasons={reasons} />}
 
         {/* One Moment — TA's own voice, clickable to quote & compose.
             Skipped when the "why" card already quotes them, so the same
@@ -369,11 +398,10 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
             )}
             {composing
               ? moments.map((m) => renderMoment(m, { clickable: true, mode: "select" }))
-              : bestMoment && renderMoment(bestMoment, { clickable: true, mode: "quoteAndCompose" })}
+              : bestMoment &&
+                renderMoment(bestMoment, { clickable: true, mode: "quoteAndCompose" })}
           </div>
         )}
-
-
 
         {/* Primary closed-loop actions — Say hello / Save side by side,
             with a soft "see someone else" link. */}
@@ -420,7 +448,6 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
                   {t("intro.see_someone_else")}
                 </button>
               </div>
-
             </div>
           )}
 
@@ -504,7 +531,9 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
                   {t("intro.while_you_chat")}
                 </button>
               </div>
-              <span className="block text-[12px] text-muted-foreground">{t("connection.connected_note")}</span>
+              <span className="block text-[12px] text-muted-foreground">
+                {t("connection.connected_note")}
+              </span>
             </div>
           )}
 
@@ -529,8 +558,14 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
 }
 
 function YourHelloRecap({
-  fromMe, person, lang,
-}: { fromMe: NonNullable<Connection["fromMe"]>; person: ReturnType<typeof getPersonById>; lang: Lang }) {
+  fromMe,
+  person,
+  lang,
+}: {
+  fromMe: NonNullable<Connection["fromMe"]>;
+  person: ReturnType<typeof getPersonById>;
+  lang: Lang;
+}) {
   const { t } = useTranslation();
   if (!person) return null;
   const m = person.moments.find((mm) => mm.id === fromMe.quotedMomentId);
@@ -564,8 +599,14 @@ function YourHelloRecap({
 // it as the source. No category labels, no invented summary.
 
 function WhyThisPerson({
-  person, lang, reasons,
-}: { person: Person; lang: Lang; reasons: Reason[] }) {
+  person,
+  lang,
+  reasons,
+}: {
+  person: Person;
+  lang: Lang;
+  reasons: Reason[];
+}) {
   const { t } = useTranslation();
   const name = localized(person, lang).name;
 
@@ -605,6 +646,3 @@ function WhyThisPerson({
     </section>
   );
 }
-
-
-

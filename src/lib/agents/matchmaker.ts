@@ -62,9 +62,19 @@ type Intent = "another_person" | "more_describe";
 
 const PATTERNS = {
   another_person: [
-    /\bnext\b/i, /\banother\b/i, /\bsomeone else\b/i, /\bnot (the )?one\b/i,
-    /\bnot for me\b/i, /\bpass\b/i, /\bskip\b/i,
-    /换/, /下一个/, /不是/, /不喜欢/, /跳过/, /别的/,
+    /\bnext\b/i,
+    /\banother\b/i,
+    /\bsomeone else\b/i,
+    /\bnot (the )?one\b/i,
+    /\bnot for me\b/i,
+    /\bpass\b/i,
+    /\bskip\b/i,
+    /换/,
+    /下一个/,
+    /不是/,
+    /不喜欢/,
+    /跳过/,
+    /别的/,
   ],
 };
 
@@ -76,14 +86,112 @@ function parseIntent(text: string): Intent {
 // ---- Scoring -------------------------------------------------------------
 
 const STOP = new Set([
-  "the","a","an","and","or","but","of","to","in","on","at","for","with","is","am","are","was","were","be","been","being",
-  "i","you","he","she","it","we","they","my","your","his","her","its","our","their","me","him","us","them",
-  "this","that","these","those","do","does","did","done","have","has","had","not","no","yes","so","if","than","then","as","by","from","up","down","out","into","about","just","like","when","where","why","how","what","which","who",
-  "我","你","他","她","它","我们","你们","他们","的","了","和","或","也","在","是","就","都","会","要","不","没","有","得","着","与","及","但",
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "but",
+  "of",
+  "to",
+  "in",
+  "on",
+  "at",
+  "for",
+  "with",
+  "is",
+  "am",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "being",
+  "i",
+  "you",
+  "he",
+  "she",
+  "it",
+  "we",
+  "they",
+  "my",
+  "your",
+  "his",
+  "her",
+  "its",
+  "our",
+  "their",
+  "me",
+  "him",
+  "us",
+  "them",
+  "this",
+  "that",
+  "these",
+  "those",
+  "do",
+  "does",
+  "did",
+  "done",
+  "have",
+  "has",
+  "had",
+  "not",
+  "no",
+  "yes",
+  "so",
+  "if",
+  "than",
+  "then",
+  "as",
+  "by",
+  "from",
+  "up",
+  "down",
+  "out",
+  "into",
+  "about",
+  "just",
+  "like",
+  "when",
+  "where",
+  "why",
+  "how",
+  "what",
+  "which",
+  "who",
+  "我",
+  "你",
+  "他",
+  "她",
+  "它",
+  "我们",
+  "你们",
+  "他们",
+  "的",
+  "了",
+  "和",
+  "或",
+  "也",
+  "在",
+  "是",
+  "就",
+  "都",
+  "会",
+  "要",
+  "不",
+  "没",
+  "有",
+  "得",
+  "着",
+  "与",
+  "及",
+  "但",
 ]);
 function tokens(text: string): Set<string> {
   return new Set(
-    text.toLowerCase()
+    text
+      .toLowerCase()
       .replace(/[—.,;:!?'"()\[\]{}…/\\]/g, " ")
       .split(/\s+/)
       .filter((w) => w.length > 1 && !STOP.has(w)),
@@ -92,7 +200,9 @@ function tokens(text: string): Set<string> {
 function jaccard(a: Set<string>, b: Set<string>): number {
   if (a.size === 0 || b.size === 0) return 0;
   let shared = 0;
-  a.forEach((w) => { if (b.has(w)) shared++; });
+  a.forEach((w) => {
+    if (b.has(w)) shared++;
+  });
   return shared / (a.size + b.size - shared);
 }
 
@@ -110,7 +220,10 @@ export function pickReflectionFor(
   for (const r of person.reflections) {
     const text = lang === "zh-CN" ? r.answer_zh : r.answer;
     const score = jaccard(ut, tokens(text));
-    if (score > bestScore) { bestScore = score; best = r; }
+    if (score > bestScore) {
+      bestScore = score;
+      best = r;
+    }
   }
   return best ?? person.reflections[0];
 }
@@ -133,7 +246,10 @@ export function pickBestAngle(
   let bestScore = -1;
   for (const a of person.angles) {
     const overlap = a.signals.filter((s) => pos.has(s)).length;
-    if (overlap > bestScore) { bestScore = overlap; best = a; }
+    if (overlap > bestScore) {
+      bestScore = overlap;
+      best = a;
+    }
   }
   return best;
 }
@@ -159,7 +275,10 @@ export function pickBestMoment(
   let bestScore = -1;
   for (const m of person.moments) {
     const score = jaccard(ut, tokens(m.answer)) + jaccard(ut, tokens(m.answer_zh));
-    if (score > bestScore) { bestScore = score; best = m; }
+    if (score > bestScore) {
+      bestScore = score;
+      best = m;
+    }
   }
   return best;
 }
@@ -203,11 +322,7 @@ const SUGGEST = {
       "Try a quality I haven't mentioned yet.",
       "I'll come back later — hold my place.",
     ],
-    zh: [
-      "放宽我之前提过的一个条件。",
-      "换一个我还没提过的特质。",
-      "我先想想，稍后再回来。",
-    ],
+    zh: ["放宽我之前提过的一个条件。", "换一个我还没提过的特质。", "我先想想，稍后再回来。"],
   },
 };
 
@@ -240,7 +355,12 @@ function reasonCount(p: Person, u: UserUnderstanding): number {
   }
 }
 
-function scorePerson(p: Person, u: UserUnderstanding, passedIds: string[], shownIds: string[]): number {
+function scorePerson(
+  p: Person,
+  u: UserUnderstanding,
+  passedIds: string[],
+  shownIds: string[],
+): number {
   if (passedIds.includes(p.id)) return -Infinity;
   let s = p.signals.filter((sig) => u.positive.includes(sig)).length * 2;
   s -= p.signals.filter((sig) => u.negative.includes(sig)).length * 3;
@@ -249,26 +369,38 @@ function scorePerson(p: Person, u: UserUnderstanding, passedIds: string[], shown
   return s;
 }
 
-
 function isUnavailable(personId: string): boolean {
   if (typeof window === "undefined") return false;
   const c = getConnection(personId);
   // Hard-exclude anyone we've already engaged with — a faded hello never
   // comes back; sent/connected/incoming already live in Connections and
   // shouldn't be re-surfaced as a "new" recommendation.
-  return !!c && (c.status === "faded" || c.status === "sent" || c.status === "connected" || c.status === "incoming");
+  return (
+    !!c &&
+    (c.status === "faded" ||
+      c.status === "sent" ||
+      c.status === "connected" ||
+      c.status === "incoming")
+  );
 }
 
 function pickNext(state: MatchmakerState, excludeCurrent = false): Person | null {
-  const available = PEOPLE.filter((p) => !isUnavailable(p.id) && reasonCount(p, state.understanding) > 0);
+  const available = PEOPLE.filter(
+    (p) => !isUnavailable(p.id) && reasonCount(p, state.understanding) > 0,
+  );
   const fresh = available.filter(
-    (p) => !state.passedIds.includes(p.id)
-      && (!excludeCurrent || p.id !== state.currentPersonId)
-      && !state.shownIds.includes(p.id),
+    (p) =>
+      !state.passedIds.includes(p.id) &&
+      (!excludeCurrent || p.id !== state.currentPersonId) &&
+      !state.shownIds.includes(p.id),
   );
-  const pool = fresh.length > 0 ? fresh : available.filter(
-    (p) => !state.passedIds.includes(p.id) && (!excludeCurrent || p.id !== state.currentPersonId),
-  );
+  const pool =
+    fresh.length > 0
+      ? fresh
+      : available.filter(
+          (p) =>
+            !state.passedIds.includes(p.id) && (!excludeCurrent || p.id !== state.currentPersonId),
+        );
   if (pool.length === 0) return null;
   // Primary key: can we explain this person with a real, quotable reason?
   // Someone we can justify always beats someone we can only "feel".
@@ -283,13 +415,14 @@ function pickNext(state: MatchmakerState, excludeCurrent = false): Person | null
   return ranked[0];
 }
 
-
 // ---- Lines ---------------------------------------------------------------
 
 const L = {
   greet_with_name: {
-    en: (n: string) => `Hi ${n}. I've read your profile. Tell me a bit about who you're hoping to meet — not a list, what kind of person makes a room feel different for you.`,
-    zh: (n: string) => `你好，${n}。我看过你的资料了。说说你想认识什么样的人——不用列清单，什么样的人会让你觉得"这个房间不一样了"？`,
+    en: (n: string) =>
+      `Hi ${n}. I've read your profile. Tell me a bit about who you're hoping to meet — not a list, what kind of person makes a room feel different for you.`,
+    zh: (n: string) =>
+      `你好，${n}。我看过你的资料了。说说你想认识什么样的人——不用列清单，什么样的人会让你觉得"这个房间不一样了"？`,
   },
   greet_nameless: {
     en: "I've read your profile. Tell me a bit about who you're hoping to meet — not a list, what kind of person makes a room feel different for you.",
@@ -331,12 +464,20 @@ export function start(lang: "en" | "zh-CN"): MatchmakerState {
   const profile = loadProfile();
   const name = profile.name.trim();
   const line = name
-    ? (lang === "zh-CN" ? L.greet_with_name.zh(name) : L.greet_with_name.en(name))
-    : (lang === "zh-CN" ? L.greet_nameless.zh : L.greet_nameless.en);
+    ? lang === "zh-CN"
+      ? L.greet_with_name.zh(name)
+      : L.greet_with_name.en(name)
+    : lang === "zh-CN"
+      ? L.greet_nameless.zh
+      : L.greet_nameless.en;
   return pushA({ ...EMPTY, understanding: u }, line);
 }
 
-export function userTurn(state: MatchmakerState, text: string, lang: "en" | "zh-CN"): MatchmakerState {
+export function userTurn(
+  state: MatchmakerState,
+  text: string,
+  lang: "en" | "zh-CN",
+): MatchmakerState {
   const t = text.trim();
   if (!t) return state;
   let next = pushU(state, t);
@@ -356,20 +497,31 @@ export function userTurn(state: MatchmakerState, text: string, lang: "en" | "zh-
 
   // Introducing phase
   if (intent === "another_person") {
-    if (next.currentPersonId) next = { ...next, passedIds: [...next.passedIds, next.currentPersonId] };
+    if (next.currentPersonId)
+      next = { ...next, passedIds: [...next.passedIds, next.currentPersonId] };
     return introduce(next, lang);
   }
   if (newPositives.length > 0 || newNegatives.length > 0) return introduce(next, lang);
-  return pushA(next, lang === "zh-CN" ? "嗯，我在听。再告诉我一点。" : "I'm listening. Tell me a bit more.");
+  return pushA(
+    next,
+    lang === "zh-CN" ? "嗯，我在听。再告诉我一点。" : "I'm listening. Tell me a bit more.",
+  );
 }
 
 function introduce(state: MatchmakerState, lang: "en" | "zh-CN"): MatchmakerState {
   const person = pickNext(state, true);
   if (!person) {
     const hasEvidence = PEOPLE.some((p) => reasonCount(p, state.understanding) > 0);
-    return pushA(state, lang === "zh-CN"
-      ? (hasEvidence ? L.none_left.zh : L.need_more.zh)
-      : (hasEvidence ? L.none_left.en : L.need_more.en));
+    return pushA(
+      state,
+      lang === "zh-CN"
+        ? hasEvidence
+          ? L.none_left.zh
+          : L.need_more.zh
+        : hasEvidence
+          ? L.none_left.en
+          : L.need_more.en,
+    );
   }
   const next: MatchmakerState = {
     ...state,
@@ -377,9 +529,14 @@ function introduce(state: MatchmakerState, lang: "en" | "zh-CN"): MatchmakerStat
     currentPersonId: person.id,
     shownIds: state.shownIds.includes(person.id) ? state.shownIds : [...state.shownIds, person.id],
   };
-  const line = state.phase === "clarifying"
-    ? (lang === "zh-CN" ? L.introducing.zh(person.name_zh) : L.introducing.en(person.name))
-    : (lang === "zh-CN" ? L.swap_person.zh(person.name_zh) : L.swap_person.en(person.name));
+  const line =
+    state.phase === "clarifying"
+      ? lang === "zh-CN"
+        ? L.introducing.zh(person.name_zh)
+        : L.introducing.en(person.name)
+      : lang === "zh-CN"
+        ? L.swap_person.zh(person.name_zh)
+        : L.swap_person.en(person.name);
   return pushA(next, line);
 }
 
@@ -436,7 +593,11 @@ export function save(s: MatchmakerState, sessionId?: string | null) {
       status: deriveIntroduceStatus(s),
     });
   }
-  try { saveUnderstanding(s.understanding); } catch { /* noop */ }
+  try {
+    saveUnderstanding(s.understanding);
+  } catch {
+    /* noop */
+  }
 }
 
 export function reset(): MatchmakerState {
@@ -444,4 +605,3 @@ export function reset(): MatchmakerState {
 }
 // keep an unused export reference to avoid stale-import build noise
 export const _personRef = getPersonById;
-
