@@ -23,9 +23,15 @@ export const Route = createFileRoute("/me")({
   head: () => ({
     meta: [
       { title: "You — Maitri" },
-      { name: "description", content: "Your profile, saved people, invites and account on Maitri." },
+      {
+        name: "description",
+        content: "Your profile, saved people, invites and account on Maitri.",
+      },
       { property: "og:title", content: "You — Maitri" },
-      { property: "og:description", content: "Your profile, saved people, invites and account on Maitri." },
+      {
+        property: "og:description",
+        content: "Your profile, saved people, invites and account on Maitri.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -56,7 +62,11 @@ function MePage() {
 
   if (!ready) {
     return (
-      <div className="min-h-dvh bg-background pt-safe pb-tabbar" data-testid="me-loading" aria-busy="true">
+      <div
+        className="min-h-dvh bg-background pt-safe pb-tabbar"
+        data-testid="me-loading"
+        aria-busy="true"
+      >
         <div className="max-w-2xl mx-auto px-5 h-12 flex items-center">
           <Skeleton className="h-4 w-16" />
         </div>
@@ -100,7 +110,9 @@ function MePage() {
     <div className="min-h-dvh bg-background pt-safe pb-tabbar">
       <header className="border-b border-border bg-background/90 backdrop-blur sticky top-0 z-30">
         <div className="max-w-2xl mx-auto px-5 h-12 flex items-center justify-between">
-          <span className="text-[15px] font-semibold tracking-tight text-foreground">{t("me.title")}</span>
+          <span className="text-[15px] font-semibold tracking-tight text-foreground">
+            {t("me.title")}
+          </span>
           <LangSwitcher />
         </div>
       </header>
@@ -108,7 +120,11 @@ function MePage() {
       <main className="max-w-2xl mx-auto px-5 py-6 space-y-6">
         <div className="flex items-center gap-3">
           {avatar ? (
-            <img src={avatar} alt="" className="w-14 h-14 rounded-full object-cover border border-border" />
+            <img
+              src={avatar}
+              alt=""
+              className="w-14 h-14 rounded-full object-cover border border-border"
+            />
           ) : (
             <span className="w-14 h-14 rounded-full bg-primary text-primary-foreground grid place-items-center text-[18px] font-semibold">
               {(displayName || "?").charAt(0).toUpperCase()}
@@ -122,11 +138,19 @@ function MePage() {
 
         <ul className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
           <li>
-            <Link to="/profile" className="flex items-center gap-3 px-4 py-3.5 min-h-[52px] active:bg-secondary">
-              <UserCircle className="w-[18px] h-[18px] text-muted-foreground shrink-0" strokeWidth={1.75} />
+            <Link
+              to="/profile"
+              className="flex items-center gap-3 px-4 py-3.5 min-h-[52px] active:bg-secondary"
+            >
+              <UserCircle
+                className="w-[18px] h-[18px] text-muted-foreground shrink-0"
+                strokeWidth={1.75}
+              />
               <span className="min-w-0 flex-1">
                 <span className="block text-[14px] text-foreground">{t("me.profile")}</span>
-                <span className="block text-[11.5px] text-muted-foreground truncate">{t("me.profile_sub")}</span>
+                <span className="block text-[11.5px] text-muted-foreground truncate">
+                  {t("me.profile_sub")}
+                </span>
               </span>
               <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
             </Link>
@@ -137,10 +161,15 @@ function MePage() {
               onClick={() => setSavedOpen(true)}
               className="w-full text-left flex items-center gap-3 px-4 py-3.5 min-h-[52px] active:bg-secondary"
             >
-              <Bookmark className="w-[18px] h-[18px] text-muted-foreground shrink-0" strokeWidth={1.75} />
+              <Bookmark
+                className="w-[18px] h-[18px] text-muted-foreground shrink-0"
+                strokeWidth={1.75}
+              />
               <span className="min-w-0 flex-1">
                 <span className="block text-[14px] text-foreground">{t("me.saved")}</span>
-                <span className="block text-[11.5px] text-muted-foreground truncate">{t("me.saved_sub")}</span>
+                <span className="block text-[11.5px] text-muted-foreground truncate">
+                  {t("me.saved_sub")}
+                </span>
               </span>
               <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
             </button>
@@ -151,10 +180,15 @@ function MePage() {
               onClick={() => setInvitesOpen((v) => !v)}
               className="w-full text-left flex items-center gap-3 px-4 py-3.5 min-h-[52px] active:bg-secondary"
             >
-              <Ticket className="w-[18px] h-[18px] text-muted-foreground shrink-0" strokeWidth={1.75} />
+              <Ticket
+                className="w-[18px] h-[18px] text-muted-foreground shrink-0"
+                strokeWidth={1.75}
+              />
               <span className="min-w-0 flex-1">
                 <span className="block text-[14px] text-foreground">{t("me.invites")}</span>
-                <span className="block text-[11.5px] text-muted-foreground truncate">{t("me.invites_sub")}</span>
+                <span className="block text-[11.5px] text-muted-foreground truncate">
+                  {t("me.invites_sub")}
+                </span>
               </span>
               <span className="text-[11px] font-mono text-muted-foreground shrink-0">
                 {t("auth.invites.remaining", { n: remaining })}
@@ -177,12 +211,22 @@ function MePage() {
                 {codes.length > 0 && (
                   <ul className="mt-3 space-y-1.5">
                     {codes.map((c) => (
-                      <li key={c.code} className="flex items-center justify-between gap-2 rounded-lg bg-secondary/60 px-3 py-2">
-                        <code className={["text-[12.5px] font-mono tracking-wider", c.usedBy ? "text-muted-foreground line-through" : "text-foreground"].join(" ")}>
+                      <li
+                        key={c.code}
+                        className="flex items-center justify-between gap-2 rounded-lg bg-secondary/60 px-3 py-2"
+                      >
+                        <code
+                          className={[
+                            "text-[12.5px] font-mono tracking-wider",
+                            c.usedBy ? "text-muted-foreground line-through" : "text-foreground",
+                          ].join(" ")}
+                        >
                           {c.code}
                         </code>
                         {c.usedBy ? (
-                          <span className="text-[10px] font-mono uppercase text-muted-foreground">{t("auth.invites.used")}</span>
+                          <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                            {t("auth.invites.used")}
+                          </span>
                         ) : (
                           <button
                             onClick={() => onCopy(c.code)}
@@ -203,7 +247,10 @@ function MePage() {
 
         <button
           type="button"
-          onClick={() => { signOut(); void navigate({ to: "/" }); }}
+          onClick={() => {
+            signOut();
+            void navigate({ to: "/" });
+          }}
           className="w-full rounded-2xl border border-border bg-card px-4 py-3.5 min-h-[52px] flex items-center gap-3 text-[14px] text-foreground active:bg-secondary"
         >
           <LogOut className="w-[18px] h-[18px] text-muted-foreground" strokeWidth={1.75} />

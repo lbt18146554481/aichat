@@ -47,12 +47,18 @@ function readAll(): Session[] {
     if (!raw) return [];
     const arr = JSON.parse(raw) as Session[];
     return Array.isArray(arr) ? arr : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 
 function writeAll(rows: Session[]) {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(KEY, JSON.stringify(rows)); } catch { /* noop */ }
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(rows));
+  } catch {
+    /* noop */
+  }
 }
 
 /** Derive the current status of a do_something session from its SideState. */
@@ -87,8 +93,7 @@ function ensureMigrated() {
       try {
         const parsed = JSON.parse(sideRaw) as Partial<SideState>;
         if (parsed && parsed.myIntentId) {
-          const seed =
-            (parsed.messages ?? []).find((m) => m.role === "user")?.text ?? "";
+          const seed = (parsed.messages ?? []).find((m) => m.role === "user")?.text ?? "";
           const state = parsed as SideState;
           rows.push({
             id: uid(),
@@ -100,7 +105,9 @@ function ensureMigrated() {
             state,
           });
         }
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
     }
 
     // --- matchmaker legacy blob -------------------------------------------
@@ -109,8 +116,7 @@ function ensureMigrated() {
       try {
         const parsed = JSON.parse(mmRaw) as Partial<MatchmakerState>;
         if (parsed && (parsed.messages?.length ?? 0) > 0) {
-          const seed =
-            (parsed.messages ?? []).find((m) => m.role === "user")?.text ?? "";
+          const seed = (parsed.messages ?? []).find((m) => m.role === "user")?.text ?? "";
           if (seed) {
             const state = parsed as MatchmakerState;
             rows.push({
@@ -124,18 +130,34 @@ function ensureMigrated() {
             });
           }
         }
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
     }
 
     writeAll(rows);
 
     // Wipe legacy keys so the agent pages can never load them again.
-    try { window.localStorage.removeItem(LEGACY_SIDE_KEY); } catch { /* noop */ }
-    try { window.localStorage.removeItem(LEGACY_MATCHMAKER_KEY); } catch { /* noop */ }
-    try { window.localStorage.removeItem(OLD_MIGRATION_FLAG); } catch { /* noop */ }
+    try {
+      window.localStorage.removeItem(LEGACY_SIDE_KEY);
+    } catch {
+      /* noop */
+    }
+    try {
+      window.localStorage.removeItem(LEGACY_MATCHMAKER_KEY);
+    } catch {
+      /* noop */
+    }
+    try {
+      window.localStorage.removeItem(OLD_MIGRATION_FLAG);
+    } catch {
+      /* noop */
+    }
 
     window.localStorage.setItem(MIGRATION_FLAG, "1");
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
 }
 
 export function listSessions(): Session[] {
@@ -148,11 +170,7 @@ export function getSession(id: string): Session | null {
   return readAll().find((s) => s.id === id) ?? null;
 }
 
-export function createSession(
-  agent: SessionAgent,
-  seed: string,
-  initialState: unknown,
-): Session {
+export function createSession(agent: SessionAgent, seed: string, initialState: unknown): Session {
   ensureMigrated();
   const now = Date.now();
   const sess: Session = {
@@ -196,7 +214,5 @@ export function revokeSession(id: string) {
  *  do_something session, if any. */
 export function mostRecentActiveDoSomething(): Session | null {
   const rows = listSessions();
-  return rows.find(
-    (s) => s.agent === "do_something" && s.status !== "revoked",
-  ) ?? null;
+  return rows.find((s) => s.agent === "do_something" && s.status !== "revoked") ?? null;
 }

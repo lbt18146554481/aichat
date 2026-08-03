@@ -70,9 +70,7 @@ export function AgentAskCard({ ask, disabled, onResolve }: Props) {
       <div className="mt-2 rounded-2xl border border-border bg-card px-3.5 py-3">
         <EphemeralHint />
         {ask.prompt && (
-          <p className="text-[13.5px] text-foreground leading-relaxed mb-2.5">
-            {ask.prompt}
-          </p>
+          <p className="text-[13.5px] text-foreground leading-relaxed mb-2.5">{ask.prompt}</p>
         )}
         <div className="flex flex-wrap gap-1.5">
           {ask.options.map((o) => (
@@ -108,9 +106,7 @@ export function AgentAskCard({ ask, disabled, onResolve }: Props) {
     >
       <EphemeralHint />
       {ask.prompt && (
-        <p className="text-[13.5px] text-foreground leading-relaxed mb-2.5">
-          {ask.prompt}
-        </p>
+        <p className="text-[13.5px] text-foreground leading-relaxed mb-2.5">{ask.prompt}</p>
       )}
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
         <button
@@ -162,9 +158,7 @@ function TextAsk({
     <div className="mt-2 rounded-2xl border border-border bg-card px-3.5 py-3">
       <EphemeralHint />
       {ask.prompt && (
-        <p className="text-[13.5px] text-foreground leading-relaxed mb-2.5">
-          {ask.prompt}
-        </p>
+        <p className="text-[13.5px] text-foreground leading-relaxed mb-2.5">{ask.prompt}</p>
       )}
       {ask.multiline ? (
         <textarea

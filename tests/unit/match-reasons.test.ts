@@ -11,7 +11,13 @@ import { EMPTY_UNDERSTANDING, type UserUnderstanding } from "@/lib/understanding
 import { PEOPLE } from "@/lib/people";
 
 const person = PEOPLE[0];
-const profile: Profile = { ...EMPTY_PROFILE, name: "Ada", age: 30, city: "Lisbon", occupation: "Writer" };
+const profile: Profile = {
+  ...EMPTY_PROFILE,
+  name: "Ada",
+  age: 30,
+  city: "Lisbon",
+  occupation: "Writer",
+};
 const blank: UserUnderstanding = { ...EMPTY_UNDERSTANDING };
 
 describe("buildReasons", () => {
@@ -57,7 +63,11 @@ describe("buildReasons", () => {
     };
     const shared: Profile = {
       ...profile,
-      favorites: (person.favorites ?? []).map((f) => ({ kind: f.kind, title: f.title, why: "Mine too." })),
+      favorites: (person.favorites ?? []).map((f) => ({
+        kind: f.kind,
+        title: f.title,
+        why: "Mine too.",
+      })),
     };
     expect(buildReasons(person, shared, u, "en").length).toBeLessThanOrEqual(3);
   });

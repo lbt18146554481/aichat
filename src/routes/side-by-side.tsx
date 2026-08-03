@@ -22,7 +22,6 @@ import {
   receiveSimulatedReply,
   refineLevel,
   refineWhen,
-  
   revokeAndReset,
   save,
   sendChatMessage,
@@ -42,8 +41,6 @@ import {
   type SideState,
   type WhenTier,
 } from "@/lib/agents/side-by-side";
-
-
 
 export const Route = createFileRoute("/side-by-side")({
   validateSearch: (raw: Record<string, unknown>) => ({
@@ -70,8 +67,12 @@ function summarize(intentId: string | null, t: TFunction): string {
   const kindLabel = t(`activity.kind.${it.kind}`);
   const parts: string[] = [kindLabel];
   if (!it.whenAny) {
-    const when = (it.day === "sat" || it.day === "sun") ? "weekend"
-      : it.window === "evening" ? "weeknight" : "any";
+    const when =
+      it.day === "sat" || it.day === "sun"
+        ? "weekend"
+        : it.window === "evening"
+          ? "weeknight"
+          : "any";
     parts.push(t(`meet.when.${when}`));
   }
   if (!it.levelAny && (it.kind === "tennis" || it.kind === "climb")) {
@@ -84,9 +85,13 @@ function summarize(intentId: string | null, t: TFunction): string {
 // These are the three things you'd realistically ask a private advisor.
 function matchChips(t: TFunction): SideMsg["chips"] {
   return [
-    { id: "chip-about",  label: t("intent.chip_about_person"), action: { type: "ask_about_person" } },
-    { id: "chip-opener", label: t("intent.chip_ask_opener"),   action: { type: "ask_opener" } },
-    { id: "chip-newtype",label: t("intent.chip_new_type"),     action: { type: "request_new_type" } },
+    {
+      id: "chip-about",
+      label: t("intent.chip_about_person"),
+      action: { type: "ask_about_person" },
+    },
+    { id: "chip-opener", label: t("intent.chip_ask_opener"), action: { type: "ask_opener" } },
+    { id: "chip-newtype", label: t("intent.chip_new_type"), action: { type: "request_new_type" } },
   ];
 }
 
@@ -110,15 +115,35 @@ function narrate(state: SideState, prev: SideState, t: TFunction): SideMsg | nul
     const refineChips: SideMsg["chips"] = [];
     if (mine.whenAny) {
       refineChips.push(
-        { id: "w-weekend",   label: t("meet.when.weekend"),   action: { type: "refine_when", value: "weekend" } },
-        { id: "w-weeknight", label: t("meet.when.weeknight"), action: { type: "refine_when", value: "weeknight" } },
+        {
+          id: "w-weekend",
+          label: t("meet.when.weekend"),
+          action: { type: "refine_when", value: "weekend" },
+        },
+        {
+          id: "w-weeknight",
+          label: t("meet.when.weeknight"),
+          action: { type: "refine_when", value: "weeknight" },
+        },
       );
     }
     if (mine.levelAny && (mine.kind === "tennis" || mine.kind === "climb")) {
       refineChips.push(
-        { id: "l-beginner",     label: t("meet.level.beginner"),     action: { type: "refine_level", value: "beginner" } },
-        { id: "l-intermediate", label: t("meet.level.intermediate"), action: { type: "refine_level", value: "intermediate" } },
-        { id: "l-advanced",     label: t("meet.level.advanced"),     action: { type: "refine_level", value: "advanced" } },
+        {
+          id: "l-beginner",
+          label: t("meet.level.beginner"),
+          action: { type: "refine_level", value: "beginner" },
+        },
+        {
+          id: "l-intermediate",
+          label: t("meet.level.intermediate"),
+          action: { type: "refine_level", value: "intermediate" },
+        },
+        {
+          id: "l-advanced",
+          label: t("meet.level.advanced"),
+          action: { type: "refine_level", value: "advanced" },
+        },
       );
     }
 
@@ -134,22 +159,27 @@ function narrate(state: SideState, prev: SideState, t: TFunction): SideMsg | nul
     }
     fallbackChips.push(
       { id: "check-back", label: t("intent.chip_check_back"), action: { type: "check_back" } },
-      { id: "revoke",     label: t("intent.chip_switch"),     action: { type: "revoke" } },
+      { id: "revoke", label: t("intent.chip_switch"), action: { type: "revoke" } },
     );
 
     const chips = [...refineChips, ...fallbackChips];
     if (refineChips.length === 0) {
-      return msg("assistant",
+      return msg(
+        "assistant",
         truncated + t("intent.narrate_nomatch_wait", { summary: summarize(state.myIntentId, t) }),
-        chips);
+        chips,
+      );
     }
     const askKind = mine.whenAny ? "when" : "level";
-    return msg("assistant",
-      truncated + t("intent.narrate_nomatch_ask", {
-        summary: summarize(state.myIntentId, t),
-        ask: t(`intent.ask_${askKind}`),
-      }),
-      chips);
+    return msg(
+      "assistant",
+      truncated +
+        t("intent.narrate_nomatch_ask", {
+          summary: summarize(state.myIntentId, t),
+          ask: t(`intent.ask_${askKind}`),
+        }),
+      chips,
+    );
   }
 
   return null;
@@ -161,15 +191,40 @@ type Question = "about_person" | "opener" | "reply_hint" | "new_type" | "new_act
 function classify(text: string): Question {
   const s = text.toLowerCase();
   // "new activity" — user wants to change what they're doing entirely
-  if (/(换件事|换个事|换件别的|做点别的|别的事|做别的|new wish|new activity|something else|different thing)/i.test(text)) return "new_activity";
+  if (
+    /(换件事|换个事|换件别的|做点别的|别的事|做别的|new wish|new activity|something else|different thing)/i.test(
+      text,
+    )
+  )
+    return "new_activity";
   // "different kind of person" — same activity, different TA
-  if (/(不一样的人|换个人|换一个|其他人|别的人|different person|someone else|someone different|other kind)/i.test(text)) return "new_type";
+  if (
+    /(不一样的人|换个人|换一个|其他人|别的人|different person|someone else|someone different|other kind)/i.test(
+      text,
+    )
+  )
+    return "new_type";
   // Draft an opener
-  if (/(开场白|怎么开始|怎么打招呼|想句话|想一句|opener|first line|first message|what to say|how to start)/i.test(text)) return "opener";
+  if (
+    /(开场白|怎么开始|怎么打招呼|想句话|想一句|opener|first line|first message|what to say|how to start)/i.test(
+      text,
+    )
+  )
+    return "opener";
   // Reply hint
-  if (/(怎么回|回什么|想不出|怎么答|help me reply|what should i say|what to reply|not sure how)/i.test(text)) return "reply_hint";
+  if (
+    /(怎么回|回什么|想不出|怎么答|help me reply|what should i say|what to reply|not sure how)/i.test(
+      text,
+    )
+  )
+    return "reply_hint";
   // Who is TA
-  if (/(TA 是|ta是|什么样的人|介绍.*TA|介绍下|介绍一下|多讲讲|讲讲 TA|讲讲ta|who is|tell me about|more about|what.*they like)/i.test(text)) return "about_person";
+  if (
+    /(TA 是|ta是|什么样的人|介绍.*TA|介绍下|介绍一下|多讲讲|讲讲 TA|讲讲ta|who is|tell me about|more about|what.*they like)/i.test(
+      text,
+    )
+  )
+    return "about_person";
   return null;
 }
 
@@ -199,18 +254,26 @@ function SideBySidePage() {
   const [thinking, setThinking] = useState(false);
   const stateRef = useRef(state);
 
-  useEffect(() => { stateRef.current = state; }, [state]);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   // Every side-by-side page must live under a session; no id → home.
   // (City is required for matching, but instead of kicking the user to
   // /profile we ask inline via an Agent Ask when they submit a wish.)
   useEffect(() => {
-    if (!sessionId) { void navigate({ to: "/" }); return; }
+    if (!sessionId) {
+      void navigate({ to: "/" });
+      return;
+    }
   }, [sessionId, navigate]);
 
-  useEffect(() => { setHydrated(true); }, []);
-  useEffect(() => { if (hydrated && sessionId) save(state, sessionId); }, [state, hydrated, sessionId]);
-
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+  useEffect(() => {
+    if (hydrated && sessionId) save(state, sessionId);
+  }, [state, hydrated, sessionId]);
 
   // Opening message — if the Agent already remembers a preferred trait from a
   // previous activity, lead with it. Otherwise the plain opener.
@@ -299,13 +362,11 @@ function SideBySidePage() {
         const other = s.matchIntentId ? getIntentById(s.matchIntentId) : null;
         const person = other ? getPersonById(other.ownerId) : null;
         const brief = person?.personBrief
-          ? (lang === "zh-CN" ? person.personBrief.zh : person.personBrief.en)
+          ? lang === "zh-CN"
+            ? person.personBrief.zh
+            : person.personBrief.en
           : t("intent.agent_no_brief");
-        const nextMsgs = [
-          ...s.messages,
-          msg("user", userText),
-          msg("assistant", brief),
-        ];
+        const nextMsgs = [...s.messages, msg("user", userText), msg("assistant", brief)];
         return { ...s, messages: nextMsgs };
       });
       setThinking(false);
@@ -319,7 +380,9 @@ function SideBySidePage() {
         const other = s.matchIntentId ? getIntentById(s.matchIntentId) : null;
         const person = other ? getPersonById(other.ownerId) : null;
         const line = person?.openerSuggestion
-          ? (lang === "zh-CN" ? person.openerSuggestion.zh : person.openerSuggestion.en)
+          ? lang === "zh-CN"
+            ? person.openerSuggestion.zh
+            : person.openerSuggestion.en
           : null;
         if (!line) {
           return {
@@ -334,16 +397,16 @@ function SideBySidePage() {
         const chipAction: ChipAction = forChat
           ? { type: "use_draft", text: line }
           : { type: "start_chat_with_draft", text: line };
-        const chipLabel = forChat
-          ? t("intent.chip_use_draft")
-          : t("intent.chip_start_with_draft");
+        const chipLabel = forChat ? t("intent.chip_use_draft") : t("intent.chip_start_with_draft");
         const body = `${t("intent.agent_opener_lead")}\n\n"${line}"`;
         return {
           ...s,
           messages: [
             ...s.messages,
             msg("user", userText),
-            msg("assistant", body, [{ id: "chip-draft-" + Date.now(), label: chipLabel, action: chipAction }]),
+            msg("assistant", body, [
+              { id: "chip-draft-" + Date.now(), label: chipLabel, action: chipAction },
+            ]),
           ],
         };
       });
@@ -358,11 +421,11 @@ function SideBySidePage() {
         const other = s.matchIntentId ? getIntentById(s.matchIntentId) : null;
         const person = other ? getPersonById(other.ownerId) : null;
         const hints = person?.replyHints
-          ? (lang === "zh-CN" ? person.replyHints.zh : person.replyHints.en)
+          ? lang === "zh-CN"
+            ? person.replyHints.zh
+            : person.replyHints.en
           : null;
-        const line = hints && hints.length > 0
-          ? hints[s.chatMessages.length % hints.length]
-          : null;
+        const line = hints && hints.length > 0 ? hints[s.chatMessages.length % hints.length] : null;
         if (!line) {
           return {
             ...s,
@@ -380,7 +443,11 @@ function SideBySidePage() {
             ...s.messages,
             msg("user", userText),
             msg("assistant", body, [
-              { id: "chip-usedraft-" + Date.now(), label: t("intent.chip_use_draft"), action: { type: "use_draft", text: line } },
+              {
+                id: "chip-usedraft-" + Date.now(),
+                label: t("intent.chip_use_draft"),
+                action: { type: "use_draft", text: line },
+              },
             ]),
           ],
         };
@@ -392,14 +459,19 @@ function SideBySidePage() {
   function askForTrait(userText: string) {
     setThinking(true);
     window.setTimeout(() => {
-      setState((s) => setAwaitingTrait({
-        ...s,
-        messages: [
-          ...s.messages,
-          msg("user", userText),
-          msg("assistant", t("intent.agent_ask_trait")),
-        ],
-      }, true));
+      setState((s) =>
+        setAwaitingTrait(
+          {
+            ...s,
+            messages: [
+              ...s.messages,
+              msg("user", userText),
+              msg("assistant", t("intent.agent_ask_trait")),
+            ],
+          },
+          true,
+        ),
+      );
       setThinking(false);
     }, 320);
   }
@@ -416,11 +488,7 @@ function SideBySidePage() {
           : t("intent.narrate_pool_exhausted");
         return {
           ...skipped,
-          messages: [
-            ...skipped.messages,
-            msg("user", userText),
-            msg("assistant", line),
-          ],
+          messages: [...skipped.messages, msg("user", userText), msg("assistant", line)],
         };
       });
       setThinking(false);
@@ -459,25 +527,29 @@ function SideBySidePage() {
     if (state.stage === "published" && state.matchIntentId) {
       const q = classify(text);
       if (q === "new_activity") return startNewActivity(text);
-      if (q === "new_type")     return askForTrait(text);
+      if (q === "new_type") return askForTrait(text);
       if (q === "about_person") return respondAboutPerson(text);
-      if (q === "opener")       return respondOpener(text, /*forChat*/ false);
-      if (q === "reply_hint")   return respondReplyHint(text);
+      if (q === "opener") return respondOpener(text, /*forChat*/ false);
+      if (q === "reply_hint") return respondReplyHint(text);
       // Otherwise fall through to submitPrompt (user is publishing a new wish).
     }
     if (state.stage === "chat") {
       const q = classify(text);
       if (q === "new_activity") return startNewActivity(text);
       if (q === "about_person") return respondAboutPerson(text);
-      if (q === "opener")       return respondOpener(text, /*forChat*/ true);
-      if (q === "reply_hint")   return respondReplyHint(text);
+      if (q === "opener") return respondOpener(text, /*forChat*/ true);
+      if (q === "reply_hint") return respondReplyHint(text);
       if (q === "new_type") {
         // Not meaningful mid-chat; nudge back to candidate view.
         setState((s) => ({
           ...s,
           stage: "published",
           chatMessages: [],
-          messages: [...s.messages, msg("user", text), msg("assistant", t("intent.agent_ask_trait"))],
+          messages: [
+            ...s.messages,
+            msg("user", text),
+            msg("assistant", t("intent.agent_ask_trait")),
+          ],
           awaitingTrait: true,
         }));
         return;
@@ -539,7 +611,11 @@ function SideBySidePage() {
       setState((s) => {
         const nextMessages = s.messages.map((m) =>
           m.ask?.id === askId
-            ? { ...m, ask: undefined, askResolvedLabel: t("ask.resolved_city_once", { city: trimmed }) }
+            ? {
+                ...m,
+                ask: undefined,
+                askResolvedLabel: t("ask.resolved_city_once", { city: trimmed }),
+              }
             : m,
         );
         return { ...s, messages: nextMessages, pendingWishText: undefined };
@@ -555,9 +631,7 @@ function SideBySidePage() {
     }
     // Revoke confirm ask.
     if (askId.startsWith("revoke-")) {
-      const summary = value === "yes"
-        ? t("ask.resolved_revoke_yes")
-        : t("ask.resolved_revoke_no");
+      const summary = value === "yes" ? t("ask.resolved_revoke_yes") : t("ask.resolved_revoke_no");
       setState((s) => {
         const nextMessages = s.messages.map((m) =>
           m.ask?.id === askId ? { ...m, ask: undefined, askResolvedLabel: summary } : m,
@@ -590,7 +664,6 @@ function SideBySidePage() {
       ],
     }));
   }
-
 
   function handleChipClick(rawAction: unknown) {
     const a = rawAction as ChipAction;
@@ -635,9 +708,15 @@ function SideBySidePage() {
 
   // Right-pane actions are silent on the left Agent — they don't inject
   // narration into the private chat. The user's own typed prompts still do.
-  function handleStartChat() { setState((s) => startChat(s)); }
-  function handleRevoke()    { askRevokeConfirm(); }
-  function handleTryNearMiss(intentId: string) { setState((s) => tryNearMiss(s, intentId)); }
+  function handleStartChat() {
+    setState((s) => startChat(s));
+  }
+  function handleRevoke() {
+    askRevokeConfirm();
+  }
+  function handleTryNearMiss(intentId: string) {
+    setState((s) => tryNearMiss(s, intentId));
+  }
   function handleSave() {
     setState((s) => saveCurrent(s, sessionId));
   }
@@ -662,13 +741,20 @@ function SideBySidePage() {
     window.setTimeout(() => setState((s) => receiveSimulatedReply(s)), 900);
   }
 
-  function handleBackToCandidate() { setState((s) => backToCandidate(s)); }
-  function handleDraftConsumed()   { setState((s) => clearPendingDraft(s)); }
-
+  function handleBackToCandidate() {
+    setState((s) => backToCandidate(s));
+  }
+  function handleDraftConsumed() {
+    setState((s) => clearPendingDraft(s));
+  }
 
   // "New wish" from the header — go home, focus composer, start fresh.
   function handleReset() {
-    try { window.sessionStorage.setItem("kindred:home:focus", "1"); } catch { /* noop */ }
+    try {
+      window.sessionStorage.setItem("kindred:home:focus", "1");
+    } catch {
+      /* noop */
+    }
     void navigate({ to: "/" });
   }
 
@@ -693,7 +779,6 @@ function SideBySidePage() {
       onReset={handleReset}
       onChipClick={handleChipClick}
       onAskResolve={handleAskResolve}
-      
       rightPane={
         <MeetCanvas
           state={state}

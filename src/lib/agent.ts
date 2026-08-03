@@ -27,20 +27,20 @@ export interface Message {
 }
 
 export interface UserContext {
-  positive: string[];       // signals the user wants
-  negative: string[];       // signals the user has rejected
-  notes: string[];          // short free-text fragments shown in Understanding panel
+  positive: string[]; // signals the user wants
+  negative: string[]; // signals the user has rejected
+  notes: string[]; // short free-text fragments shown in Understanding panel
 }
 
 export interface AgentState {
   phase: Phase;
   context: UserContext;
   messages: Message[];
-  shownIds: string[];                         // people already introduced (don't repeat)
-  passedIds: string[];                        // people the user explicitly rejected
+  shownIds: string[]; // people already introduced (don't repeat)
+  passedIds: string[]; // people the user explicitly rejected
   currentPersonId: string | null;
   currentAngleId: string | null;
-  usedAngles: Record<string, string[]>;       // personId → angleIds shown for that person
+  usedAngles: Record<string, string[]>; // personId → angleIds shown for that person
   clarifyTurns: number;
 }
 
@@ -63,21 +63,38 @@ export function uid(): string {
 // ---- Feedback intent parsing --------------------------------------------
 
 export type FeedbackIntent =
-  | "another_person"       // "next", "someone else", "换一个"
-  | "another_angle"        // "tell me more", "why", "多说一点"
-  | "more_describe"        // anything else — they're adding to the brief
-  ;
+  | "another_person" // "next", "someone else", "换一个"
+  | "another_angle" // "tell me more", "why", "多说一点"
+  | "more_describe"; // anything else — they're adding to the brief
 
 const PATTERNS = {
   another_person: [
-    /\bnext\b/i, /\banother\b/i, /\bsomeone else\b/i, /\bnot (the )?one\b/i,
-    /\bnot for me\b/i, /\bpass\b/i, /\bskip\b/i,
-    /换/, /下一个/, /不是/, /不喜欢/, /跳过/, /别的/,
+    /\bnext\b/i,
+    /\banother\b/i,
+    /\bsomeone else\b/i,
+    /\bnot (the )?one\b/i,
+    /\bnot for me\b/i,
+    /\bpass\b/i,
+    /\bskip\b/i,
+    /换/,
+    /下一个/,
+    /不是/,
+    /不喜欢/,
+    /跳过/,
+    /别的/,
   ],
   another_angle: [
-    /\btell me more\b/i, /\bmore about\b/i, /\bwhy\b/i, /\bwhat else\b/i,
-    /\bgo on\b/i, /\bkeep going\b/i,
-    /多.*了解/, /多说/, /为什么/, /还有/, /继续/,
+    /\btell me more\b/i,
+    /\bmore about\b/i,
+    /\bwhy\b/i,
+    /\bwhat else\b/i,
+    /\bgo on\b/i,
+    /\bkeep going\b/i,
+    /多.*了解/,
+    /多说/,
+    /为什么/,
+    /还有/,
+    /继续/,
   ],
 };
 
@@ -90,8 +107,11 @@ export function parseFeedback(text: string): FeedbackIntent {
 // ---- Heuristic "negative signal" detection ------------------------------
 // "too quiet", "more outgoing", "less ambitious" → push some signals out.
 const NEGATION = [
-  /\btoo\s+(\w+)/gi, /\bless\s+(\w+)/gi, /\bnot\s+(?:so|too)?\s*(\w+)/gi,
-  /太(\S)/g, /不(?:要|太)?(\S{1,3})/g,
+  /\btoo\s+(\w+)/gi,
+  /\bless\s+(\w+)/gi,
+  /\bnot\s+(?:so|too)?\s*(\w+)/gi,
+  /太(\S)/g,
+  /不(?:要|太)?(\S{1,3})/g,
 ];
 function inferNegatives(text: string): string[] {
   // Map a small set of adjectives to canonical signals.
@@ -99,11 +119,13 @@ function inferNegatives(text: string): string[] {
   const lower = text.toLowerCase();
   if (/\btoo (quiet|shy|introvert)/i.test(lower) || /太安静/.test(text)) out.add("quiet");
   if (/\btoo (loud|wild)/i.test(lower)) out.add("funny");
-  if (/\btoo (serious|heavy|intense)/i.test(lower) || /太严肃|太沉重/.test(text)) out.add("ambitious");
-  if (/\bless (ambitious|driven|career)/i.test(lower) || /不要太上进|事业.*太/.test(text)) out.add("ambitious");
+  if (/\btoo (serious|heavy|intense)/i.test(lower) || /太严肃|太沉重/.test(text))
+    out.add("ambitious");
+  if (/\bless (ambitious|driven|career)/i.test(lower) || /不要太上进|事业.*太/.test(text))
+    out.add("ambitious");
   if (/\b(less|not so) outdoors/i.test(lower) || /不要.*户外/.test(text)) out.add("outdoors");
   // Match the patterns to placate the linter and reserve them for future tuning.
-  NEGATION.forEach((re) => re.lastIndex = 0);
+  NEGATION.forEach((re) => (re.lastIndex = 0));
   return Array.from(out);
 }
 
@@ -119,13 +141,18 @@ function scorePerson(p: Person, ctx: UserContext, passedIds: string[], shownIds:
 
 export function pickNextPerson(state: AgentState, excludeCurrent = false): Person | null {
   const candidates = PEOPLE.filter(
-    (p) => !state.passedIds.includes(p.id)
-      && (!excludeCurrent || p.id !== state.currentPersonId)
-      && !state.shownIds.includes(p.id),
+    (p) =>
+      !state.passedIds.includes(p.id) &&
+      (!excludeCurrent || p.id !== state.currentPersonId) &&
+      !state.shownIds.includes(p.id),
   );
-  const pool = candidates.length > 0 ? candidates : PEOPLE.filter(
-    (p) => !state.passedIds.includes(p.id) && (!excludeCurrent || p.id !== state.currentPersonId),
-  );
+  const pool =
+    candidates.length > 0
+      ? candidates
+      : PEOPLE.filter(
+          (p) =>
+            !state.passedIds.includes(p.id) && (!excludeCurrent || p.id !== state.currentPersonId),
+        );
   if (pool.length === 0) return null;
   const ranked = [...pool].sort(
     (a, b) =>
@@ -158,7 +185,8 @@ const LINES = {
     zh: "明白了。再问一个——有没有一种特质是你不想要的？过去经历里你已经厌倦的那种？",
   },
   introducing: {
-    en: (name: string) => `I was thinking of someone. ${name}. Look on the right — I'll tell you why.`,
+    en: (name: string) =>
+      `I was thinking of someone. ${name}. Look on the right — I'll tell you why.`,
     zh: (name: string) => `我想到了一个人。${name}。看右边——我说说为什么是 TA。`,
   },
   another_angle: {
@@ -264,7 +292,10 @@ export function userTurn(state: AgentState, text: string, lang: "en" | "zh-CN"):
       currentAngleId: angle.id,
       usedAngles: { ...next.usedAngles, [person.id]: [...used, angle.id] },
     };
-    const line = lang === "zh-CN" ? LINES.another_angle.zh(person.name_zh) : LINES.another_angle.en(person.name);
+    const line =
+      lang === "zh-CN"
+        ? LINES.another_angle.zh(person.name_zh)
+        : LINES.another_angle.en(person.name);
     return pushAssistant(next, line);
   }
   // more_describe — re-introduce based on updated context.
@@ -273,9 +304,8 @@ export function userTurn(state: AgentState, text: string, lang: "en" | "zh-CN"):
     return introduceNew(next, lang);
   }
   // Nothing new learned — keep the current person but acknowledge.
-  const ack = lang === "zh-CN"
-    ? "嗯，我在听。再告诉我一点。"
-    : "I'm listening. Tell me a bit more.";
+  const ack =
+    lang === "zh-CN" ? "嗯，我在听。再告诉我一点。" : "I'm listening. Tell me a bit more.";
   return pushAssistant(next, ack);
 }
 
@@ -295,9 +325,14 @@ function introduceNew(state: AgentState, lang: "en" | "zh-CN"): AgentState {
     shownIds: state.shownIds.includes(person.id) ? state.shownIds : [...state.shownIds, person.id],
     usedAngles: { ...state.usedAngles, [person.id]: [...used, angle.id] },
   };
-  const line = state.phase === "clarifying"
-    ? (lang === "zh-CN" ? LINES.introducing.zh(person.name_zh) : LINES.introducing.en(person.name))
-    : (lang === "zh-CN" ? LINES.swap_person.zh(person.name_zh) : LINES.swap_person.en(person.name));
+  const line =
+    state.phase === "clarifying"
+      ? lang === "zh-CN"
+        ? LINES.introducing.zh(person.name_zh)
+        : LINES.introducing.en(person.name)
+      : lang === "zh-CN"
+        ? LINES.swap_person.zh(person.name_zh)
+        : LINES.swap_person.en(person.name);
   return pushAssistant(intro, line);
 }
 
@@ -337,8 +372,13 @@ export function actRemoveNegative(state: AgentState, sig: string): AgentState {
 
 const KEY = "kindred:agent.v3";
 const LEGACY_KEYS = [
-  "iris:conversation", "bloom:state", "muse:state",
-  "kindred:state", "kindred:state.v0", "kindred:state.v1", "kindred:state.v2",
+  "iris:conversation",
+  "bloom:state",
+  "muse:state",
+  "kindred:state",
+  "kindred:state.v0",
+  "kindred:state.v1",
+  "kindred:state.v2",
 ];
 
 export function loadState(): AgentState {
@@ -355,12 +395,20 @@ export function loadState(): AgentState {
 
 export function saveState(state: AgentState) {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* noop */ }
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(state));
+  } catch {
+    /* noop */
+  }
 }
 
 export function resetState(): AgentState {
   if (typeof window !== "undefined") {
-    try { window.localStorage.removeItem(KEY); } catch { /* noop */ }
+    try {
+      window.localStorage.removeItem(KEY);
+    } catch {
+      /* noop */
+    }
   }
   return EMPTY_STATE;
 }

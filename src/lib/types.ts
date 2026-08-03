@@ -13,14 +13,21 @@ export interface Angle {
 export interface Activity {
   kind: ActivityKind;
   level: "beginner" | "intermediate" | "advanced";
-  area: string;          // a neighborhood / district label
+  area: string; // a neighborhood / district label
   area_zh: string;
   slots: Array<{ day: Weekday; window: "morning" | "midday" | "evening" }>;
   venue: string;
   venue_zh: string;
 }
 
-export type ActivityKind = "tennis" | "run" | "climb" | "cook" | "exhibition" | "bookstore" | "other";
+export type ActivityKind =
+  | "tennis"
+  | "run"
+  | "climb"
+  | "cook"
+  | "exhibition"
+  | "bookstore"
+  | "other";
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
 export interface Reflection {
@@ -80,4 +87,3 @@ export interface Person {
   /** A few short reply suggestions during a chat. Demo copy. */
   replyHints?: { en: string[]; zh: string[] };
 }
-

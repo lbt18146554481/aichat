@@ -34,7 +34,6 @@ import {
   saveIntent as saveIntentGlobal,
 } from "../saved-intents";
 
-
 export type { LevelTier, WhenTier } from "../intents";
 
 // ---- Parse --------------------------------------------------------------
@@ -60,7 +59,20 @@ const KIND_WORDS: Record<ActivityKind, string[]> = {
   other: [],
 };
 const WHEN_WORDS: Record<WhenTier, string[]> = {
-  weekend: ["周末", "周六", "周日", "星期六", "星期日", "礼拜六", "礼拜日", "sat", "sun", "saturday", "sunday", "weekend"],
+  weekend: [
+    "周末",
+    "周六",
+    "周日",
+    "星期六",
+    "星期日",
+    "礼拜六",
+    "礼拜日",
+    "sat",
+    "sun",
+    "saturday",
+    "sunday",
+    "weekend",
+  ],
   weeknight: ["工作日", "平时晚上", "周中", "weekday", "weeknight", "weeknights"],
   any: ["都行", "都可以", "任意", "随时", "anytime", "any time", "flexible", "whenever"],
 };
@@ -75,7 +87,8 @@ const LEVEL_KINDS: ActivityKind[] = ["tennis", "climb"];
 const MAX_INPUT_CHARS = 140;
 
 function normalize(text: string): string {
-  return text.toLowerCase()
+  return text
+    .toLowerCase()
     .replace(/[\u3000\s]+/g, " ")
     .replace(/[,.，。;；:：!！?？、"'()\[\]{}]/g, " ")
     .trim();
@@ -98,7 +111,12 @@ function findKindHit(text: string): ActivityKind | null {
 function findWhen(text: string): WhenTier | undefined {
   const flags: Record<WhenTier, boolean> = { weekend: false, weeknight: false, any: false };
   for (const tier of Object.keys(WHEN_WORDS) as WhenTier[]) {
-    for (const w of WHEN_WORDS[tier]) { if (text.includes(w)) { flags[tier] = true; break; } }
+    for (const w of WHEN_WORDS[tier]) {
+      if (text.includes(w)) {
+        flags[tier] = true;
+        break;
+      }
+    }
   }
   if (!flags.weekend && !flags.weeknight && !flags.any) {
     if (EVENING_HINTS.some((w) => text.includes(w))) flags.weeknight = true;
@@ -111,7 +129,9 @@ function findWhen(text: string): WhenTier | undefined {
 }
 function findLevel(text: string): LevelTier | undefined {
   for (const tier of Object.keys(LEVEL_WORDS) as LevelTier[]) {
-    for (const w of LEVEL_WORDS[tier]) { if (text.includes(w)) return tier; }
+    for (const w of LEVEL_WORDS[tier]) {
+      if (text.includes(w)) return tier;
+    }
   }
   return undefined;
 }
@@ -121,18 +141,22 @@ function findLevel(text: string): LevelTier | undefined {
  *  the English + Chinese label plus the trigger words we accept. Order
  *  matters for substring matching: longer/more-specific first. */
 const CITY_DICT: Array<{ en: string; zh: string; triggers: string[] }> = [
-  { en: "New York",     zh: "纽约",         triggers: ["new york", "nyc", "manhattan", "brooklyn", "布鲁克林", "纽约"] },
-  { en: "Mexico City",  zh: "墨西哥城",     triggers: ["mexico city", "cdmx", "墨西哥城"] },
-  { en: "Tel Aviv",     zh: "特拉维夫",     triggers: ["tel aviv", "特拉维夫"] },
+  {
+    en: "New York",
+    zh: "纽约",
+    triggers: ["new york", "nyc", "manhattan", "brooklyn", "布鲁克林", "纽约"],
+  },
+  { en: "Mexico City", zh: "墨西哥城", triggers: ["mexico city", "cdmx", "墨西哥城"] },
+  { en: "Tel Aviv", zh: "特拉维夫", triggers: ["tel aviv", "特拉维夫"] },
   { en: "Buenos Aires", zh: "布宜诺斯艾利斯", triggers: ["buenos aires", "布宜诺斯艾利斯"] },
-  { en: "Lisbon",       zh: "里斯本",       triggers: ["lisbon", "lisboa", "里斯本"] },
-  { en: "Berlin",       zh: "柏林",         triggers: ["berlin", "柏林"] },
-  { en: "Kyoto",        zh: "京都",         triggers: ["kyoto", "京都"] },
-  { en: "Copenhagen",   zh: "哥本哈根",     triggers: ["copenhagen", "哥本哈根"] },
-  { en: "Lagos",        zh: "拉各斯",       triggers: ["lagos", "拉各斯"] },
-  { en: "Edinburgh",    zh: "爱丁堡",       triggers: ["edinburgh", "爱丁堡"] },
-  { en: "Vancouver",    zh: "温哥华",       triggers: ["vancouver", "温哥华"] },
-  { en: "Rome",         zh: "罗马",         triggers: ["rome", "roma", "罗马"] },
+  { en: "Lisbon", zh: "里斯本", triggers: ["lisbon", "lisboa", "里斯本"] },
+  { en: "Berlin", zh: "柏林", triggers: ["berlin", "柏林"] },
+  { en: "Kyoto", zh: "京都", triggers: ["kyoto", "京都"] },
+  { en: "Copenhagen", zh: "哥本哈根", triggers: ["copenhagen", "哥本哈根"] },
+  { en: "Lagos", zh: "拉各斯", triggers: ["lagos", "拉各斯"] },
+  { en: "Edinburgh", zh: "爱丁堡", triggers: ["edinburgh", "爱丁堡"] },
+  { en: "Vancouver", zh: "温哥华", triggers: ["vancouver", "温哥华"] },
+  { en: "Rome", zh: "罗马", triggers: ["rome", "roma", "罗马"] },
 ];
 
 function findCity(text: string): { en: string; zh: string } | undefined {
@@ -152,7 +176,10 @@ export function parseIntent(raw: string): ParseResult {
   const level = LEVEL_KINDS.includes(kind) ? findLevel(text) : undefined;
   const cityHit = findCity(text);
   return {
-    kind, when, level, truncated,
+    kind,
+    when,
+    level,
+    truncated,
     ...(cityHit ? { city: cityHit.en, city_zh: cityHit.zh } : {}),
   };
 }
@@ -184,7 +211,12 @@ export interface SideMsg {
   askResolvedLabel?: string;
 }
 
-export interface ChatMsg { id: string; from: "me" | "them"; text: string; t: number; }
+export interface ChatMsg {
+  id: string;
+  from: "me" | "them";
+  text: string;
+  t: number;
+}
 
 export type Stage = "prompt" | "published" | "chat";
 
@@ -238,7 +270,9 @@ export function currentView(s: SideState): ViewKey {
   return "empty";
 }
 
-export function uid(): string { return Math.random().toString(36).slice(2, 10); }
+export function uid(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
 
 // ---- Core actions -------------------------------------------------------
 
@@ -271,7 +305,9 @@ function rematchAfterUpdate(state: SideState, intentId: string): SideState {
   };
 }
 
-export function start(): SideState { return { ...EMPTY }; }
+export function start(): SideState {
+  return { ...EMPTY };
+}
 
 export function submitPrompt(
   state: SideState,
@@ -347,10 +383,16 @@ export function skipMatch(state: SideState): SideState {
   const tried = (state.triedIntentIds ?? []).includes(state.matchIntentId)
     ? (state.triedIntentIds ?? [])
     : [...(state.triedIntentIds ?? []), state.matchIntentId];
-  const triedOwners = other && !(state.triedOwnerIds ?? []).includes(other.ownerId)
-    ? [...(state.triedOwnerIds ?? []), other.ownerId]
-    : (state.triedOwnerIds ?? []);
-  const next: SideState = { ...state, triedIntentIds: tried, triedOwnerIds: triedOwners, matchIntentId: null };
+  const triedOwners =
+    other && !(state.triedOwnerIds ?? []).includes(other.ownerId)
+      ? [...(state.triedOwnerIds ?? []), other.ownerId]
+      : (state.triedOwnerIds ?? []);
+  const next: SideState = {
+    ...state,
+    triedIntentIds: tried,
+    triedOwnerIds: triedOwners,
+    matchIntentId: null,
+  };
   return rematchAfterUpdate(next, state.myIntentId);
 }
 
@@ -374,8 +416,6 @@ export function saveCurrent(state: SideState, sessionId?: string | null): SideSt
   return { ...state, savedIntentIds: [...currentSaved, id] };
 }
 
-
-
 /** Remove from saved list and put the person back into the pool as the
  *  current candidate (if nothing else is currently shown). */
 export function unsave(state: SideState, intentId: string): SideState {
@@ -386,7 +426,12 @@ export function unsave(state: SideState, intentId: string): SideState {
   const triedOwners = target
     ? (state.triedOwnerIds ?? []).filter((id) => id !== target.ownerId)
     : (state.triedOwnerIds ?? []);
-  const next: SideState = { ...state, savedIntentIds: saved, triedIntentIds: tried, triedOwnerIds: triedOwners };
+  const next: SideState = {
+    ...state,
+    savedIntentIds: saved,
+    triedIntentIds: tried,
+    triedOwnerIds: triedOwners,
+  };
   if (!state.myIntentId) return next;
   // If no candidate is on screen right now, surface this one immediately.
   if (!state.matchIntentId) {
@@ -403,21 +448,23 @@ export function chatWithSaved(state: SideState, intentId: string, draft?: string
   return startChat(armed, draft);
 }
 
-
-
-
-
 /** Pivot my published wish to a near-miss person's slot and rematch. */
 export function tryNearMiss(state: SideState, intentId: string): SideState {
   const other = getIntentById(intentId);
   if (!other || !state.myIntentId) return state;
   const mineWhen: WhenTier =
-    other.day === "sat" || other.day === "sun" ? "weekend"
-    : other.window === "evening" ? "weeknight"
-    : "any";
+    other.day === "sat" || other.day === "sun"
+      ? "weekend"
+      : other.window === "evening"
+        ? "weeknight"
+        : "any";
   updateMyIntent(state.myIntentId, { when: mineWhen, level: other.level });
   return rematchAfterUpdate(
-    { ...state, triedIntentIds: [...(state.triedIntentIds ?? [])], triedOwnerIds: [...(state.triedOwnerIds ?? [])] },
+    {
+      ...state,
+      triedIntentIds: [...(state.triedIntentIds ?? [])],
+      triedOwnerIds: [...(state.triedOwnerIds ?? [])],
+    },
     state.myIntentId,
   );
 }
@@ -483,7 +530,6 @@ export function setAwaitingTrait(state: SideState, v: boolean): SideState {
   return { ...state, awaitingTrait: v };
 }
 
-
 // ---- Persistence -------------------------------------------------------
 //
 // All state lives in the sessions store, keyed by sessionId. A caller
@@ -510,8 +556,14 @@ export function reset(): SideState {
   return EMPTY;
 }
 
-
-export const ALL_KINDS: ActivityKind[] = ["tennis", "run", "climb", "cook", "exhibition", "bookstore"];
+export const ALL_KINDS: ActivityKind[] = [
+  "tennis",
+  "run",
+  "climb",
+  "cook",
+  "exhibition",
+  "bookstore",
+];
 
 // Silence type-only imports for consumers that used to import these.
 export type _KeepSeedFn = typeof seedPool;

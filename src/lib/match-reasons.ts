@@ -18,7 +18,14 @@ import type { Lang } from "./i18n";
 import { getMomentPromptById } from "./questions";
 
 export type Reason =
-  | { kind: "you_said"; category: "lifestyle" | "values"; sourceId: string; yours: string; theirs: string; prompt: string | null }
+  | {
+      kind: "you_said";
+      category: "lifestyle" | "values";
+      sourceId: string;
+      yours: string;
+      theirs: string;
+      prompt: string | null;
+    }
   | { kind: "favorite"; sourceId: string; title: string; theirWhy: string }
   | { kind: "values"; sourceId: string; prompt: string; theirs: string };
 
@@ -38,12 +45,122 @@ const SIGNAL_EVIDENCE: Record<string, Record<string, string>> = {
 };
 
 const STOP = new Set([
-  "the","a","an","and","or","but","of","to","in","on","at","for","with","is","am","are","was","were","be",
-  "i","you","he","she","it","we","they","my","your","his","her","its","our","their","me","him","us","them",
-  "this","that","these","those","do","does","did","have","has","had","not","no","yes","so","if","than","then",
-  "as","by","from","just","like","when","where","why","how","what","which","who","someone","people","person",
-  "want","looking","really","very","much","would","could","should","one","get","go","make","think","feel",
-  "的","了","和","或","也","在","是","就","都","会","要","不","没","有","得","着","与","及","但","我","你","他","她","想","找","个","人","很","更","那","这","能","可以",
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "but",
+  "of",
+  "to",
+  "in",
+  "on",
+  "at",
+  "for",
+  "with",
+  "is",
+  "am",
+  "are",
+  "was",
+  "were",
+  "be",
+  "i",
+  "you",
+  "he",
+  "she",
+  "it",
+  "we",
+  "they",
+  "my",
+  "your",
+  "his",
+  "her",
+  "its",
+  "our",
+  "their",
+  "me",
+  "him",
+  "us",
+  "them",
+  "this",
+  "that",
+  "these",
+  "those",
+  "do",
+  "does",
+  "did",
+  "have",
+  "has",
+  "had",
+  "not",
+  "no",
+  "yes",
+  "so",
+  "if",
+  "than",
+  "then",
+  "as",
+  "by",
+  "from",
+  "just",
+  "like",
+  "when",
+  "where",
+  "why",
+  "how",
+  "what",
+  "which",
+  "who",
+  "someone",
+  "people",
+  "person",
+  "want",
+  "looking",
+  "really",
+  "very",
+  "much",
+  "would",
+  "could",
+  "should",
+  "one",
+  "get",
+  "go",
+  "make",
+  "think",
+  "feel",
+  "的",
+  "了",
+  "和",
+  "或",
+  "也",
+  "在",
+  "是",
+  "就",
+  "都",
+  "会",
+  "要",
+  "不",
+  "没",
+  "有",
+  "得",
+  "着",
+  "与",
+  "及",
+  "但",
+  "我",
+  "你",
+  "他",
+  "她",
+  "想",
+  "找",
+  "个",
+  "人",
+  "很",
+  "更",
+  "那",
+  "这",
+  "能",
+  "可以",
 ]);
 
 /** Word-ish tokens. CJK has no spaces, so we also emit character bigrams —
@@ -72,10 +189,11 @@ function tokens(text: string): Set<string> {
   return out;
 }
 
-
 function sharedCount(a: Set<string>, b: Set<string>): number {
   let n = 0;
-  a.forEach((w) => { if (b.has(w)) n++; });
+  a.forEach((w) => {
+    if (b.has(w)) n++;
+  });
   return n;
 }
 
@@ -102,14 +220,26 @@ export function buildReasons(
   const wantTokens = tokens(wantText);
 
   // 1 — something the user said ↔ something this person wrote.
-  let best: { yours: string; theirs: string; promptId: string; sourceId: string; score: number } | null = null;
+  let best: {
+    yours: string;
+    theirs: string;
+    promptId: string;
+    sourceId: string;
+    score: number;
+  } | null = null;
   for (const note of notes) {
     const nt = tokens(note);
     for (const m of person.moments) {
       const theirs = zh ? m.answer_zh : m.answer;
       const score = sharedCount(nt, tokens(theirs));
       if (score >= 1 && (!best || score > best.score)) {
-        best = { yours: clip(note), theirs: clip(theirs, 96), promptId: m.promptId, sourceId: m.id, score };
+        best = {
+          yours: clip(note),
+          theirs: clip(theirs, 96),
+          promptId: m.promptId,
+          sourceId: m.id,
+          score,
+        };
       }
     }
   }
@@ -187,8 +317,16 @@ export function buildReasons(
       }
     }
     if (bestValue) {
-      const source = person.moments.find((m) => clip(zh ? m.answer_zh : m.answer, 96) === bestValue?.theirs);
-      if (source) out.push({ kind: "values", sourceId: source.id, prompt: bestValue.prompt, theirs: bestValue.theirs });
+      const source = person.moments.find(
+        (m) => clip(zh ? m.answer_zh : m.answer, 96) === bestValue?.theirs,
+      );
+      if (source)
+        out.push({
+          kind: "values",
+          sourceId: source.id,
+          prompt: bestValue.prompt,
+          theirs: bestValue.theirs,
+        });
     }
   }
 

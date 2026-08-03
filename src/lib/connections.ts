@@ -47,27 +47,41 @@ const LISTENERS = new Set<() => void>();
 
 // Ephemeral "they're typing" state — not persisted.
 const TYPING = new Set<string>();
-export function isTyping(personId: string): boolean { return TYPING.has(personId); }
+export function isTyping(personId: string): boolean {
+  return TYPING.has(personId);
+}
 
-function emit() { LISTENERS.forEach((fn) => fn()); }
-function uid() { return Math.random().toString(36).slice(2, 10); }
+function emit() {
+  LISTENERS.forEach((fn) => fn());
+}
+function uid() {
+  return Math.random().toString(36).slice(2, 10);
+}
 
 function read(): Record<string, Connection> {
   if (typeof window === "undefined") return {};
   try {
     const raw = window.localStorage.getItem(KEY);
     return raw ? (JSON.parse(raw) as Record<string, Connection>) : {};
-  } catch { return {}; }
+  } catch {
+    return {};
+  }
 }
 function write(state: Record<string, Connection>) {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* noop */ }
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(state));
+  } catch {
+    /* noop */
+  }
   emit();
 }
 
 export function subscribe(fn: () => void): () => void {
   LISTENERS.add(fn);
-  return () => { LISTENERS.delete(fn); };
+  return () => {
+    LISTENERS.delete(fn);
+  };
 }
 
 export function list(): Connection[] {
@@ -278,7 +292,10 @@ export function send(personId: string, text: string) {
     const s = read();
     const c = s[personId];
     TYPING.delete(personId);
-    if (!c || c.status !== "connected") { emit(); return; }
+    if (!c || c.status !== "connected") {
+      emit();
+      return;
+    }
     const zh = typeof navigator !== "undefined" && navigator.language.startsWith("zh");
     const pool = zh ? CHAT_REPLIES_ZH : CHAT_REPLIES_EN;
     const reply = pool[Math.floor(Math.random() * pool.length)];

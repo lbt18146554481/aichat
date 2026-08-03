@@ -60,9 +60,10 @@ function ConnectionsPage() {
     };
     update();
     const unsub = subscribe(update);
-    return () => { unsub(); };
+    return () => {
+      unsub();
+    };
   }, [ready]);
-
 
   useEffect(() => {
     if (!open || consumedOpenRef.current === open) return;
@@ -82,12 +83,18 @@ function ConnectionsPage() {
     try {
       const saved = window.sessionStorage.getItem(LAST_ACTIVE_KEY);
       if (saved && items.find((c) => c.personId === saved)) setActiveId(saved);
-    } catch { /* noop */ }
+    } catch {
+      /* noop */
+    }
   }, [items, open, isMobile]);
 
   useEffect(() => {
     if (!activeId) return;
-    try { window.sessionStorage.setItem(LAST_ACTIVE_KEY, activeId); } catch { /* noop */ }
+    try {
+      window.sessionStorage.setItem(LAST_ACTIVE_KEY, activeId);
+    } catch {
+      /* noop */
+    }
   }, [activeId]);
 
   useEffect(() => {
@@ -119,7 +126,6 @@ function ConnectionsPage() {
     );
   }
 
-
   return (
     <div className="h-dvh flex flex-col bg-background pb-tabbar lg:pb-0">
       <header className="w-full border-b border-border bg-background/90 backdrop-blur sticky top-0 z-30 pt-safe">
@@ -138,13 +144,19 @@ function ConnectionsPage() {
               <span className="font-mono uppercase tracking-wide">{t("nav.back")}</span>
             </button>
           ) : (
-            <Link to="/" className="inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+            >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span className="font-mono uppercase tracking-wide">Maitri</span>
             </Link>
           )}
           {activeId && (
-            <Link to="/" className="hidden lg:inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors">
+            <Link
+              to="/"
+              className="hidden lg:inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+            >
               <span className="font-mono uppercase tracking-wide">Maitri</span>
             </Link>
           )}
@@ -154,11 +166,13 @@ function ConnectionsPage() {
       </header>
 
       <div className="flex-1 grid lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] min-h-0">
-        <aside className={[
-          "border-r border-border overflow-y-auto overscroll-contain-y",
-          // Hide list on mobile once a thread is open.
-          activeId ? "hidden lg:block" : "block",
-        ].join(" ")}>
+        <aside
+          className={[
+            "border-r border-border overflow-y-auto overscroll-contain-y",
+            // Hide list on mobile once a thread is open.
+            activeId ? "hidden lg:block" : "block",
+          ].join(" ")}
+        >
           {!loaded ? (
             <ul data-testid="chats-loading" aria-busy="true">
               {[0, 1, 2].map((i) => (
@@ -173,8 +187,13 @@ function ConnectionsPage() {
             </ul>
           ) : items.length === 0 ? (
             <div data-testid="chats-empty" className="px-6 py-12 text-center">
-              <MessagesSquare className="w-6 h-6 mx-auto mb-3 text-muted-foreground opacity-60" strokeWidth={1.5} />
-              <p className="text-[13px] text-muted-foreground leading-relaxed">{t("connection.empty")}</p>
+              <MessagesSquare
+                className="w-6 h-6 mx-auto mb-3 text-muted-foreground opacity-60"
+                strokeWidth={1.5}
+              />
+              <p className="text-[13px] text-muted-foreground leading-relaxed">
+                {t("connection.empty")}
+              </p>
               <Link
                 to="/"
                 className="mt-4 inline-flex items-center justify-center min-h-11 px-4 rounded-md bg-primary text-primary-foreground text-[13px] font-medium"
@@ -196,14 +215,15 @@ function ConnectionsPage() {
               ))}
             </ul>
           )}
-
         </aside>
 
-        <section className={[
-          "min-h-0 bg-secondary/30",
-          // Show thread on mobile only if activeId is set.
-          activeId ? "block" : "hidden lg:block",
-        ].join(" ")}>
+        <section
+          className={[
+            "min-h-0 bg-secondary/30",
+            // Show thread on mobile only if activeId is set.
+            activeId ? "block" : "hidden lg:block",
+          ].join(" ")}
+        >
           {activeId ? (
             <ConnectionThread key={activeId} personId={activeId} />
           ) : (
@@ -217,9 +237,18 @@ function ConnectionsPage() {
   );
 }
 
-
-function Row({ conn, lang, active, dot, onSelect }: {
-  conn: Connection; lang: Lang; active: boolean; dot?: boolean; onSelect: () => void;
+function Row({
+  conn,
+  lang,
+  active,
+  dot,
+  onSelect,
+}: {
+  conn: Connection;
+  lang: Lang;
+  active: boolean;
+  dot?: boolean;
+  onSelect: () => void;
 }) {
   const { t } = useTranslation();
   const person = getPersonById(conn.personId);
@@ -246,10 +275,22 @@ function Row({ conn, lang, active, dot, onSelect }: {
 
   // Status pill — surfaces the variety of conversation states at a glance.
   const statusMap: Record<Connection["status"], { key: string; tone: string }> = {
-    incoming:  { key: "connection.section_incoming",  tone: "bg-primary/10 text-primary border-primary/20" },
-    sent:      { key: "connection.section_sent",      tone: "bg-secondary text-muted-foreground border-border" },
-    connected: { key: "connection.section_connected", tone: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20" },
-    faded:     { key: "connection.section_faded",     tone: "bg-muted text-muted-foreground border-border" },
+    incoming: {
+      key: "connection.section_incoming",
+      tone: "bg-primary/10 text-primary border-primary/20",
+    },
+    sent: {
+      key: "connection.section_sent",
+      tone: "bg-secondary text-muted-foreground border-border",
+    },
+    connected: {
+      key: "connection.section_connected",
+      tone: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
+    },
+    faded: {
+      key: "connection.section_faded",
+      tone: "bg-muted text-muted-foreground border-border",
+    },
   };
   const pill = statusMap[conn.status];
 
@@ -264,16 +305,26 @@ function Row({ conn, lang, active, dot, onSelect }: {
         ].join(" ")}
       >
         <div className="relative shrink-0">
-          <img src={avatarUrl(person.id)} alt="" className={[
-            "w-10 h-10 rounded-full border border-border bg-secondary",
-            dim ? "grayscale" : "",
-          ].join(" ")} />
-          {dot && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />}
+          <img
+            src={avatarUrl(person.id)}
+            alt=""
+            className={[
+              "w-10 h-10 rounded-full border border-border bg-secondary",
+              dim ? "grayscale" : "",
+            ].join(" ")}
+          />
+          {dot && (
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <div className="text-[13.5px] font-medium text-foreground truncate flex-1">{loc.name}</div>
-            <span className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] font-mono uppercase tracking-wide ${pill.tone}`}>
+            <div className="text-[13.5px] font-medium text-foreground truncate flex-1">
+              {loc.name}
+            </div>
+            <span
+              className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] font-mono uppercase tracking-wide ${pill.tone}`}
+            >
               {t(pill.key)}
             </span>
           </div>
@@ -283,4 +334,3 @@ function Row({ conn, lang, active, dot, onSelect }: {
     </li>
   );
 }
-

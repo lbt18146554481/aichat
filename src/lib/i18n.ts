@@ -37,7 +37,11 @@ export function applyPersistedLang() {
   if (typeof window === "undefined") return;
   try {
     const saved = window.localStorage.getItem(LANG_STORAGE_KEY);
-    if (saved && saved !== i18n.language && (SUPPORTED_LANGS as readonly string[]).includes(saved)) {
+    if (
+      saved &&
+      saved !== i18n.language &&
+      (SUPPORTED_LANGS as readonly string[]).includes(saved)
+    ) {
       i18n.changeLanguage(saved);
     }
   } catch {

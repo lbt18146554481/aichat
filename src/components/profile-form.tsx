@@ -9,7 +9,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Plus, BookOpen, Film, Music, Landmark, UtensilsCrossed, Dumbbell, Sparkles, ChevronDown, Eye, EyeOff } from "lucide-react";
+import {
+  X,
+  Plus,
+  BookOpen,
+  Film,
+  Music,
+  Landmark,
+  UtensilsCrossed,
+  Dumbbell,
+  Sparkles,
+  ChevronDown,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
 import {
@@ -17,7 +30,6 @@ import {
   MIN_MOMENTS,
   MAX_FAVORITES,
   addFavorite,
-
   isHidden,
   isProfileComplete,
   loadProfile,
@@ -51,15 +63,34 @@ const KIND_ICONS: Record<WorkKind, LucideIcon> = {
   other: Sparkles,
 };
 const GENDERS: Gender[] = ["female", "male", "nonbinary", "prefer_not_to_say"];
-const ORIENTATIONS: Orientation[] = ["straight", "gay", "lesbian", "bi", "pan", "asexual", "prefer_not_to_say"];
+const ORIENTATIONS: Orientation[] = [
+  "straight",
+  "gay",
+  "lesbian",
+  "bi",
+  "pan",
+  "asexual",
+  "prefer_not_to_say",
+];
 const MBTI_TYPES = [
-  "INTJ","INTP","ENTJ","ENTP",
-  "INFJ","INFP","ENFJ","ENFP",
-  "ISTJ","ISFJ","ESTJ","ESFJ",
-  "ISTP","ISFP","ESTP","ESFP",
+  "INTJ",
+  "INTP",
+  "ENTJ",
+  "ENTP",
+  "INFJ",
+  "INFP",
+  "ENFJ",
+  "ENFP",
+  "ISTJ",
+  "ISFJ",
+  "ESTJ",
+  "ESFJ",
+  "ISTP",
+  "ISFP",
+  "ESTP",
+  "ESFP",
 ];
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // 2MB soft cap
-
 
 interface Props {
   lang: Lang;
@@ -73,7 +104,10 @@ export function ProfileForm({ lang, compact = false, onChange }: Props) {
   const [profile, setProfile] = useState<Profile>(EMPTY_PROFILE);
   const [hydrated, setHydrated] = useState(false);
 
-  useEffect(() => { setProfile(loadProfile()); setHydrated(true); }, []);
+  useEffect(() => {
+    setProfile(loadProfile());
+    setHydrated(true);
+  }, []);
   useEffect(() => {
     if (!hydrated) return;
     saveProfile(profile);
@@ -109,16 +143,21 @@ export function ProfileForm({ lang, compact = false, onChange }: Props) {
 
   const gap = compact ? "space-y-10" : "space-y-14";
   // Always render at least one empty row so the shape is discoverable.
-  const favRows = profile.favorites.length === 0
-    ? [{ kind: "book" as WorkKind, title: "", why: "" }]
-    : profile.favorites;
+  const favRows =
+    profile.favorites.length === 0
+      ? [{ kind: "book" as WorkKind, title: "", why: "" }]
+      : profile.favorites;
   const hasStoredFavs = profile.favorites.length > 0;
 
   return (
     <div className={gap}>
       {/* — 01 Vitals — */}
       <section className="space-y-4">
-        <SectionHeader index={1} title={t("profile.section.vitals")} hint={t("profile.section.vitals_hint")} />
+        <SectionHeader
+          index={1}
+          title={t("profile.section.vitals")}
+          hint={t("profile.section.vitals_hint")}
+        />
         <AvatarField
           value={profile.avatar}
           name={profile.name}
@@ -140,9 +179,13 @@ export function ProfileForm({ lang, compact = false, onChange }: Props) {
             onToggleHide={() => flipHide("age")}
           >
             <input
-              type="number" min={18} max={99}
+              type="number"
+              min={18}
+              max={99}
               value={profile.age ?? ""}
-              onChange={(e) => updateField("age", e.target.value === "" ? null : Number(e.target.value))}
+              onChange={(e) =>
+                updateField("age", e.target.value === "" ? null : Number(e.target.value))
+              }
               className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
             />
           </Field>
@@ -172,7 +215,9 @@ export function ProfileForm({ lang, compact = false, onChange }: Props) {
             >
               <option value="">{t("profile.f.gender_placeholder")}</option>
               {GENDERS.map((g) => (
-                <option key={g} value={g}>{t(`profile.gender.${g}`)}</option>
+                <option key={g} value={g}>
+                  {t(`profile.gender.${g}`)}
+                </option>
               ))}
             </select>
           </Field>
@@ -188,7 +233,9 @@ export function ProfileForm({ lang, compact = false, onChange }: Props) {
             >
               <option value="">{t("profile.f.orientation_placeholder")}</option>
               {ORIENTATIONS.map((o) => (
-                <option key={o} value={o}>{t(`profile.orientation.${o}`)}</option>
+                <option key={o} value={o}>
+                  {t(`profile.orientation.${o}`)}
+                </option>
               ))}
             </select>
           </Field>
@@ -204,14 +251,14 @@ export function ProfileForm({ lang, compact = false, onChange }: Props) {
             >
               <option value="">{t("profile.f.mbti_placeholder")}</option>
               {MBTI_TYPES.map((m) => (
-                <option key={m} value={m}>{m}</option>
+                <option key={m} value={m}>
+                  {m}
+                </option>
               ))}
             </select>
           </Field>
         </div>
       </section>
-
-
 
       {/* — 02 Moments — */}
       <section className="space-y-4">
@@ -286,7 +333,11 @@ export function ProfileForm({ lang, compact = false, onChange }: Props) {
             <FavoriteRow
               key={i}
               favorite={f}
-              onKind={(kind) => hasStoredFavs ? patchFavorite(i, { kind }) : setProfile((p) => addFavorite(p, { ...f, kind }))}
+              onKind={(kind) =>
+                hasStoredFavs
+                  ? patchFavorite(i, { kind })
+                  : setProfile((p) => addFavorite(p, { ...f, kind }))
+              }
               onTitle={(title) => {
                 if (hasStoredFavs) patchFavorite(i, { title });
                 else if (title.length > 0) setProfile((p) => addFavorite(p, { ...f, title }));
@@ -294,7 +345,8 @@ export function ProfileForm({ lang, compact = false, onChange }: Props) {
               onWhy={(why) => {
                 const capped = why.slice(0, 80);
                 if (hasStoredFavs) patchFavorite(i, { why: capped });
-                else if (capped.length > 0) setProfile((p) => addFavorite(p, { ...f, why: capped }));
+                else if (capped.length > 0)
+                  setProfile((p) => addFavorite(p, { ...f, why: capped }));
               }}
               onRemove={hasStoredFavs ? () => dropFavorite(i) : undefined}
               hidden={hasStoredFavs ? isHidden(profile, `favorite:${i}`) : false}
@@ -376,7 +428,9 @@ function FavoriteRow({
         >
           <Icon className="w-3.5 h-3.5" />
           <span>{t(`profile.kind.${favorite.kind}`)}</span>
-          <ChevronDown className={"w-3 h-3 transition-transform " + (pickerOpen ? "rotate-180" : "")} />
+          <ChevronDown
+            className={"w-3 h-3 transition-transform " + (pickerOpen ? "rotate-180" : "")}
+          />
         </button>
         {pickerOpen && (
           <div className="absolute left-0 top-9 z-10 rounded-lg border border-border bg-popover shadow-md p-1 flex flex-col min-w-[9rem]">
@@ -387,7 +441,10 @@ function FavoriteRow({
                 <button
                   key={k}
                   type="button"
-                  onClick={() => { onKind(k); setPickerOpen(false); }}
+                  onClick={() => {
+                    onKind(k);
+                    setPickerOpen(false);
+                  }}
                   className={
                     "flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12.5px] text-left transition-colors " +
                     (active
@@ -438,8 +495,16 @@ function FavoriteRow({
   );
 }
 
-function SectionHeader({ index, title, hint, badge }: {
-  index: number; title: string; hint: string; badge?: string;
+function SectionHeader({
+  index,
+  title,
+  hint,
+  badge,
+}: {
+  index: number;
+  title: string;
+  hint: string;
+  badge?: string;
 }) {
   return (
     <div>
@@ -473,10 +538,10 @@ function Field({
   return (
     <label className="block">
       <span className="flex items-center justify-between gap-2">
-        <span className="text-[10.5px] font-mono uppercase tracking-wide text-muted-foreground">{label}</span>
-        {onToggleHide && (
-          <VisibilityToggle hidden={!!hidden} onClick={onToggleHide} />
-        )}
+        <span className="text-[10.5px] font-mono uppercase tracking-wide text-muted-foreground">
+          {label}
+        </span>
+        {onToggleHide && <VisibilityToggle hidden={!!hidden} onClick={onToggleHide} />}
       </span>
       {children}
     </label>
@@ -489,7 +554,10 @@ function VisibilityToggle({ hidden, onClick }: { hidden: boolean; onClick: () =>
   return (
     <button
       type="button"
-      onClick={(e) => { e.preventDefault(); onClick(); }}
+      onClick={(e) => {
+        e.preventDefault();
+        onClick();
+      }}
       aria-label={hidden ? t("profile.visibility.show") : t("profile.visibility.hide")}
       title={hidden ? t("profile.visibility.hidden_hint") : t("profile.visibility.shown_hint")}
       className={
@@ -562,15 +630,16 @@ function AvatarField({
           </label>
           {value && (
             <button
-              onClick={() => { onChange(""); setError(null); }}
+              onClick={() => {
+                onChange("");
+                setError(null);
+              }}
               className="text-[11.5px] text-muted-foreground hover:text-foreground"
             >
               {t("profile.avatar.remove")}
             </button>
           )}
-          {value && onToggleHide && (
-            <VisibilityToggle hidden={!!hidden} onClick={onToggleHide} />
-          )}
+          {value && onToggleHide && <VisibilityToggle hidden={!!hidden} onClick={onToggleHide} />}
         </div>
         <p className="text-[11.5px] text-muted-foreground leading-snug">
           {error ?? t("profile.avatar.hint")}
@@ -579,7 +648,6 @@ function AvatarField({
     </div>
   );
 }
-
 
 function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
   const { t } = useTranslation();
@@ -596,7 +664,11 @@ function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
     <div className="rounded-xl border border-border bg-card px-5 py-5">
       <div className="flex items-start gap-4">
         {showAvatar ? (
-          <img src={profile.avatar} alt="" className="w-14 h-14 rounded-full object-cover border border-border shrink-0" />
+          <img
+            src={profile.avatar}
+            alt=""
+            className="w-14 h-14 rounded-full object-cover border border-border shrink-0"
+          />
         ) : (
           <div className="w-14 h-14 rounded-full border border-border bg-secondary/60 flex items-center justify-center shrink-0">
             <span className="text-[18px] font-serif italic text-muted-foreground">
@@ -606,18 +678,25 @@ function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
         )}
         <div className="min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
-            <h3 className="text-[18px] font-semibold tracking-tight text-foreground">{profile.name}</h3>
+            <h3 className="text-[18px] font-semibold tracking-tight text-foreground">
+              {profile.name}
+            </h3>
             {showAge && (
-              <span className="text-[12px] font-mono text-muted-foreground tabular-nums">{profile.age}</span>
+              <span className="text-[12px] font-mono text-muted-foreground tabular-nums">
+                {profile.age}
+              </span>
             )}
             {showMbti && (
-              <span className="text-[10.5px] font-mono uppercase tracking-wide text-muted-foreground">{profile.mbti}</span>
+              <span className="text-[10.5px] font-mono uppercase tracking-wide text-muted-foreground">
+                {profile.mbti}
+              </span>
             )}
           </div>
-          <p className="text-[12.5px] text-muted-foreground mt-0.5">{profile.occupation} · {profile.city}</p>
+          <p className="text-[12.5px] text-muted-foreground mt-0.5">
+            {profile.occupation} · {profile.city}
+          </p>
         </div>
       </div>
-
 
       <div className="mt-6 space-y-4">
         {profile.moments

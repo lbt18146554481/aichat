@@ -7,31 +7,39 @@
 export type WorkKind = "book" | "film" | "music" | "exhibition" | "food" | "sport" | "other";
 
 export type Gender = "" | "female" | "male" | "nonbinary" | "prefer_not_to_say";
-export type Orientation = "" | "straight" | "gay" | "lesbian" | "bi" | "pan" | "asexual" | "prefer_not_to_say";
+export type Orientation =
+  | ""
+  | "straight"
+  | "gay"
+  | "lesbian"
+  | "bi"
+  | "pan"
+  | "asexual"
+  | "prefer_not_to_say";
 
 export interface ProfileMoment {
   promptId: string;
-  answer: string;       // user's own words, stored verbatim
+  answer: string; // user's own words, stored verbatim
 }
 
 export interface Favorite {
   kind: WorkKind;
   title: string;
-  why: string;          // one sentence
+  why: string; // one sentence
 }
 
 // ---------- Profile --------------------------------------------------------
 
 export interface Profile {
   // L1 vitals
-  avatar: string;        // data URL, empty if unset (optional)
+  avatar: string; // data URL, empty if unset (optional)
   name: string;
   age: number | null;
   city: string;
   occupation: string;
-  gender: Gender;        // optional
+  gender: Gender; // optional
   orientation: Orientation; // optional
-  mbti: string;          // optional, "" or one of 16 types
+  mbti: string; // optional, "" or one of 16 types
   // L2 specificity
   moments: ProfileMoment[];
   favorites: Favorite[];
@@ -55,7 +63,6 @@ export const EMPTY_PROFILE: Profile = {
   hidden: [],
 };
 
-
 /** Is this field currently hidden from others? */
 export function isHidden(p: Profile, key: string): boolean {
   return Array.isArray(p.hidden) && p.hidden.includes(key);
@@ -66,7 +73,6 @@ export function toggleHidden(p: Profile, key: string): Profile {
   const cur = Array.isArray(p.hidden) ? p.hidden : [];
   return { ...p, hidden: cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key] };
 }
-
 
 export const MIN_MOMENTS = 3;
 export const MIN_FAVORITES = 1;
@@ -94,14 +100,23 @@ export function loadProfile(): Profile {
     const favorites: Favorite[] = Array.isArray(parsed.favorites)
       ? (parsed.favorites as Favorite[])
       : parsed.oneWork && parsed.oneWork.title
-      ? [{ kind: parsed.oneWork.kind, title: parsed.oneWork.title, why: parsed.oneWork.why }]
-      : [];
+        ? [{ kind: parsed.oneWork.kind, title: parsed.oneWork.title, why: parsed.oneWork.why }]
+        : [];
     // Drop retired fields (activities, compatibility, oneWork, bio,
     // interests) silently — they no longer exist in the product.
     const {
-      activities: _a, compatibility: _c, oneWork: _o, bio: _b, interests: _i, ...rest
+      activities: _a,
+      compatibility: _c,
+      oneWork: _o,
+      bio: _b,
+      interests: _i,
+      ...rest
     } = parsed;
-    void _a; void _c; void _o; void _b; void _i;
+    void _a;
+    void _c;
+    void _o;
+    void _b;
+    void _i;
     return {
       ...EMPTY_PROFILE,
       ...rest,
@@ -116,10 +131,13 @@ export function loadProfile(): Profile {
   }
 }
 
-
 export function saveProfile(p: Profile) {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* noop */ }
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(p));
+  } catch {
+    /* noop */
+  }
 }
 
 export function hasName(p: Profile): boolean {
@@ -127,11 +145,13 @@ export function hasName(p: Profile): boolean {
 }
 
 export function isVitalsComplete(p: Profile): boolean {
-  return p.name.trim().length > 0
-    && typeof p.age === "number"
-    && p.age >= 18
-    && p.city.trim().length > 0
-    && p.occupation.trim().length > 0;
+  return (
+    p.name.trim().length > 0 &&
+    typeof p.age === "number" &&
+    p.age >= 18 &&
+    p.city.trim().length > 0 &&
+    p.occupation.trim().length > 0
+  );
 }
 
 function filledFavorites(p: Profile): Favorite[] {
@@ -139,9 +159,11 @@ function filledFavorites(p: Profile): Favorite[] {
 }
 
 export function isProfileComplete(p: Profile): boolean {
-  return isVitalsComplete(p)
-    && p.moments.filter((m) => m.answer.trim().length > 0).length >= MIN_MOMENTS
-    && filledFavorites(p).length >= MIN_FAVORITES;
+  return (
+    isVitalsComplete(p) &&
+    p.moments.filter((m) => m.answer.trim().length > 0).length >= MIN_MOMENTS &&
+    filledFavorites(p).length >= MIN_FAVORITES
+  );
 }
 
 export function profileProgress(p: Profile): { done: number; total: number } {

@@ -36,17 +36,28 @@ export function loadUnderstanding(): UserUnderstanding {
 
 export function saveUnderstanding(u: UserUnderstanding) {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(KEY, JSON.stringify(u)); } catch { /* noop */ }
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(u));
+  } catch {
+    /* noop */
+  }
 }
 
 export function resetUnderstanding(): UserUnderstanding {
   if (typeof window !== "undefined") {
-    try { window.localStorage.removeItem(KEY); } catch { /* noop */ }
+    try {
+      window.localStorage.removeItem(KEY);
+    } catch {
+      /* noop */
+    }
   }
   return EMPTY_UNDERSTANDING;
 }
 
-export function digest(u: UserUnderstanding, text: string): {
+export function digest(
+  u: UserUnderstanding,
+  text: string,
+): {
   next: UserUnderstanding;
   newPositives: string[];
   newNegatives: string[];
@@ -58,10 +69,7 @@ export function digest(u: UserUnderstanding, text: string): {
     ...u.positive.filter((s) => !newNegatives.includes(s)),
     ...newPositives.filter((s) => !u.negative.includes(s) || newPositives.includes(s)),
   ];
-  const negative = [
-    ...u.negative.filter((s) => !newPositives.includes(s)),
-    ...newNegatives,
-  ];
+  const negative = [...u.negative.filter((s) => !newPositives.includes(s)), ...newNegatives];
   const fragment = text.trim().length > 80 ? text.trim().slice(0, 78) + "…" : text.trim();
   const notes = [...u.notes, fragment].slice(-6);
 
@@ -73,8 +81,10 @@ function inferNegatives(text: string): string[] {
   const lower = text.toLowerCase();
   if (/\btoo (quiet|shy|introvert)/i.test(lower) || /太安静/.test(text)) out.add("quiet");
   if (/\btoo (loud|wild)/i.test(lower)) out.add("funny");
-  if (/\btoo (serious|heavy|intense)/i.test(lower) || /太严肃|太沉重/.test(text)) out.add("ambitious");
-  if (/\bless (ambitious|driven|career)/i.test(lower) || /不要太上进/.test(text)) out.add("ambitious");
+  if (/\btoo (serious|heavy|intense)/i.test(lower) || /太严肃|太沉重/.test(text))
+    out.add("ambitious");
+  if (/\bless (ambitious|driven|career)/i.test(lower) || /不要太上进/.test(text))
+    out.add("ambitious");
   if (/\b(less|not so) outdoors/i.test(lower) || /不要.*户外/.test(text)) out.add("outdoors");
   return Array.from(out);
 }

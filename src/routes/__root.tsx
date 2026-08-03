@@ -15,6 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import i18n, { initI18n, applyPersistedLang } from "../lib/i18n";
 import { Toaster } from "@/components/ui/sonner";
 import { MobileTabBar } from "@/components/mobile/tab-bar";
+import { useNativeBack } from "@/hooks/use-native-back";
 
 initI18n();
 // Hard-lock the first render to English on every entry so SSR HTML and the
@@ -98,13 +99,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Maitri" },
       {
         property: "og:description",
-        content: "Meet someone kind. Describe the person you're looking for and Maitri introduces one candidate at a time.",
+        content:
+          "Meet someone kind. Describe the person you're looking for and Maitri introduces one candidate at a time.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "icon", type: "image/png", href: "/favicon.png" },
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap",
@@ -132,7 +135,9 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
+  useNativeBack();
   const { queryClient } = Route.useRouteContext();
+
   const { i18n } = useTranslation();
   const [lang, setLang] = useState<string>(i18n.resolvedLanguage ?? "en");
 

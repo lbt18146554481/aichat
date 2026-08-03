@@ -4,13 +4,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { LangSwitcher } from "@/components/lang-switcher";
-import {
-  AuthError,
-  signIn,
-  signUp,
-  useAuth,
-  type AuthProvider,
-} from "@/lib/auth";
+import { AuthError, signIn, signUp, useAuth, type AuthProvider } from "@/lib/auth";
 import { validateInvite } from "@/lib/invites";
 
 type Mode = "signin" | "signup";
@@ -200,14 +194,10 @@ function AuthPage() {
                   spellCheck={false}
                   autoFocus
                 />
-                <p className="mt-1.5 text-[11px] text-muted-foreground">
-                  {t("auth.invite_hint")}
-                </p>
+                <p className="mt-1.5 text-[11px] text-muted-foreground">{t("auth.invite_hint")}</p>
               </label>
 
-              {err && (
-                <p className="text-[12px] text-red-600 dark:text-red-400">{err}</p>
-              )}
+              {err && <p className="text-[12px] text-red-600 dark:text-red-400">{err}</p>}
 
               <button
                 type="submit"
@@ -270,9 +260,7 @@ function AuthPage() {
 
               {notFound && (
                 <div className="mt-4 rounded-md border border-border bg-secondary/40 px-3 py-2.5">
-                  <p className="text-[12px] text-foreground">
-                    {t("auth.err.account_not_found")}
-                  </p>
+                  <p className="text-[12px] text-foreground">{t("auth.err.account_not_found")}</p>
                   <Link
                     to="/auth"
                     search={{ mode: "signup", redirect: search.redirect }}
@@ -354,20 +342,20 @@ function ProviderGlyph({ provider }: { provider: AuthProvider }) {
   if (provider === "google") {
     return (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-        <path d="M12 11v3.6h5.1c-.2 1.4-1.6 4.1-5.1 4.1-3.1 0-5.6-2.6-5.6-5.7S8.9 7.3 12 7.3c1.8 0 2.9.8 3.6 1.4l2.5-2.4C16.4 4.9 14.4 4 12 4 7.6 4 4 7.6 4 12s3.6 8 8 8c4.6 0 7.6-3.2 7.6-7.8 0-.5-.1-.9-.1-1.2H12z"/>
+        <path d="M12 11v3.6h5.1c-.2 1.4-1.6 4.1-5.1 4.1-3.1 0-5.6-2.6-5.6-5.7S8.9 7.3 12 7.3c1.8 0 2.9.8 3.6 1.4l2.5-2.4C16.4 4.9 14.4 4 12 4 7.6 4 4 7.6 4 12s3.6 8 8 8c4.6 0 7.6-3.2 7.6-7.8 0-.5-.1-.9-.1-1.2H12z" />
       </svg>
     );
   }
   if (provider === "apple") {
     return (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-        <path d="M16.4 12.6c0-2.4 2-3.6 2.1-3.6-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.8-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.4 1.2 9.8.8 1.2 1.8 2.5 3.1 2.5 1.2-.1 1.7-.8 3.2-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8-.1 0-2.7-1-2.7-3.1zM14 4.8c.7-.8 1.1-2 1-3.1-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1 3 1.1.1 2.2-.6 2.9-1.4z"/>
+        <path d="M16.4 12.6c0-2.4 2-3.6 2.1-3.6-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.8-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.4 1.2 9.8.8 1.2 1.8 2.5 3.1 2.5 1.2-.1 1.7-.8 3.2-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8-.1 0-2.7-1-2.7-3.1zM14 4.8c.7-.8 1.1-2 1-3.1-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1 3 1.1.1 2.2-.6 2.9-1.4z" />
       </svg>
     );
   }
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M9 3C4.6 3 1 6 1 9.7c0 2.1 1.3 3.9 3.3 5.2l-.8 2.4 2.8-1.4c.9.2 1.7.3 2.6.3h.7c-.2-.6-.3-1.2-.3-1.9 0-3.4 3.2-6.2 7.2-6.2h.7C16.6 5 13.1 3 9 3zm-2.4 3.9c.6 0 1 .5 1 1.1 0 .6-.5 1-1 1s-1.1-.5-1.1-1c0-.6.5-1.1 1.1-1.1zm5 0c.6 0 1 .5 1 1.1 0 .6-.5 1-1 1s-1.1-.5-1.1-1c0-.6.5-1.1 1.1-1.1zM16.5 10c-3.6 0-6.5 2.4-6.5 5.4 0 3 2.9 5.4 6.5 5.4.7 0 1.5-.1 2.2-.3l2.3 1.2-.6-1.9C22.2 18.6 23 17.1 23 15.4c0-3-2.9-5.4-6.5-5.4zm-2.2 3.2c.4 0 .8.4.8.9 0 .4-.4.8-.8.8-.5 0-.9-.4-.9-.8 0-.5.4-.9.9-.9zm4.4 0c.4 0 .8.4.8.9 0 .4-.4.8-.8.8-.5 0-.9-.4-.9-.8 0-.5.4-.9.9-.9z"/>
+      <path d="M9 3C4.6 3 1 6 1 9.7c0 2.1 1.3 3.9 3.3 5.2l-.8 2.4 2.8-1.4c.9.2 1.7.3 2.6.3h.7c-.2-.6-.3-1.2-.3-1.9 0-3.4 3.2-6.2 7.2-6.2h.7C16.6 5 13.1 3 9 3zm-2.4 3.9c.6 0 1 .5 1 1.1 0 .6-.5 1-1 1s-1.1-.5-1.1-1c0-.6.5-1.1 1.1-1.1zm5 0c.6 0 1 .5 1 1.1 0 .6-.5 1-1 1s-1.1-.5-1.1-1c0-.6.5-1.1 1.1-1.1zM16.5 10c-3.6 0-6.5 2.4-6.5 5.4 0 3 2.9 5.4 6.5 5.4.7 0 1.5-.1 2.2-.3l2.3 1.2-.6-1.9C22.2 18.6 23 17.1 23 15.4c0-3-2.9-5.4-6.5-5.4zm-2.2 3.2c.4 0 .8.4.8.9 0 .4-.4.8-.8.8-.5 0-.9-.4-.9-.8 0-.5.4-.9.9-.9zm4.4 0c.4 0 .8.4.8.9 0 .4-.4.8-.8.8-.5 0-.9-.4-.9-.8 0-.5.4-.9.9-.9z" />
     </svg>
   );
 }

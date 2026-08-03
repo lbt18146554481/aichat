@@ -12,8 +12,8 @@
 
 export interface InviteCode {
   code: string;
-  createdBy: string;      // user id, or "seed"
-  usedBy: string | null;  // user id after consumption
+  createdBy: string; // user id, or "seed"
+  usedBy: string | null; // user id after consumption
   createdAt: number;
   usedAt: number | null;
 }
@@ -27,19 +27,33 @@ function readAll(): InviteCode[] {
   try {
     const raw = window.localStorage.getItem(KEY);
     if (raw) return JSON.parse(raw) as InviteCode[];
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
   // First read — plant the seed codes.
   const now = Date.now();
   const seeded: InviteCode[] = SEED_CODES.map((c) => ({
-    code: c, createdBy: "seed", usedBy: null, createdAt: now, usedAt: null,
+    code: c,
+    createdBy: "seed",
+    usedBy: null,
+    createdAt: now,
+    usedAt: null,
   }));
-  try { window.localStorage.setItem(KEY, JSON.stringify(seeded)); } catch { /* noop */ }
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(seeded));
+  } catch {
+    /* noop */
+  }
   return seeded;
 }
 
 function writeAll(rows: InviteCode[]) {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(KEY, JSON.stringify(rows)); } catch { /* noop */ }
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(rows));
+  } catch {
+    /* noop */
+  }
 }
 
 function randomCode(): string {

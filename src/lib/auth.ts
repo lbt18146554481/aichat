@@ -20,7 +20,7 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string;
-  avatar: string;       // data URL or empty
+  avatar: string; // data URL or empty
   provider: AuthProvider | "email"; // "email" kept only to read legacy storage
   createdAt: number;
 }
@@ -40,7 +40,9 @@ export function loadUser(): AuthUser | null {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return null;
     return JSON.parse(raw) as AuthUser;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function writeUser(u: AuthUser | null) {
@@ -48,13 +50,17 @@ function writeUser(u: AuthUser | null) {
   try {
     if (u) window.localStorage.setItem(KEY, JSON.stringify(u));
     else window.localStorage.removeItem(KEY);
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
   listeners.forEach((fn) => fn(u));
 }
 
 export function subscribe(fn: Listener): () => void {
   listeners.add(fn);
-  return () => { listeners.delete(fn); };
+  return () => {
+    listeners.delete(fn);
+  };
 }
 
 /** Simulate network latency so buttons show a proper loading state. */
@@ -63,7 +69,12 @@ function delay(ms: number) {
 }
 
 export class AuthError extends Error {
-  constructor(public code: string, message: string) { super(message); }
+  constructor(
+    public code: string,
+    message: string,
+  ) {
+    super(message);
+  }
 }
 
 function providerEmail(provider: AuthProvider): string {

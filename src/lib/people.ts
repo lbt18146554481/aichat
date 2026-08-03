@@ -23,13 +23,15 @@ const CORE: PersonCore[] = [
         id: "quiet-reader",
         signals: ["reading", "quiet", "rain"],
         text: "Isa keeps a list of bookstores in every city she visits, and reads on rainy afternoons with the window cracked. You said you wanted someone quiet who reads — she's the first person I thought of.",
-        text_zh: "Isa 在去过的每座城市都记下书店清单，下雨的午后会留一条窗缝读书。你说想找一个安静、爱读书的人——我第一个想到的就是她。",
+        text_zh:
+          "Isa 在去过的每座城市都记下书店清单，下雨的午后会留一条窗缝读书。你说想找一个安静、爱读书的人——我第一个想到的就是她。",
       },
       {
         id: "warm-funny",
         signals: ["funny", "kind"],
         text: "She laughs at her own jokes before finishing them. People who meet Isa once tend to text her the next week — she has that effect. Quiet on the outside, warm underneath.",
-        text_zh: "她讲笑话还没说完自己就先笑了。第一次见过 Isa 的人，下一周往往会再给她发消息——她有那种感染力。外表安静，内里很暖。",
+        text_zh:
+          "她讲笑话还没说完自己就先笑了。第一次见过 Isa 的人，下一周往往会再给她发消息——她有那种感染力。外表安静，内里很暖。",
       },
     ],
   },
@@ -50,13 +52,15 @@ const CORE: PersonCore[] = [
         id: "thoughtful-maker",
         signals: ["art", "ambitious", "city"],
         text: "June walks home the long way and notices things. She believes good buildings should feel like they're listening — and she works that way too. Ambitious without being loud about it.",
-        text_zh: "June 回家总走远路，沿途留意各种东西。她相信好的建筑应该像在倾听——她做人也是这样。有野心，但从不张扬。",
+        text_zh:
+          "June 回家总走远路，沿途留意各种东西。她相信好的建筑应该像在倾听——她做人也是这样。有野心，但从不张扬。",
       },
       {
         id: "shared-ritual",
         signals: ["coffee", "kind", "quiet"],
         text: "She makes coffee like it's a small ceremony, but is quick to share it. If you said you wanted someone who makes the everyday feel a little more cared-for, that's June.",
-        text_zh: "她冲咖啡像一场小仪式，但很快会分给身边的人。如果你说想要一个能把日常过得更被照顾一些的人，那就是 June。",
+        text_zh:
+          "她冲咖啡像一场小仪式，但很快会分给身边的人。如果你说想要一个能把日常过得更被照顾一些的人，那就是 June。",
       },
     ],
   },
@@ -77,7 +81,8 @@ const CORE: PersonCore[] = [
         id: "honest",
         signals: ["brave", "quiet"],
         text: "Theo is honest in a way that takes a minute to get used to. He won't perform a feeling he doesn't have. If you said you're tired of people who say the right thing — Theo doesn't.",
-        text_zh: "Theo 的诚实需要一点时间习惯——他不会假装自己没有的感受。如果你说受够了那种'总说漂亮话'的人，Theo 不是这种。",
+        text_zh:
+          "Theo 的诚实需要一点时间习惯——他不会假装自己没有的感受。如果你说受够了那种'总说漂亮话'的人，Theo 不是这种。",
       },
       {
         id: "domestic",
@@ -104,7 +109,8 @@ const CORE: PersonCore[] = [
         id: "rooted",
         signals: ["quiet", "outdoors", "morning"],
         text: "Mira spends mornings at the wheel and afternoons in the woods. She doesn't fill silences — which sounds like a small thing until you sit across from her. People feel calm around her.",
-        text_zh: "Mira 上午在拉坯机前，下午去林子里。她不会去填补沉默——听起来是件小事，直到你坐在她对面。和她在一起的人会自然地安静下来。",
+        text_zh:
+          "Mira 上午在拉坯机前，下午去林子里。她不会去填补沉默——听起来是件小事，直到你坐在她对面。和她在一起的人会自然地安静下来。",
       },
       {
         id: "tender",
@@ -131,13 +137,15 @@ const CORE: PersonCore[] = [
         id: "curious",
         signals: ["curious", "city"],
         text: "Hugo is curious about strangers in the way that makes them open up to him. He keeps a notebook of overheard sentences. Conversations with him tend to go somewhere unexpected.",
-        text_zh: "Hugo 对陌生人好奇，好奇到对方愿意对他敞开。他有个本子，专门记下偶然听到的句子。和他聊天，话题总会拐到你没预料到的方向。",
+        text_zh:
+          "Hugo 对陌生人好奇，好奇到对方愿意对他敞开。他有个本子，专门记下偶然听到的句子。和他聊天，话题总会拐到你没预料到的方向。",
       },
       {
         id: "light",
         signals: ["funny"],
         text: "He dances badly and on purpose. Doesn't take himself too seriously, but takes the people he loves very seriously. Easy to be around.",
-        text_zh: "他跳舞跳得很烂，而且故意的。对自己不太严肃，但对在乎的人非常认真。和他在一起会很轻松。",
+        text_zh:
+          "他跳舞跳得很烂，而且故意的。对自己不太严肃，但对在乎的人非常认真。和他在一起会很轻松。",
       },
     ],
   },
@@ -158,13 +166,15 @@ const CORE: PersonCore[] = [
         id: "steady",
         signals: ["kind", "brave"],
         text: "Noa is patient with people, impatient with bad design. She cries at the end of good novels and doesn't try to hide it. Steady, warm, not soft.",
-        text_zh: "Noa 对人很有耐心，但对粗糙的设计没耐心。读完一本好小说会哭，也不掩饰。沉稳，温暖，但不软。",
+        text_zh:
+          "Noa 对人很有耐心，但对粗糙的设计没耐心。读完一本好小说会哭，也不掩饰。沉稳，温暖，但不软。",
       },
       {
         id: "domestic-rich",
         signals: ["cooking", "reading"],
         text: "She owns one truly excellent knife and uses it for everything. Cooks the way she reads — slowly, attentively. The kind of evening she'd want is probably the kind you'd want.",
-        text_zh: "她只有一把真正好用的刀，做什么都用它。她做饭和她读书一样——慢、专注。她想要的那种晚上，大概也是你想要的。",
+        text_zh:
+          "她只有一把真正好用的刀，做什么都用它。她做饭和她读书一样——慢、专注。她想要的那种晚上，大概也是你想要的。",
       },
     ],
   },
@@ -185,7 +195,8 @@ const CORE: PersonCore[] = [
         id: "morning",
         signals: ["morning", "outdoors"],
         text: "Søren rides at dawn — that hour when the city still belongs to a few people. If you said you wanted someone with their own rhythm, he has one, and it's earlier than most.",
-        text_zh: "Søren 天没亮就骑车——一天里属于少数人的那个时段。如果你说想找一个有自己节奏的人，他有，而且比大多数人都早。",
+        text_zh:
+          "Søren 天没亮就骑车——一天里属于少数人的那个时段。如果你说想找一个有自己节奏的人，他有，而且比大多数人都早。",
       },
       {
         id: "craftsman",
@@ -212,13 +223,15 @@ const CORE: PersonCore[] = [
         id: "vital",
         signals: ["funny", "city", "curious"],
         text: "Amara draws strangers on the train without them noticing. She hosts long dinners with too many candles. If you want someone who'll make life feel a bit bigger, that's her.",
-        text_zh: "Amara 在地铁上偷偷画陌生人。她请客吃饭点太多蜡烛。如果你想找一个能让生活感觉更大一些的人，就是她。",
+        text_zh:
+          "Amara 在地铁上偷偷画陌生人。她请客吃饭点太多蜡烛。如果你想找一个能让生活感觉更大一些的人，就是她。",
       },
       {
         id: "direct",
         signals: ["brave", "curious"],
         text: "She'll ask the question you weren't quite ready to answer — gently, but she'll ask. Not afraid of real conversations on the second date.",
-        text_zh: "她会问那种你还没准备好回答的问题——很温和，但她真的会问。第二次见面就敢聊真实的话题。",
+        text_zh:
+          "她会问那种你还没准备好回答的问题——很温和，但她真的会问。第二次见面就敢聊真实的话题。",
       },
     ],
   },
@@ -245,7 +258,8 @@ const CORE: PersonCore[] = [
         id: "generous",
         signals: ["reading", "kind"],
         text: "He recommends the book you didn't know you needed. Pays attention in a way that feels rare now. The kind of person you keep around.",
-        text_zh: "他总能推荐你不知道自己需要的那本书。他用一种现在已经稀有的方式认真听人讲话。是那种你想长久留在身边的人。",
+        text_zh:
+          "他总能推荐你不知道自己需要的那本书。他用一种现在已经稀有的方式认真听人讲话。是那种你想长久留在身边的人。",
       },
     ],
   },
@@ -266,7 +280,8 @@ const CORE: PersonCore[] = [
         id: "earnest",
         signals: ["ambitious", "kind"],
         text: "Wren is earnest about the world without being heavy. Doing something that matters, in a field that mostly delivers bad news — she's figured out how to stay hopeful inside that.",
-        text_zh: "Wren 认真对待这个世界，但并不沉重。她做的事很重要，而这个领域大多数时候只带来坏消息——她想明白了怎么在这之中继续抱有希望。",
+        text_zh:
+          "Wren 认真对待这个世界，但并不沉重。她做的事很重要，而这个领域大多数时候只带来坏消息——她想明白了怎么在这之中继续抱有希望。",
       },
       {
         id: "wonder",
@@ -293,13 +308,15 @@ const CORE: PersonCore[] = [
         id: "balanced",
         signals: ["outdoors", "quiet"],
         text: "Kai hikes alone and eats with company — he needs both, and knows it. If you want someone who's at home in their own head but glad you're around, that's him.",
-        text_zh: "Kai 独自爬山，结伴吃饭——两样他都需要，而且他清楚。如果你想找一个既能自处又欢迎你在身边的人，是他。",
+        text_zh:
+          "Kai 独自爬山，结伴吃饭——两样他都需要，而且他清楚。如果你想找一个既能自处又欢迎你在身边的人，是他。",
       },
       {
         id: "slow",
         signals: ["film", "quiet"],
         text: "He shoots film because it makes him slow down. Quiet by default, but briefly loud when something is funny — and it sticks.",
-        text_zh: "他用胶片，是因为这逼他慢下来。平时安静，但遇到好笑的事会短暂地大声起来——而且那一瞬间你会记住。",
+        text_zh:
+          "他用胶片，是因为这逼他慢下来。平时安静，但遇到好笑的事会短暂地大声起来——而且那一瞬间你会记住。",
       },
     ],
   },
@@ -320,7 +337,8 @@ const CORE: PersonCore[] = [
         id: "early",
         signals: ["morning", "cooking"],
         text: "Elena wakes before the city does. She thinks dessert is the most honest course — and she means it. Early mornings, real food, no performance.",
-        text_zh: "Elena 比城市醒得更早。她觉得甜点是最诚实的一道菜——是认真的。早起、真实的食物，不表演。",
+        text_zh:
+          "Elena 比城市醒得更早。她觉得甜点是最诚实的一道菜——是认真的。早起、真实的食物，不表演。",
       },
       {
         id: "interior",
@@ -336,32 +354,55 @@ const CORE: PersonCore[] = [
 // Each line is written to match that person's dominant signals + a callback to
 // something the user "told the Agent" earlier. Purely display — no algorithm.
 const WHY_PERSON: Record<string, { en: string; zh: string }> = {
-  isa:   { en: "Quiet, reads a lot, and easy to be around without filling every gap.",
-           zh: "安静、爱读书，相处时不需要一直找话说。" },
-  june:  { en: "Ambitious without being loud about it — works hard, never performs it.",
-           zh: "有野心但不张扬 —— 很努力，却从不表演努力。" },
-  theo:  { en: "Won't perform a feeling he doesn't have; what he says is what he means.",
-           zh: "不会假装自己没有的感受，说出口的就是真的。" },
-  mira:  { en: "Comfortable in silence — she doesn't rush to fill it.",
-           zh: "能自在地待在沉默里，不急着去填满它。" },
-  hugo:  { en: "Curious about people in the way that makes them open up.",
-           zh: "对人有一种让对方愿意敞开的好奇。" },
-  noa:   { en: "Steady and warm, but not soft — reliable without disappearing into you.",
-           zh: "沉稳温暖但不软，可靠又不会失去自己。" },
-  soren: { en: "Has his own rhythm, and it starts earlier than most.",
-           zh: "有自己的节奏，而且比大多数人都早开始。" },
-  amara: { en: "Brings the everyday alive — makes ordinary hours feel bigger.",
-           zh: "能把日常过活，让普通的时间也变得开阔。" },
-  leo:   { en: "His best hours are late, and he uses them on things he cares about.",
-           zh: "他的好时光在深夜，而且用在真正在意的事上。" },
-  wren:  { en: "Earnest about the world without being heavy about it.",
-           zh: "认真对待世界，却不让人觉得沉重。" },
-  kai:   { en: "At home in his own head, and still glad you're there.",
-           zh: "能自处，也真心欢迎你在身边。" },
-  elena: { en: "Wakes before the city does — a real, grounded daily rhythm.",
-           zh: "比城市醒得更早，生活节奏踏实。" },
+  isa: {
+    en: "Quiet, reads a lot, and easy to be around without filling every gap.",
+    zh: "安静、爱读书，相处时不需要一直找话说。",
+  },
+  june: {
+    en: "Ambitious without being loud about it — works hard, never performs it.",
+    zh: "有野心但不张扬 —— 很努力，却从不表演努力。",
+  },
+  theo: {
+    en: "Won't perform a feeling he doesn't have; what he says is what he means.",
+    zh: "不会假装自己没有的感受，说出口的就是真的。",
+  },
+  mira: {
+    en: "Comfortable in silence — she doesn't rush to fill it.",
+    zh: "能自在地待在沉默里，不急着去填满它。",
+  },
+  hugo: {
+    en: "Curious about people in the way that makes them open up.",
+    zh: "对人有一种让对方愿意敞开的好奇。",
+  },
+  noa: {
+    en: "Steady and warm, but not soft — reliable without disappearing into you.",
+    zh: "沉稳温暖但不软，可靠又不会失去自己。",
+  },
+  soren: {
+    en: "Has his own rhythm, and it starts earlier than most.",
+    zh: "有自己的节奏，而且比大多数人都早开始。",
+  },
+  amara: {
+    en: "Brings the everyday alive — makes ordinary hours feel bigger.",
+    zh: "能把日常过活，让普通的时间也变得开阔。",
+  },
+  leo: {
+    en: "His best hours are late, and he uses them on things he cares about.",
+    zh: "他的好时光在深夜，而且用在真正在意的事上。",
+  },
+  wren: {
+    en: "Earnest about the world without being heavy about it.",
+    zh: "认真对待世界，却不让人觉得沉重。",
+  },
+  kai: {
+    en: "At home in his own head, and still glad you're there.",
+    zh: "能自处，也真心欢迎你在身边。",
+  },
+  elena: {
+    en: "Wakes before the city does — a real, grounded daily rhythm.",
+    zh: "比城市醒得更早，生活节奏踏实。",
+  },
 };
-
 
 // Demo content read by the Agent when the user asks about TA / for an opener /
 // for a reply hint. Purely display — no NLU, no algorithm.
@@ -383,7 +424,10 @@ const DEMO_CONTENT: Record<
       zh: "嘿——看到你也喜欢慢慢读书的下午。最近床头放的是哪本？",
     },
     replyHints: {
-      en: ["That's a nice one — what made you pick it up?", "Ha, I've been meaning to read that. Any moment that stuck?"],
+      en: [
+        "That's a nice one — what made you pick it up?",
+        "Ha, I've been meaning to read that. Any moment that stuck?",
+      ],
       zh: ["这本不错——什么契机开始读的？", "哈，我也一直想读。有哪段特别记得住吗？"],
     },
   },
@@ -397,7 +441,10 @@ const DEMO_CONTENT: Record<
       zh: "嘿——我也是那种回家走远路的人。你最近的路线上最喜欢绕哪一段？",
     },
     replyHints: {
-      en: ["That sounds like your kind of block.", "I'd walk that one too. What made you notice it?"],
+      en: [
+        "That sounds like your kind of block.",
+        "I'd walk that one too. What made you notice it?",
+      ],
       zh: ["听起来就是你会走的那种街区。", "我也想走走看。最开始是什么让你注意到的？"],
     },
   },
@@ -558,7 +605,6 @@ export const PEOPLE: Person[] = CORE.map((p) => ({
   bio: DEMO_CONTENT[p.id]?.personBrief.en,
   bio_zh: DEMO_CONTENT[p.id]?.personBrief.zh,
 }));
-
 
 export function getPersonById(id: string): Person | undefined {
   return PEOPLE.find((p) => p.id === id);

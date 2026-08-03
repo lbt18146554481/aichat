@@ -27,7 +27,11 @@ export function loadMemory(): AgentMemory {
 
 export function saveMemory(mem: AgentMemory) {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(KEY, JSON.stringify(mem)); } catch { /* noop */ }
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(mem));
+  } catch {
+    /* noop */
+  }
 }
 
 export function rememberTrait(trait: string) {

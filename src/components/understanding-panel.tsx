@@ -9,18 +9,12 @@ interface Props {
   onRemoveNegative: (s: string) => void;
 }
 
-export function UnderstandingPanel({
-  context,
-  onRemovePositive,
-  onRemoveNegative,
-}: Props) {
+export function UnderstandingPanel({ context, onRemovePositive, onRemoveNegative }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   const isEmpty =
-    context.positive.length === 0 &&
-    context.negative.length === 0 &&
-    context.notes.length === 0;
+    context.positive.length === 0 && context.negative.length === 0 && context.notes.length === 0;
 
   const summary = [
     ...context.positive.slice(0, 3).map((s) => t(`signal.${s}`, { defaultValue: s })),
@@ -43,9 +37,7 @@ export function UnderstandingPanel({
           {t("understanding.title")}
         </span>
         {!open && summary && (
-          <span className="text-[12px] text-muted-foreground truncate ml-1">
-            — {summary}
-          </span>
+          <span className="text-[12px] text-muted-foreground truncate ml-1">— {summary}</span>
         )}
       </button>
 

@@ -14,7 +14,9 @@ export function setSeed(agent: AgentId, text: string) {
   if (typeof window === "undefined") return;
   try {
     window.sessionStorage.setItem(KEY_PREFIX + agent, text);
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
 }
 
 export function consumeSeed(agent: AgentId): string | null {
@@ -34,7 +36,11 @@ export function consumeSeed(agent: AgentId): string | null {
 const FOCUS_KEY = "kindred:focus-person:v1";
 export function setFocusPerson(personId: string) {
   if (typeof window === "undefined") return;
-  try { window.sessionStorage.setItem(FOCUS_KEY, personId); } catch { /* noop */ }
+  try {
+    window.sessionStorage.setItem(FOCUS_KEY, personId);
+  } catch {
+    /* noop */
+  }
 }
 export function consumeFocusPerson(): string | null {
   if (typeof window === "undefined") return null;
@@ -42,5 +48,7 @@ export function consumeFocusPerson(): string | null {
     const v = window.sessionStorage.getItem(FOCUS_KEY);
     if (v) window.sessionStorage.removeItem(FOCUS_KEY);
     return v && v.trim() ? v : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }

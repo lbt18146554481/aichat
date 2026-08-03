@@ -45,7 +45,9 @@ function ProfilePage() {
     try {
       setReturnTo(window.sessionStorage.getItem("kindred:profile:return"));
       setNeedCity(window.sessionStorage.getItem("kindred:profile:focus") === "city");
-    } catch { /* noop */ }
+    } catch {
+      /* noop */
+    }
     setHydrated(true);
     const onFocus = () => setProgress(profileProgress(loadProfile()));
     window.addEventListener("focus", onFocus);
@@ -66,7 +68,9 @@ function ProfilePage() {
       window.sessionStorage.removeItem("kindred:profile:welcome_return");
       window.sessionStorage.removeItem("kindred:profile:return");
       window.sessionStorage.removeItem("kindred:profile:focus");
-    } catch { /* noop */ }
+    } catch {
+      /* noop */
+    }
     const dest = back && back.startsWith("/") ? back : "/";
     // Use a full location change so any `?session=…` query is preserved
     // and the target route re-parses its search params.
@@ -84,7 +88,9 @@ function ProfilePage() {
       back = window.sessionStorage.getItem("kindred:profile:return");
       window.sessionStorage.removeItem("kindred:profile:return");
       window.sessionStorage.removeItem("kindred:profile:focus");
-    } catch { /* noop */ }
+    } catch {
+      /* noop */
+    }
     if (back && back.startsWith("/")) {
       window.location.assign(back);
       return;
@@ -96,15 +102,13 @@ function ProfilePage() {
 
   const isMatchmakerReturn = returnTo?.startsWith("/matchmaker");
   const isSideBySideReturn = returnTo?.startsWith("/side-by-side");
-  const backLabel =
-    isMatchmakerReturn
-      ? t("hello.gate.back_to_matchmaker")
-      : isSideBySideReturn
+  const backLabel = isMatchmakerReturn
+    ? t("hello.gate.back_to_matchmaker")
+    : isSideBySideReturn
       ? t("hello.gate.back_to_sidebyside")
       : isWelcome
-      ? t("profile.skip_for_now")
-      : "Maitri";
-
+        ? t("profile.skip_for_now")
+        : "Maitri";
 
   return (
     <div className="min-h-dvh bg-background pt-safe pb-tabbar">
