@@ -136,12 +136,16 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     const check = () => setSaved(isPersonSaved(person.id));
     check();
     return subscribeSavedPeople(check);
+    // Intentionally keyed on the person id only; `person` identity is unstable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id]);
 
   useEffect(() => {
     if (person && conn && conn.status !== "faded" && isPersonSaved(person.id)) {
       removeSavedPerson(person.id);
     }
+    // Only re-run when the person or the connection status changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id, conn?.status]);
 
   useEffect(() => {
