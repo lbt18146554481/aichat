@@ -90,7 +90,7 @@ function normalize(text: string): string {
   return text
     .toLowerCase()
     .replace(/[\u3000\s]+/g, " ")
-    .replace(/[,.，。;；:：!！?？、"'()\[\]{}]/g, " ")
+    .replace(/[,.，。;；:：!！?？、"'()[\]{}]/g, " ")
     .trim();
 }
 function isNegated(text: string, i: number): boolean {

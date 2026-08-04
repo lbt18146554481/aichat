@@ -101,7 +101,7 @@ export function SavedTrigger({
     setOpen(false);
     void navigate({
       to: "/side-by-side",
-      search: { session: rec.sessionId, chatWith: rec.intentId } as any,
+      search: { session: rec.sessionId, chatWith: rec.intentId },
     });
   }
 
@@ -110,7 +110,7 @@ export function SavedTrigger({
     setFocusPerson(rec.personId);
     void navigate({
       to: "/matchmaker",
-      search: { session: rec.sessionId } as any,
+      search: { session: rec.sessionId },
     });
   }
 

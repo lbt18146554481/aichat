@@ -293,7 +293,7 @@ export function updateMyIntent(
   const idx = list.findIndex((i) => i.id === id);
   if (idx < 0) return null;
   const cur = list[idx];
-  let next: Intent = { ...cur };
+  const next: Intent = { ...cur };
   if (patch.when !== undefined) {
     const { day, window } = whenToSlot(patch.when, cur.kind);
     next.day = day;

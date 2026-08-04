@@ -29,7 +29,9 @@ function write(items: SavedPersonRecord[]) {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(KEY, JSON.stringify(items));
-  } catch {}
+  } catch {
+    // Ignore write failures (private mode / quota).
+  }
   listeners.forEach((fn) => fn());
 }
 

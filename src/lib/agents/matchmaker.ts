@@ -192,7 +192,7 @@ function tokens(text: string): Set<string> {
   return new Set(
     text
       .toLowerCase()
-      .replace(/[—.,;:!?'"()\[\]{}…/\\]/g, " ")
+      .replace(/[—.,;:!?'"()[\]{}…/\\]/g, " ")
       .split(/\s+/)
       .filter((w) => w.length > 1 && !STOP.has(w)),
   );

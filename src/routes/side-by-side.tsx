@@ -330,7 +330,7 @@ function SideBySidePage() {
     // Strip the param after consuming so a refresh doesn't re-fire it.
     void navigate({
       to: "/side-by-side",
-      search: { session: sessionId ?? "" } as any,
+      search: { session: sessionId ?? "", chatWith: "" },
       replace: true,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
