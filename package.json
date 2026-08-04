@@ -15,6 +15,7 @@
     "audit": "node scripts/audit-deps.mjs --level=high",
     "audit:all": "node scripts/audit-deps.mjs --level=low",
     "native:build": "node native/scripts/build-web.mjs",
+    "verify:native": "node scripts/verify-native-isolation.mjs",
     "ios:sync": "npx cap sync ios",
     "ios:open": "npx cap open ios"
   },

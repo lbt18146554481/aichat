@@ -1,0 +1,110 @@
+name: Build matrix
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-matrix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Web-only jobs: these must stay green regardless of the iOS shell.
+  web:
+    name: web / ${{ matrix.task }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [test, build, build-dev]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Unit tests
+        if: matrix.task == 'test'
+        run: bun run test
+      - name: Production web build
+        if: matrix.task == 'build'
+        run: bun run build
+      - name: Development web build (prerender)
+        if: matrix.task == 'build-dev'
+        run: bun run build:dev
+
+  # Native bundle build. Runs the same source tree through the Capacitor SPA
+  # config so a regression in the native pipeline is caught on its own.
+  native:
+    name: native / bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Build native web bundle
+        run: bun run native:build
+      - name: Verify native bundle shape and import isolation
+        run: bun run verify:native
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-www
+          path: native/www
+          if-no-files-found: error
+          retention-days: 7
+
+  # The regression gate the iOS work must not break: build the native bundle
+  # first, then prove the web build + tests still produce the same results.
+  isolation:
+    name: native does not affect web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+
+      - name: Baseline web build + tests (clean tree)
+        run: |
+          bun run test
+          bun run build
+           find dist/client dist/server -type f | sort > /tmp/web-baseline.txt
+          wc -l < /tmp/web-baseline.txt
+
+      - name: Build the native bundle on top of it
+        run: bun run native:build
+
+      - name: Re-run web build + tests after the native build
+        run: |
+          bun run test
+          bun run build
+           find dist/client dist/server -type f | sort > /tmp/web-after.txt
+          wc -l < /tmp/web-after.txt
+
+      - name: Diff web output before/after the native build
+        run: |
+          if ! diff -u /tmp/web-baseline.txt /tmp/web-after.txt; then
+            echo "::error::The native build changed the web build output file set."
+            exit 1
+          fi
+          echo "Web build output identical before and after the native build."
+
+      - name: Verify isolation contract
+        run: bun run verify:native
+
+      - name: Ensure the native pipeline left no tracked-file changes
+        run: |
+          if [ -n "$(git status --porcelain -- . ':!native/www' ':!dist/native' ':!dist')" ]; then
+            echo "::error::The native build modified tracked files:"
+            git status --porcelain -- . ':!native/www' ':!dist/native' ':!dist'
+            exit 1
+          fi
+          echo "No tracked files were modified by the native build."
