@@ -615,7 +615,6 @@ function AvatarField({
     <div className="flex items-center gap-4">
       <div className="w-16 h-16 rounded-full border border-border bg-secondary/60 overflow-hidden flex items-center justify-center shrink-0">
         {value ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={value} alt="" className="w-full h-full object-cover" />
         ) : (
           <span className="text-[20px] font-serif italic text-muted-foreground">{initial}</span>

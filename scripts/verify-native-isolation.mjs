@@ -49,23 +49,28 @@ if (offenders.length) {
 // --- 2. Web output is native-free -------------------------------------------
 // The web build emits dist/client + dist/server (nitro); dist/native belongs to
 // the Capacitor bundle and is intentionally excluded here.
-const webOutDirs = [join(root, "dist", "client"), join(root, "dist", "server"), join(root, ".output")].filter(
-  (d) => existsSync(d),
-);
+const webOutDirs = [
+  join(root, "dist", "client"),
+  join(root, "dist", "server"),
+  join(root, ".output"),
+].filter((d) => existsSync(d));
 if (webOutDirs.length) {
   const leaked = webOutDirs
     .flatMap((d) => walk(d))
     .map((f) => relative(root, f))
     .filter((f) => /native-entry|capacitor/i.test(f));
   if (leaked.length) {
-    errors.push(`Native shell code leaked into the web build output:\n  - ${leaked.join("\n  - ")}`);
+    errors.push(
+      `Native shell code leaked into the web build output:\n  - ${leaked.join("\n  - ")}`,
+    );
   } else {
-    checks.push(`web build output: no native/Capacitor artifacts (${webOutDirs.length} dirs scanned)`);
+    checks.push(
+      `web build output: no native/Capacitor artifacts (${webOutDirs.length} dirs scanned)`,
+    );
   }
 } else {
   checks.push("web build output: not present (skipped)");
 }
-
 
 // --- 3. Native bundle shape --------------------------------------------------
 const www = join(root, "native", "www");
