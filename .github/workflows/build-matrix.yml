@@ -76,7 +76,7 @@ jobs:
         run: |
           bun run test
           bun run build
-          find .output -type f | sort > /tmp/web-baseline.txt
+           find dist/client dist/server -type f | sort > /tmp/web-baseline.txt
           wc -l < /tmp/web-baseline.txt
 
       - name: Build the native bundle on top of it
@@ -86,7 +86,7 @@ jobs:
         run: |
           bun run test
           bun run build
-          find .output -type f | sort > /tmp/web-after.txt
+           find dist/client dist/server -type f | sort > /tmp/web-after.txt
           wc -l < /tmp/web-after.txt
 
       - name: Diff web output before/after the native build
@@ -102,9 +102,9 @@ jobs:
 
       - name: Ensure the native pipeline left no tracked-file changes
         run: |
-          if [ -n "$(git status --porcelain -- . ':!native/www' ':!.output' ':!dist')" ]; then
+          if [ -n "$(git status --porcelain -- . ':!native/www' ':!dist/native' ':!dist')" ]; then
             echo "::error::The native build modified tracked files:"
-            git status --porcelain -- . ':!native/www' ':!.output' ':!dist'
+            git status --porcelain -- . ':!native/www' ':!dist/native' ':!dist'
             exit 1
           fi
           echo "No tracked files were modified by the native build."
