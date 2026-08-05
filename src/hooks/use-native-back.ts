@@ -9,8 +9,8 @@ export function useNativeBack(): void {
     if (!isNativePlatform()) return;
 
     return platform.addBackListener(() => {
-      // router.history.index > 0 means there is a previous route to go back to.
-      if (router.history.index > 0) {
+      // canGoBack() means there is a previous route in the stack.
+      if (router.history.canGoBack()) {
         router.history.back();
         return true;
       }

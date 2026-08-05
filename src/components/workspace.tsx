@@ -162,9 +162,9 @@ export function Workspace({
     <section className="flex flex-col min-h-0 lg:border-r lg:border-border h-full">
       <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain-y">
         <div className="max-w-xl mx-auto px-4 md:px-5 py-5 md:py-6">
-          <ul className="space-y-4">
+          <ul className="space-y-4" data-testid="agent-messages">
             {messages.map((m, idx) => (
-              <li key={m.id}>
+              <li key={m.id} data-testid={`agent-msg-${m.role}`}>
                 {m.role === "user" ? (
                   <UserBubble text={m.text} />
                 ) : (
@@ -185,7 +185,7 @@ export function Workspace({
               </li>
             ))}
             {thinking && (
-              <li>
+              <li data-testid="agent-thinking">
                 <ThinkingRow />
               </li>
             )}
@@ -214,6 +214,7 @@ export function Workspace({
               {suggestions.map((s) => (
                 <button
                   key={s}
+                  data-testid="agent-suggestion"
                   type="button"
                   disabled={thinking || composerDisabled}
                   onClick={() => {
@@ -297,6 +298,7 @@ export function Workspace({
               ? "block pb-[max(env(safe-area-inset-bottom),1rem)]"
               : "hidden lg:block",
           ].join(" ")}
+          data-testid="agent-canvas"
         >
           {rightPane}
         </section>

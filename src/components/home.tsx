@@ -98,7 +98,7 @@ export function Home() {
     // History row. New chat semantics: home = new conversation, always.
     if (target === "sidebyside") {
       const s = createSession("do_something", body, EMPTY_SIDE);
-      void navigate({ to: "/side-by-side", search: { session: s.id } });
+      void navigate({ to: "/side-by-side", search: { session: s.id, chatWith: "" } });
       return;
     }
     const s = createSession("introduce", body, EMPTY_MATCHMAKER);

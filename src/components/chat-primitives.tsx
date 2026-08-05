@@ -26,6 +26,7 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer
           }
         }}
         rows={2}
+        data-testid="agent-composer"
         placeholder={placeholder}
         disabled={disabled}
         className="w-full resize-none rounded-xl border border-border bg-card px-4 py-3 pr-12 text-[14px] leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-foreground/30 disabled:opacity-50"
