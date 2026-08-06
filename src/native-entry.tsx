@@ -3,6 +3,11 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { getRouter } from "./router";
 import { initPlatform } from "./lib/platform/bridge";
+import { BUILD_INFO } from "./lib/build-info.generated";
+
+// Same generated release identity as the web build, so an installed iOS build
+// can be traced back to the exact commit.
+console.info(`[maitri] release ${BUILD_INFO.releaseId}`);
 
 const router = getRouter();
 
