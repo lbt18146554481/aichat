@@ -73,24 +73,51 @@ MAITRI_RELEASE_ID = ${releaseId}
 `;
 
 if (check) {
+  // Verify the two generated artifacts describe the SAME release and that the
+  // marketing version still matches package.json. The build number is not
+  // re-derived here, so a check can run on a checkout without full git history.
   const problems = [];
-  for (const [path, expected] of [
-    [tsPath, tsBody],
-    [xcPath, xcBody],
-  ]) {
-    if (!existsSync(path)) {
-      problems.push(`missing ${path}`);
-      continue;
+  for (const path of [tsPath, xcPath]) {
+    if (!existsSync(path)) problems.push(`missing ${path}`);
+  }
+  if (!problems.length) {
+    const ts = readFileSync(tsPath, "utf8");
+    const xc = readFileSync(xcPath, "utf8");
+    const pick = (src, re, label) => {
+      const m = src.match(re);
+      if (!m) problems.push(`could not read ${label}`);
+      return m?.[1];
+    };
+    const web = {
+      version: pick(ts, /version: "([^"]+)"/, "web version"),
+      build: pick(ts, /buildNumber: (\d+)/, "web build number"),
+      commit: pick(ts, /commit: "([^"]+)"/, "web commit"),
+      release: pick(ts, /releaseId: "([^"]+)"/, "web release id"),
+    };
+    const ios = {
+      version: pick(xc, /MARKETING_VERSION = (\S+)/, "iOS MARKETING_VERSION"),
+      build: pick(xc, /CURRENT_PROJECT_VERSION = (\d+)/, "iOS CURRENT_PROJECT_VERSION"),
+      commit: pick(xc, /MAITRI_GIT_COMMIT = (\S+)/, "iOS commit"),
+      release: pick(xc, /MAITRI_RELEASE_ID = (\S+)/, "iOS release id"),
+    };
+    for (const key of ["version", "build", "commit", "release"]) {
+      if (web[key] !== ios[key]) {
+        problems.push(`${key} differs — web: ${web[key]} / iOS: ${ios[key]}`);
+      }
     }
-    // builtAt is intentionally absent so the outputs are byte-stable per commit.
-    if (readFileSync(path, "utf8") !== expected) problems.push(`out of date: ${path}`);
+    if (web.version !== version) {
+      problems.push(`package.json version is ${version} but generated files say ${web.version}`);
+    }
+    if (web.release !== `${web.version}+${web.build}.${web.commit}`) {
+      problems.push(`release id ${web.release} does not match its own parts`);
+    }
+    if (!problems.length) console.log(`[version] Web and iOS agree — ${web.release}`);
   }
   if (problems.length) {
-    console.error(`[version] release metadata is not in sync:\n  - ${problems.join("\n  - ")}`);
-    console.error(`[version] run \`bun run version:sync\` and commit the result.`);
+    console.error(`[version] release metadata is not consistent:\n  - ${problems.join("\n  - ")}`);
+    console.error("[version] run `bun run version:sync` and commit the result.");
     process.exit(1);
   }
-  console.log(`[version] in sync — ${releaseId}`);
   process.exit(0);
 }
 
