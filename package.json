@@ -1,12 +1,13 @@
 {
   "name": "tanstack_start_ts",
+  "version": "1.0.0",
   "private": true,
   "sideEffects": false,
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
-    "build:dev": "vite build --mode development",
+    "build": "node scripts/version.mjs && vite build",
+    "build:dev": "node scripts/version.mjs && vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -14,9 +15,11 @@
     "test:watch": "vitest",
     "audit": "node scripts/audit-deps.mjs --level=high",
     "audit:all": "node scripts/audit-deps.mjs --level=low",
-    "native:build": "node native/scripts/build-web.mjs",
+    "version:sync": "node scripts/version.mjs",
+    "version:check": "node scripts/version.mjs --check",
+    "native:build": "node scripts/version.mjs && node native/scripts/build-web.mjs",
     "verify:native": "node scripts/verify-native-isolation.mjs",
-    "ios:sync": "npx cap sync ios",
+    "ios:sync": "node scripts/version.mjs && npx cap sync ios",
     "ios:open": "npx cap open ios"
   },
   "dependencies": {

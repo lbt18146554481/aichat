@@ -16,6 +16,7 @@ import i18n, { initI18n, applyPersistedLang } from "../lib/i18n";
 import { Toaster } from "@/components/ui/sonner";
 import { MobileTabBar } from "@/components/mobile/tab-bar";
 import { useNativeBack } from "@/hooks/use-native-back";
+import { BUILD_INFO } from "@/lib/build-info.generated";
 
 initI18n();
 // Hard-lock the first render to English on every entry so SSR HTML and the
@@ -104,6 +105,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      // Release identity, shared with the iOS build (see scripts/version.mjs).
+      { name: "x-app-version", content: BUILD_INFO.version },
+      { name: "x-app-build", content: String(BUILD_INFO.buildNumber) },
+      { name: "x-app-release", content: BUILD_INFO.releaseId },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

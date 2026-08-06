@@ -58,6 +58,35 @@ open ios/App/App.xcworkspace
 
 `native/ios` only depends on `native/www`. Once you copy the directory, any future frontend update must be reflected by rebuilding `native/www` and copying it in.
 
+## Version and Build Number
+
+Both platforms derive their release identity from one generator, so a shipped
+`.ipa` and a deployed web build can be traced to the same commit.
+
+| Field | Source | Web | iOS |
+| --- | --- | --- | --- |
+| Marketing version | `package.json` `version` | `<meta name="x-app-version">` | `MARKETING_VERSION` |
+| Build number | git commit count (`BUILD_NUMBER` env overrides) | `<meta name="x-app-build">` | `CURRENT_PROJECT_VERSION` |
+| Commit + release id | short git sha | `<meta name="x-app-release">` | `MAITRI_RELEASE_ID` |
+
+```bash
+bun run version:sync    # regenerate both artifacts
+bun run version:check   # CI guard: Web and iOS must agree
+```
+
+Generated artifacts (committed, never hand-edited):
+
+- `src/lib/build-info.generated.ts` — imported by the web and native bundles
+- `native/ios/version.xcconfig` — used by both Xcode configurations; `debug.xcconfig` includes it
+
+`build`, `build:dev`, `native:build`, and `ios:sync` run the generator first, so
+Xcode always archives the same version the bundle reports.
+
+To cut a release: bump `version` in `package.json`, run `bun run version:sync`,
+commit, then `bun run native:build && bun run ios:sync`. For a re-upload of the
+same commit, set `BUILD_NUMBER=<n>` before syncing (App Store Connect rejects a
+duplicate build number).
+
 ## URL Scheme for OAuth
 
 The bundle identifier is `app.lovable.maitri`. The custom URL scheme is `maitri://`. If you later wire real OAuth, the provider redirect should be `maitri://auth/callback` and the web route `/auth/callback` should handle the token.
