@@ -28,6 +28,8 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
+      - name: Version / build number consistency (Web vs iOS)
+        run: bun run version:check
       - name: Unit tests
         if: matrix.task == 'test'
         run: bun run test
@@ -49,6 +51,8 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
+      - name: Version / build number consistency (Web vs iOS)
+        run: bun run version:check
       - name: Build native web bundle
         run: bun run native:build
       - name: Verify native bundle shape and import isolation

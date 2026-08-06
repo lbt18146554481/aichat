@@ -4,11 +4,11 @@ export const BUILD_INFO = {
   /** Marketing version, mirrors package.json and iOS MARKETING_VERSION. */
   version: "1.0.0",
   /** Monotonic build number, mirrors iOS CURRENT_PROJECT_VERSION. */
-  buildNumber: 1149,
+  buildNumber: 1150,
   /** Short git sha the bundle was built from. */
-  commit: "a0410c2",
+  commit: "f002eb7",
   /** Traceable release id shared by Web and iOS. */
-  releaseId: "1.0.0+1149.a0410c2",
+  releaseId: "1.0.0+1150.f002eb7",
 } as const;
 
 export type BuildInfo = typeof BUILD_INFO;
