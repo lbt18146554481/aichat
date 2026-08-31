@@ -111,7 +111,7 @@
     "@types/react-dom": "^19.2.0",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^5.0.4",
-    "dotenv": "^16.5.0",
+    "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.4",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
