@@ -41,7 +41,7 @@ jobs:
 
       - name: Open/refresh alert issue on scheduled failure
         if: failure() && github.event_name == 'schedule'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
