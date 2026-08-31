@@ -8,8 +8,13 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Users, UserSearch } from "lucide-react";
-import { listSessions, type Session } from "@/lib/sessions";
+import { Users, UserSearch, MessageSquare } from "lucide-react";
+import {
+  ensureSessionsHydrated,
+  listSessions,
+  subscribeSessions,
+  type Session,
+} from "@/lib/sessions";
 
 interface Props {
   limit?: number;
@@ -35,7 +40,15 @@ export function SessionList({ limit, showViewAll = false, embedded = false }: Pr
   const [rows, setRows] = useState<Session[] | null>(null);
 
   useEffect(() => {
-    setRows(listSessions());
+    let cancelled = false;
+    void ensureSessionsHydrated().then(() => {
+      if (!cancelled) setRows(listSessions());
+    });
+    const unsub = subscribeSessions(() => setRows(listSessions()));
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, []);
 
   if (rows === null) return null;
@@ -59,9 +72,20 @@ export function SessionList({ limit, showViewAll = false, embedded = false }: Pr
       }
     >
       {shown.map((s) => {
-        const Icon = s.agent === "do_something" ? Users : UserSearch;
-        const to = s.agent === "do_something" ? "/side-by-side" : "/matchmaker";
-        const search = { session: s.id };
+        const Icon =
+          s.agent === "do_something" ? Users : s.agent === "introduce" ? UserSearch : MessageSquare;
+        const to =
+          s.agent === "do_something"
+            ? "/side-by-side"
+            : s.agent === "introduce"
+              ? "/matchmaker"
+              : "/";
+        const search =
+          s.agent === "reception"
+            ? { thread: s.id }
+            : s.agent === "do_something"
+              ? { session: s.id, chatWith: "" }
+              : { session: s.id };
         return (
           <li key={s.id}>
             <Link

@@ -58,6 +58,14 @@ export interface OneWorkRef {
   why_zh: string;
 }
 
+/** Normalized education level for hard filtering. */
+export type EducationLevel =
+  | "high_school"
+  | "associate"
+  | "bachelor"
+  | "master"
+  | "doctorate";
+
 export interface Person {
   id: string;
   name: string;
@@ -67,6 +75,11 @@ export interface Person {
   city_zh: string;
   occupation: string;
   occupation_zh: string;
+  /** Display label, e.g. "Master's" / "硕士" */
+  education: string;
+  education_zh: string;
+  /** Normalized level for hard filters */
+  educationLevel: EducationLevel;
   portrait: string;
   portrait_zh: string;
   /** One-sentence self-introduction — the public "bio" field. */

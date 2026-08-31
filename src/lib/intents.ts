@@ -159,6 +159,281 @@ function synthesize(
 }
 
 let _cache: Intent[] | null = null;
+
+/** Extra synthetic wishes so the demo pool reaches ~40 entries. */
+const EXTRA_SEED_INTENTS: Omit<Intent, "createdAt">[] = [
+  {
+    id: "extra:berlin-run-1",
+    ownerId: "seed-berlin-run",
+    ownerName: "Mika",
+    ownerName_zh: "米卡",
+    ownerCity: "Berlin",
+    ownerCity_zh: "柏林",
+    city: "Berlin",
+    city_zh: "柏林",
+    kind: "run",
+    level: "intermediate",
+    day: "sat",
+    window: "morning",
+    venue: "Tiergarten",
+    venue_zh: "蒂尔加滕公园",
+    rawText: "Saturday morning jog around Tiergarten — steady pace, not a race.",
+    rawText_zh: "周六早上蒂尔加滕慢跑，配速稳定，不竞速。",
+  },
+  {
+    id: "extra:berlin-cook-1",
+    ownerId: "seed-berlin-cook",
+    ownerName: "Jonas",
+    ownerName_zh: "约纳斯",
+    ownerCity: "Berlin",
+    ownerCity_zh: "柏林",
+    city: "Berlin",
+    city_zh: "柏林",
+    kind: "cook",
+    level: "beginner",
+    day: "sun",
+    window: "evening",
+    venue: "home kitchen",
+    venue_zh: "家里厨房",
+    rawText: "Sunday evening cook-together — simple pasta, BYO wine.",
+    rawText_zh: "周日晚一起做饭，意面为主，可自带酒。",
+  },
+  {
+    id: "extra:brooklyn-climb-1",
+    ownerId: "seed-bk-climb",
+    ownerName: "Rae",
+    ownerName_zh: "蕾",
+    ownerCity: "Brooklyn",
+    ownerCity_zh: "布鲁克林",
+    city: "Brooklyn",
+    city_zh: "布鲁克林",
+    kind: "climb",
+    level: "intermediate",
+    day: "wed",
+    window: "evening",
+    venue: "Brooklyn Boulders",
+    venue_zh: "Brooklyn Boulders",
+    rawText: "Weeknight bouldering at Brooklyn Boulders — V4-ish, chalk buddies welcome.",
+    rawText_zh: "工作日晚上抱石，V4 左右，欢迎一起蹭粉。",
+  },
+  {
+    id: "extra:brooklyn-book-1",
+    ownerId: "seed-bk-book",
+    ownerName: "Sam",
+    ownerName_zh: "山姆",
+    ownerCity: "Brooklyn",
+    ownerCity_zh: "布鲁克林",
+    city: "Brooklyn",
+    city_zh: "布鲁克林",
+    kind: "bookstore",
+    level: "intermediate",
+    day: "sat",
+    window: "midday",
+    venue: "McNally Jackson",
+    venue_zh: "McNally Jackson",
+    rawText: "Saturday afternoon wandering McNally Jackson — fiction picks and coffee after.",
+    rawText_zh: "周六下午逛 McNally Jackson，挑小说，结束喝咖啡。",
+  },
+  {
+    id: "extra:kyoto-exhibit-1",
+    ownerId: "seed-kyoto-ex",
+    ownerName: "Hana",
+    ownerName_zh: "花",
+    ownerCity: "Kyoto",
+    ownerCity_zh: "京都",
+    city: "Kyoto",
+    city_zh: "京都",
+    kind: "exhibition",
+    level: "beginner",
+    day: "sun",
+    window: "midday",
+    venue: "National Museum",
+    venue_zh: "国立博物馆",
+    rawText: "Sunday museum hop in Kyoto — slow pace, sketching welcome.",
+    rawText_zh: "周日京都看展，节奏慢，欢迎速写。",
+  },
+  {
+    id: "extra:lisbon-tennis-1",
+    ownerId: "seed-lisbon-ten",
+    ownerName: "Tiago",
+    ownerName_zh: "蒂亚戈",
+    ownerCity: "Lisbon",
+    ownerCity_zh: "里斯本",
+    city: "Lisbon",
+    city_zh: "里斯本",
+    kind: "tennis",
+    level: "advanced",
+    day: "sat",
+    window: "morning",
+    venue: "Cascais courts",
+    venue_zh: "卡斯凯什球场",
+    rawText: "Saturday morning tennis in Cascais — rally-focused, decent serve.",
+    rawText_zh: "周六早上卡斯凯什打网球，以对拉为主，发球还行。",
+  },
+  {
+    id: "extra:rome-run-1",
+    ownerId: "seed-rome-run",
+    ownerName: "Luca",
+    ownerName_zh: "卢卡",
+    ownerCity: "Rome",
+    ownerCity_zh: "罗马",
+    city: "Rome",
+    city_zh: "罗马",
+    kind: "run",
+    level: "beginner",
+    day: "sun",
+    window: "morning",
+    venue: "Villa Borghese",
+    venue_zh: "博尔盖塞别墅",
+    rawText: "Easy Sunday jog in Villa Borghese — walk-run ok.",
+    rawText_zh: "周日博尔盖塞轻松跑，走跑都行。",
+  },
+  {
+    id: "extra:vancouver-climb-1",
+    ownerId: "seed-van-climb",
+    ownerName: "Morgan",
+    ownerName_zh: "摩根",
+    ownerCity: "Vancouver",
+    ownerCity_zh: "温哥华",
+    city: "Vancouver",
+    city_zh: "温哥华",
+    kind: "climb",
+    level: "beginner",
+    day: "sat",
+    window: "midday",
+    venue: "The Hive",
+    venue_zh: "The Hive",
+    rawText: "Saturday intro-to-top-rope at The Hive — patient belay partner wanted.",
+    rawText_zh: "周六 The Hive 入门顶绳，找有耐心保护的人。",
+  },
+  {
+    id: "extra:cdmx-cook-1",
+    ownerId: "seed-cdmx-cook",
+    ownerName: "Sofia",
+    ownerName_zh: "索菲亚",
+    ownerCity: "Mexico City",
+    ownerCity_zh: "墨西哥城",
+    city: "Mexico City",
+    city_zh: "墨西哥城",
+    kind: "cook",
+    level: "intermediate",
+    day: "fri",
+    window: "evening",
+    venue: "Condesa",
+    venue_zh: "孔德萨",
+    rawText: "Friday night taco night in Condesa — split prep, swap salsa recipes.",
+    rawText_zh: "周五晚上孔德萨塔可夜，分工备料，交换辣酱配方。",
+  },
+  {
+    id: "extra:telaviv-run-1",
+    ownerId: "seed-tlv-run",
+    ownerName: "Noa",
+    ownerName_zh: "诺阿",
+    ownerCity: "Tel Aviv",
+    ownerCity_zh: "特拉维夫",
+    city: "Tel Aviv",
+    city_zh: "特拉维夫",
+    kind: "run",
+    level: "intermediate",
+    day: "tue",
+    window: "evening",
+    venue: "Tayelet",
+    venue_zh: "海滨步道",
+    rawText: "Tuesday sunset run along Tayelet — 5–8k.",
+    rawText_zh: "周二傍晚海滨步道跑 5–8 公里。",
+  },
+  {
+    id: "extra:cph-exhibit-1",
+    ownerId: "seed-cph-ex",
+    ownerName: "Freja",
+    ownerName_zh: "弗雷娅",
+    ownerCity: "Copenhagen",
+    ownerCity_zh: "哥本哈根",
+    city: "Copenhagen",
+    city_zh: "哥本哈根",
+    kind: "exhibition",
+    level: "intermediate",
+    day: "sat",
+    window: "midday",
+    venue: "Louisiana",
+    venue_zh: "路易斯安那博物馆",
+    rawText: "Saturday trip to Louisiana — contemporary wing, train from Copenhagen.",
+    rawText_zh: "周六去路易斯安那博物馆，看当代展，哥本哈根坐火车。",
+  },
+  {
+    id: "extra:lagos-other-1",
+    ownerId: "seed-lagos-other",
+    ownerName: "Amara",
+    ownerName_zh: "阿玛拉",
+    ownerCity: "Lagos",
+    ownerCity_zh: "拉各斯",
+    city: "Lagos",
+    city_zh: "拉各斯",
+    kind: "other",
+    level: "beginner",
+    day: "sat",
+    window: "evening",
+    venue: "Lekki",
+    venue_zh: "莱基",
+    rawText: "Looking for someone to try new live music spots in Lekki on Saturdays.",
+    rawText_zh: "周六想在莱基一起探新店/live house。",
+  },
+  {
+    id: "extra:ba-tennis-1",
+    ownerId: "seed-ba-ten",
+    ownerName: "Mateo",
+    ownerName_zh: "马特奥",
+    ownerCity: "Buenos Aires",
+    ownerCity_zh: "布宜诺斯艾利斯",
+    city: "Buenos Aires",
+    city_zh: "布宜诺斯艾利斯",
+    kind: "tennis",
+    level: "intermediate",
+    day: "sun",
+    window: "morning",
+    venue: "Palermo courts",
+    venue_zh: "巴勒莫球场",
+    rawText: "Sunday doubles in Palermo — casual, split court fee.",
+    rawText_zh: "周日巴勒莫双打，休闲局，场地费分摊。",
+  },
+  {
+    id: "extra:edinburgh-book-1",
+    ownerId: "seed-edin-book",
+    ownerName: "Ewan",
+    ownerName_zh: "尤恩",
+    ownerCity: "Edinburgh",
+    ownerCity_zh: "爱丁堡",
+    city: "Edinburgh",
+    city_zh: "爱丁堡",
+    kind: "bookstore",
+    level: "beginner",
+    day: "sat",
+    window: "midday",
+    venue: "Golden Hare",
+    venue_zh: "Golden Hare",
+    rawText: "Saturday browse at Golden Hare — sci-fi swaps and tea.",
+    rawText_zh: "周六逛 Golden Hare，科幻换书，喝茶聊天。",
+  },
+  {
+    id: "extra:rome-cook-1",
+    ownerId: "seed-rome-cook",
+    ownerName: "Giulia",
+    ownerName_zh: "朱莉娅",
+    ownerCity: "Rome",
+    ownerCity_zh: "罗马",
+    city: "Rome",
+    city_zh: "罗马",
+    kind: "cook",
+    level: "advanced",
+    day: "wed",
+    window: "evening",
+    venue: "Trastevere",
+    venue_zh: "特拉斯提弗列",
+    rawText: "Wednesday pasta night in Trastevere — from scratch, wine pairing ok.",
+    rawText_zh: "周三特拉斯提弗列意面夜，从零开始，可配酒。",
+  },
+];
+
 export function seedPool(): Intent[] {
   if (_cache) return _cache;
   const out: Intent[] = [];
@@ -188,6 +463,9 @@ export function seedPool(): Intent[] {
       });
     });
   }
+  for (const extra of EXTRA_SEED_INTENTS) {
+    out.push({ ...extra, createdAt: 0 });
+  }
   _cache = out;
   return out;
 }
@@ -196,29 +474,26 @@ export function getIntentById(id: string): Intent | null {
   return seedPool().find((i) => i.id === id) ?? loadMyIntents().find((i) => i.id === id) ?? null;
 }
 
-// ---- My published intents (localStorage) --------------------------------
+// ---- My published intents (server-backed cache) -------------------------
 
-const MY_KEY = "kindred:sidebyside.my-intents.v1";
+let myIntentsCache: Intent[] = [];
 
 export function loadMyIntents(): Intent[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(MY_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as Intent[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  return myIntentsCache;
 }
 
 function saveMyIntents(list: Intent[]) {
-  if (typeof window === "undefined") return;
+  myIntentsCache = list;
+}
+
+export async function hydrateMyIntents() {
   try {
-    window.localStorage.setItem(MY_KEY, JSON.stringify(list));
+    const { listMyIntentsFn } = await import("./api/data.functions");
+    myIntentsCache = await listMyIntentsFn();
   } catch {
-    /* noop */
+    myIntentsCache = [];
   }
+  return myIntentsCache;
 }
 
 function whenToSlot(
@@ -273,6 +548,11 @@ export function publishMyIntent(input: {
   };
   const list = loadMyIntents();
   saveMyIntents([...list, intent]);
+  void import("./api/data.functions").then(({ publishIntentFn }) =>
+    publishIntentFn({ data: { intent: intent as unknown as Record<string, unknown> } }).catch(
+      console.error,
+    ),
+  );
   return intent;
 }
 
@@ -325,6 +605,9 @@ export function updateMyIntent(
 export function revokeMyIntent(id: string) {
   const list = loadMyIntents();
   saveMyIntents(list.filter((i) => i.id !== id));
+  void import("./api/data.functions").then(({ revokeIntentFn }) =>
+    revokeIntentFn({ data: { id } }).catch(console.error),
+  );
 }
 
 export function clearMyIntents() {

@@ -15,10 +15,10 @@ import { Home, MessageCircle, Clock, UserCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { hasUnseen, list, rehydrate, subscribe } from "@/lib/connections";
 
-// Routes where the tab bar must NOT render: they own the bottom (composer,
-// dedicated modal flow) and a tab bar would either fight the composer or
-// distract from a focused task.
-const HIDE_ON: readonly string[] = ["/auth", "/matchmaker", "/side-by-side"];
+// Routes where the tab bar must NOT render: they own the bottom (composer /
+// auth) and a tab bar would fight another bottom-anchored control. Agent
+// chats keep the tab bar so handoff feels continuous with Home.
+const HIDE_ON: readonly string[] = ["/auth"];
 
 interface TabDef {
   to: "/" | "/connections" | "/sessions" | "/me";

@@ -9,7 +9,7 @@ import {
   ChipRow,
   type ChipOption,
 } from "./chat-primitives";
-import { WorkspaceHeader } from "./workspace-header";
+import { AppChromeHeader } from "./app-chrome-header";
 import { AgentAskCard, AgentAskResolved, type AgentAsk } from "./agent-ask";
 import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
 
@@ -27,8 +27,10 @@ export interface AgentMsg {
 }
 
 interface Props {
-  agentNameKey: string;
-  agentSubtitleKey: string;
+  /** @deprecated Kept for call-site compatibility; chrome no longer shows agent name. */
+  agentNameKey?: string;
+  /** @deprecated Kept for call-site compatibility. */
+  agentSubtitleKey?: string;
   placeholderKey: string;
   messages: AgentMsg[];
   thinking: boolean;
@@ -36,6 +38,8 @@ interface Props {
   onReset?: () => void;
   /** What to render in the right pane (intro / meet / resonance / empty). */
   rightPane: ReactNode;
+  /** When false, chat is full-width home-style; when true, split with result canvas. */
+  hasCanvas?: boolean;
   /** Disable composer (e.g. when waiting on you to interact with the right pane). */
   composerDisabled?: boolean;
   /** Override placeholder. */
@@ -44,46 +48,52 @@ interface Props {
   onChipClick?: (action: unknown) => void;
   /** Called when the user resolves an inline Agent ask. value=null means cancel. */
   onAskResolve?: (askId: string, value: string | null) => void;
-  /** Context-aware suggestion strings rendered above the composer; clicking one pre-fills the input. */
+  /** Context-aware suggestion strings rendered above the composer; clicking one sends. */
   suggestions?: string[];
-  lang?: Lang; // kept for parity, not currently used internally
+  lang?: Lang;
 }
 
 export function Workspace({
-  agentNameKey,
-  agentSubtitleKey,
   placeholderKey,
   messages,
   thinking,
   onSend,
-  onReset,
   rightPane,
+  hasCanvas = true,
   composerDisabled,
   placeholderOverride,
   onChipClick,
   onAskResolve,
-
   suggestions,
 }: Props) {
   const { t } = useTranslation();
   const [input, setInput] = useState("");
-  // Mobile view toggle. On < lg we can't fit chat + canvas side by side, and
-  // stacking a 55vh canvas below the chat leaves both surfaces cramped and
-  // the composer floating with no keyboard-safe anchor. A segmented switch
-  // gives each surface the full viewport, which matches how Kimi / Gemini
-  // handle "chat vs. result" on phones.
   const [mobileTab, setMobileTab] = useState<"chat" | "canvas">("chat");
+  const [canvasDot, setCanvasDot] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const askRef = useRef<HTMLDivElement>(null);
   const kbInset = useKeyboardInset();
+  const hadCanvasRef = useRef(false);
+
+  // Home-width column until a result opens the split layout.
+  const chatMax = hasCanvas ? "max-w-xl" : "max-w-3xl";
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages.length, thinking]);
+  }, [messages.length, thinking, suggestions]);
 
-  // When the software keyboard opens on iOS, keep the active ask card visible
-  // above the composer (visualViewport shrinks; safe-area alone doesn't cover it).
+  useEffect(() => {
+    if (hasCanvas && !hadCanvasRef.current) {
+      setMobileTab("canvas");
+      setCanvasDot(false);
+    }
+    if (!hasCanvas) {
+      setMobileTab("chat");
+    }
+    hadCanvasRef.current = hasCanvas;
+  }, [hasCanvas]);
+
   useEffect(() => {
     if (kbInset > 0 && askRef.current) {
       askRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -92,7 +102,6 @@ export function Workspace({
     }
   }, [kbInset]);
 
-  // Autofocus is desktop-only — see Home for rationale.
   useEffect(() => {
     if (thinking || composerDisabled) return;
     if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {
@@ -100,15 +109,11 @@ export function Workspace({
     }
   }, [thinking, composerDisabled]);
 
-  // When a new assistant message arrives on mobile while the user is on the
-  // Chat tab, we leave them there. When the canvas content changes on the
-  // Chat tab we surface a subtle indicator (dot) rather than force-switch.
-  const [canvasDot, setCanvasDot] = useState(false);
   useEffect(() => {
+    if (!hasCanvas) return;
     if (mobileTab === "chat") setCanvasDot(true);
-    // rightPane changes when the canvas re-renders (new match, etc.)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rightPane]);
+  }, [rightPane, hasCanvas]);
   useEffect(() => {
     if (mobileTab === "canvas") setCanvasDot(false);
   }, [mobileTab]);
@@ -120,8 +125,6 @@ export function Workspace({
     onSend(text);
   }
 
-  // Find the newest assistant message with an unresolved ask. When one is
-  // active it takes precedence over chips (single call-to-action at a time).
   let activeAskMsgIndex = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
@@ -133,21 +136,15 @@ export function Workspace({
   const activeAsk = activeAskMsgIndex >= 0 ? messages[activeAskMsgIndex].ask : undefined;
   const activeAskId = activeAsk?.id;
 
-  // When a new ask appears, (a) on mobile force-switch to the chat tab so
-  // the user actually sees the required action, and (b) scroll the ask
-  // card into view so it isn't hidden under the composer/keyboard.
   useEffect(() => {
     if (!activeAskId) return;
     setMobileTab("chat");
-    // Wait for layout + tab swap.
     const id = window.setTimeout(() => {
       askRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 80);
     return () => window.clearTimeout(id);
   }, [activeAskId]);
 
-  // Only the last assistant message's chips are actionable — and only when
-  // no ask is currently on screen.
   let activeChips: ChipOption[] | undefined;
   if (!activeAsk) {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -159,10 +156,15 @@ export function Workspace({
   }
 
   const chatPane = (
-    <section className="flex flex-col min-h-0 lg:border-r lg:border-border h-full">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain-y">
-        <div className="max-w-xl mx-auto px-4 md:px-5 py-5 md:py-6">
-          <ul className="space-y-4" data-testid="agent-messages">
+    <section
+      className={[
+        "flex flex-col min-h-0 h-full",
+        hasCanvas ? "lg:border-r lg:border-border" : "",
+      ].join(" ")}
+    >
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain-y px-5 md:px-6">
+        <div className={`w-full ${chatMax} mx-auto py-4 space-y-3`}>
+          <ul className="space-y-3" data-testid="agent-messages">
             {messages.map((m, idx) => (
               <li key={m.id} data-testid={`agent-msg-${m.role}`}>
                 {m.role === "user" ? (
@@ -194,12 +196,15 @@ export function Workspace({
       </div>
 
       <div
-        className="border-t border-border bg-background transition-[padding] duration-150"
+        className="shrink-0 border-t border-border/60 bg-background px-5 md:px-6 pt-3 transition-[padding] duration-150"
         style={{
-          paddingBottom: kbInset > 0 ? `${kbInset + 8}px` : "max(env(safe-area-inset-bottom), 8px)",
+          paddingBottom:
+            kbInset > 0
+              ? `${kbInset + 12}px`
+              : "max(env(safe-area-inset-bottom), 12px)",
         }}
       >
-        <div className="max-w-xl mx-auto px-4 md:px-5 py-3">
+        <div className={`w-full ${chatMax} mx-auto`}>
           {activeChips && activeChips.length > 0 && (
             <div className="mb-2">
               <ChipRow
@@ -209,19 +214,20 @@ export function Workspace({
               />
             </div>
           )}
-          {!activeChips && suggestions && suggestions.length > 0 && (
-            <div className="mb-2 -mx-4 md:-mx-5 px-4 md:px-5 flex gap-1.5 overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          {suggestions && suggestions.length > 0 && (
+            <div className="mb-2 flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {suggestions.map((s) => (
                 <button
                   key={s}
                   data-testid="agent-suggestion"
                   type="button"
-                  disabled={thinking || composerDisabled}
+                  disabled={thinking || composerDisabled || !!activeAsk}
                   onClick={() => {
-                    setInput(s);
-                    inputRef.current?.focus();
+                    if (thinking || composerDisabled || activeAsk) return;
+                    setInput("");
+                    onSend(s);
                   }}
-                  className="shrink-0 snap-start whitespace-nowrap px-3 py-1.5 rounded-full border border-border bg-card text-[12px] text-muted-foreground hover:border-foreground/40 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="shrink-0 whitespace-nowrap rounded-full border border-border bg-card px-3 py-1.5 text-[12px] text-muted-foreground hover:border-foreground/40 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   {s}
                 </button>
@@ -244,64 +250,68 @@ export function Workspace({
   );
 
   return (
-    <div className="h-dvh flex flex-col bg-background">
-      <WorkspaceHeader
-        agentNameKey={agentNameKey}
-        agentSubtitleKey={agentSubtitleKey}
-        onReset={onReset}
-      />
+    <div className="h-dvh bg-background flex flex-col pb-tabbar overflow-hidden">
+      <AppChromeHeader />
 
-      {/* Mobile segmented switch — visible only < lg. */}
-      <div className="lg:hidden border-b border-border bg-background">
-        <div className="max-w-md mx-auto grid grid-cols-2 px-4 py-2 gap-1">
-          {(["chat", "canvas"] as const).map((tab) => {
-            const active = mobileTab === tab;
-            const label = tab === "chat" ? t("workspace.tab_chat") : t("workspace.tab_result");
-            return (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setMobileTab(tab)}
-                aria-pressed={active}
-                className={[
-                  "relative h-9 rounded-full text-[13px] transition-colors",
-                  active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                ].join(" ")}
-              >
-                {label}
-                {tab === "canvas" && canvasDot && !active && (
-                  <span className="absolute top-1.5 right-3 w-1.5 h-1.5 rounded-full bg-primary" />
-                )}
-              </button>
-            );
-          })}
+      {/* Mobile chat / result switch — only once a match canvas exists. */}
+      {hasCanvas && (
+        <div className="lg:hidden border-b border-border/60 bg-background shrink-0">
+          <div className="max-w-md mx-auto grid grid-cols-2 px-4 py-2 gap-1">
+            {(["chat", "canvas"] as const).map((tab) => {
+              const active = mobileTab === tab;
+              const label = tab === "chat" ? t("workspace.tab_chat") : t("workspace.tab_result");
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setMobileTab(tab)}
+                  aria-pressed={active}
+                  className={[
+                    "relative h-9 rounded-full text-[13px] transition-colors",
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  ].join(" ")}
+                >
+                  {label}
+                  {tab === "canvas" && canvasDot && !active && (
+                    <span className="absolute top-1.5 right-3 w-1.5 h-1.5 rounded-full bg-primary" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Desktop: side-by-side. Mobile: one pane at a time. */}
-      <div className="flex-1 min-h-0 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+      <div
+        className={[
+          "flex-1 min-h-0",
+          hasCanvas ? "lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]" : "",
+        ].join(" ")}
+      >
         <div
           className={
-            mobileTab === "chat"
+            !hasCanvas || mobileTab === "chat"
               ? "flex flex-col min-h-0 h-full"
               : "hidden lg:flex lg:flex-col lg:min-h-0"
           }
         >
           {chatPane}
         </div>
-        <section
-          className={[
-            "min-h-0 overflow-y-auto overscroll-contain-y bg-secondary/30",
-            mobileTab === "canvas"
-              ? "block pb-[max(env(safe-area-inset-bottom),1rem)]"
-              : "hidden lg:block",
-          ].join(" ")}
-          data-testid="agent-canvas"
-        >
-          {rightPane}
-        </section>
+        {hasCanvas && (
+          <section
+            className={[
+              "min-h-0 overflow-y-auto overscroll-contain-y bg-secondary/30",
+              mobileTab === "canvas"
+                ? "block pb-[max(env(safe-area-inset-bottom),1rem)]"
+                : "hidden lg:block",
+            ].join(" ")}
+            data-testid="agent-canvas"
+          >
+            {rightPane}
+          </section>
+        )}
       </div>
     </div>
   );

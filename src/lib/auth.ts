@@ -1,59 +1,32 @@
-// Frontend-only auth demo layer.
-//
-// SCOPE: This is a demo store. Backend/real Supabase wiring is handled by
-// the user separately. Everything here lives in localStorage so the UI can
-// be built and exercised end-to-end without touching servers.
-//
-// v1 shape (email/password removed):
-//   - Sign in / Sign up only through Google / Apple (WeChat placeholder).
-//   - Sign up REQUIRES a valid invite code (validated up front, consumed
-//     after the OAuth "success").
-//   - Sign in on a fresh browser (no local user yet) throws
-//     `account_not_found` so the UI can route the visitor to signup.
+// Auth client — talks to server via createServerFn; session is httpOnly cookie.
 
 import { useEffect, useState } from "react";
-import { consumeInvite, validateInvite } from "./invites";
+import {
+  meFn,
+  signInFn,
+  signUpFn,
+  signOutFn,
+} from "./api/auth.functions";
+import { AuthError, type AuthUser } from "./auth-types";
+import { asAuthError } from "./auth-errors";
 
-export type AuthProvider = "google" | "apple" | "wechat";
-
-export interface AuthUser {
-  id: string;
-  email: string;
-  name: string;
-  avatar: string; // data URL or empty
-  provider: AuthProvider | "email"; // "email" kept only to read legacy storage
-  createdAt: number;
-}
-
-const KEY = "kindred:auth.v1";
+export type { AuthUser };
+export type AuthProvider = "email";
+export { AuthError, asAuthError };
+export { authErrorMessage } from "./auth-errors";
 
 type Listener = (u: AuthUser | null) => void;
 const listeners = new Set<Listener>();
+let cachedUser: AuthUser | null = null;
+let hydratedOnce = false;
 
-function uid(): string {
-  return "u_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+function emit(u: AuthUser | null) {
+  cachedUser = u;
+  listeners.forEach((fn) => fn(u));
 }
 
 export function loadUser(): AuthUser | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as AuthUser;
-  } catch {
-    return null;
-  }
-}
-
-function writeUser(u: AuthUser | null) {
-  if (typeof window === "undefined") return;
-  try {
-    if (u) window.localStorage.setItem(KEY, JSON.stringify(u));
-    else window.localStorage.removeItem(KEY);
-  } catch {
-    /* noop */
-  }
-  listeners.forEach((fn) => fn(u));
+  return cachedUser;
 }
 
 export function subscribe(fn: Listener): () => void {
@@ -63,98 +36,98 @@ export function subscribe(fn: Listener): () => void {
   };
 }
 
-/** Simulate network latency so buttons show a proper loading state. */
-function delay(ms: number) {
-  return new Promise<void>((r) => window.setTimeout(r, ms));
-}
-
-export class AuthError extends Error {
-  constructor(
-    public code: string,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
-function providerEmail(provider: AuthProvider): string {
-  if (provider === "google") return "you@gmail.com";
-  if (provider === "apple") return "you@icloud.com";
-  return "you@wechat.app";
-}
-
-// -- Sign in ---------------------------------------------------------------
-
 export interface SignInInput {
-  provider: AuthProvider;
+  email: string;
+  password: string;
 }
 
 export async function signIn(input: SignInInput): Promise<AuthUser> {
-  if (input.provider === "wechat") {
-    throw new AuthError("wechat_unavailable", "WeChat sign-in is coming soon.");
+  try {
+    const user = await signInFn({ data: input });
+    emit(user);
+    await refreshUser();
+    return user;
+  } catch (e) {
+    throw asAuthError(e);
   }
-  await delay(600);
-  const existing = loadUser();
-  if (!existing) {
-    // v1 rule: sign-in on a fresh device without an account routes the
-    // visitor to invite-gated signup instead of silently provisioning one.
-    throw new AuthError(
-      "account_not_found",
-      "No account yet. Join with an invite code to create one.",
-    );
-  }
-  return existing;
 }
 
-// -- Sign up ---------------------------------------------------------------
-
 export interface SignUpInput {
-  provider: AuthProvider;
+  email: string;
+  password: string;
   inviteCode: string;
+  name?: string;
 }
 
 export async function signUp(input: SignUpInput): Promise<AuthUser> {
-  const code = input.inviteCode.trim().toUpperCase();
-  if (!code) throw new AuthError("invite_required", "Invite code is required.");
-  // Validate BEFORE the OAuth round-trip so we never burn the network hop
-  // (or later, a real invite) on a code the pool has already used.
-  if (!validateInvite(code)) {
-    throw new AuthError("invite_invalid", "That invite code isn't valid or has been used.");
+  try {
+    const user = await signUpFn({ data: input });
+    emit(user);
+    await refreshUser();
+    return user;
+  } catch (e) {
+    throw asAuthError(e);
   }
-  if (input.provider === "wechat") {
-    throw new AuthError("wechat_unavailable", "WeChat sign-in is coming soon.");
-  }
-  await delay(600);
-  // Consume only after the "OAuth" call succeeds.
-  const ok = consumeInvite(code);
-  if (!ok) throw new AuthError("invite_invalid", "That invite code isn't valid or has been used.");
-  const email = providerEmail(input.provider);
-  const user: AuthUser = {
-    id: uid(),
-    email,
-    name: email.split("@")[0],
-    avatar: "",
-    provider: input.provider,
-    createdAt: Date.now(),
-  };
-  writeUser(user);
-  return user;
 }
 
-export function signOut() {
-  writeUser(null);
+export async function signOut() {
+  try {
+    await signOutFn();
+  } finally {
+    emit(null);
+  }
 }
 
-// -- React hook ------------------------------------------------------------
+export async function refreshUser(): Promise<AuthUser | null> {
+  try {
+    const user = await meFn();
+    emit(user);
+    if (user) {
+      // Hydrate server-backed stores for this session
+      void import("./profile").then((m) => m.hydrateProfile());
+      void import("./sessions").then((m) => m.hydrateSessions());
+      void import("./saved-people").then((m) => m.hydrateSavedPeople());
+      void import("./saved-intents").then((m) => m.hydrateSavedIntents());
+      void import("./understanding").then((m) => m.hydrateUnderstanding());
+      void import("./agent-memory").then((m) => m.hydrateAgentMemory());
+      void import("./connections").then((m) => m.hydrateConnections());
+      void import("./intents").then((m) => m.hydrateMyIntents());
+    }
+    return user;
+  } catch {
+    emit(null);
+    return null;
+  }
+}
 
 export function useAuth(): { user: AuthUser | null; hydrated: boolean } {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(cachedUser);
+  const [hydrated, setHydrated] = useState(hydratedOnce);
+
   useEffect(() => {
-    setUser(loadUser());
-    setHydrated(true);
     const unsub = subscribe(setUser);
-    return unsub;
+    let cancelled = false;
+    (async () => {
+      try {
+        const u = await refreshUser();
+        if (!cancelled) setUser(u);
+      } catch {
+        if (!cancelled) {
+          emit(null);
+          setUser(null);
+        }
+      } finally {
+        if (!cancelled) {
+          hydratedOnce = true;
+          setHydrated(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, []);
+
   return { user, hydrated };
 }

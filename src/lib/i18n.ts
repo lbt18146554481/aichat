@@ -10,18 +10,33 @@ export const LANG_STORAGE_KEY = "kindred:lang";
 
 let initialized = false;
 
+function readPersistedLang(): Lang | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const saved = window.localStorage.getItem(LANG_STORAGE_KEY);
+    if (saved && (SUPPORTED_LANGS as readonly string[]).includes(saved)) {
+      return saved as Lang;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 export function initI18n() {
   if (initialized) return i18n;
   initialized = true;
+
+  // Server: always English. Client: restore saved preference synchronously
+  // so the first interactive render uses the right language.
+  const lng = readPersistedLang() ?? "en";
 
   i18n.use(initReactI18next).init({
     resources: {
       en: { common: en },
       "zh-CN": { common: zhCN },
     },
-    // Always start in English so SSR and the client's initial render agree.
-    // The user's saved preference is applied after mount (see applyPersistedLang).
-    lng: "en",
+    lng,
     fallbackLng: "en",
     supportedLngs: SUPPORTED_LANGS as unknown as string[],
     load: "currentOnly",

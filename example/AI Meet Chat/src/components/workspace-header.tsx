@@ -6,8 +6,9 @@ import { LangSwitcher } from "./lang-switcher";
 import { HistoryTrigger } from "./history-trigger";
 import { SavedTrigger } from "./saved-trigger";
 import { AccountMenu } from "./account-menu";
-import { hasUnseen, list, subscribe, type Connection } from "@/lib/connections";
-import { avatarUrl, getPersonById, localized } from "@/lib/people";
+import { useConnections, hasUnseenIn, usePeopleLookup } from "@/data/hooks";
+import type { Connection } from "@/lib/connections";
+import { avatarUrl, localized } from "@/lib/people";
 import type { Lang } from "@/lib/i18n";
 
 interface Props {
@@ -33,27 +34,12 @@ function pickAlert(items: Connection[]): Connection | null {
 export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Props) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.resolvedLanguage as Lang) ?? "en";
-  const [unseen, setUnseen] = useState(false);
-  const [alert, setAlert] = useState<Connection | null>(null);
+  const items = useConnections().data;
+  const unseen = hasUnseenIn(items);
+  const alert = pickAlert(items);
+  const personById = usePeopleLookup();
 
-  useEffect(() => {
-    const update = () => {
-      const items = list();
-      setUnseen(hasUnseen());
-      setAlert(pickAlert(items));
-    };
-    update();
-    const unsub = subscribe(update);
-    // Poll every 3s to catch background scheduleResolution flips while the
-    // user is still on this page.
-    const iv = window.setInterval(update, 3000);
-    return () => {
-      unsub();
-      window.clearInterval(iv);
-    };
-  }, []);
-
-  const alertPerson = alert ? getPersonById(alert.personId) : null;
+  const alertPerson = alert ? personById(alert.personId) : null;
   const alertName = alertPerson ? localized(alertPerson, lang).name : "";
 
   return (

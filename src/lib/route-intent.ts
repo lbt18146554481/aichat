@@ -1,10 +1,3 @@
-// Lightweight intent routing for the homepage.
-//
-// Map free text the user typed at the entry point to one of the two
-// Agents. Used only when the user did NOT manually select a chip.
-// Conservative keyword rules; default = matchmaker (the more general one,
-// since "describe who you want" is the catch-all path).
-
 import type { AgentId } from "./seed";
 
 const TOGETHER = [
@@ -52,6 +45,24 @@ const TOGETHER = [
   "运动",
   "见面",
   "约",
+  "做事",
+  "活动",
+];
+
+/** Clear "introduce / meet someone" signals (even short replies like 一个人). */
+const PERSON = [
+  "一个人",
+  "介绍",
+  "认识",
+  "找个人",
+  "找人",
+  "什么样的人",
+  "介绍人",
+  "matchmaker",
+  "introduce",
+  "someone",
+  "meet someone",
+  "a person",
 ];
 
 function hits(text: string, list: string[]): number {
@@ -61,8 +72,25 @@ function hits(text: string, list: string[]): number {
   return n;
 }
 
+export function wantsPerson(text: string): boolean {
+  return hits(text, PERSON) > 0;
+}
+
+export function wantsActivity(text: string): boolean {
+  return hits(text, TOGETHER) > 0;
+}
+
+export function isGreeting(text: string): boolean {
+  return /^(你好|您好|嗨|嘿|在吗|hi+|hello|hey|yo)[!！.。?？\s]*$/i.test(text.trim());
+}
+
 export function routeIntent(text: string): AgentId {
   const t = text.trim();
   if (!t) return "matchmaker";
-  return hits(t, TOGETHER) > 0 ? "sidebyside" : "matchmaker";
+  const person = wantsPerson(t);
+  const activity = wantsActivity(t);
+  if (activity && !person) return "sidebyside";
+  if (person && !activity) return "matchmaker";
+  if (activity) return "sidebyside";
+  return "matchmaker";
 }

@@ -16,6 +16,7 @@ import {
   toggleHidden,
   isHidden,
   upsertMoment,
+  _resetProfileCache,
   type Profile,
 } from "@/lib/profile";
 
@@ -29,6 +30,7 @@ const VITALS: Profile = {
 
 beforeEach(() => {
   window.localStorage.clear();
+  _resetProfileCache();
 });
 
 describe("say hello gate (vitals)", () => {
@@ -88,14 +90,10 @@ describe("visibility", () => {
   });
 });
 
-describe("legacy storage", () => {
-  it("drops retired bio/interests fields on load", () => {
-    window.localStorage.setItem(
-      "kindred:profile.v1",
-      JSON.stringify({ ...VITALS, bio: "old blurb", interests: ["x"], hidden: ["bio", "age"] }),
-    );
-    const p = loadProfile() as Profile & { bio?: string };
+describe("server-backed profile cache", () => {
+  it("starts empty before hydrate", () => {
+    const p = loadProfile();
+    expect(p.name).toBe("");
     expect(p.bio).toBeUndefined();
-    expect(p.hidden).toEqual(["age"]);
   });
 });

@@ -1,22 +1,18 @@
 // Matchmaker — describe who you're looking for; the Agent introduces ONE
-// person at a time. The right pane shows that person's Moments (their own
-// concrete answers to a few prompts) plus one work they care about. The
-// USER's own identity (name, moments, one-work) lives in their Profile —
-// the Agent reads it but never mutates it.
+// person at a time. Conversation is fully LLM-driven; the right pane shows
+// the introduced person's Moments.
 
-import { getPersonById, PEOPLE } from "../people";
+import { getPersonById } from "../people";
 import { getQuestionById } from "../questions";
 import type { Person, Reflection } from "../types";
-import { loadProfile } from "../profile";
-import { buildReasons } from "../match-reasons";
-
-import { get as getConnection } from "../connections";
 import {
-  digest,
   loadUnderstanding,
   saveUnderstanding,
   type UserUnderstanding,
 } from "../understanding";
+import { getSession, updateSession, deriveIntroduceStatus } from "../sessions";
+import type { MatchHardFilters } from "../match-types";
+import { EMPTY_HARD_FILTERS } from "../match-types";
 
 export type Phase = "clarifying" | "introducing";
 export type Role = "user" | "assistant";
@@ -26,168 +22,57 @@ export interface Message {
   role: Role;
   t: number;
   text: string;
-  /** Inline "补充 / 确认" card attached to an assistant message. */
   ask?: import("@/components/agent-ask").AgentAsk;
-  /** When set, the ask is treated as resolved and shown as a collapsed pill. */
   askResolvedLabel?: string;
 }
 
 export interface MatchmakerState {
   phase: Phase;
   understanding: UserUnderstanding;
+  hardFilters: MatchHardFilters;
   messages: Message[];
   shownIds: string[];
   passedIds: string[];
   currentPersonId: string | null;
-  clarifyTurns: number;
+  suggestions: string[];
+  /** @deprecated legacy sessions only */
+  clarifyTurns?: number;
+  handoff?: import("../handoff").HandoffContext;
+  handoffCount?: number;
+  parentSessionId?: string;
+  suspended?: boolean;
 }
 
 export const EMPTY: MatchmakerState = {
   phase: "clarifying",
   understanding: { positive: [], negative: [], notes: [] },
+  hardFilters: { ...EMPTY_HARD_FILTERS },
   messages: [],
   shownIds: [],
   passedIds: [],
   currentPersonId: null,
-  clarifyTurns: 0,
+  suggestions: [],
+  handoffCount: 0,
 };
 
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-// ---- Intent parsing ------------------------------------------------------
-
-type Intent = "another_person" | "more_describe";
-
-const PATTERNS = {
-  another_person: [
-    /\bnext\b/i,
-    /\banother\b/i,
-    /\bsomeone else\b/i,
-    /\bnot (the )?one\b/i,
-    /\bnot for me\b/i,
-    /\bpass\b/i,
-    /\bskip\b/i,
-    /换/,
-    /下一个/,
-    /不是/,
-    /不喜欢/,
-    /跳过/,
-    /别的/,
-  ],
-};
-
-function parseIntent(text: string): Intent {
-  for (const re of PATTERNS.another_person) if (re.test(text)) return "another_person";
-  return "more_describe";
-}
-
-// ---- Scoring -------------------------------------------------------------
+// ---- Text overlap (reflection / moment picking) --------------------------
 
 const STOP = new Set([
-  "the",
-  "a",
-  "an",
-  "and",
-  "or",
-  "but",
-  "of",
-  "to",
-  "in",
-  "on",
-  "at",
-  "for",
-  "with",
-  "is",
-  "am",
-  "are",
-  "was",
-  "were",
-  "be",
-  "been",
-  "being",
-  "i",
-  "you",
-  "he",
-  "she",
-  "it",
-  "we",
-  "they",
-  "my",
-  "your",
-  "his",
-  "her",
-  "its",
-  "our",
-  "their",
-  "me",
-  "him",
-  "us",
-  "them",
-  "this",
-  "that",
-  "these",
-  "those",
-  "do",
-  "does",
-  "did",
-  "done",
-  "have",
-  "has",
-  "had",
-  "not",
-  "no",
-  "yes",
-  "so",
-  "if",
-  "than",
-  "then",
-  "as",
-  "by",
-  "from",
-  "up",
-  "down",
-  "out",
-  "into",
-  "about",
-  "just",
-  "like",
-  "when",
-  "where",
-  "why",
-  "how",
-  "what",
-  "which",
-  "who",
-  "我",
-  "你",
-  "他",
-  "她",
-  "它",
-  "我们",
-  "你们",
-  "他们",
-  "的",
-  "了",
-  "和",
-  "或",
-  "也",
-  "在",
-  "是",
-  "就",
-  "都",
-  "会",
-  "要",
-  "不",
-  "没",
-  "有",
-  "得",
-  "着",
-  "与",
-  "及",
-  "但",
+  "the", "a", "an", "and", "or", "but", "of", "to", "in", "on", "at", "for", "with",
+  "is", "am", "are", "was", "were", "be", "been", "being", "i", "you", "he", "she",
+  "it", "we", "they", "my", "your", "his", "her", "its", "our", "their", "me", "him",
+  "us", "them", "this", "that", "these", "those", "do", "does", "did", "done", "have",
+  "has", "had", "not", "no", "yes", "so", "if", "than", "then", "as", "by", "from",
+  "up", "down", "out", "into", "about", "just", "like", "when", "where", "why", "how",
+  "what", "which", "who", "我", "你", "他", "她", "它", "我们", "你们", "他们", "的",
+  "了", "和", "或", "也", "在", "是", "就", "都", "会", "要", "不", "没", "有", "得",
+  "着", "与", "及", "但",
 ]);
+
 function tokens(text: string): Set<string> {
   return new Set(
     text
@@ -197,6 +82,7 @@ function tokens(text: string): Set<string> {
       .filter((w) => w.length > 1 && !STOP.has(w)),
   );
 }
+
 function jaccard(a: Set<string>, b: Set<string>): number {
   if (a.size === 0 || b.size === 0) return 0;
   let shared = 0;
@@ -234,8 +120,6 @@ export function reflectionQuestionText(r: Reflection, lang: "en" | "zh-CN"): str
   return lang === "zh-CN" ? q.text_zh : q.text;
 }
 
-// Pick the angle that best matches what we know the user is looking for.
-// Falls back to the person's first angle when there's no overlap.
 export function pickBestAngle(
   person: Person,
   u: UserUnderstanding,
@@ -254,15 +138,11 @@ export function pickBestAngle(
   return best;
 }
 
-// Signals this person shares with what the user has told us they want.
 export function sharedSignals(person: Person, u: UserUnderstanding): string[] {
   const pos = new Set(u.positive);
   return person.signals.filter((s) => pos.has(s));
 }
 
-// Pick the single moment most likely to trigger a "I want to say hello" —
-// scores each moment's answer text against the user's positives + notes.
-// Falls back to the first moment when there's no overlap.
 export function pickBestMoment(
   person: Person,
   u: UserUnderstanding,
@@ -283,277 +163,104 @@ export function pickBestMoment(
   return best;
 }
 
-// ---- Suggestion chips (input-box prefill) --------------------------------
-// Context-aware one-tap phrases rendered above the left composer. They only
-// pre-fill the textarea — nothing is sent until the user presses enter.
-
-const SUGGEST = {
-  clarifying: {
-    en: [
-      "Someone quieter, who listens more than they perform.",
-      "Not someone too intense — I want easy company.",
-      "Someone who takes their own work seriously.",
-      "Roughly my rhythm — slow mornings, long walks.",
-    ],
-    zh: [
-      "想认识安静一点的、更爱听不爱表演的人。",
-      "不想要太用力的——想要松弛的相处。",
-      "希望对方认真对待自己在做的事。",
-      "节奏和我差不多——慢早晨、爱走路。",
-    ],
-  },
-  introducing: {
-    en: [
-      "Tell me more about them.",
-      "Show me someone with different energy.",
-      "Anyone more at ease than this?",
-      "One more like them, but a bit softer.",
-    ],
-    zh: [
-      "多说说 TA。",
-      "换一个感觉不一样的人。",
-      "有没有比 TA 更松弛一点的？",
-      "再来一个类似的，但稍微柔和些。",
-    ],
-  },
-  empty: {
-    en: [
-      "Let me loosen one of my conditions.",
-      "Try a quality I haven't mentioned yet.",
-      "I'll come back later — hold my place.",
-    ],
-    zh: ["放宽我之前提过的一个条件。", "换一个我还没提过的特质。", "我先想想，稍后再回来。"],
-  },
-};
-
-export function suggestChips(state: MatchmakerState, lang: "en" | "zh-CN"): string[] {
-  const zh = lang === "zh-CN";
-  if (state.phase === "clarifying") return zh ? SUGGEST.clarifying.zh : SUGGEST.clarifying.en;
-  // Introducing phase — check if pool is exhausted (no currentPerson signals nothing left).
-  if (!state.currentPersonId) return zh ? SUGGEST.empty.zh : SUGGEST.empty.en;
-  return zh ? SUGGEST.introducing.zh : SUGGEST.introducing.en;
+export function suggestChips(state: MatchmakerState, _lang: "en" | "zh-CN"): string[] {
+  return state.suggestions ?? [];
 }
 
-function reflectionAffinity(p: Person, u: UserUnderstanding): number {
-  if (p.reflections.length === 0) return 0;
-  const userText = u.notes.join(" ");
-  if (!userText.trim()) return 0;
-  const ut = tokens(userText);
-  let best = 0;
-  for (const r of p.reflections) {
-    const s = jaccard(ut, tokens(r.answer)) + jaccard(ut, tokens(r.answer_zh));
-    if (s > best) best = s;
-  }
-  return best;
+// ---- LLM turn application ----------------------------------------------
+
+export interface MatchmakerTurnResult {
+  reply: string;
+  introducePersonId: string | null;
+  passCurrentPerson: boolean;
+  understanding: UserUnderstanding;
+  hardFilters?: MatchHardFilters;
+  suggestions?: string[];
+  handoffTo?: "sidebyside" | null;
+  handoffSummary?: string;
+  transitionReply?: string;
 }
-
-function reasonCount(p: Person, u: UserUnderstanding): number {
-  try {
-    return buildReasons(p, loadProfile(), u, "en").length;
-  } catch {
-    return 0; // profile unavailable (SSR)
-  }
-}
-
-function scorePerson(
-  p: Person,
-  u: UserUnderstanding,
-  passedIds: string[],
-  shownIds: string[],
-): number {
-  if (passedIds.includes(p.id)) return -Infinity;
-  let s = p.signals.filter((sig) => u.positive.includes(sig)).length * 2;
-  s -= p.signals.filter((sig) => u.negative.includes(sig)).length * 3;
-  s += Math.min(reflectionAffinity(p, u) * 4, 2);
-  if (shownIds.includes(p.id)) s -= 5;
-  return s;
-}
-
-function isUnavailable(personId: string): boolean {
-  if (typeof window === "undefined") return false;
-  const c = getConnection(personId);
-  // Hard-exclude anyone we've already engaged with — a faded hello never
-  // comes back; sent/connected/incoming already live in Connections and
-  // shouldn't be re-surfaced as a "new" recommendation.
-  return (
-    !!c &&
-    (c.status === "faded" ||
-      c.status === "sent" ||
-      c.status === "connected" ||
-      c.status === "incoming")
-  );
-}
-
-function pickNext(state: MatchmakerState, excludeCurrent = false): Person | null {
-  const available = PEOPLE.filter(
-    (p) => !isUnavailable(p.id) && reasonCount(p, state.understanding) > 0,
-  );
-  const fresh = available.filter(
-    (p) =>
-      !state.passedIds.includes(p.id) &&
-      (!excludeCurrent || p.id !== state.currentPersonId) &&
-      !state.shownIds.includes(p.id),
-  );
-  const pool =
-    fresh.length > 0
-      ? fresh
-      : available.filter(
-          (p) =>
-            !state.passedIds.includes(p.id) && (!excludeCurrent || p.id !== state.currentPersonId),
-        );
-  if (pool.length === 0) return null;
-  // Primary key: can we explain this person with a real, quotable reason?
-  // Someone we can justify always beats someone we can only "feel".
-  const ranked = [...pool].sort((a, b) => {
-    const dr = reasonCount(b, state.understanding) - reasonCount(a, state.understanding);
-    if (dr !== 0) return dr;
-    return (
-      scorePerson(b, state.understanding, state.passedIds, state.shownIds) -
-      scorePerson(a, state.understanding, state.passedIds, state.shownIds)
-    );
-  });
-  return ranked[0];
-}
-
-// ---- Lines ---------------------------------------------------------------
-
-const L = {
-  greet_with_name: {
-    en: (n: string) =>
-      `Hi ${n}. I've read your profile. Tell me a bit about who you're hoping to meet — not a list, what kind of person makes a room feel different for you.`,
-    zh: (n: string) =>
-      `你好，${n}。我看过你的资料了。说说你想认识什么样的人——不用列清单，什么样的人会让你觉得"这个房间不一样了"？`,
-  },
-  greet_nameless: {
-    en: "I've read your profile. Tell me a bit about who you're hoping to meet — not a list, what kind of person makes a room feel different for you.",
-    zh: "我看过你的资料了。说说你想认识什么样的人——不用列清单，什么样的人会让你觉得'这个房间不一样了'？",
-  },
-  clarify_more: {
-    en: "Got it. One more — is there a quality you don't want? Something you've had enough of?",
-    zh: "明白了。再问一个——有什么特质是你不想要的？已经厌倦的那种？",
-  },
-  introducing: {
-    en: (n: string) => `Okay — I have someone in mind. ${n}. Look on the right.`,
-    zh: (n: string) => `好——我想到一个人了。${n}。看右边。`,
-  },
-  swap_person: {
-    en: (n: string) => `Understood. Let me think again. What about ${n}?`,
-    zh: (n: string) => `好，我重新想想。${n} 怎么样？`,
-  },
-  none_left: {
-    en: "I'm out of people who fit. Try giving me a quality I don't know yet — or loosen one you've mentioned.",
-    zh: "按你说的，我手上的人介绍完了。再告诉我一个我还不知道的特质——或者放宽一个。",
-  },
-  need_more: {
-    en: "Give me one thing that matters to you — a way of living, a value, or something you love. Then I'll have a real reason for the introduction.",
-    zh: "再告诉我一件你真正在意的事吧——一种生活方式、一个价值观，或你喜欢的东西。有了真实依据，我再介绍。",
-  },
-};
 
 function pushA(s: MatchmakerState, text: string): MatchmakerState {
   return { ...s, messages: [...s.messages, { id: uid(), role: "assistant", t: Date.now(), text }] };
 }
+
 function pushU(s: MatchmakerState, text: string): MatchmakerState {
   return { ...s, messages: [...s.messages, { id: uid(), role: "user", t: Date.now(), text }] };
 }
 
-// ---- Public --------------------------------------------------------------
-
-export function start(lang: "en" | "zh-CN"): MatchmakerState {
-  const u = loadUnderstanding();
-  const profile = loadProfile();
-  const name = profile.name.trim();
-  const line = name
-    ? lang === "zh-CN"
-      ? L.greet_with_name.zh(name)
-      : L.greet_with_name.en(name)
-    : lang === "zh-CN"
-      ? L.greet_nameless.zh
-      : L.greet_nameless.en;
-  return pushA({ ...EMPTY, understanding: u }, line);
-}
-
-export function userTurn(
+export function applyTurnResult(
   state: MatchmakerState,
-  text: string,
-  lang: "en" | "zh-CN",
+  userText: string | null,
+  output: MatchmakerTurnResult,
+  opts?: { skipUser?: boolean; skipAssistant?: boolean; replaceLastAssistant?: boolean },
 ): MatchmakerState {
-  const t = text.trim();
-  if (!t) return state;
-  let next = pushU(state, t);
+  let next = state;
+  if (userText?.trim() && !opts?.skipUser) next = pushU(next, userText.trim());
 
-  const { next: u, newPositives, newNegatives } = digest(next.understanding, t);
-  next = { ...next, understanding: u };
-
-  const intent = parseIntent(t);
-
-  if (next.phase === "clarifying") {
-    next = { ...next, clarifyTurns: next.clarifyTurns + 1 };
-    if (u.positive.length === 0 && next.clarifyTurns < 2) {
-      return pushA(next, lang === "zh-CN" ? L.clarify_more.zh : L.clarify_more.en);
-    }
-    return introduce(next, lang);
-  }
-
-  // Introducing phase
-  if (intent === "another_person") {
-    if (next.currentPersonId)
-      next = { ...next, passedIds: [...next.passedIds, next.currentPersonId] };
-    return introduce(next, lang);
-  }
-  if (newPositives.length > 0 || newNegatives.length > 0) return introduce(next, lang);
-  return pushA(
-    next,
-    lang === "zh-CN" ? "嗯，我在听。再告诉我一点。" : "I'm listening. Tell me a bit more.",
-  );
-}
-
-function introduce(state: MatchmakerState, lang: "en" | "zh-CN"): MatchmakerState {
-  const person = pickNext(state, true);
-  if (!person) {
-    const hasEvidence = PEOPLE.some((p) => reasonCount(p, state.understanding) > 0);
-    return pushA(
-      state,
-      lang === "zh-CN"
-        ? hasEvidence
-          ? L.none_left.zh
-          : L.need_more.zh
-        : hasEvidence
-          ? L.none_left.en
-          : L.need_more.en,
-    );
-  }
-  const next: MatchmakerState = {
-    ...state,
-    phase: "introducing",
-    currentPersonId: person.id,
-    shownIds: state.shownIds.includes(person.id) ? state.shownIds : [...state.shownIds, person.id],
+  next = {
+    ...next,
+    understanding: output.understanding,
+    hardFilters: output.hardFilters ?? next.hardFilters,
   };
-  const line =
-    state.phase === "clarifying"
-      ? lang === "zh-CN"
-        ? L.introducing.zh(person.name_zh)
-        : L.introducing.en(person.name)
-      : lang === "zh-CN"
-        ? L.swap_person.zh(person.name_zh)
-        : L.swap_person.en(person.name);
-  return pushA(next, line);
+
+  if (output.passCurrentPerson && next.currentPersonId) {
+    const id = next.currentPersonId;
+    if (!next.passedIds.includes(id)) next = { ...next, passedIds: [...next.passedIds, id] };
+  }
+
+  if (output.introducePersonId) {
+    const person = getPersonById(output.introducePersonId);
+    if (person) {
+      next = {
+        ...next,
+        phase: "introducing",
+        currentPersonId: person.id,
+        shownIds: next.shownIds.includes(person.id) ? next.shownIds : [...next.shownIds, person.id],
+      };
+    }
+  } else if (output.passCurrentPerson) {
+    next = { ...next, currentPersonId: null, phase: "clarifying" };
+  }
+
+  if (opts?.replaceLastAssistant) {
+    const msgs = [...next.messages];
+    const last = msgs[msgs.length - 1];
+    if (last?.role === "assistant") {
+      msgs[msgs.length - 1] = { ...last, text: output.reply };
+      next = { ...next, messages: msgs };
+    } else {
+      next = pushA(next, output.reply);
+    }
+  } else if (!opts?.skipAssistant) {
+    next = pushA(next, output.reply);
+  }
+
+  return {
+    ...next,
+    suggestions: output.suggestions?.length ? output.suggestions.slice(0, 4) : [],
+  };
 }
 
-export function actAnotherPerson(s: MatchmakerState, lang: "en" | "zh-CN") {
-  return userTurn(s, lang === "zh-CN" ? "换一个吧。" : "Show me someone else.", lang);
+export function patchLastAssistant(state: MatchmakerState, text: string): MatchmakerState {
+  const msgs = [...state.messages];
+  const last = msgs[msgs.length - 1];
+  if (last?.role === "assistant") {
+    msgs[msgs.length - 1] = { ...last, text };
+    return { ...state, messages: msgs };
+  }
+  return pushA(state, text);
 }
 
-// See the next candidate WITHOUT marking the current one as passed. Used
-// after Say hello / when in a live connection — the user isn't rejecting
-// this person, they just want to keep browsing.
-export function seeNextPerson(state: MatchmakerState, lang: "en" | "zh-CN"): MatchmakerState {
-  return introduce(state, lang);
+export function beginStreamingTurn(
+  state: MatchmakerState,
+  userText: string | null,
+): MatchmakerState {
+  let next = state;
+  if (userText?.trim()) next = pushU(next, userText.trim());
+  return pushA(next, "");
 }
 
-// Focus a specific person as the current intro (used when the user comes
-// back from Connections' "waiting" list). Non-mutating on the passed state
-// aside from currentPersonId / shownIds bookkeeping.
 export function focusPerson(state: MatchmakerState, personId: string): MatchmakerState {
   const person = getPersonById(personId);
   if (!person) return state;
@@ -565,21 +272,18 @@ export function focusPerson(state: MatchmakerState, personId: string): Matchmake
   };
 }
 
-// ---- Persistence ---------------------------------------------------------
-//
-// Two modes:
-//   - sessionId given → read/write into the sessions store (new default)
-//   - no sessionId    → no-op; the /matchmaker route redirects to "/" when
-//                        called without a session, so this path is only hit
-//                        by legacy code that hasn't been updated yet.
-
-import { getSession, updateSession, deriveIntroduceStatus } from "../sessions";
-
 export function load(sessionId?: string | null): MatchmakerState {
   if (typeof window === "undefined") return EMPTY;
   if (sessionId) {
     const s = getSession(sessionId);
-    if (s) return { ...EMPTY, ...(s.state as Partial<MatchmakerState>) };
+    if (s) {
+      const partial = s.state as Partial<MatchmakerState>;
+      return {
+        ...EMPTY,
+        ...partial,
+        hardFilters: { ...EMPTY_HARD_FILTERS, ...partial.hardFilters },
+      };
+    }
     return EMPTY;
   }
   return EMPTY;
@@ -603,5 +307,5 @@ export function save(s: MatchmakerState, sessionId?: string | null) {
 export function reset(): MatchmakerState {
   return EMPTY;
 }
-// keep an unused export reference to avoid stale-import build noise
+
 export const _personRef = getPersonById;

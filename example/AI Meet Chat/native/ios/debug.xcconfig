@@ -1,0 +1,4 @@
+// Debug-only flags. Version identity comes from the generated version.xcconfig.
+#include "version.xcconfig"
+
+CAPACITOR_DEBUG = true

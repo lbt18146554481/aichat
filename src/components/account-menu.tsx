@@ -4,8 +4,9 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Copy, LogOut, UserCircle, Ticket } from "lucide-react";
 import { signOut, useAuth } from "@/lib/auth";
-import { loadProfile } from "@/lib/profile";
+import { hydrateProfile, loadProfile, subscribeProfile } from "@/lib/profile";
 import { generateInvite, listMyCodes, remainingInvites, type InviteCode } from "@/lib/invites";
+import type { Profile } from "@/lib/profile-shape";
 
 /**
  * Header-right account affordance:
@@ -19,6 +20,7 @@ export function AccountMenu({ compact }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [codes, setCodes] = useState<InviteCode[]>([]);
   const [remaining, setRemaining] = useState(0);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -32,14 +34,26 @@ export function AccountMenu({ compact }: { compact?: boolean }) {
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
-  const profile = user ? loadProfile() : null;
+  useEffect(() => {
+    if (!user) {
+      setProfile(null);
+      return;
+    }
+    setProfile(loadProfile());
+    const unsub = subscribeProfile(() => setProfile(loadProfile()));
+    void hydrateProfile();
+    return unsub;
+  }, [user]);
+
   const displayName = (profile?.name && profile.name.trim()) || user?.name || user?.email || "";
   const displayAvatar = profile?.avatar || user?.avatar || "";
 
   useEffect(() => {
     if (!user) return;
-    setCodes(listMyCodes(user.id));
-    setRemaining(remainingInvites(user.id));
+    void (async () => {
+      setCodes(await listMyCodes(user.id));
+      setRemaining(await remainingInvites(user.id));
+    })();
   }, [user, open]);
 
   if (!hydrated) return <span className="w-6 h-6" />;
@@ -61,15 +75,15 @@ export function AccountMenu({ compact }: { compact?: boolean }) {
 
   const initial = (displayName || user.email).charAt(0).toUpperCase();
 
-  function onGenerate() {
+  async function onGenerate() {
     if (!user) return;
-    const code = generateInvite(user.id);
+    const code = await generateInvite(user.id);
     if (!code) {
       toast(t("auth.invites.no_more"));
       return;
     }
-    setCodes(listMyCodes(user.id));
-    setRemaining(remainingInvites(user.id));
+    setCodes(await listMyCodes(user.id));
+    setRemaining(await remainingInvites(user.id));
     void navigator.clipboard.writeText(code.code).catch(() => {});
     toast.success(t("auth.invites.generated", { code: code.code }));
   }

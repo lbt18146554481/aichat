@@ -1,63 +1,119 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowUp, MessageCircle, UserSearch, Users } from "lucide-react";
-import { LangSwitcher } from "@/components/lang-switcher";
-
-import { HistoryTrigger } from "@/components/history-trigger";
-import { SavedTrigger } from "@/components/saved-trigger";
-import { AccountMenu } from "@/components/account-menu";
-import { routeIntent } from "@/lib/route-intent";
-import { setSeed, type AgentId } from "@/lib/seed";
-import { hasUnseen, list, rehydrate, subscribe } from "@/lib/connections";
-import { createSession } from "@/lib/sessions";
+import { ArrowUp } from "lucide-react";
+import { AppChromeHeader } from "@/components/app-chrome-header";
 import { useAuth } from "@/lib/auth";
-import { EMPTY as EMPTY_SIDE } from "@/lib/agents/side-by-side";
-import { EMPTY as EMPTY_MATCHMAKER } from "@/lib/agents/matchmaker";
+import { normalizeLang } from "@/lib/lang";
+import { requestOrchestratorTurn } from "@/lib/orchestrator-client";
+import type { OrchestratorOutput } from "@/lib/orchestrator-llm.server";
+import type { HandoffContext, GraftedMessage } from "@/lib/handoff";
+import { openMatchmakerFromHandoff, openSideBySideFromHandoff } from "@/lib/session-handoff";
+import type { UserUnderstanding } from "@/lib/understanding";
+import {
+  createSession,
+  ensureSessionsHydrated,
+  getSession,
+  mostRecentReception,
+  updateSession,
+  type ReceptionState,
+} from "@/lib/sessions";
 
-interface Chip {
-  id: AgentId;
-  to: "/matchmaker" | "/side-by-side";
-  labelKey: string;
-  nameKey: string;
-  Icon: typeof UserSearch;
+interface ReceptionMsg {
+  role: "user" | "assistant";
+  content: string;
 }
 
-const CHIPS: Chip[] = [
-  {
-    id: "matchmaker",
-    to: "/matchmaker",
-    labelKey: "home.chip.intro",
-    nameKey: "agents.matchmaker.name",
-    Icon: UserSearch,
-  },
-  {
-    id: "sidebyside",
-    to: "/side-by-side",
-    labelKey: "home.chip.together",
-    nameKey: "agents.sidebyside.name",
-    Icon: Users,
-  },
-];
-
 export function Home() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = normalizeLang(i18n.resolvedLanguage);
   const { user } = useAuth();
+  const search = useSearch({ strict: false });
+  const threadParam = typeof search.thread === "string" ? search.thread : undefined;
 
   const navigate = useNavigate();
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const persistSkip = useRef(true);
 
   const [text, setText] = useState("");
-  const [selected, setSelected] = useState<AgentId | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [unseen, setUnseen] = useState(false);
+  const [threadReady, setThreadReady] = useState(false);
+  const [receptionSessionId, setReceptionSessionId] = useState<string | null>(null);
+  const [thinking, setThinking] = useState(false);
+  const [reception, setReception] = useState<ReceptionMsg[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [lastUnderstanding, setLastUnderstanding] = useState<UserUnderstanding | undefined>();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setReceptionSessionId(null);
+      setReception([]);
+      setThreadReady(true);
+      return;
+    }
+    let cancelled = false;
+    setThreadReady(false);
+    void (async () => {
+      await ensureSessionsHydrated();
+      if (cancelled) return;
+      const targetId = threadParam || mostRecentReception()?.id || null;
+      if (!targetId) {
+        setReceptionSessionId(null);
+        setReception([]);
+        persistSkip.current = true;
+        setThreadReady(true);
+        return;
+      }
+      const sess = getSession(targetId);
+      if (sess?.agent === "reception") {
+        const st = sess.state as ReceptionState;
+        setReceptionSessionId(sess.id);
+        setReception(Array.isArray(st.messages) ? st.messages : []);
+        persistSkip.current = true;
+      } else {
+        setReceptionSessionId(null);
+        setReception([]);
+        persistSkip.current = true;
+      }
+      setThreadReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, threadParam]);
+
+  useEffect(() => {
+    if (!user || !receptionSessionId || !threadReady) return;
+    if (persistSkip.current) {
+      persistSkip.current = false;
+      return;
+    }
+    if (reception.length === 0) return;
+    const seed =
+      reception.find((m) => m.role === "user")?.content.slice(0, 120) ||
+      reception[0]?.content.slice(0, 120) ||
+      "";
+    updateSession(receptionSessionId, {
+      state: { messages: reception } satisfies ReceptionState,
+      seed,
+      status: "waiting",
+    });
+  }, [reception, receptionSessionId, user, threadReady]);
+
+  useEffect(() => {
+    setReception([]);
+    setSuggestions([]);
+    setLastUnderstanding(undefined);
+    setReceptionSessionId(null);
+    persistSkip.current = true;
+  }, [lang]);
+
   useEffect(() => {
     if (!mounted) return;
-    // Force-focus flag set by "New wish" reset — focus on any viewport.
     let forced = false;
     try {
       if (window.sessionStorage.getItem("kindred:home:focus") === "1") {
@@ -67,197 +123,272 @@ export function Home() {
     } catch {
       /* noop */
     }
-    // Otherwise autofocus is desktop-only — on mobile it would summon the
-    // keyboard immediately and hide the greeting.
     const isDesktop =
       typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches;
     if (forced || isDesktop) taRef.current?.focus();
   }, [mounted]);
-  useEffect(() => {
-    rehydrate();
-    const update = () => {
-      setUnseen(hasUnseen());
-    };
-    update();
-    const unsub = subscribe(update);
-    return () => {
-      unsub();
-    };
-  }, []);
 
-  function submit() {
-    const body = text.trim();
-    if (!body) return;
+  function goHandoff(opts: {
+    target: "matchmaker" | "sidebyside";
+    seed: string;
+    summary: string;
+    understanding?: UserUnderstanding;
+    history: GraftedMessage[];
+    sideHints?: OrchestratorOutput["sideBySideHints"];
+    transition?: string;
+  }) {
+    const handoff: HandoffContext = {
+      from: "orchestrator",
+      seed: opts.seed,
+      summary: opts.summary || opts.seed,
+      understanding: opts.understanding,
+      sideBySideHints: opts.sideHints,
+      graftedMessages: opts.history,
+      handoffCount: 0,
+      transitionReply: opts.transition,
+    };
+    if (opts.target === "sidebyside") {
+      const s = openSideBySideFromHandoff(handoff);
+      void navigate({ to: "/side-by-side", search: { session: s.id, chatWith: "" } });
+      return;
+    }
+    const s = openMatchmakerFromHandoff(handoff);
+    void navigate({ to: "/matchmaker", search: { session: s.id } });
+  }
+
+  async function submit(override?: string) {
+    const body = (override ?? text).trim();
+    if (!body || thinking) return;
     if (!user) {
       void navigate({ to: "/auth", search: { mode: "signin", redirect: "/" } });
       return;
     }
-    const target: AgentId = selected ?? routeIntent(body);
-    setSeed(target, body);
-    // Every submit — regardless of which Agent it routes to — creates one
-    // History row. New chat semantics: home = new conversation, always.
-    if (target === "sidebyside") {
-      const s = createSession("do_something", body, EMPTY_SIDE);
-      void navigate({ to: "/side-by-side", search: { session: s.id, chatWith: "" } });
-      return;
+
+    let sid = receptionSessionId;
+    if (!sid) {
+      const sess = createSession("reception", body, { messages: [] });
+      sid = sess.id;
+      setReceptionSessionId(sid);
+      persistSkip.current = false;
+      void navigate({ to: "/", search: { thread: sid } as Record<string, string>, replace: true });
     }
-    const s = createSession("introduce", body, EMPTY_MATCHMAKER);
-    void navigate({ to: "/matchmaker", search: { session: s.id } });
+
+    const historyBefore = [...reception, { role: "user" as const, content: body }];
+    setReception(historyBefore);
+    setText("");
+    setSuggestions([]);
+    setThinking(true);
+
+    try {
+      let streaming = false;
+      const result = await requestOrchestratorTurn({
+        lang,
+        userMessage: body,
+        history: reception,
+        forcedTarget: null,
+        onDelta: (chunk) => {
+          if (!streaming) {
+            streaming = true;
+            setReception((prev) => [...prev, { role: "assistant", content: chunk }]);
+            setThinking(false);
+            return;
+          }
+          setReception((prev) => {
+            if (!prev.length) return prev;
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last?.role !== "assistant") return prev;
+            copy[copy.length - 1] = { ...last, content: chunk };
+            return copy;
+          });
+        },
+      });
+
+      setLastUnderstanding(result.understanding);
+
+      if (result.action === "error") {
+        setReception((prev) => {
+          if (streaming) {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last?.role === "assistant") {
+              copy[copy.length - 1] = {
+                ...last,
+                content: result.reply || t("home.reception_error"),
+              };
+              return copy;
+            }
+          }
+          return [...prev, { role: "assistant", content: result.reply || t("home.reception_error") }];
+        });
+        setSuggestions(result.suggestions ?? []);
+        return;
+      }
+
+      if (result.action === "handoff" && result.target) {
+        goHandoff({
+          target: result.target,
+          seed: body,
+          summary: result.summary || body,
+          understanding: result.understanding ?? lastUnderstanding,
+          history: historyBefore,
+          sideHints: result.sideBySideHints,
+        });
+        return;
+      }
+
+      const reply = result.reply || t("home.reception_clarify");
+      setReception((prev) => {
+        if (streaming) {
+          const copy = [...prev];
+          const last = copy[copy.length - 1];
+          if (last?.role === "assistant") {
+            copy[copy.length - 1] = { ...last, content: reply };
+            return copy;
+          }
+        }
+        return [...prev, { role: "assistant", content: reply }];
+      });
+      setSuggestions(result.suggestions ?? []);
+    } catch (e) {
+      console.error("[home orchestrator]", e);
+      console.error("[home orchestrator detail]", {
+        name: e instanceof Error ? e.name : typeof e,
+        message: e instanceof Error ? e.message : String(e),
+      });
+      setReception((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: t("home.reception_error"),
+        },
+      ]);
+      setSuggestions([]);
+    } finally {
+      setThinking(false);
+    }
   }
+
+  const inReception = reception.length > 0;
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!inReception) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [reception, thinking, suggestions, inReception]);
 
   function autosize(el: HTMLTextAreaElement | null) {
     if (!el) return;
     el.style.height = "0px";
-    el.style.height = Math.min(el.scrollHeight, 180) + "px";
+    el.style.height = Math.min(el.scrollHeight, 140) + "px";
   }
 
-  return (
-    <div className="min-h-dvh bg-background flex flex-col pb-tabbar" suppressHydrationWarning>
-      {/* Desktop header — hidden on mobile in favor of the bottom tab bar. */}
-      <header className="hidden md:block w-full border-b border-border/60">
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="relative inline-flex">
-              <span className="w-6 h-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">
-                K
-              </span>
-              {mounted && user && unseen && (
-                <span
-                  aria-label={t("home.connections")}
-                  className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background"
-                />
-              )}
-            </span>
-            <span className="text-[14px] font-semibold tracking-tight text-foreground">Maitri</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {mounted && user && (
-              <Link
-                to="/connections"
-                className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              >
-                <MessageCircle
-                  className={`w-3.5 h-3.5 ${unseen ? "text-red-500" : ""}`}
-                  strokeWidth={1.75}
-                />
-                <span suppressHydrationWarning>{mounted ? t("home.connections") : ""}</span>
-                {unseen && (
-                  <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-500 text-white text-[10px] font-medium leading-[16px] text-center ring-2 ring-background">
-                    •
-                  </span>
-                )}
-              </Link>
-            )}
-            {mounted && user && <SavedTrigger />}
-            {mounted && user && <HistoryTrigger />}
-            <LangSwitcher />
-            {mounted && <AccountMenu />}
-          </div>
+  const suggestionRow =
+    suggestions.length > 0 && !thinking ? (
+      <div className="mb-2 flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {suggestions.map((s) => (
+          <button
+            key={s}
+            type="button"
+            disabled={thinking}
+            onClick={() => void submit(s)}
+            className="shrink-0 whitespace-nowrap rounded-full border border-border bg-card px-3 py-1.5 text-[12px] text-muted-foreground hover:border-foreground/40 hover:text-foreground disabled:opacity-40 transition-colors"
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+    ) : null;
+
+  const composer = (
+    <div>
+      {suggestionRow}
+      <div className="rounded-3xl border border-border bg-card shadow-sm-soft focus-within:border-foreground/30 transition-colors">
+        <div className="px-4 md:px-5 pt-3 md:pt-4 pb-2">
+          <textarea
+            ref={taRef}
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              autosize(e.target);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void submit();
+              }
+            }}
+            rows={2}
+            placeholder={mounted ? t("home.placeholder") : ""}
+            className="w-full resize-none bg-transparent outline-none text-[15px] leading-relaxed text-foreground placeholder:text-subtle-foreground"
+            suppressHydrationWarning
+          />
         </div>
-      </header>
 
-      {/* Mobile top strip */}
-      <div className="md:hidden pt-safe">
-        <div className="px-5 h-12 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="relative inline-flex">
-              <span className="w-6 h-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">
-                K
-              </span>
-              {mounted && user && unseen && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />
-              )}
-            </span>
-            <span className="text-[13.5px] font-semibold tracking-tight text-foreground">
-              Maitri
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1">
-            {mounted && user && <SavedTrigger variant="compact" />}
-            <LangSwitcher />
-          </div>
+        <div className="px-2.5 md:px-3 pb-2.5 md:pb-3 pt-1 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={!text.trim() || thinking}
+            className="shrink-0 inline-flex items-center justify-center w-10 h-10 md:w-9 md:h-9 rounded-full bg-primary text-primary-foreground disabled:bg-input disabled:text-subtle-foreground disabled:cursor-not-allowed hover:bg-primary-hover transition-colors"
+            aria-label={t("home.send")}
+            suppressHydrationWarning
+          >
+            <ArrowUp className="w-4 h-4" strokeWidth={2.25} />
+          </button>
         </div>
       </div>
+    </div>
+  );
 
-      <main className="flex-1 min-h-0 flex flex-col md:block px-5 md:px-6">
-        <div className="w-full max-w-3xl md:mx-auto flex-1 min-h-0 flex flex-col md:block md:pt-[16vh]">
-          {/* The greeting shrinks and scrolls instead of being pushed under the
-              notch when the software keyboard collapses the viewport. */}
-          <div className="flex-1 min-h-0 md:flex-none flex items-center justify-center md:block overflow-y-auto py-4 md:py-0">
+  return (
+    <div className="h-dvh bg-background flex flex-col pb-tabbar overflow-hidden" suppressHydrationWarning>
+      <AppChromeHeader />
+
+      {!inReception ? (
+        <main className="flex-1 min-h-0 flex flex-col px-5 md:px-6">
+          <div className="w-full max-w-3xl md:mx-auto flex-1 min-h-0 flex flex-col justify-center md:justify-start md:pt-[16vh] gap-6 md:gap-8">
             <h1
-              className="w-full text-center md:text-left text-[28px] sm:text-[36px] md:text-[44px] font-semibold tracking-[-0.02em] leading-[1.15] text-foreground"
-              suppressHydrationWarning
+              key={i18n.language}
+              className="w-full text-center md:text-left text-[28px] sm:text-[36px] md:text-[44px] font-semibold tracking-[-0.02em] leading-[1.15] text-foreground min-h-[1.15em]"
             >
-              {t("home.greeting")}
+              {mounted ? t("home.greeting") : "\u00A0"}
             </h1>
+            <div className="w-full pb-[max(env(safe-area-inset-bottom),12px)] md:pb-8">{composer}</div>
           </div>
-
-          {/* Composer */}
-          <div className="md:mt-8 sticky bottom-0 md:static z-10 bg-background md:bg-transparent -mx-5 md:mx-0 px-5 md:px-0 pb-[max(env(safe-area-inset-bottom),12px)] md:pb-0 pt-3 md:pt-0">
-            <div className="rounded-3xl border border-border bg-card shadow-sm-soft focus-within:border-foreground/30 transition-colors">
-              <div className="px-4 md:px-5 pt-3 md:pt-4 pb-2">
-                <textarea
-                  ref={taRef}
-                  value={text}
-                  onChange={(e) => {
-                    setText(e.target.value);
-                    autosize(e.target);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      submit();
-                    }
-                  }}
-                  rows={2}
-                  placeholder={mounted ? t("home.placeholder") : ""}
-                  className="w-full resize-none bg-transparent outline-none text-[15px] leading-relaxed text-foreground placeholder:text-subtle-foreground"
-                  suppressHydrationWarning
-                />
-              </div>
-
-              <div className="px-2.5 md:px-3 pb-2.5 md:pb-3 pt-1 flex items-center justify-between gap-2">
-                {/* Suggestion chips inside the composer — same on all viewports */}
-                <div className="flex flex-wrap items-center gap-1.5 pl-1.5">
-                  {CHIPS.map((c) => {
-                    const active = selected === c.id;
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => setSelected(active ? null : c.id)}
-                        className={[
-                          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors",
-                          active
-                            ? "border-foreground/25 bg-surface text-foreground"
-                            : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/20",
-                        ].join(" ")}
-                        aria-pressed={active}
-                        suppressHydrationWarning
-                      >
-                        <c.Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
-                        <span suppressHydrationWarning>{t(c.labelKey)}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={submit}
-                  disabled={!text.trim()}
-                  className="shrink-0 inline-flex items-center justify-center w-10 h-10 md:w-9 md:h-9 rounded-full bg-primary text-primary-foreground disabled:bg-input disabled:text-subtle-foreground disabled:cursor-not-allowed hover:bg-primary-hover transition-colors"
-                  aria-label={t("home.send")}
-                  suppressHydrationWarning
+        </main>
+      ) : (
+        <main className="flex-1 min-h-0 flex flex-col">
+          <div
+            ref={scrollRef}
+            className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 md:px-6"
+          >
+            <div className="w-full max-w-3xl mx-auto py-4 space-y-3">
+              {reception.map((m, i) => (
+                <div
+                  key={i}
+                  className={
+                    m.role === "user"
+                      ? "ml-8 rounded-2xl bg-secondary px-3.5 py-2.5 text-[14px] text-foreground"
+                      : "mr-8 rounded-2xl border border-border bg-card px-3.5 py-2.5 text-[14px] text-foreground"
+                  }
                 >
-                  <ArrowUp className="w-4 h-4" strokeWidth={2.25} />
-                </button>
-              </div>
+                  {m.content}
+                </div>
+              ))}
+              {thinking && (
+                <p className="text-[13px] text-muted-foreground">{t("chat.starting")}</p>
+              )}
             </div>
           </div>
-        </div>
-      </main>
+
+          <div className="shrink-0 border-t border-border/60 bg-background px-5 md:px-6 pt-3 pb-[max(env(safe-area-inset-bottom),12px)]">
+            <div className="w-full max-w-3xl mx-auto">{composer}</div>
+          </div>
+        </main>
+      )}
     </div>
   );
 }

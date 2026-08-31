@@ -2,23 +2,20 @@
 
 我想构建一个新的交友平台，但是以AI对话框的方式开始作为交互的开始。
 
-This project was built with [Lovable](https://lovable.dev).
+当前版本已接入 **PostgreSQL + 邮箱密码登录 + DeepSeek**，详见 [DEPLOY.md](./DEPLOY.md)。
 
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/70045aa3-c2b0-4a43-a6d4-d41be7743117).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+## Quick start
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+docker compose up -d
+cp .env.example .env   # 填入 DATABASE_URL / SESSION_SECRET / DEEPSEEK_API_KEY
+bun install            # 或 npm install
+bun run db:setup
+bun run dev
 ```
+
+注册需邀请码（种子码：`KINDRED2026` / `WELCOME` / `FRIENDS`），登录用邮箱+密码。
+
+本地开发请开两个终端：`bun run ws`（实时聊天）+ `bun run dev`。
+
+This project was built with [Lovable](https://lovable.dev).

@@ -1,143 +1,79 @@
-// The user's own Profile — the SOURCE OF TRUTH for "who you are" inside
-// Maitri. Three sections, each with a clear reader:
-//   01 Vitals      → identity + system hard-filter (same city)
-//   02 Moments     → other real people (Introduce Someone right pane)
-//   03 Favorites   → other real people (cultural taste; multi-entry)
+// Profile — server-backed with an in-memory cache for sync UI helpers.
 
-export type WorkKind = "book" | "film" | "music" | "exhibition" | "food" | "sport" | "other";
+import { getProfileFn, saveProfileFn } from "./api/profile.functions";
+import {
+  EMPTY_PROFILE,
+  MAX_FAVORITES,
+  MIN_FAVORITES,
+  MIN_MOMENTS,
+  type Favorite,
+  type Profile,
+  type ProfileMoment,
+  type WorkKind,
+  type Gender,
+  type Orientation,
+  isHidden,
+  toggleHidden,
+} from "./profile-shape";
 
-export type Gender = "" | "female" | "male" | "nonbinary" | "prefer_not_to_say";
-export type Orientation =
-  | ""
-  | "straight"
-  | "gay"
-  | "lesbian"
-  | "bi"
-  | "pan"
-  | "asexual"
-  | "prefer_not_to_say";
-
-export interface ProfileMoment {
-  promptId: string;
-  answer: string; // user's own words, stored verbatim
-}
-
-export interface Favorite {
-  kind: WorkKind;
-  title: string;
-  why: string; // one sentence
-}
-
-// ---------- Profile --------------------------------------------------------
-
-export interface Profile {
-  // L1 vitals
-  avatar: string; // data URL, empty if unset (optional)
-  name: string;
-  age: number | null;
-  city: string;
-  occupation: string;
-  gender: Gender; // optional
-  orientation: Orientation; // optional
-  mbti: string; // optional, "" or one of 16 types
-  // L2 specificity
-  moments: ProfileMoment[];
-  favorites: Favorite[];
-  /** Field keys the user has chosen to hide from others.
-   *  Keys: "avatar", "age", "gender", "orientation", "mbti",
-   *        `moment:<promptId>`, `favorite:<index>` */
-  hidden: string[];
-}
-
-export const EMPTY_PROFILE: Profile = {
-  avatar: "",
-  name: "",
-  age: null,
-  city: "",
-  occupation: "",
-  gender: "",
-  orientation: "",
-  mbti: "",
-  moments: [],
-  favorites: [],
-  hidden: [],
+export type { Profile, ProfileMoment, Favorite, WorkKind, Gender, Orientation };
+export {
+  EMPTY_PROFILE,
+  MAX_FAVORITES,
+  MIN_FAVORITES,
+  MIN_MOMENTS,
+  isHidden,
+  toggleHidden,
 };
 
-/** Is this field currently hidden from others? */
-export function isHidden(p: Profile, key: string): boolean {
-  return Array.isArray(p.hidden) && p.hidden.includes(key);
+let cache: Profile = { ...EMPTY_PROFILE };
+const listeners = new Set<() => void>();
+
+function emit() {
+  listeners.forEach((fn) => fn());
 }
 
-/** Flip the visibility of one field. */
-export function toggleHidden(p: Profile, key: string): Profile {
-  const cur = Array.isArray(p.hidden) ? p.hidden : [];
-  return { ...p, hidden: cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key] };
-}
-
-export const MIN_MOMENTS = 3;
-export const MIN_FAVORITES = 1;
-export const MAX_FAVORITES = 6;
-
-const KEY = "kindred:profile.v1";
-
-// Legacy shape we may find in localStorage from earlier versions.
-interface LegacyProfile extends Partial<Profile> {
-  oneWork?: { kind: WorkKind; title: string; why: string } | null;
-  compatibility?: unknown;
-  activities?: unknown;
-  /** Removed fields — read and dropped so old data can't leak into the UI. */
-  bio?: string;
-  interests?: string[];
-  hidden?: string[];
+export function subscribeProfile(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
 }
 
 export function loadProfile(): Profile {
-  if (typeof window === "undefined") return EMPTY_PROFILE;
+  return cache;
+}
+
+export async function hydrateProfile(): Promise<Profile> {
   try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return EMPTY_PROFILE;
-    const parsed = JSON.parse(raw) as LegacyProfile;
-    const favorites: Favorite[] = Array.isArray(parsed.favorites)
-      ? (parsed.favorites as Favorite[])
-      : parsed.oneWork && parsed.oneWork.title
-        ? [{ kind: parsed.oneWork.kind, title: parsed.oneWork.title, why: parsed.oneWork.why }]
-        : [];
-    // Drop retired fields (activities, compatibility, oneWork, bio,
-    // interests) silently — they no longer exist in the product.
-    const {
-      activities: _a,
-      compatibility: _c,
-      oneWork: _o,
-      bio: _b,
-      interests: _i,
-      ...rest
-    } = parsed;
-    void _a;
-    void _c;
-    void _o;
-    void _b;
-    void _i;
-    return {
-      ...EMPTY_PROFILE,
-      ...rest,
-      moments: Array.isArray(parsed.moments) ? parsed.moments : [],
-      favorites,
-      hidden: Array.isArray(parsed.hidden)
-        ? (parsed.hidden as string[]).filter((k) => k !== "bio" && k !== "interests")
-        : [],
-    };
+    cache = await getProfileFn();
   } catch {
-    return EMPTY_PROFILE;
+    cache = { ...EMPTY_PROFILE };
   }
+  emit();
+  return cache;
 }
 
 export function saveProfile(p: Profile) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(p));
-  } catch {
-    /* noop */
-  }
+  cache = p;
+  emit();
+  void saveProfileFn({ data: { profile: p as unknown as Record<string, unknown> } }).catch(
+    () => {
+      /* offline / test env */
+    },
+  );
+}
+
+/** Test helper */
+export function _resetProfileCache() {
+  cache = { ...EMPTY_PROFILE };
+  emit();
+}
+
+export async function saveProfileAsync(p: Profile): Promise<Profile> {
+  cache = p;
+  emit();
+  return saveProfileFn({ data: { profile: p as unknown as Record<string, unknown> } });
 }
 
 export function hasName(p: Profile): boolean {
@@ -184,8 +120,6 @@ export function upsertMoment(p: Profile, promptId: string, answer: string): Prof
 export function removeMoment(p: Profile, promptId: string): Profile {
   return { ...p, moments: p.moments.filter((m) => m.promptId !== promptId) };
 }
-
-// ---------- Favorites ------------------------------------------------------
 
 export function addFavorite(p: Profile, f: Favorite): Profile {
   if (p.favorites.length >= MAX_FAVORITES) return p;

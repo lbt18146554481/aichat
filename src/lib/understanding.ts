@@ -1,12 +1,5 @@
-// Shared "what the system has learned about WHO YOU'RE LOOKING FOR" store.
-// This is intent / taste / preference — NOT identity. Identity is owned by
-// the user-edited Profile (src/lib/profile.ts).
-//
-// The Matchmaker Agent writes here from chat. Each new inference shows up
-// as a removable chip in the understanding panel, so the user can always
-// audit and revise.
-
 import { extractSignals } from "./conversation";
+import { getPrefsFn, savePrefsFn } from "./api/data.functions";
 
 export interface UserUnderstanding {
   positive: string[];
@@ -20,38 +13,35 @@ export const EMPTY_UNDERSTANDING: UserUnderstanding = {
   notes: [],
 };
 
-const KEY = "kindred:understanding.v1";
+let cache: UserUnderstanding = { ...EMPTY_UNDERSTANDING };
 
 export function loadUnderstanding(): UserUnderstanding {
-  if (typeof window === "undefined") return EMPTY_UNDERSTANDING;
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return EMPTY_UNDERSTANDING;
-    const parsed = JSON.parse(raw) as Partial<UserUnderstanding>;
-    return { ...EMPTY_UNDERSTANDING, ...parsed };
-  } catch {
-    return EMPTY_UNDERSTANDING;
-  }
+  return cache;
 }
 
 export function saveUnderstanding(u: UserUnderstanding) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(u));
-  } catch {
-    /* noop */
-  }
+  cache = u;
+  void savePrefsFn({ data: { understanding: u as unknown as Record<string, unknown> } }).catch(
+    console.error,
+  );
 }
 
 export function resetUnderstanding(): UserUnderstanding {
-  if (typeof window !== "undefined") {
-    try {
-      window.localStorage.removeItem(KEY);
-    } catch {
-      /* noop */
+  cache = { ...EMPTY_UNDERSTANDING };
+  void savePrefsFn({ data: { understanding: null } }).catch(console.error);
+  return cache;
+}
+
+export async function hydrateUnderstanding() {
+  try {
+    const prefs = await getPrefsFn();
+    if (prefs.understanding) {
+      cache = { ...EMPTY_UNDERSTANDING, ...(prefs.understanding as UserUnderstanding) };
     }
+  } catch {
+    /* ignore */
   }
-  return EMPTY_UNDERSTANDING;
+  return cache;
 }
 
 export function digest(

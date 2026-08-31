@@ -33,6 +33,16 @@ import {
   removeSavedForSession as removeSavedForSessionGlobal,
   saveIntent as saveIntentGlobal,
 } from "../saved-intents";
+import type { UserUnderstanding } from "../understanding";
+import { emptyUnderstanding, mergeUnderstanding } from "../handoff";
+import {
+  EMPTY_WISH_HARD_FILTERS,
+  emptyWishDraft,
+  type WishDraft,
+  type WishHardFilters,
+} from "../wish-types";
+import type { SideTurnOutput } from "../side-llm.server";
+import { pickLocaleText, isZh as langIsZh } from "../lang";
 
 export type { LevelTier, WhenTier } from "../intents";
 
@@ -246,6 +256,27 @@ export interface SideState {
   /** Pending user-supplied wish text stashed while we ask for missing profile
    *  fields (currently: city). Replayed via submitPrompt after resolution. */
   pendingWishText?: string;
+  handoff?: import("../handoff").HandoffContext;
+  handoffCount?: number;
+  parentSessionId?: string;
+  suspended?: boolean;
+  /** After detect handoff: ask user whether to revoke published wish before leaving. */
+  pendingHandoff?: {
+    target: "matchmaker";
+    summary: string;
+    transitionReply: string;
+    userMessage: string;
+  };
+  /** LLM-extracted wish draft before publish. */
+  wishDraft?: WishDraft;
+  hardFilters?: WishHardFilters;
+  understanding?: UserUnderstanding;
+  /** One-sentence confirm line waiting for user yes. */
+  pendingConfirm?: string | null;
+  matchReason?: string;
+  crossCityMatch?: boolean;
+  /** LLM reply suggestions for the left composer. */
+  suggestions?: string[];
 }
 
 export const EMPTY: SideState = {
@@ -259,6 +290,12 @@ export const EMPTY: SideState = {
   truncated: false,
   messages: [],
   chatMessages: [],
+  handoffCount: 0,
+  wishDraft: emptyWishDraft(),
+  hardFilters: { ...EMPTY_WISH_HARD_FILTERS },
+  understanding: emptyUnderstanding(),
+  pendingConfirm: null,
+  suggestions: [],
 };
 
 export type ViewKey = "empty" | "match" | "nomatch" | "chat";
@@ -441,11 +478,11 @@ export function unsave(state: SideState, intentId: string): SideState {
 }
 
 /** Start chatting with a specific saved candidate. */
-export function chatWithSaved(state: SideState, intentId: string, draft?: string): SideState {
+export function chatWithSaved(state: SideState, intentId: string, draft?: string, lang?: string): SideState {
   const target = getIntentById(intentId);
   if (!target) return state;
   const armed: SideState = { ...state, stage: "published", matchIntentId: intentId };
-  return startChat(armed, draft);
+  return startChat(armed, draft, lang);
 }
 
 /** Pivot my published wish to a near-miss person's slot and rematch. */
@@ -469,11 +506,11 @@ export function tryNearMiss(state: SideState, intentId: string): SideState {
   );
 }
 
-export function startChat(state: SideState, draft?: string): SideState {
+export function startChat(state: SideState, draft?: string, lang?: string): SideState {
   if (state.stage !== "published" || !state.matchIntentId) return state;
   const other = getIntentById(state.matchIntentId);
   if (!other) return state;
-  const opener = other.rawText_zh || other.rawText;
+  const opener = pickLocaleText(lang, other.rawText, other.rawText_zh) || other.rawText;
   const first: ChatMsg = { id: uid(), from: "them", text: opener, t: Date.now() };
   // Starting a chat with TA removes just TA from the global saved shelf —
   // other saved candidates remain across pages/sessions.
@@ -494,9 +531,11 @@ export function sendChatMessage(state: SideState, text: string): SideState {
   return { ...state, chatMessages: [...state.chatMessages, mine] };
 }
 
-export function receiveSimulatedReply(state: SideState): SideState {
+export function receiveSimulatedReply(state: SideState, lang?: string): SideState {
   if (state.stage !== "chat" || !state.matchIntentId) return state;
-  const replies = ["好啊，那就那个时候？", "Cool. I'm usually there anyway.", "定了。到时候见 👍"];
+  const replies = langIsZh(lang)
+    ? ["好啊，那就那个时候？", "我也常去那边。", "定了，到时候见。"]
+    : ["Sounds good — that time works?", "Cool. I'm usually there anyway.", "It's a date. See you then."];
   const pick = replies[state.chatMessages.length % replies.length];
   const reply: ChatMsg = { id: uid(), from: "them", text: pick, t: Date.now() };
   return { ...state, chatMessages: [...state.chatMessages, reply] };
@@ -530,6 +569,148 @@ export function setAwaitingTrait(state: SideState, v: boolean): SideState {
   return { ...state, awaitingTrait: v };
 }
 
+/** Patch wish fields without rematching — caller runs LLM rematch. */
+export function patchWish(
+  state: SideState,
+  patch: { when?: WhenTier; level?: LevelTier; city?: string },
+): SideState {
+  if (!state.myIntentId) return state;
+  const applied: { when?: WhenTier; level?: LevelTier; city?: string; city_zh?: string } = {};
+  if (patch.when !== undefined) applied.when = patch.when;
+  if (patch.level !== undefined) applied.level = patch.level;
+  if (patch.city !== undefined) {
+    const trimmed = patch.city.trim();
+    const target = trimmed || loadProfile().city;
+    applied.city = target;
+    applied.city_zh = target;
+  }
+  updateMyIntent(state.myIntentId, applied);
+  return { ...state, savedIntentIds: [], matchIntentId: null, matchQuality: undefined };
+}
+
+/** Record skip without rule-based rematch — caller runs LLM rematch. */
+export function prepareSkipMatch(state: SideState): SideState {
+  if (!state.myIntentId || !state.matchIntentId) return state;
+  const other = getIntentById(state.matchIntentId);
+  const tried = (state.triedIntentIds ?? []).includes(state.matchIntentId)
+    ? (state.triedIntentIds ?? [])
+    : [...(state.triedIntentIds ?? []), state.matchIntentId];
+  const triedOwners =
+    other && !(state.triedOwnerIds ?? []).includes(other.ownerId)
+      ? [...(state.triedOwnerIds ?? []), other.ownerId]
+      : (state.triedOwnerIds ?? []);
+  return {
+    ...state,
+    triedIntentIds: tried,
+    triedOwnerIds: triedOwners,
+    matchIntentId: null,
+    matchQuality: undefined,
+  };
+}
+
+export function applyTurnResult(
+  state: SideState,
+  userText: string | null,
+  output: SideTurnOutput,
+  opts?: { skipUser?: boolean; skipAssistant?: boolean; replaceLastAssistant?: boolean },
+): SideState {
+  let next: SideState = {
+    ...state,
+    understanding: output.understanding,
+    hardFilters: output.hardFilters,
+    wishDraft: output.wishDraft,
+    pendingConfirm: output.pendingConfirm,
+    crossCityMatch: output.crossCityMatch,
+    matchReason: output.matchReason,
+    nearMissIds: output.nearMissIds,
+    suggestions: output.suggestions?.length ? output.suggestions.slice(0, 4) : [],
+  };
+
+  if (userText?.trim() && !opts?.skipUser) {
+    next = {
+      ...next,
+      messages: [...next.messages, { id: uid(), role: "user", t: Date.now(), text: userText.trim() }],
+    };
+  }
+
+  if (output.myIntentId) {
+    next = {
+      ...next,
+      stage: "published",
+      myIntentId: output.myIntentId,
+      truncated: state.truncated,
+    };
+  }
+
+  if (output.stage === "published") {
+    next = { ...next, stage: "published" };
+  }
+
+  if (output.matchIntentId) {
+    next = {
+      ...next,
+      matchIntentId: output.matchIntentId,
+      matchQuality: output.matchQuality ?? next.matchQuality,
+    };
+  } else if (output.myIntentId && output.recallEmpty) {
+    next = { ...next, matchIntentId: null, matchQuality: undefined };
+  }
+
+  if (opts?.replaceLastAssistant) {
+    const msgs = [...next.messages];
+    const last = msgs[msgs.length - 1];
+    if (last?.role === "assistant") {
+      msgs[msgs.length - 1] = { ...last, text: output.reply };
+      next = { ...next, messages: msgs };
+    } else {
+      next = {
+        ...next,
+        messages: [
+          ...next.messages,
+          { id: uid(), role: "assistant", t: Date.now(), text: output.reply },
+        ],
+      };
+    }
+  } else if (!opts?.skipAssistant) {
+    next = {
+      ...next,
+      messages: [
+        ...next.messages,
+        { id: uid(), role: "assistant", t: Date.now(), text: output.reply },
+      ],
+    };
+  }
+
+  return next;
+}
+
+export function patchLastAssistant(state: SideState, text: string): SideState {
+  const msgs = [...state.messages];
+  const last = msgs[msgs.length - 1];
+  if (last?.role === "assistant") {
+    msgs[msgs.length - 1] = { ...last, text };
+    return { ...state, messages: msgs };
+  }
+  return {
+    ...state,
+    messages: [...state.messages, { id: uid(), role: "assistant", t: Date.now(), text }],
+  };
+}
+
+export function beginStreamingTurn(state: SideState, userText: string | null): SideState {
+  let next = state;
+  if (userText?.trim()) {
+    next = {
+      ...next,
+      messages: [...next.messages, { id: uid(), role: "user", t: Date.now(), text: userText.trim() }],
+    };
+  }
+  return {
+    ...next,
+    messages: [...next.messages, { id: uid(), role: "assistant", t: Date.now(), text: "" }],
+  };
+}
+
 // ---- Persistence -------------------------------------------------------
 //
 // All state lives in the sessions store, keyed by sessionId. A caller
@@ -541,7 +722,17 @@ export function load(sessionId?: string | null): SideState {
   if (typeof window === "undefined") return EMPTY;
   if (sessionId) {
     const s = getSession(sessionId);
-    if (s) return { ...EMPTY, ...(s.state as Partial<SideState>) };
+    if (s) {
+      const partial = s.state as Partial<SideState>;
+      return {
+        ...EMPTY,
+        ...partial,
+        hardFilters: { ...EMPTY_WISH_HARD_FILTERS, ...partial.hardFilters },
+        wishDraft: partial.wishDraft ?? emptyWishDraft(),
+        understanding: mergeUnderstanding(emptyUnderstanding(), partial.understanding),
+        pendingConfirm: partial.pendingConfirm ?? null,
+      };
+    }
   }
   return EMPTY;
 }

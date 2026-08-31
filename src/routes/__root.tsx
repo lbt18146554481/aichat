@@ -19,12 +19,6 @@ import { useNativeBack } from "@/hooks/use-native-back";
 import { BUILD_INFO } from "@/lib/build-info.generated";
 
 initI18n();
-// Hard-lock the first render to English on every entry so SSR HTML and the
-// client's first paint always match. Persisted language is applied later via
-// useEffect (see RootComponent), which runs after hydration.
-if (i18n.language !== "en") {
-  void i18n.changeLanguage("en");
-}
 
 function NotFoundComponent() {
   return (

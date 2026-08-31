@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { Bookmark, ChevronRight, Copy, LogOut, Ticket, UserCircle } from "lucide-react";
 import { signOut, useAuth } from "@/lib/auth";
 import { useRequireAuth } from "@/lib/auth-guard";
-import { loadProfile } from "@/lib/profile";
+import { hydrateProfile, loadProfile } from "@/lib/profile";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SavedTrigger } from "@/components/saved-trigger";
@@ -51,13 +51,15 @@ function MePage() {
 
   useEffect(() => {
     if (!ready) return;
-    setProfile(loadProfile());
+    void hydrateProfile().then(setProfile);
   }, [ready]);
 
   useEffect(() => {
     if (!user) return;
-    setCodes(listMyCodes(user.id));
-    setRemaining(remainingInvites(user.id));
+    void (async () => {
+      setCodes(await listMyCodes(user.id));
+      setRemaining(await remainingInvites(user.id));
+    })();
   }, [user, invitesOpen]);
 
   if (!ready) {
@@ -88,15 +90,15 @@ function MePage() {
   const displayName = (profile?.name && profile.name.trim()) || user?.name || user?.email || "";
   const avatar = profile?.avatar || user?.avatar || "";
 
-  function onGenerate() {
+  async function onGenerate() {
     if (!user) return;
-    const code = generateInvite(user.id);
+    const code = await generateInvite(user.id);
     if (!code) {
       toast(t("auth.invites.no_more"));
       return;
     }
-    setCodes(listMyCodes(user.id));
-    setRemaining(remainingInvites(user.id));
+    setCodes(await listMyCodes(user.id));
+    setRemaining(await remainingInvites(user.id));
     void navigator.clipboard.writeText(code.code).catch(() => {});
     toast.success(t("auth.invites.generated", { code: code.code }));
   }

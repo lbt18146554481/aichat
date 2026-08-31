@@ -13,6 +13,7 @@ import {
   BookmarkCheck,
 } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
+import { pickLocaleText } from "@/lib/lang";
 import type { SideState, ChatMsg, LevelTier, WhenTier } from "@/lib/agents/side-by-side";
 import { currentView } from "@/lib/agents/side-by-side";
 import { countAvailableMatches, getIntentById, type Intent } from "@/lib/intents";
@@ -452,8 +453,11 @@ function IntentCard({ intent, side, lang }: { intent: Intent; side: "me" | "them
           {KIND_EMOJI[intent.kind]} {t(`activity.kind.${intent.kind}`)}
         </Tag>
         {(() => {
-          const cityLabel =
-            lang === "zh-CN" ? intent.city_zh || intent.city : intent.city || intent.city_zh;
+          const cityLabel = pickLocaleText(
+            lang,
+            intent.city || intent.ownerCity,
+            intent.city_zh || intent.ownerCity_zh,
+          );
           if (!cityLabel) return null;
           // "This wish" badge only on my own card, when the wish city differs
           // from my profile city.

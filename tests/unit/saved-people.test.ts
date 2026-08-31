@@ -4,6 +4,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  _resetSavedPeopleCache,
   isPersonSaved,
   listSavedPeople,
   removeSavedPerson,
@@ -12,7 +13,7 @@ import {
 } from "@/lib/saved-people";
 
 beforeEach(() => {
-  window.localStorage.clear();
+  _resetSavedPeopleCache();
 });
 
 describe("saved people", () => {
