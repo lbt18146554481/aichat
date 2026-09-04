@@ -59,21 +59,40 @@ ensure_deepseek_key() {
   [[ -n "${DEEPSEEK_API_KEY:-}" ]] || die "DEEPSEEK_API_KEY is required (export it before running)"
 }
 
+ensure_docker() {
+  if command -v docker >/dev/null 2>&1; then
+    log "docker already present: $(docker --version 2>/dev/null || true)"
+    sudo systemctl enable --now docker 2>/dev/null || true
+  else
+    # Prefer Ubuntu package only when no Docker CE / containerd.io is installed.
+    # Official Docker CE uses containerd.io, which conflicts with apt package "containerd"
+    # pulled in by docker.io — so never force docker.io onto a CE host.
+    log "install docker.io (Ubuntu package)"
+    if ! sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io; then
+      die "docker not found and docker.io install failed (containerd conflict?). Install Docker CE manually, then re-run."
+    fi
+    sudo systemctl enable --now docker
+  fi
+
+  if ! groups "$DEPLOY_USER" | grep -qw docker; then
+    sudo usermod -aG docker "$DEPLOY_USER"
+    warn "added $DEPLOY_USER to docker group (new shells pick this up automatically)"
+  fi
+}
+
 install_base_packages() {
   if [[ "${SKIP_APT:-}" == "1" ]]; then
     log "skip apt / node / bun (SKIP_APT=1)"
+    ensure_docker
     return 0
   fi
 
   log "apt packages"
   sudo apt-get update -y
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    git curl ca-certificates nginx docker.io openssl
+    git curl ca-certificates nginx openssl
 
-  if ! groups "$DEPLOY_USER" | grep -qw docker; then
-    sudo usermod -aG docker "$DEPLOY_USER"
-    warn "added $DEPLOY_USER to docker group (new shells pick this up automatically)"
-  fi
+  ensure_docker
 
   if ! command -v node >/dev/null 2>&1 || [[ "$(node -v | sed 's/^v//' | cut -d. -f1)" -lt 20 ]]; then
     log "install Node.js 20"
