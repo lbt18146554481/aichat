@@ -6,8 +6,9 @@ export async function generateMatchReason(opts: {
   lang: SideLang;
   mineId: string;
   otherId: string;
+  mine?: import("./intents").Intent;
 }): Promise<string> {
-  const mine = getIntentById(opts.mineId);
+  const mine = opts.mine ?? getIntentById(opts.mineId);
   const other = getIntentById(opts.otherId);
   if (!mine || !other) return "";
 

@@ -4,11 +4,12 @@
 // session the user has ever started. Reused on every page's header.
 
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Clock, ArrowRight } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { SessionList } from "@/components/session-list";
+import { clearActiveThreadId } from "@/lib/active-thread";
 
 interface Props {
   /** Visual density — "compact" matches the workspace header, "default" the home header. */
@@ -17,7 +18,19 @@ interface Props {
 
 export function HistoryTrigger({ variant = "default" }: Props) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+
+  function startNewConversation() {
+    clearActiveThreadId();
+    try {
+      window.sessionStorage.setItem("kindred:home:focus", "1");
+    } catch {
+      /* noop */
+    }
+    setOpen(false);
+    void navigate({ to: "/" });
+  }
 
   const btnClass =
     variant === "compact"
@@ -39,14 +52,23 @@ export function HistoryTrigger({ variant = "default" }: Props) {
             <SheetTitle className="text-[16px] font-semibold tracking-tight text-foreground">
               {t("history.title")}
             </SheetTitle>
-            <Link
-              to="/sessions"
-              onClick={() => setOpen(false)}
-              className="inline-flex items-center gap-1 text-[11.5px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {t("history.view_all")}
-              <ArrowRight className="w-3 h-3" strokeWidth={1.75} />
-            </Link>
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={startNewConversation}
+                className="text-[11.5px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {t("header.reset")}
+              </button>
+              <Link
+                to="/sessions"
+                onClick={() => setOpen(false)}
+                className="inline-flex items-center gap-1 text-[11.5px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {t("history.view_all")}
+                <ArrowRight className="w-3 h-3" strokeWidth={1.75} />
+              </Link>
+            </div>
           </div>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto px-6 py-4" onClick={() => setOpen(false)}>

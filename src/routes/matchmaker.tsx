@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRequireAuth } from "@/lib/auth-guard";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { normalizeLang } from "@/lib/lang";
 import { Workspace, type AgentMsg } from "@/components/workspace";
@@ -8,36 +9,48 @@ import { IntroCanvas } from "@/components/canvas/intro-canvas";
 import { consumeFocusPerson, consumeSeed } from "@/lib/seed";
 import {
   EMPTY,
+  advanceQueueSilent,
   applyTurnResult,
-  beginStreamingTurn,
+  appendUserMessage,
+  beginAssistantStream,
+  canRetreatQueue,
   focusPerson,
   load,
   patchLastAssistant,
+  retreatQueueSilent,
   save,
+  sessionNeedsBootStart,
   suggestChips,
   type MatchmakerState,
 } from "@/lib/agents/matchmaker";
 import { requestMatchmakerTurn } from "@/lib/matchmaker-client";
+import { listBlocked } from "@/lib/blocklist";
 import type { MatchmakerTurnAction } from "@/lib/matchmaker-llm.server";
 import type { HandoffContext } from "@/lib/handoff";
 import {
   graftFromMatchmaker,
-  markSessionSuspended,
   openSideBySideFromHandoff,
 } from "@/lib/session-handoff";
-import { ensureSessionsHydrated } from "@/lib/sessions";
+import { clearActiveThreadId } from "@/lib/active-thread";
+import { useSessions } from "@/data/hooks";
+import { refreshMilestoneThreadTitle } from "@/lib/thread-title-milestone";
+import {
+  buildMatchmakerTitleContext,
+  matchmakerTitleMilestoneReady,
+} from "@/lib/thread-title";
 
 export const Route = createFileRoute("/matchmaker")({
   validateSearch: (raw: Record<string, unknown>) => ({
     session: typeof raw.session === "string" ? raw.session : "",
+    focus: typeof raw.focus === "string" ? raw.focus : "",
   }),
   component: MatchmakerPage,
   head: () => ({
     meta: [
-      { title: "Matchmaker — Maitri" },
+      { title: "认识新朋友 — Maitri" },
       {
         name: "description",
-        content: "Describe who you're looking for. The Matchmaker introduces one person at a time.",
+        content: "描述你想找的人。每次只引荐一个人，并告诉你为什么是 TA。",
       },
     ],
   }),
@@ -50,6 +63,7 @@ function MatchmakerPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const sessionId = search.session || null;
+  const focusPersonId = search.focus || "";
 
   useEffect(() => {
     if (ready && !sessionId) void navigate({ to: "/" });
@@ -67,27 +81,19 @@ function MatchmakerPage() {
   const stateRef = useRef(state);
   const bootedRef = useRef(false);
   stateRef.current = state;
+  const { isFetched: sessionsReady } = useSessions();
 
   useEffect(() => {
-    if (!sessionId) {
+    if (!sessionId || !sessionsReady) {
       setSessionReady(false);
       return;
     }
-    let cancelled = false;
-    setSessionReady(false);
     bootedRef.current = false;
-    void (async () => {
-      await ensureSessionsHydrated();
-      if (cancelled) return;
-      const loaded = load(sessionId);
-      const focusId = consumeFocusPerson();
-      setState(focusId ? focusPerson(loaded, focusId) : loaded);
-      setSessionReady(true);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionId]);
+    const loaded = load(sessionId);
+    const focusId = consumeFocusPerson();
+    setState(focusId ? focusPerson(loaded, focusId) : loaded);
+    setSessionReady(true);
+  }, [sessionId, sessionsReady]);
 
   useEffect(() => {
     setHydrated(true);
@@ -96,6 +102,44 @@ function MatchmakerPage() {
   useEffect(() => {
     if (hydrated && sessionReady && sessionId) save(state, sessionId);
   }, [state, hydrated, sessionReady, sessionId]);
+
+  // Deep-link from Saved drawer / connections: focus a person even when already on this session.
+  useEffect(() => {
+    if (!hydrated || !sessionReady || !focusPersonId) return;
+    setState((s) => focusPerson(s, focusPersonId));
+    void navigate({
+      to: "/matchmaker",
+      search: { session: sessionId ?? "", focus: "" },
+      replace: true,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, sessionReady, focusPersonId]);
+
+  const tryMilestoneTitle = useCallback(
+    (cur: MatchmakerState) => {
+      if (!sessionId || cur.titleMilestoneDone) return;
+      if (!matchmakerTitleMilestoneReady(cur.understanding, cur.hardFilters)) return;
+      refreshMilestoneThreadTitle({
+        sessionId,
+        lang,
+        agent: "introduce",
+        context: buildMatchmakerTitleContext(
+          lang,
+          cur.understanding,
+          cur.hardFilters,
+          cur.messages,
+        ),
+        onDone: () => {
+          setState((s) => {
+            const next = { ...s, titleMilestoneDone: true };
+            stateRef.current = next;
+            return next;
+          });
+        },
+      });
+    },
+    [lang, sessionId],
+  );
 
   const navigateHandoffToSide = useCallback(
     (opts: {
@@ -116,19 +160,25 @@ function MatchmakerPage() {
         sideBySideHints: { activity: opts.summary || opts.userMessage },
         graftedMessages: graftFromMatchmaker(cur, opts.graftedExtraUser),
         handoffCount: (cur.handoffCount ?? 0) + 1,
-        transitionReply:
-          opts.transitionReply ||
-          (lang === "zh-CN"
-            ? "好，那我们改成帮你找一起做事的搭子——"
-            : "Okay — let's find someone to do something with."),
+        transitionReply: opts.transitionReply?.trim() || "",
       };
       save({ ...cur, suspended: true }, sessionId);
-      markSessionSuspended(sessionId);
-      const next = openSideBySideFromHandoff(handoff);
+      const next = openSideBySideFromHandoff(handoff, sessionId);
       void navigate({ to: "/side-by-side", search: { session: next.id, chatWith: "" } });
     },
     [lang, navigate, sessionId],
   );
+
+  const withRematchConfirmAsk = (next: MatchmakerState): MatchmakerState => {
+    // Rematch consent is handled in chat — user confirms with natural language (好的/重新找吧).
+    return next;
+  };
+
+  const withMatchConfirmAsk = (next: MatchmakerState): MatchmakerState => {
+    // First-match consent is handled in chat (reply + suggestion chips + verbal affirm).
+    // No extra inline card — it duplicated "好的，开始找吧" and confused users.
+    return next;
+  };
 
   const runTurn = useCallback(
     async (opts: {
@@ -137,8 +187,16 @@ function MatchmakerPage() {
       userTextForState?: string | null;
       seed?: string;
     }) => {
-      setThinking(true);
       const userText = opts.userTextForState ?? opts.userMessage ?? null;
+      const userAlreadyShown = Boolean(userText?.trim());
+      let staged = stateRef.current;
+      if (userAlreadyShown) {
+        staged = appendUserMessage(staged, userText!);
+        staged = { ...staged, suggestions: [] };
+        stateRef.current = staged;
+        setState(staged);
+      }
+      setThinking(true);
       let streaming = false;
       try {
         const output = await requestMatchmakerTurn({
@@ -146,14 +204,29 @@ function MatchmakerPage() {
           action: opts.action,
           userMessage: opts.userMessage,
           seed: opts.seed,
-          state: stateRef.current,
+          state: staged,
           onDelta: (text) => {
-            if (!streaming) {
-              streaming = true;
-              setState((s) => beginStreamingTurn(s, userText));
+            flushSync(() => {
+              if (!streaming) {
+                streaming = true;
+                setState((s) => beginAssistantStream(s));
+                setThinking(false);
+              }
+              setState((s) => patchLastAssistant(s, text));
+            });
+          },
+          onReady: ({ reply, suggestions }) => {
+            flushSync(() => {
+              if (!streaming) {
+                streaming = true;
+                setState((s) => beginAssistantStream(s));
+              }
+              setState((s) => ({
+                ...patchLastAssistant(s, reply),
+                ...(suggestions.length ? { suggestions: suggestions.slice(0, 4) } : {}),
+              }));
               setThinking(false);
-            }
-            setState((s) => patchLastAssistant(s, text));
+            });
           },
         });
 
@@ -161,25 +234,35 @@ function MatchmakerPage() {
           navigateHandoffToSide({
             userMessage: opts.userMessage,
             summary: output.handoffSummary || opts.userMessage,
-            transitionReply: output.transitionReply || output.reply,
+            transitionReply: output.transitionReply?.trim() || "",
             understanding: output.understanding,
             graftedExtraUser: opts.userMessage,
           });
           return;
         }
 
-        setState((s) =>
-          streaming
+        setState((s) => {
+          let applied = streaming
             ? applyTurnResult(s, null, output, { skipUser: true, replaceLastAssistant: true })
-            : applyTurnResult(s, userText, output),
-        );
+            : applyTurnResult(
+                s,
+                userAlreadyShown ? null : userText,
+                output,
+                userAlreadyShown ? { skipUser: true } : undefined,
+              );
+          if (output.queueAdvance) {
+            applied = advanceQueueSilent(applied, output.queueAdvance, listBlocked());
+          }
+          return withRematchConfirmAsk(withMatchConfirmAsk(applied));
+        });
       } catch (e) {
         console.error("[matchmaker]", e);
       } finally {
         setThinking(false);
+        tryMilestoneTitle(stateRef.current);
       }
     },
-    [lang, navigateHandoffToSide],
+    [lang, navigateHandoffToSide, tryMilestoneTitle, t],
   );
 
   useEffect(() => {
@@ -191,12 +274,7 @@ function MatchmakerPage() {
       void runTurn({ action: "message", userMessage: text, userTextForState: text, seed: text });
       return;
     }
-    if (state.messages.length > 0) {
-      if (state.currentPersonId) return;
-      const fromHandoff =
-        state.handoff?.from === "orchestrator" || state.handoff?.from === "sidebyside";
-      if (!fromHandoff) return;
-    }
+    if (!sessionNeedsBootStart(state)) return;
     void runTurn({ action: "start", userTextForState: null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, sessionReady, sessionId, pendingSeed, state.messages.length]);
@@ -208,6 +286,7 @@ function MatchmakerPage() {
   }
 
   function handleReset() {
+    clearActiveThreadId();
     try {
       window.sessionStorage.setItem("kindred:home:focus", "1");
     } catch {
@@ -218,15 +297,66 @@ function MatchmakerPage() {
 
   function handlePassAndNext() {
     if (thinking) return;
-    void runTurn({ action: "pass_and_next", userTextForState: null });
+    setState((s) => advanceQueueSilent(s, "pass", listBlocked()));
   }
 
   function handleSeeNext() {
     if (thinking) return;
-    void runTurn({ action: "see_next", userTextForState: null });
+    setState((s) => advanceQueueSilent(s, "see", listBlocked()));
   }
 
+  function handleSeePrev() {
+    if (thinking) return;
+    setState((s) => retreatQueueSilent(s, listBlocked()));
+  }
+
+  const canGoPrev = canRetreatQueue(state, listBlocked());
+
   function handleAskResolve(askId: string, value: string | null) {
+    if (askId.startsWith("rematch-")) {
+      setState((s) => ({
+        ...s,
+        messages: s.messages.map((m) =>
+          m.ask?.id === askId
+            ? {
+                ...m,
+                ask: undefined,
+                askResolvedLabel:
+                  value === "confirm"
+                    ? t("introduce.rematch_confirmed")
+                    : t("introduce.rematch_keep_editing"),
+              }
+            : m,
+        ),
+      }));
+      if (value === "confirm") {
+        void runTurn({ action: "confirm_rematch", userTextForState: null });
+      } else {
+        setState((s) => ({ ...s, pendingRematchConfirm: null }));
+      }
+      return;
+    }
+    if (askId.startsWith("match-")) {
+      setState((s) => ({
+        ...s,
+        messages: s.messages.map((m) =>
+          m.ask?.id === askId
+            ? {
+                ...m,
+                ask: undefined,
+                askResolvedLabel:
+                  value === "confirm" ? t("introduce.match_confirmed") : t("introduce.match_keep_editing"),
+              }
+            : m,
+        ),
+      }));
+      if (value === "confirm") {
+        void runTurn({ action: "confirm_match", userTextForState: null });
+      } else {
+        setState((s) => ({ ...s, pendingMatchConfirm: null }));
+      }
+      return;
+    }
     if (value === null) {
       setState((s) => ({
         ...s,
@@ -272,8 +402,10 @@ function MatchmakerPage() {
           <IntroCanvas
             state={state}
             sessionId={sessionId}
-            onPassAndNext={handlePassAndNext}
+            canGoPrev={canGoPrev}
+            onRejectPerson={handlePassAndNext}
             onSeeNextPerson={handleSeeNext}
+            onSeePrevPerson={handleSeePrev}
           />
         ) : null
       }

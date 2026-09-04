@@ -201,6 +201,104 @@ export const ACTIVITIES: Record<string, Activity[]> = {
       venue_zh: "Altroquando 书店",
     },
   ],
+  lin: [
+    {
+      kind: "bookstore",
+      level: "intermediate",
+      area: "French Concession",
+      area_zh: "法租界",
+      slots: [{ day: "sat", window: "midday" }],
+      venue: "Sinan Books",
+      venue_zh: "思南书局",
+    },
+    {
+      kind: "cook",
+      level: "beginner",
+      area: "Jing'an",
+      area_zh: "静安",
+      slots: [{ day: "sun", window: "evening" }],
+      venue: "Home kitchen + wet market",
+      venue_zh: "家里厨房与菜市场",
+    },
+  ],
+  hao: [
+    {
+      kind: "other",
+      level: "intermediate",
+      area: "Dongcheng",
+      area_zh: "东城",
+      slots: [
+        { day: "fri", window: "evening" },
+        { day: "sat", window: "evening" },
+      ],
+      venue: "School Bar",
+      venue_zh: "School 酒吧",
+    },
+    {
+      kind: "exhibition",
+      level: "intermediate",
+      area: "798",
+      area_zh: "798",
+      slots: [{ day: "sun", window: "midday" }],
+      venue: "UCCA",
+      venue_zh: "UCCA",
+    },
+  ],
+  yue: [
+    {
+      kind: "run",
+      level: "intermediate",
+      area: "Nanshan",
+      area_zh: "南山",
+      slots: [
+        { day: "tue", window: "morning" },
+        { day: "thu", window: "morning" },
+      ],
+      venue: "Shenzhen Bay Park",
+      venue_zh: "深圳湾公园",
+    },
+    {
+      kind: "climb",
+      level: "intermediate",
+      area: "Nanshan",
+      area_zh: "南山",
+      slots: [
+        { day: "wed", window: "evening" },
+        { day: "sat", window: "midday" },
+      ],
+      venue: "Camp4 Climbing",
+      venue_zh: "Camp4 攀岩馆",
+    },
+    {
+      kind: "tennis",
+      level: "beginner",
+      area: "Futian",
+      area_zh: "福田",
+      slots: [{ day: "sun", window: "morning" }],
+      venue: "Shenzhen Tennis Center",
+      venue_zh: "深圳网球中心",
+    },
+  ],
+  min: [
+    {
+      kind: "cook",
+      level: "advanced",
+      area: "Jinjiang",
+      area_zh: "锦江",
+      slots: [{ day: "sat", window: "evening" }],
+      venue: "Min's tea studio kitchen",
+      venue_zh: "苏敏茶室小厨房",
+    },
+    {
+      kind: "bookstore",
+      level: "beginner",
+      area: "Wide and Narrow Alley",
+      area_zh: "宽窄巷子",
+      slots: [{ day: "sun", window: "midday" }],
+      venue: "Fangsuo Commune",
+      venue_zh: "方所",
+    },
+  ],
   amara: [
     {
       kind: "tennis",
@@ -394,6 +492,56 @@ export const REFLECTIONS: Record<string, Reflection[]> = {
       questionId: "tradeoff",
       answer: "I'd take less money for mornings. I already have.",
       answer_zh: "我愿意拿钱去换早晨。我已经这样换了。",
+    },
+  ],
+  lin: [
+    {
+      questionId: "home",
+      answer:
+        "A corner table with good light and a cup that doesn't need explaining. I've had that in three apartments in Shanghai.",
+      answer_zh: "一张光线好的角落桌子，一只不用解释的杯子。我在上海有过三个这样的公寓。",
+    },
+    {
+      questionId: "alone",
+      answer: "Walk without a destination until I find a bookstore or a good coffee smell.",
+      answer_zh: "没有目的地地走，直到闻到好咖啡或看见书店。",
+    },
+  ],
+  hao: [
+    {
+      questionId: "sunday",
+      answer:
+        "Sleep in, then listen to demos from bands I might book. Dinner with too many dishes. Home before the subway stops.",
+      answer_zh: "睡到自然醒，听可能演出的乐队小样。晚饭菜太多。地铁停运前回家。",
+    },
+    {
+      questionId: "free-month",
+      answer: "Drive to a small city with one good venue. Stay until the sound guy remembers my name.",
+      answer_zh: "开车去有一个好场地的小城。待到音响师能叫出我的名字。",
+    },
+  ],
+  yue: [
+    {
+      questionId: "tradeoff",
+      answer: "I'd trade a title for an extra hour in the morning. I run because it's the only hour nobody schedules over.",
+      answer_zh: "我愿意用头衔换早晨多一小时。跑步是因为那是唯一没人能占的时段。",
+    },
+    {
+      questionId: "alone",
+      answer: "Climb until my forearms shake, then noodles. No phone until the bowl is empty.",
+      answer_zh: "爬到小臂发抖，然后吃面。碗空之前不看手机。",
+    },
+  ],
+  min: [
+    {
+      questionId: "home",
+      answer: "Steam from tea, a cat on the chair back, someone laughing in the kitchen. That's home.",
+      answer_zh: "茶的热气、椅背上的猫、厨房里有人在笑。那就是家。",
+    },
+    {
+      questionId: "sunday",
+      answer: "Slow brunch for friends. Three dishes minimum. Rain if possible.",
+      answer_zh: "给朋友做慢早午餐。至少三道菜。最好下雨。",
     },
   ],
 };
@@ -631,6 +779,86 @@ export const MOMENTS: Record<string, Moment[]> = {
       "两炉之间读诗。面包房不知道这件事。",
     ),
   ],
+  lin: [
+    m(
+      "lin-1",
+      "city-spot",
+      "A lane in the French Concession where the plane trees meet overhead. I go there when I need to think out loud with someone.",
+      "法租界一条梧桐夹道的弄堂。需要和人一起把想法说出来时，我会去那儿。",
+    ),
+    m(
+      "lin-2",
+      "remembered",
+      "A colleague said I remember how people take their coffee. I didn't think that was special until she looked surprised.",
+      "同事说我记得别人怎么喝咖啡。我没觉得有什么，直到她一脸惊讶。",
+    ),
+    m(
+      "lin-3",
+      "weeknight",
+      "Tuesday user interviews, then a long walk home without podcasts. That's my reset.",
+      "周二做用户访谈，然后不听播客走回家。那是我的重启方式。",
+    ),
+  ],
+  hao: [
+    m(
+      "hao-1",
+      "obsessed",
+      "The ten seconds before a small venue goes quiet and the first chord hits. I've chased that feeling for years.",
+      "小场地静下来、第一个和弦响起前那十秒。我追这种感觉很多年了。",
+    ),
+    m(
+      "hao-2",
+      "talk-forever",
+      "Lyrics at 2am. I'll send you three songs and a voice note explaining why the bridge works.",
+      "凌晨两点的歌词。我会发三首歌加一条语音，解释副歌为什么成立。",
+    ),
+    m(
+      "hao-3",
+      "compliment",
+      "Someone said I make shy people talk. Best compliment I've gotten at a show.",
+      "有人说我能让害羞的人开口。这是我在现场收到过最好的夸奖。",
+    ),
+  ],
+  yue: [
+    m(
+      "yue-1",
+      "ideal-saturday",
+      "Run at six, climb at four, noodles with the crew after. Phone on do-not-disturb until the bowl is empty.",
+      "六点跑步，四点攀岩，然后和一群人吃面。碗空之前手机勿扰。",
+    ),
+    m(
+      "yue-2",
+      "learning",
+      "Teaching myself to rest without guilt. Harder than any product launch.",
+      "在学怎么休息而不内疚。比任何产品上线都难。",
+    ),
+    m(
+      "yue-3",
+      "defend",
+      "Ambition doesn't have to be loud. I want to build things and still have dinner with friends.",
+      "野心不必很吵。我想做出东西，也还想和朋友吃饭。",
+    ),
+  ],
+  min: [
+    m(
+      "min-1",
+      "small-thing",
+      "Peeling citrus for tea while it rains. The whole room smells like someone should stay longer.",
+      "下雨时剥陈皮泡茶。整个房间闻起来像值得人多待一会儿。",
+    ),
+    m(
+      "min-2",
+      "unexpected-home",
+      "A friend showed up unannounced with wet shoes. I had soup already simmering. Felt like the universe agreed.",
+      "朋友鞋湿了突然来。锅里正好有汤。像宇宙点头。",
+    ),
+    m(
+      "min-3",
+      "lose-time",
+      "Cooking for six when I meant to cook for two. Happens every other Sunday.",
+      "本来想做两人份，最后做了六人份。每隔一个周日就会发生。",
+    ),
+  ],
 };
 
 // One Work — a single book / film / album / exhibition / food this person
@@ -710,5 +938,32 @@ export const ONE_WORKS: Record<string, OneWorkRef> = {
     title: "Mama Africa — Miriam Makeba",
     why: "Music I'd put on at the start of any dinner I host.",
     why_zh: "请客吃饭一开场我会放的音乐。",
+  },
+  lin: {
+    kind: "book",
+    title: "The Anthropology of Coffee Shops — Wenyi Qian",
+    title_zh: "《咖啡馆人类学》— 钱文怡",
+    why: "A small book about why we linger. I underline half of it.",
+    why_zh: "一本讲人为什么愿意多坐一会儿的小书。我划线划了一半。",
+  },
+  hao: {
+    kind: "music",
+    title: "Unknown Pleasures — Joy Division",
+    why: "First album I played when a venue trusted me with a Friday slot.",
+    why_zh: "第一个周五场次交到我手里时，我放的第一张专辑。",
+  },
+  yue: {
+    kind: "book",
+    title: "The Making of a Manager — Julie Zhuo",
+    title_zh: "《打造卓越团队》— 朱莉·卓",
+    why: "Dog-eared copy on my desk. Not theory — Tuesday problems.",
+    why_zh: "桌上那本卷了边的。不是理论，是周二的问题。",
+  },
+  min: {
+    kind: "food",
+    title: "Mom's twice-cooked pork, rainy Sundays",
+    title_zh: "妈妈的回锅肉，下雨的周日",
+    why: "The recipe I make when someone needs to feel welcome without a speech.",
+    why_zh: "有人需要被欢迎、又不必说破的时候，我就做这道菜。",
   },
 };

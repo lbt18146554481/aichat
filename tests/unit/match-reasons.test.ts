@@ -5,12 +5,12 @@
 // holds, we return nothing rather than a plausible-sounding blurb.
 
 import { describe, expect, it } from "vitest";
-import { buildReasons } from "@/lib/match-reasons";
+import { buildReasons, buildIntroduceReply } from "@/lib/match-reasons";
 import { EMPTY_PROFILE, type Profile } from "@/lib/profile";
 import { EMPTY_UNDERSTANDING, type UserUnderstanding } from "@/lib/understanding";
-import { PEOPLE } from "@/lib/people";
+import { TEST_PEOPLE_POOL } from "../fixtures/people-pool";
 
-const person = PEOPLE[0];
+const person = TEST_PEOPLE_POOL[0]!;
 const profile: Profile = {
   ...EMPTY_PROFILE,
   name: "Ada",
@@ -80,5 +80,23 @@ describe("buildReasons", () => {
     if (said?.kind === "you_said") {
       expect(said.theirs).not.toMatch(/^[\x20-\x7e]+$/);
     }
+  });
+});
+
+describe("buildIntroduceReply", () => {
+  it("includes reason lines when evidence exists", () => {
+    const theirMoment = person.moments[0];
+    const overlap = theirMoment.answer.split(/\s+/).slice(0, 8).join(" ");
+    const u: UserUnderstanding = { ...blank, notes: [overlap] };
+    const reply = buildIntroduceReply(person, profile, u, "en");
+    expect(reply).toMatch(/Meet/);
+    expect(reply.length).toBeGreaterThan(40);
+    expect(reply).not.toBe("Okay — here's the first person.");
+  });
+
+  it("falls back honestly when there are no reasons", () => {
+    const reply = buildIntroduceReply(person, profile, blank, "zh-CN");
+    expect(reply).toContain(person.name_zh);
+    expect(reply).toMatch(/为什么是|右边/);
   });
 });

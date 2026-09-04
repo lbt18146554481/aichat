@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useRequireAuth } from "@/lib/auth-guard";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -6,10 +6,12 @@ import { ArrowLeft, MessagesSquare } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import type { Lang } from "@/lib/i18n";
+import { normalizeLang } from "@/lib/lang";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { ConnectionThread } from "@/components/canvas/connection-thread";
-import { hasUnseenFor, list, rehydrate, subscribe, type Connection } from "@/lib/connections";
+import { useConnections } from "@/data/hooks";
+import { hasUnseenFor, markSeen, type Connection } from "@/lib/connections";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const LAST_ACTIVE_KEY = "kindred:connections:last";
@@ -37,33 +39,32 @@ function activityAt(c: Connection): number {
 function ConnectionsPage() {
   const { ready } = useRequireAuth();
   const { t, i18n } = useTranslation();
-  const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const lang = normalizeLang(i18n.resolvedLanguage);
   const navigate = useNavigate();
+  const router = useRouter();
   const { open } = Route.useSearch();
-  const [items, setItems] = useState<Connection[]>([]);
-  // `loaded` separates "still reading local storage" from "genuinely empty",
-  // so the list can show skeletons first and the empty state only once.
-  const [loaded, setLoaded] = useState(false);
+  const { data: connectionRows = [], isFetched } = useConnections(ready);
+  const items = connectionRows.slice().sort((a, b) => activityAt(b) - activityAt(a));
+  const loaded = isFetched;
+  const isMobile = useIsMobile();
   const [activeId, setActiveId] = useState<string | null>(null);
   const consumedOpenRef = useRef<string | null>(null);
-  // Phones use master → detail navigation: the list is the landing surface and
-  // a thread only opens on tap. Auto-selecting the first row here is what made
-  // the back button look broken (it closed, then instantly reopened).
-  const isMobile = useIsMobile();
+  const desktopAutoPickedRef = useRef(false);
+  const userClearedSelectionRef = useRef(false);
 
-  useEffect(() => {
-    if (!ready) return;
-    rehydrate();
-    const update = () => {
-      setItems(list().sort((a, b) => activityAt(b) - activityAt(a)));
-      setLoaded(true);
-    };
-    update();
-    const unsub = subscribe(update);
-    return () => {
-      unsub();
-    };
-  }, [ready]);
+  function handleBack() {
+    // Mobile: thread → list first; list → leave page.
+    if (isMobile && activeId) {
+      userClearedSelectionRef.current = true;
+      setActiveId(null);
+      return;
+    }
+    if (router.history.canGoBack()) {
+      router.history.back();
+      return;
+    }
+    void navigate({ to: "/" });
+  }
 
   useEffect(() => {
     if (!open || consumedOpenRef.current === open) return;
@@ -102,7 +103,11 @@ function ConnectionsPage() {
       if (!items.find((c) => c.personId === activeId)) setActiveId(null);
       return;
     }
-    if (!isMobile && items.length > 0) setActiveId(items[0].personId);
+    if (userClearedSelectionRef.current) return;
+    if (!isMobile && items.length > 0 && !desktopAutoPickedRef.current) {
+      desktopAutoPickedRef.current = true;
+      setActiveId(items[0].personId);
+    }
   }, [items, activeId, isMobile]);
 
   if (!ready) {
@@ -130,36 +135,15 @@ function ConnectionsPage() {
     <div className="h-dvh flex flex-col bg-background pb-tabbar lg:pb-0">
       <header className="w-full border-b border-border bg-background/90 backdrop-blur sticky top-0 z-30 pt-safe">
         <div className="max-w-7xl mx-auto px-4 md:px-5 h-14 flex items-center justify-between gap-3">
-          {/* On mobile, when a thread is open we show a back button that
-              closes the thread (returning to the list). Otherwise a Home
-              link. On desktop, always Home. */}
-          {activeId ? (
-            <button
-              type="button"
-              onClick={() => setActiveId(null)}
-              className="lg:hidden inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
-              aria-label={t("nav.back")}
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="font-mono uppercase tracking-wide">{t("nav.back")}</span>
-            </button>
-          ) : (
-            <Link
-              to="/"
-              className="inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="font-mono uppercase tracking-wide">Maitri</span>
-            </Link>
-          )}
-          {activeId && (
-            <Link
-              to="/"
-              className="hidden lg:inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <span className="font-mono uppercase tracking-wide">Maitri</span>
-            </Link>
-          )}
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            aria-label={t("nav.back")}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="font-mono uppercase tracking-wide">{t("nav.back")}</span>
+          </button>
           <div className="text-[13.5px] font-semibold tracking-tight">{t("connection.title")}</div>
           <LangSwitcher />
         </div>
@@ -210,7 +194,11 @@ function ConnectionsPage() {
                   lang={lang}
                   active={c.personId === activeId}
                   dot={hasUnseenFor(c)}
-                  onSelect={() => setActiveId(c.personId)}
+                  onSelect={() => {
+                    markSeen(c.personId);
+                    userClearedSelectionRef.current = false;
+                    setActiveId(c.personId);
+                  }}
                 />
               ))}
             </ul>

@@ -14,9 +14,14 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ConnectionsRouteImport } from './routes/connections'
 import { Route as MatchmakerRouteImport } from './routes/matchmaker'
 import { Route as MeRouteImport } from './routes/me'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SessionsRouteImport } from './routes/sessions'
 import { Route as SideBySideRouteImport } from './routes/side-by-side'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as WishesRouteImport } from './routes/wishes'
+import { Route as WishesIndexRouteImport } from './routes/wishes.index'
+import { Route as WishesWishIdRouteImport } from './routes/wishes.$wishId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -43,6 +48,11 @@ const MeRoute = MeRouteImport.update({
   path: '/me',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -58,6 +68,26 @@ const SideBySideRoute = SideBySideRouteImport.update({
   path: '/side-by-side',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WishesRoute = WishesRouteImport.update({
+  id: '/wishes',
+  path: '/wishes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WishesIndexRoute = WishesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => WishesRoute,
+} as any)
+const WishesWishIdRoute = WishesWishIdRouteImport.update({
+  id: '/$wishId',
+  path: '/$wishId',
+  getParentRoute: () => WishesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -65,9 +95,14 @@ export interface FileRoutesByFullPath {
   '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/me': typeof MeRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/sessions': typeof SessionsRoute
   '/side-by-side': typeof SideBySideRoute
+  '/terms': typeof TermsRoute
+  '/wishes': typeof WishesRouteWithChildren
+  '/wishes/$wishId': typeof WishesWishIdRoute
+  '/wishes/': typeof WishesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -75,9 +110,13 @@ export interface FileRoutesByTo {
   '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/me': typeof MeRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/sessions': typeof SessionsRoute
   '/side-by-side': typeof SideBySideRoute
+  '/terms': typeof TermsRoute
+  '/wishes/$wishId': typeof WishesWishIdRoute
+  '/wishes': typeof WishesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -86,9 +125,14 @@ export interface FileRoutesById {
   '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/me': typeof MeRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/sessions': typeof SessionsRoute
   '/side-by-side': typeof SideBySideRoute
+  '/terms': typeof TermsRoute
+  '/wishes': typeof WishesRouteWithChildren
+  '/wishes/$wishId': typeof WishesWishIdRoute
+  '/wishes/': typeof WishesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -98,9 +142,14 @@ export interface FileRouteTypes {
     | '/connections'
     | '/matchmaker'
     | '/me'
+    | '/privacy'
     | '/profile'
     | '/sessions'
     | '/side-by-side'
+    | '/terms'
+    | '/wishes'
+    | '/wishes/$wishId'
+    | '/wishes/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -108,9 +157,13 @@ export interface FileRouteTypes {
     | '/connections'
     | '/matchmaker'
     | '/me'
+    | '/privacy'
     | '/profile'
     | '/sessions'
     | '/side-by-side'
+    | '/terms'
+    | '/wishes/$wishId'
+    | '/wishes'
   id:
     | '__root__'
     | '/'
@@ -118,9 +171,14 @@ export interface FileRouteTypes {
     | '/connections'
     | '/matchmaker'
     | '/me'
+    | '/privacy'
     | '/profile'
     | '/sessions'
     | '/side-by-side'
+    | '/terms'
+    | '/wishes'
+    | '/wishes/$wishId'
+    | '/wishes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -129,9 +187,12 @@ export interface RootRouteChildren {
   ConnectionsRoute: typeof ConnectionsRoute
   MatchmakerRoute: typeof MatchmakerRoute
   MeRoute: typeof MeRoute
+  PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   SessionsRoute: typeof SessionsRoute
   SideBySideRoute: typeof SideBySideRoute
+  TermsRoute: typeof TermsRoute
+  WishesRoute: typeof WishesRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -171,6 +232,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -192,8 +260,49 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SideBySideRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wishes': {
+      id: '/wishes'
+      path: '/wishes'
+      fullPath: '/wishes'
+      preLoaderRoute: typeof WishesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wishes/': {
+      id: '/wishes/'
+      path: '/'
+      fullPath: '/wishes/'
+      preLoaderRoute: typeof WishesIndexRouteImport
+      parentRoute: typeof WishesRoute
+    }
+    '/wishes/$wishId': {
+      id: '/wishes/$wishId'
+      path: '/$wishId'
+      fullPath: '/wishes/$wishId'
+      preLoaderRoute: typeof WishesWishIdRouteImport
+      parentRoute: typeof WishesRoute
+    }
   }
 }
+
+interface WishesRouteChildren {
+  WishesWishIdRoute: typeof WishesWishIdRoute
+  WishesIndexRoute: typeof WishesIndexRoute
+}
+
+const WishesRouteChildren: WishesRouteChildren = {
+  WishesWishIdRoute: WishesWishIdRoute,
+  WishesIndexRoute: WishesIndexRoute,
+}
+
+const WishesRouteWithChildren =
+  WishesRoute._addFileChildren(WishesRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -201,9 +310,12 @@ const rootRouteChildren: RootRouteChildren = {
   ConnectionsRoute: ConnectionsRoute,
   MatchmakerRoute: MatchmakerRoute,
   MeRoute: MeRoute,
+  PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   SessionsRoute: SessionsRoute,
   SideBySideRoute: SideBySideRoute,
+  TermsRoute: TermsRoute,
+  WishesRoute: WishesRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

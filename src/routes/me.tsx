@@ -9,13 +9,15 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Bookmark, ChevronRight, Copy, LogOut, Ticket, UserCircle } from "lucide-react";
+import { Bookmark, ChevronRight, Copy, FileText, LogOut, Shield, Ticket, UserCircle } from "lucide-react";
 import { signOut, useAuth } from "@/lib/auth";
 import { useRequireAuth } from "@/lib/auth-guard";
-import { hydrateProfile, loadProfile } from "@/lib/profile";
+import { useProfile } from "@/data/hooks";
+import { resolveUserDisplayName } from "@/lib/profile";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SavedTrigger } from "@/components/saved-trigger";
+import { DeleteAccount } from "@/components/delete-account";
 import { generateInvite, listMyCodes, remainingInvites, type InviteCode } from "@/lib/invites";
 
 export const Route = createFileRoute("/me")({
@@ -47,12 +49,7 @@ function MePage() {
   const [invitesOpen, setInvitesOpen] = useState(false);
   const [codes, setCodes] = useState<InviteCode[]>([]);
   const [remaining, setRemaining] = useState(0);
-  const [profile, setProfile] = useState<ReturnType<typeof loadProfile> | null>(null);
-
-  useEffect(() => {
-    if (!ready) return;
-    void hydrateProfile().then(setProfile);
-  }, [ready]);
+  const { data: profile } = useProfile();
 
   useEffect(() => {
     if (!user) return;
@@ -87,7 +84,7 @@ function MePage() {
     );
   }
 
-  const displayName = (profile?.name && profile.name.trim()) || user?.name || user?.email || "";
+  const displayName = resolveUserDisplayName(profile, user);
   const avatar = profile?.avatar || user?.avatar || "";
 
   async function onGenerate() {
@@ -258,6 +255,37 @@ function MePage() {
           <LogOut className="w-[18px] h-[18px] text-muted-foreground" strokeWidth={1.75} />
           {t("me.signout")}
         </button>
+
+        <ul className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
+          <li>
+            <Link
+              to="/privacy"
+              className="flex items-center gap-3 px-4 py-3.5 min-h-[52px] active:bg-secondary"
+            >
+              <Shield
+                className="w-[18px] h-[18px] text-muted-foreground shrink-0"
+                strokeWidth={1.75}
+              />
+              <span className="text-[14px] text-foreground">{t("me.privacy")}</span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 ml-auto" />
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/terms"
+              className="flex items-center gap-3 px-4 py-3.5 min-h-[52px] active:bg-secondary"
+            >
+              <FileText
+                className="w-[18px] h-[18px] text-muted-foreground shrink-0"
+                strokeWidth={1.75}
+              />
+              <span className="text-[14px] text-foreground">{t("me.terms")}</span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 ml-auto" />
+            </Link>
+          </li>
+        </ul>
+
+        <DeleteAccount />
       </main>
 
       <SavedTrigger hideTrigger open={savedOpen} onOpenChange={setSavedOpen} />

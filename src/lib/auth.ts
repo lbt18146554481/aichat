@@ -6,7 +6,9 @@ import {
   signInFn,
   signUpFn,
   signOutFn,
+  deleteAccountFn,
 } from "./api/auth.functions";
+import { clearLocalModerationData } from "./blocklist";
 import { AuthError, type AuthUser } from "./auth-types";
 import { asAuthError } from "./auth-errors";
 
@@ -74,6 +76,15 @@ export async function signOut() {
   try {
     await signOutFn();
   } finally {
+    emit(null);
+  }
+}
+
+export async function deleteAccount() {
+  try {
+    await deleteAccountFn();
+  } finally {
+    clearLocalModerationData();
     emit(null);
   }
 }

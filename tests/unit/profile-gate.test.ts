@@ -26,6 +26,7 @@ const VITALS: Profile = {
   age: 30,
   city: "Lisbon",
   occupation: "Translator",
+  gender: "female",
 };
 
 beforeEach(() => {
@@ -38,8 +39,12 @@ describe("say hello gate (vitals)", () => {
     expect(isVitalsComplete(EMPTY_PROFILE)).toBe(false);
   });
 
-  it("passes once name, age, city and occupation are set", () => {
+  it("passes once name, age, city, occupation and gender are set", () => {
     expect(isVitalsComplete(VITALS)).toBe(true);
+  });
+
+  it("accepts prefer_not_to_say as a valid gender choice", () => {
+    expect(isVitalsComplete({ ...VITALS, gender: "prefer_not_to_say" })).toBe(true);
   });
 
   it("does not require moments, favorites or optional fields", () => {
@@ -52,6 +57,7 @@ describe("say hello gate (vitals)", () => {
     expect(isVitalsComplete({ ...VITALS, age: 17 })).toBe(false);
     expect(isVitalsComplete({ ...VITALS, city: "   " })).toBe(false);
     expect(isVitalsComplete({ ...VITALS, name: "" })).toBe(false);
+    expect(isVitalsComplete({ ...VITALS, gender: "" })).toBe(false);
   });
 
   it("survives a save/load round trip, so a completed profile is not re-asked", () => {

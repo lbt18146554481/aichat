@@ -1,23 +1,35 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { Lang } from "@/lib/i18n";
 import {
   Composer,
   AssistantBubble,
   UserBubble,
   ThinkingRow,
-  ChipRow,
   type ChipOption,
+  HandoffDivider,
 } from "./chat-primitives";
 import { AppChromeHeader } from "./app-chrome-header";
+import { WorkspaceHeader } from "./workspace-header";
 import { AgentAskCard, AgentAskResolved, type AgentAsk } from "./agent-ask";
 import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
+import { useLargeScreen } from "@/hooks/use-large-screen";
+import { useResizableSplit } from "@/hooks/use-resizable-split";
+
+const PANEL_EASE = [0.16, 1, 0.3, 1] as const;
+/** Right canvas enter/exit — keep slow enough to read as a deliberate panel open. */
+const CANVAS_ENTER_MS = 0.55;
+const CANVAS_EXIT_MS = 0.45;
+const PANEL_CROSSFADE_MS = 0.45;
 
 export interface AgentMsg {
   id: string;
   role: "user" | "assistant";
   t: number;
   text: string;
+  kind?: "handoff";
+  handoffAgent?: "matchmaker" | "sidebyside";
   /** Optional chip choices attached to an assistant message. */
   chips?: ChipOption[];
   /** Inline "补充 / 确认" card. Only the last unresolved ask is interactive. */
@@ -27,9 +39,7 @@ export interface AgentMsg {
 }
 
 interface Props {
-  /** @deprecated Kept for call-site compatibility; chrome no longer shows agent name. */
   agentNameKey?: string;
-  /** @deprecated Kept for call-site compatibility. */
   agentSubtitleKey?: string;
   placeholderKey: string;
   messages: AgentMsg[];
@@ -48,16 +58,19 @@ interface Props {
   onChipClick?: (action: unknown) => void;
   /** Called when the user resolves an inline Agent ask. value=null means cancel. */
   onAskResolve?: (askId: string, value: string | null) => void;
-  /** Context-aware suggestion strings rendered above the composer; clicking one sends. */
+  /** LLM-generated phrases above the composer; tap to prefill input (user sends manually). */
   suggestions?: string[];
   lang?: Lang;
 }
 
 export function Workspace({
+  agentNameKey,
+  agentSubtitleKey,
   placeholderKey,
   messages,
   thinking,
   onSend,
+  onReset,
   rightPane,
   hasCanvas = true,
   composerDisabled,
@@ -75,9 +88,14 @@ export function Workspace({
   const askRef = useRef<HTMLDivElement>(null);
   const kbInset = useKeyboardInset();
   const hadCanvasRef = useRef(false);
+  const reduceMotion = useReducedMotion();
+  const isLargeScreen = useLargeScreen();
+  const split = useResizableSplit(hasCanvas && isLargeScreen);
 
   // Home-width column until a result opens the split layout.
   const chatMax = hasCanvas ? "max-w-xl" : "max-w-3xl";
+  const chatVisible = !hasCanvas || mobileTab === "chat" || isLargeScreen;
+  const canvasVisible = hasCanvas && (mobileTab === "canvas" || isLargeScreen);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -145,29 +163,21 @@ export function Workspace({
     return () => window.clearTimeout(id);
   }, [activeAskId]);
 
-  let activeChips: ChipOption[] | undefined;
-  if (!activeAsk) {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role === "assistant" && messages[i].chips && messages[i].chips!.length > 0) {
-        activeChips = messages[i].chips;
-        break;
-      }
-    }
-  }
+  const quickReplies = useMemo(
+    () => (suggestions ?? []).slice(0, 4).map((label) => ({ key: label, label })),
+    [suggestions],
+  );
 
   const chatPane = (
-    <section
-      className={[
-        "flex flex-col min-h-0 h-full",
-        hasCanvas ? "lg:border-r lg:border-border" : "",
-      ].join(" ")}
-    >
+    <section className="flex flex-col min-h-0 h-full min-w-0">
       <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain-y px-5 md:px-6">
-        <div className={`w-full ${chatMax} mx-auto py-4 space-y-3`}>
+        <div className={`w-full ${chatMax} mx-auto py-4 space-y-3 transition-[max-width] duration-500 ease-out`}>
           <ul className="space-y-3" data-testid="agent-messages">
             {messages.map((m, idx) => (
-              <li key={m.id} data-testid={`agent-msg-${m.role}`}>
-                {m.role === "user" ? (
+              <li key={m.id} data-testid={`agent-msg-${m.kind === "handoff" ? "handoff" : m.role}`}>
+                {m.kind === "handoff" && m.handoffAgent ? (
+                  <HandoffDivider agent={m.handoffAgent} />
+                ) : m.role === "user" ? (
                   <UserBubble text={m.text} />
                 ) : (
                   <AssistantBubble text={m.text} />
@@ -204,32 +214,30 @@ export function Workspace({
               : "max(env(safe-area-inset-bottom), 12px)",
         }}
       >
-        <div className={`w-full ${chatMax} mx-auto`}>
-          {activeChips && activeChips.length > 0 && (
-            <div className="mb-2">
-              <ChipRow
-                chips={activeChips}
-                disabled={thinking || composerDisabled}
-                onPick={(a) => onChipClick?.(a)}
-              />
-            </div>
-          )}
-          {suggestions && suggestions.length > 0 && (
-            <div className="mb-2 flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {suggestions.map((s) => (
+        <div className={`w-full ${chatMax} mx-auto transition-[max-width] duration-500 ease-out`}>
+          {quickReplies.length > 0 && (
+            <div className="mb-2 flex flex-nowrap gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {quickReplies.map((q) => (
                 <button
-                  key={s}
+                  key={q.key}
                   data-testid="agent-suggestion"
                   type="button"
                   disabled={thinking || composerDisabled || !!activeAsk}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
                     if (thinking || composerDisabled || activeAsk) return;
-                    setInput("");
-                    onSend(s);
+                    setInput(q.label);
+                    requestAnimationFrame(() => {
+                      const el = inputRef.current;
+                      if (!el) return;
+                      el.focus();
+                      const len = q.label.length;
+                      el.setSelectionRange(len, len);
+                    });
                   }}
                   className="shrink-0 whitespace-nowrap rounded-full border border-border bg-card px-3 py-1.5 text-[12px] text-muted-foreground hover:border-foreground/40 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  {s}
+                  {q.label}
                 </button>
               ))}
             </div>
@@ -251,7 +259,15 @@ export function Workspace({
 
   return (
     <div className="h-dvh bg-background flex flex-col pb-tabbar overflow-hidden">
-      <AppChromeHeader />
+      {agentNameKey && agentSubtitleKey ? (
+        <WorkspaceHeader
+          agentNameKey={agentNameKey}
+          agentSubtitleKey={agentSubtitleKey}
+          onReset={onReset}
+        />
+      ) : (
+        <AppChromeHeader />
+      )}
 
       {/* Mobile chat / result switch — only once a match canvas exists. */}
       {hasCanvas && (
@@ -285,33 +301,89 @@ export function Workspace({
       )}
 
       <div
+        ref={split.splitEnabled ? split.containerRef : undefined}
         className={[
-          "flex-1 min-h-0",
-          hasCanvas ? "lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]" : "",
+          "flex-1 min-h-0 relative",
+          hasCanvas && split.splitEnabled ? "flex flex-row" : "",
         ].join(" ")}
       >
-        <div
-          className={
-            !hasCanvas || mobileTab === "chat"
-              ? "flex flex-col min-h-0 h-full"
-              : "hidden lg:flex lg:flex-col lg:min-h-0"
+        <motion.div
+          className={[
+            "flex flex-col min-h-0 h-full min-w-0",
+            hasCanvas && !split.splitEnabled ? "max-lg:absolute max-lg:inset-0" : "",
+          ].join(" ")}
+          style={
+            hasCanvas && split.splitEnabled
+              ? { width: `${split.leftPercent}%`, flexShrink: 0 }
+              : hasCanvas
+                ? undefined
+                : undefined
           }
+          animate={
+            reduceMotion
+              ? undefined
+              : {
+                  opacity: chatVisible ? 1 : 0,
+                  pointerEvents: chatVisible ? "auto" : "none",
+                }
+          }
+          transition={{ duration: PANEL_CROSSFADE_MS, ease: PANEL_EASE }}
         >
           {chatPane}
-        </div>
-        {hasCanvas && (
-          <section
-            className={[
-              "min-h-0 overflow-y-auto overscroll-contain-y bg-secondary/30",
-              mobileTab === "canvas"
-                ? "block pb-[max(env(safe-area-inset-bottom),1rem)]"
-                : "hidden lg:block",
-            ].join(" ")}
-            data-testid="agent-canvas"
+        </motion.div>
+
+        {hasCanvas && split.splitEnabled && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-valuenow={Math.round(split.leftPercent)}
+            aria-valuemin={28}
+            aria-valuemax={72}
+            aria-label={t("workspace.resize_split")}
+            onPointerDown={split.onSplitterPointerDown}
+            className="group relative z-10 w-2 shrink-0 cursor-col-resize touch-none select-none"
           >
-            {rightPane}
-          </section>
+            <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border transition-colors group-hover:bg-primary/50 group-active:bg-primary" />
+          </div>
         )}
+
+        <AnimatePresence initial={false}>
+          {hasCanvas && (
+            <motion.section
+              key="agent-canvas"
+              data-testid="agent-canvas"
+              className={[
+                "min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain-y bg-secondary/30",
+                !split.splitEnabled ? "max-lg:absolute max-lg:inset-0" : "",
+                mobileTab === "canvas"
+                  ? "pb-[max(env(safe-area-inset-bottom),1rem)]"
+                  : "",
+              ].join(" ")}
+              initial={reduceMotion ? false : { opacity: 0, x: 32 }}
+              animate={
+                reduceMotion
+                  ? { opacity: 1, x: 0 }
+                  : {
+                      opacity: canvasVisible ? 1 : 0,
+                      x: canvasVisible ? 0 : 8,
+                      pointerEvents: canvasVisible ? "auto" : "none",
+                    }
+              }
+              exit={
+                reduceMotion
+                  ? undefined
+                  : {
+                      opacity: 0,
+                      x: 24,
+                      transition: { duration: CANVAS_EXIT_MS, ease: [0.4, 0, 1, 1] },
+                    }
+              }
+              transition={{ duration: CANVAS_ENTER_MS, ease: PANEL_EASE }}
+            >
+              {rightPane}
+            </motion.section>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

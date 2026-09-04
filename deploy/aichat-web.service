@@ -1,0 +1,23 @@
+[Unit]
+Description=AI Meet Chat web (Nitro)
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/aichat
+EnvironmentFile=/opt/aichat/.env
+Environment=NODE_ENV=production
+Environment=PORT=3000
+# bun installer default; adjust if bun lives elsewhere
+Environment=PATH=/home/ubuntu/.bun/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/node .output/server/index.mjs
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

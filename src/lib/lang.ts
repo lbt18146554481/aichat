@@ -26,3 +26,15 @@ export function pickLocaleText(
   if (isZh(lang)) return z || e;
   return e;
 }
+
+/** Bilingual string list — ZH falls back to EN; EN never shows ZH-only items. */
+export function pickLocaleList(
+  lang: string | null | undefined,
+  en: string[] | null | undefined,
+  zh: string[] | null | undefined,
+): string[] {
+  const e = en ?? [];
+  const z = zh ?? [];
+  if (isZh(lang)) return z.length > 0 ? z : e;
+  return e;
+}

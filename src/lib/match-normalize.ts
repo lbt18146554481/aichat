@@ -1,5 +1,10 @@
-import type { EducationLevel } from "./types";
-import { PEOPLE } from "./people";
+import type { EducationLevel, PersonGender } from "./types";
+import type { MatchHardFilters } from "./match-types";
+import { EMPTY_HARD_FILTERS } from "./match-types";
+import { canonicalCityId, parsePlace } from "./geo";
+
+export { canonicalCityId as normalizeCity } from "./geo";
+export { parsePlace, parsePlaceList, placeFromCityLabels, matchesLocationFilters, formatPlaceList } from "./geo";
 
 /** Education level ordering for min/max comparisons. */
 export const EDUCATION_ORDER: EducationLevel[] = [
@@ -14,66 +19,11 @@ export function educationRank(level: EducationLevel): number {
   return EDUCATION_ORDER.indexOf(level);
 }
 
-/** Build city alias → canonical key from the demo pool + common variants. */
-function buildCityAliases(): Map<string, string> {
-  const map = new Map<string, string>();
-  const add = (alias: string, canonical: string) => {
-    const k = normalizeToken(alias);
-    if (k) map.set(k, normalizeToken(canonical));
-  };
-
-  for (const p of PEOPLE) {
-    const canon = normalizeToken(p.city);
-    add(p.city, canon);
-    add(p.city_zh, canon);
-    // canonical maps to itself
-    map.set(canon, canon);
-  }
-
-  // Common CN / EN variants users might type
-  add("北京", "beijing");
-  add("beijing", "beijing");
-  add("上海", "shanghai");
-  add("shanghai", "shanghai");
-  add("纽约", "new york");
-  add("new york", "new york");
-  add("brooklyn", "brooklyn");
-  add("布鲁克林", "brooklyn");
-  add("柏林", "berlin");
-  add("berlin", "berlin");
-  add("东京", "tokyo");
-  add("tokyo", "tokyo");
-  add("京都", "kyoto");
-  add("kyoto", "kyoto");
-  add("伦敦", "london");
-  add("london", "london");
-  add("巴黎", "paris");
-  add("paris", "paris");
-  add("温哥华", "vancouver");
-  add("vancouver", "vancouver");
-  add("罗马", "rome");
-  add("rome", "rome");
-  add("里斯本", "lisbon");
-  add("lisbon", "lisbon");
-  add("哥本哈根", "copenhagen");
-  add("copenhagen", "copenhagen");
-  add("墨西哥城", "mexico city");
-  add("mexico city", "mexico city");
-  add("特拉维夫", "tel aviv");
-  add("tel aviv", "tel aviv");
-  add("拉各斯", "lagos");
-  add("lagos", "lagos");
-  add("布宜诺斯艾利斯", "buenos aires");
-  add("buenos aires", "buenos aires");
-  add("爱丁堡", "edinburgh");
-  add("edinburgh", "edinburgh");
-
-  return map;
+/** @deprecated prefer placeFromCityLabels — kept for older call sites. */
+export function personCityKey(city: string, city_zh: string): string {
+  return canonicalCityId(city) || canonicalCityId(city_zh);
 }
 
-const CITY_ALIASES = buildCityAliases();
-
-/** Lowercase, trim, collapse spaces, strip common punctuation. */
 export function normalizeToken(s: string): string {
   return s
     .trim()
@@ -81,17 +31,6 @@ export function normalizeToken(s: string): string {
     .replace(/[\u3000\s]+/g, " ")
     .replace(/[,.，。;；'"]/g, "")
     .trim();
-}
-
-/** Map a user-facing city string to a canonical key for comparison. */
-export function normalizeCity(raw: string): string {
-  const t = normalizeToken(raw);
-  if (!t) return "";
-  return CITY_ALIASES.get(t) ?? t;
-}
-
-export function personCityKey(city: string, city_zh: string): string {
-  return normalizeCity(city) || normalizeCity(city_zh);
 }
 
 const EDUCATION_ALIASES: Record<string, EducationLevel> = {
@@ -129,7 +68,6 @@ export function normalizeEducationLevel(raw: string): EducationLevel | null {
   const t = normalizeToken(raw).replace(/['']/g, "");
   if (!t) return null;
   if (EDUCATION_ALIASES[t]) return EDUCATION_ALIASES[t];
-  // partial match
   for (const [alias, level] of Object.entries(EDUCATION_ALIASES)) {
     if (t.includes(alias) || alias.includes(t)) return level;
   }
@@ -146,12 +84,19 @@ export function normalizeEducationLevels(raw: string[] | undefined): EducationLe
   return [...out];
 }
 
+/**
+ * Normalize location phrases for hardFilters.cities.
+ * Keeps a stable display/storage token: prefer city id, else country id, else original tok.
+ * Hierarchical matching uses parsePlace on these strings at recall time.
+ */
 export function normalizeCityList(raw: string[] | undefined): string[] {
   if (!raw?.length) return [];
   const out = new Set<string>();
   for (const c of raw) {
-    const k = normalizeCity(c);
-    if (k) out.add(k);
+    const p = parsePlace(c);
+    if (!p) continue;
+    const key = p.city ?? p.admin1 ?? p.country ?? p.continent;
+    if (key) out.add(key);
   }
   return [...out];
 }
@@ -161,4 +106,102 @@ export function clampAge(n: unknown): number | null {
   const v = Math.round(n);
   if (v < 18 || v > 99) return null;
   return v;
+}
+
+const GENDER_ALIASES: Record<string, PersonGender> = {
+  female: "female",
+  woman: "female",
+  women: "female",
+  girl: "female",
+  f: "female",
+  女: "female",
+  女生: "female",
+  女性: "female",
+  女孩: "female",
+  女的: "female",
+  male: "male",
+  man: "male",
+  men: "male",
+  boy: "male",
+  m: "male",
+  男: "male",
+  男生: "male",
+  男性: "male",
+  男孩: "male",
+  男的: "male",
+  nonbinary: "nonbinary",
+  "non-binary": "nonbinary",
+  nb: "nonbinary",
+  enby: "nonbinary",
+  非二元: "nonbinary",
+  非二元性别: "nonbinary",
+};
+
+export function normalizeGender(raw: string): PersonGender | null {
+  const t = normalizeToken(raw);
+  if (!t) return null;
+  if (GENDER_ALIASES[t]) return GENDER_ALIASES[t];
+  for (const [alias, gender] of Object.entries(GENDER_ALIASES)) {
+    if (t.includes(alias) || alias.includes(t)) return gender;
+  }
+  return null;
+}
+
+export function normalizeGenders(raw: string[] | undefined): PersonGender[] {
+  if (!raw?.length) return [];
+  const out = new Set<PersonGender>();
+  for (const item of raw) {
+    const g = normalizeGender(item);
+    if (g) out.add(g);
+  }
+  return [...out];
+}
+
+/** User wants to drop hard filters — keep gender if they said so. */
+export function relaxHardFiltersFromMessage(
+  message: string,
+  filters: MatchHardFilters,
+): MatchHardFilters {
+  const t = message.trim();
+  if (!t) return filters;
+
+  const relaxBroad =
+    /都放宽|全部放宽|放宽所有|不限(年龄|城市|地点|学历)|去掉(年龄|城市|学历|地点)|啥都行|什么都行|没有(别的)?要求|只要是(女生|女性|男的|男生)/i.test(
+      t,
+    );
+  const genderOnly =
+    /只要(是)?(女生|女性|女孩|女的)|只要(是)?(男生|男性|男孩|男的)|only\s+(women|men|female|male)/i.test(
+      t,
+    );
+
+  if (genderOnly || relaxBroad) {
+    const next: MatchHardFilters = { ...EMPTY_HARD_FILTERS };
+    if (/女/.test(t) || filters.genders.includes("female")) {
+      next.genders = ["female"];
+      return next;
+    }
+    if (/男/.test(t) && !/女/.test(t)) {
+      next.genders = ["male"];
+      return next;
+    }
+    if (filters.genders.length) next.genders = [...filters.genders];
+    if (filters.excludeGenders.length) next.excludeGenders = [...filters.excludeGenders];
+    return next;
+  }
+
+  const next: MatchHardFilters = { ...filters };
+  if (/放宽.*年龄|不限年龄|年龄.*放宽|年龄不限/i.test(t)) {
+    next.ageMin = null;
+    next.ageMax = null;
+  }
+  if (/放宽.*(城市|地点)|不限.*(城市|地点)|不限地点/i.test(t)) {
+    next.cities = [];
+    next.excludeCities = [];
+  }
+  if (/放宽.*学历|不限学历/i.test(t)) {
+    next.educationMin = null;
+    next.educationLevels = [];
+    next.excludeEducationLevels = [];
+  }
+  return next;
 }

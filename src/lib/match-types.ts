@@ -1,4 +1,4 @@
-import type { EducationLevel } from "./types";
+import type { EducationLevel, Person, PersonGender } from "./types";
 import type { UserUnderstanding } from "./understanding";
 
 export type MatchmakerLang = "en" | "zh-CN";
@@ -7,7 +7,10 @@ export type MatchmakerLang = "en" | "zh-CN";
 export interface MatchHardFilters {
   ageMin: number | null;
   ageMax: number | null;
-  /** Person must be in one of these cities (normalized keys). Empty = no city filter. */
+  /** If non-empty, person must match one of these genders. */
+  genders: PersonGender[];
+  excludeGenders: PersonGender[];
+  /** Location phrases (country / admin1 / city; CN/EN aliases ok). Empty = no location filter. */
   cities: string[];
   excludeCities: string[];
   /** Minimum education level (inclusive). null = no minimum. */
@@ -20,6 +23,8 @@ export interface MatchHardFilters {
 export const EMPTY_HARD_FILTERS: MatchHardFilters = {
   ageMin: null,
   ageMax: null,
+  genders: [],
+  excludeGenders: [],
   cities: [],
   excludeCities: [],
   educationMin: null,
@@ -34,11 +39,15 @@ export interface RecallOpts {
   shownIds: string[];
   passedIds: string[];
   limit?: number;
+  /** Server/tests: candidate pool from DB or explicit fixture. */
+  pool?: Person[];
 }
 
 export interface RecalledCandidate {
   id: string;
   score: number;
+  /** Semantic similarity component (0..1) when preference query present. */
+  vectorScore?: number;
 }
 
 export interface RecallResult {

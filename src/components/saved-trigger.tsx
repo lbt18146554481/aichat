@@ -7,25 +7,21 @@
 //   · Wishes — saved candidates from Side by Side.
 // Hidden entirely when both lists are empty.
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Bookmark, BookmarkCheck, MessageCircle, UserRound, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { listSaved, removeSaved, subscribeSaved, type SavedRecord } from "@/lib/saved-intents";
-import {
-  listSavedPeople,
-  removeSavedPerson,
-  subscribeSavedPeople,
-  type SavedPersonRecord,
-} from "@/lib/saved-people";
+import { useSavedBootstrap, useSavedPeople, useSavedWishes } from "@/data/hooks";
 import { getIntentById, type Intent } from "@/lib/intents";
+import { pickLocaleText, normalizeLang } from "@/lib/lang";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
+import { removeSaved, type SavedRecord } from "@/lib/saved-intents";
+import { openSavedPersonTarget, removeSavedPerson, type SavedPersonRecord } from "@/lib/saved-people";
 import { getSession } from "@/lib/sessions";
 import { setFocusPerson } from "@/lib/seed";
-import type { Lang } from "@/lib/i18n";
 
 interface Props {
   variant?: "default" | "compact";
@@ -36,34 +32,6 @@ interface Props {
   hideTrigger?: boolean;
 }
 
-function useSavedList(): SavedRecord[] {
-  const snapshot = useSyncExternalStore(
-    subscribeSaved,
-    () => JSON.stringify(listSaved()),
-    () => "[]",
-  );
-  try {
-    const parsed = JSON.parse(snapshot) as SavedRecord[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function useSavedPeopleList(): SavedPersonRecord[] {
-  const snapshot = useSyncExternalStore(
-    subscribeSavedPeople,
-    () => JSON.stringify(listSavedPeople()),
-    () => "[]",
-  );
-  try {
-    const parsed = JSON.parse(snapshot) as SavedPersonRecord[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
 export function SavedTrigger({
   variant = "default",
   open: openProp,
@@ -71,7 +39,11 @@ export function SavedTrigger({
   hideTrigger,
 }: Props) {
   const { t, i18n } = useTranslation();
-  const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const lang = normalizeLang(i18n.resolvedLanguage);
+  useSavedBootstrap();
+  const { data: saved = [] } = useSavedWishes();
+  const { data: people = [] } = useSavedPeople();
+  const [hydrated, setHydrated] = useState(false);
   const navigate = useNavigate();
   const [openState, setOpenState] = useState(false);
   const controlled = openProp !== undefined;
@@ -80,11 +52,6 @@ export function SavedTrigger({
     if (!controlled) setOpenState(v);
     onOpenChange?.(v);
   };
-  const saved = useSavedList();
-  const people = useSavedPeopleList();
-  // localStorage is only readable after hydration; until then show skeletons
-  // instead of flashing "nothing saved yet" at someone who has saved people.
-  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     setHydrated(true);
   }, []);
@@ -106,11 +73,13 @@ export function SavedTrigger({
   }
 
   function handleOpenPerson(rec: SavedPersonRecord) {
+    const target = openSavedPersonTarget(rec);
+    if (!target) return;
     setOpen(false);
-    setFocusPerson(rec.personId);
+    setFocusPerson(target.personId);
     void navigate({
       to: "/matchmaker",
-      search: { session: rec.sessionId },
+      search: { session: target.sessionId, focus: target.personId },
     });
   }
 
@@ -197,6 +166,7 @@ export function SavedTrigger({
                       </div>
                       <div className="mt-3 flex items-center gap-2">
                         <button
+                          type="button"
                           onClick={() => handleOpenPerson(rec)}
                           className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-primary text-primary-foreground text-[12.5px] font-medium hover:opacity-90 transition-opacity"
                         >
@@ -204,6 +174,7 @@ export function SavedTrigger({
                           {t("saved.open_person")}
                         </button>
                         <button
+                          type="button"
                           onClick={() => removeSavedPerson(rec.personId)}
                           aria-label={t("saved.remove")}
                           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-[12.5px] text-foreground/85 hover:bg-secondary transition-colors"
@@ -246,15 +217,13 @@ export function SavedTrigger({
                   const intent = getIntentById(rec.intentId) as Intent | null;
                   if (!intent) return null;
                   const person = getPersonById(intent.ownerId);
-                  const name = lang === "zh-CN" ? intent.ownerName_zh : intent.ownerName;
-                  const city = lang === "zh-CN" ? intent.ownerCity_zh : intent.ownerCity;
+                  const name = pickLocaleText(lang, intent.ownerName, intent.ownerName_zh);
+                  const city = pickLocaleText(lang, intent.ownerCity, intent.ownerCity_zh);
                   const occ = person
-                    ? lang === "zh-CN"
-                      ? person.occupation_zh
-                      : person.occupation
+                    ? pickLocaleText(lang, person.occupation, person.occupation_zh)
                     : "";
                   const meta = [city, occ].filter((s) => s && s.trim()).join(" · ");
-                  const raw = lang === "zh-CN" ? intent.rawText_zh : intent.rawText;
+                  const raw = pickLocaleText(lang, intent.rawText, intent.rawText_zh);
                   const session = getSession(rec.sessionId);
                   const wishSummary = session?.seed ?? "";
 
@@ -321,18 +290,7 @@ export function SavedTrigger({
 
 /** Hook: subscribe to whether a given intent is currently saved. */
 export function useIsSaved(intentId: string | null | undefined): boolean {
-  const [flag, setFlag] = useState<boolean>(() => {
-    if (typeof window === "undefined" || !intentId) return false;
-    return listSaved().some((r) => r.intentId === intentId);
-  });
-  useEffect(() => {
-    if (!intentId) {
-      setFlag(false);
-      return;
-    }
-    const check = () => setFlag(listSaved().some((r) => r.intentId === intentId));
-    check();
-    return subscribeSaved(check);
-  }, [intentId]);
-  return flag;
+  const { data: saved = [] } = useSavedWishes();
+  if (!intentId) return false;
+  return saved.some((r) => r.intentId === intentId);
 }

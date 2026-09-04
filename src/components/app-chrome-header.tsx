@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Sparkles } from "lucide-react";
 import { LangSwitcher } from "./lang-switcher";
 import { HistoryTrigger } from "./history-trigger";
 import { SavedTrigger } from "./saved-trigger";
 import { AccountMenu } from "./account-menu";
-import { hasUnseen, rehydrate, subscribe } from "@/lib/connections";
+import { hasUnseenIn, useConnections } from "@/data/hooks";
 import { useAuth } from "@/lib/auth";
 
 /**
@@ -17,17 +17,11 @@ export function AppChromeHeader() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
-  const [unseen, setUnseen] = useState(false);
+  const { data: connections = [] } = useConnections(true);
+  const unseen = hasUnseenIn(connections);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    rehydrate();
-    const update = () => setUnseen(hasUnseen());
-    update();
-    return subscribe(update);
   }, []);
 
   return (
@@ -50,21 +44,30 @@ export function AppChromeHeader() {
           </div>
           <div className="flex items-center gap-3">
             {mounted && user && (
-              <Link
-                to="/connections"
-                className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              >
-                <MessageCircle
-                  className={`w-3.5 h-3.5 ${unseen ? "text-red-500" : ""}`}
-                  strokeWidth={1.75}
-                />
-                <span suppressHydrationWarning>{mounted ? t("home.connections") : ""}</span>
-                {unseen && (
-                  <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-500 text-white text-[10px] font-medium leading-[16px] text-center ring-2 ring-background">
-                    •
-                  </span>
-                )}
-              </Link>
+              <>
+                <Link
+                  to="/connections"
+                  className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  <MessageCircle
+                    className={`w-3.5 h-3.5 ${unseen ? "text-red-500" : ""}`}
+                    strokeWidth={1.75}
+                  />
+                  <span suppressHydrationWarning>{mounted ? t("home.connections") : ""}</span>
+                  {unseen && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-500 text-white text-[10px] font-medium leading-[16px] text-center ring-2 ring-background">
+                      •
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to="/wishes"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5" strokeWidth={1.75} />
+                  <span suppressHydrationWarning>{mounted ? t("tabs.wishes") : ""}</span>
+                </Link>
+              </>
             )}
             {mounted && user && <SavedTrigger />}
             {mounted && user && <HistoryTrigger />}
@@ -88,6 +91,30 @@ export function AppChromeHeader() {
             <span className="text-[13.5px] font-semibold tracking-tight text-foreground">Maitri</span>
           </div>
           <div className="flex items-center gap-1">
+            {mounted && user && (
+              <>
+                <Link
+                  to="/connections"
+                  className="relative inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] text-muted-foreground hover:text-foreground"
+                >
+                  <MessageCircle
+                    className={`w-3.5 h-3.5 ${unseen ? "text-red-500" : ""}`}
+                    strokeWidth={1.75}
+                  />
+                  <span>{t("tabs.connections_short")}</span>
+                  {unseen && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />
+                  )}
+                </Link>
+                <Link
+                  to="/wishes"
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] text-muted-foreground hover:text-foreground"
+                >
+                  <Sparkles className="w-3.5 h-3.5" strokeWidth={1.75} />
+                  <span>{t("tabs.wishes_short")}</span>
+                </Link>
+              </>
+            )}
             {mounted && user && <SavedTrigger variant="compact" />}
             <LangSwitcher />
           </div>

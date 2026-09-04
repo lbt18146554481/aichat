@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ArrowUp, MoreHorizontal } from "lucide-react";
-import { avatarUrl, getPersonById, localized } from "@/lib/people";
-import type { Lang } from "@/lib/i18n";
+import { MoreHorizontal, ArrowUp } from "lucide-react";
+import { avatarUrl, getPersonById, isAiSeedPerson, localized } from "@/lib/people";
+import { normalizeLang } from "@/lib/lang";
 import {
   dismissIncoming,
   get,
@@ -15,9 +15,11 @@ import {
   undoFadedFor,
   withdrawSent,
   type ChatMsg,
-  type Connection,
 } from "@/lib/connections";
+import { useConnections, useProfile } from "@/data/hooks";
+import { useAuth } from "@/lib/auth";
 import { PublicProfileSheet } from "@/components/public-profile-sheet";
+import { AiPersonaBadge } from "@/components/ai-persona-badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,22 +47,25 @@ interface Bubble {
  */
 export function ConnectionThread({ personId }: Props) {
   const { t, i18n } = useTranslation();
-  const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const lang = normalizeLang(i18n.resolvedLanguage);
   const navigate = useNavigate();
+  const { data: connections = [] } = useConnections();
+  const { data: profile } = useProfile();
+  const { user } = useAuth();
 
-  const [conn, setConn] = useState<Connection | null>(() => get(personId));
+  const conn = useMemo(
+    () => connections.find((c) => c.personId === personId) ?? get(personId),
+    [connections, personId],
+  );
   const [typing, setTyping] = useState<boolean>(() => isTyping(personId));
   const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setText("");
-    const unsub = subscribe(() => {
-      setConn(get(personId));
-      setTyping(isTyping(personId));
-    });
-    setConn(get(personId));
+    const unsub = subscribe(() => setTyping(isTyping(personId)));
     setTyping(isTyping(personId));
     markSeen(personId);
     return () => {
@@ -101,16 +106,20 @@ export function ConnectionThread({ personId }: Props) {
   if (!person || !conn) return null;
   const loc = localized(person, lang);
 
+  const isAiPersona = isAiSeedPerson(personId);
+  const myAvatar =
+    profile?.avatar?.trim() || user?.avatar?.trim() || avatarUrl(user?.id ?? user?.email ?? "me");
+
   function submit() {
-    if (!conn) return;
+    if (!conn || sending) return;
     const v = text.trim();
     if (!v) return;
+    setText("");
     if (conn.status === "connected") {
-      send(personId, v);
-      setText("");
+      setSending(true);
+      void send(personId, v).finally(() => setSending(false));
     } else if (conn.status === "incoming") {
       respondToIncoming(personId, { quotedMomentId: null, reply: v });
-      setText("");
     }
   }
 
@@ -118,7 +127,7 @@ export function ConnectionThread({ personId }: Props) {
     undoFadedFor(personId);
     setFocusPerson(personId);
     const session = conn?.originSessionId;
-    if (session) void navigate({ to: "/matchmaker", search: { session } });
+    if (session) void navigate({ to: "/matchmaker", search: { session, focus: personId } });
     else void navigate({ to: "/" });
   }
 
@@ -131,25 +140,8 @@ export function ConnectionThread({ personId }: Props) {
     ? t("connection.incoming_hint")
     : t("connection.composer_placeholder");
 
-  const originSession = conn.originSessionId ?? null;
-  function backToOrigin() {
-    if (!originSession) return;
-    setFocusPerson(personId);
-    void navigate({ to: "/matchmaker", search: { session: originSession } });
-  }
-
   return (
     <div className="h-full flex flex-col">
-      {originSession && (
-        <button
-          type="button"
-          onClick={backToOrigin}
-          className="w-full text-left px-5 py-2 text-[11.5px] text-muted-foreground hover:text-foreground hover:bg-secondary/40 border-b border-border transition-colors inline-flex items-center gap-1.5"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          {t("connection.back_to_origin", { defaultValue: "Back to conversation" })}
-        </button>
-      )}
       {/* Header — avatar+name is the profile trigger */}
       <div className="border-b border-border bg-background px-5 py-3 flex items-center gap-3">
         <button
@@ -166,9 +158,12 @@ export function ConnectionThread({ personId }: Props) {
             ].join(" ")}
           />
           <div className="min-w-0">
-            <div className="text-[13.5px] font-semibold text-foreground truncate">{loc.name}</div>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="text-[13.5px] font-semibold text-foreground truncate">{loc.name}</div>
+              {isAiPersona && <AiPersonaBadge className="shrink-0" />}
+            </div>
             <div className="text-[11px] text-muted-foreground truncate">
-              {loc.occupation} · {loc.city}
+              {isAiPersona ? t("persona.chat_subtitle") : `${loc.occupation} · ${loc.city}`}
             </div>
           </div>
         </button>
@@ -211,46 +206,58 @@ export function ConnectionThread({ personId }: Props) {
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4">
-        <div className="max-w-md mx-auto">
-          <ul className="space-y-2.5">
-            {bubbles.map((b) => (
-              <li
-                key={b.id}
-                className={
-                  b.from === "me" ? "flex flex-col items-end" : "flex flex-col items-start"
-                }
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-6 py-4">
+        <ul className="w-full space-y-3">
+          {bubbles.map((b) => (
+            <li
+              key={b.id}
+              className={[
+                "flex items-end gap-2",
+                b.from === "me" ? "flex-row-reverse" : "flex-row",
+              ].join(" ")}
+            >
+              <img
+                src={b.from === "me" ? myAvatar : avatarUrl(person.id)}
+                alt=""
+                className={[
+                  "w-8 h-8 rounded-full border border-border shrink-0 object-cover",
+                  b.faded ? "grayscale opacity-70" : "",
+                ].join(" ")}
+              />
+              <div
+                className={[
+                  "max-w-[min(80%,28rem)] px-3.5 py-2 text-[14px] leading-relaxed",
+                  b.from === "me"
+                    ? "rounded-2xl rounded-br-md bg-primary text-primary-foreground"
+                    : "rounded-2xl rounded-bl-md bg-secondary text-foreground",
+                  b.faded ? "opacity-60" : "",
+                ].join(" ")}
               >
-                <div
-                  className={[
-                    "max-w-[80%] px-3.5 py-2 text-[14px] leading-relaxed",
-                    b.from === "me"
-                      ? "rounded-2xl rounded-br-md bg-primary text-primary-foreground"
-                      : "rounded-2xl rounded-bl-md bg-secondary text-foreground",
-                    b.faded ? "opacity-60" : "",
-                  ].join(" ")}
-                >
-                  {b.text}
-                </div>
-              </li>
-            ))}
-            {typing && isConnected && (
-              <li className="flex flex-col items-start" aria-live="polite">
-                <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-secondary text-foreground/70 inline-flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60 animate-[pulse_1.2s_ease-in-out_infinite]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60 animate-[pulse_1.2s_ease-in-out_0.2s_infinite]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60 animate-[pulse_1.2s_ease-in-out_0.4s_infinite]" />
-                </div>
-              </li>
-            )}
-          </ul>
-        </div>
+                {b.text}
+              </div>
+            </li>
+          ))}
+          {typing && isConnected && !isAiPersona && (
+            <li className="flex items-end gap-2" aria-live="polite">
+              <img
+                src={avatarUrl(person.id)}
+                alt=""
+                className="w-8 h-8 rounded-full border border-border shrink-0 object-cover"
+              />
+              <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-secondary text-foreground/70 inline-flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60 animate-[pulse_1.2s_ease-in-out_infinite]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60 animate-[pulse_1.2s_ease-in-out_0.2s_infinite]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60 animate-[pulse_1.2s_ease-in-out_0.4s_infinite]" />
+              </div>
+            </li>
+          )}
+        </ul>
       </div>
 
       {/* Bottom: composer only when the conversation is actionable. */}
       {composerEnabled && (
-        <div className="border-t border-border bg-background px-4 py-3">
-          <div className="max-w-md mx-auto">
+        <div className="border-t border-border bg-background px-4 md:px-6 py-3">
+          <div className="w-full">
             <div className="relative">
               <textarea
                 value={text}
@@ -268,7 +275,7 @@ export function ConnectionThread({ personId }: Props) {
               <button
                 type="button"
                 onClick={submit}
-                disabled={!text.trim()}
+                disabled={!text.trim() || sending}
                 aria-label="Send"
                 className="absolute right-2 bottom-1.5 w-8 h-8 grid place-items-center rounded-lg bg-primary text-primary-foreground disabled:opacity-25 hover:opacity-90 transition-opacity"
               >
@@ -279,7 +286,12 @@ export function ConnectionThread({ personId }: Props) {
         </div>
       )}
 
-      <PublicProfileSheet person={person} open={profileOpen} onOpenChange={setProfileOpen} />
+      <PublicProfileSheet
+        person={person}
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        connectionActions={{ personId }}
+      />
     </div>
   );
 }

@@ -17,4 +17,13 @@ describe("route-intent", () => {
     expect(wantsActivity("周末一起跑步")).toBe(true);
     expect(routeIntent("周末一起跑步")).toBe("sidebyside");
   });
+
+  it("treats gender/age prefs as meet-someone", () => {
+    expect(wantsPerson("找女生，20岁以下的")).toBe(true);
+    expect(routeIntent("找女生，20岁以下的")).toBe("matchmaker");
+  });
+
+  it("routes park outings to sidebyside even with 找人", () => {
+    expect(routeIntent("我想找人一起逛公园")).toBe("sidebyside");
+  });
 });

@@ -13,7 +13,7 @@
 // keyword-based and intentionally transparent.
 
 import { extractSignals } from "./conversation";
-import { getPersonById, PEOPLE } from "./people";
+import { getPersonById } from "./people-client";
 import type { Angle, Person } from "./types";
 
 export type Role = "user" | "assistant";
@@ -139,8 +139,12 @@ function scorePerson(p: Person, ctx: UserContext, passedIds: string[], shownIds:
   return s;
 }
 
-export function pickNextPerson(state: AgentState, excludeCurrent = false): Person | null {
-  const candidates = PEOPLE.filter(
+export function pickNextPerson(
+  state: AgentState,
+  pool: Person[],
+  excludeCurrent = false,
+): Person | null {
+  const candidates = pool.filter(
     (p) =>
       !state.passedIds.includes(p.id) &&
       (!excludeCurrent || p.id !== state.currentPersonId) &&
@@ -149,7 +153,7 @@ export function pickNextPerson(state: AgentState, excludeCurrent = false): Perso
   const pool =
     candidates.length > 0
       ? candidates
-      : PEOPLE.filter(
+      : pool.filter(
           (p) =>
             !state.passedIds.includes(p.id) && (!excludeCurrent || p.id !== state.currentPersonId),
         );
@@ -310,7 +314,7 @@ export function userTurn(state: AgentState, text: string, lang: "en" | "zh-CN"):
 }
 
 function introduceNew(state: AgentState, lang: "en" | "zh-CN"): AgentState {
-  const person = pickNextPerson(state, /* excludeCurrent */ true);
+  const person = pickNextPerson(state, [], true);
   if (!person) {
     const line = lang === "zh-CN" ? LINES.none_left.zh : LINES.none_left.en;
     return pushAssistant(state, line);

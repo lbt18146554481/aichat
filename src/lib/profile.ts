@@ -50,7 +50,6 @@ export async function hydrateProfile(): Promise<Profile> {
   } catch {
     cache = { ...EMPTY_PROFILE };
   }
-  emit();
   return cache;
 }
 
@@ -80,13 +79,24 @@ export function hasName(p: Profile): boolean {
   return p.name.trim().length > 0;
 }
 
+/** UI label: profile nickname first, then full email (not auth user.name email prefix). */
+export function resolveUserDisplayName(
+  profile: Pick<Profile, "name"> | null | undefined,
+  user: { email?: string | null } | null | undefined,
+): string {
+  const custom = profile?.name?.trim();
+  if (custom) return custom;
+  return user?.email?.trim() || "";
+}
+
 export function isVitalsComplete(p: Profile): boolean {
   return (
     p.name.trim().length > 0 &&
     typeof p.age === "number" &&
     p.age >= 18 &&
     p.city.trim().length > 0 &&
-    p.occupation.trim().length > 0
+    p.occupation.trim().length > 0 &&
+    p.gender !== ""
   );
 }
 

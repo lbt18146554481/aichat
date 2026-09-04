@@ -204,7 +204,7 @@ export function ProfileForm({ lang, compact = false, onChange }: Props) {
             />
           </Field>
           <Field
-            label={`${t("profile.f.gender")} · ${t("profile.optional")}`}
+            label={t("profile.f.gender")}
             hidden={isHidden(profile, "gender")}
             onToggleHide={() => flipHide("gender")}
           >
@@ -212,8 +212,11 @@ export function ProfileForm({ lang, compact = false, onChange }: Props) {
               value={profile.gender}
               onChange={(e) => updateField("gender", e.target.value as Gender)}
               className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
+              required
             >
-              <option value="">{t("profile.f.gender_placeholder")}</option>
+              <option value="" disabled>
+                {t("profile.f.gender_select")}
+              </option>
               {GENDERS.map((g) => (
                 <option key={g} value={g}>
                   {t(`profile.gender.${g}`)}

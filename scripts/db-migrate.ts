@@ -100,6 +100,12 @@ async function migrate() {
     );
     CREATE INDEX IF NOT EXISTS chat_sessions_user_idx ON chat_sessions(user_id);
 
+    ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS thread_id TEXT;
+    ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS superseded_at TIMESTAMPTZ;
+    UPDATE chat_sessions SET thread_id = id WHERE thread_id IS NULL;
+    ALTER TABLE chat_sessions ALTER COLUMN thread_id SET NOT NULL;
+    CREATE INDEX IF NOT EXISTS chat_sessions_thread_idx ON chat_sessions(user_id, thread_id);
+
     CREATE TABLE IF NOT EXISTS saved_people (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       person_id TEXT NOT NULL,
@@ -122,6 +128,15 @@ async function migrate() {
       agent_memory JSONB,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    ALTER TABLE intents ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'other';
+    ALTER TABLE intents ADD COLUMN IF NOT EXISTS city_id TEXT NOT NULL DEFAULT '';
+    ALTER TABLE intents ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+    ALTER TABLE intents ADD COLUMN IF NOT EXISTS when_tier TEXT NOT NULL DEFAULT 'any';
+    ALTER TABLE intents ADD COLUMN IF NOT EXISTS level_tier TEXT NOT NULL DEFAULT 'any';
+    ALTER TABLE intents ADD COLUMN IF NOT EXISTS recall_cache JSONB;
+    CREATE INDEX IF NOT EXISTS intents_recall_idx ON intents(status, kind, city_id);
+    CREATE INDEX IF NOT EXISTS intents_created_idx ON intents(created_at);
   `);
   console.log("Migration complete.");
   await client.end();

@@ -1,11 +1,14 @@
 // Connections — server-backed. Prefer WebSocket realtime; fall back to polling.
 
+import { isBlocked } from "./blocklist";
+
 import {
   listConnectionsFn,
   sayHelloFn,
   sendMessageFn,
   pollConnectionsFn,
   updateConnectionStatusFn,
+  markConnectionSeenFn,
 } from "./api/data.functions";
 import type { Connection, ChatMsg, HelloFromMe, HelloFromThem, ConnStatus } from "./connection-types";
 import {
@@ -39,25 +42,32 @@ export function subscribe(fn: () => void): () => void {
   };
 }
 
+function mergeLastSeen(incoming: Connection, prev?: Connection): Connection {
+  const seen = Math.max(incoming.lastSeenAt ?? 0, prev?.lastSeenAt ?? 0);
+  return seen > 0 ? { ...incoming, lastSeenAt: seen } : incoming;
+}
+
 function writeCache(list: Connection[]) {
   const next: Record<string, Connection> = { ...cache };
   for (const c of list) {
-    next[c.personId] = c;
+    next[c.personId] = mergeLastSeen(c, next[c.personId]);
   }
   cache = next;
   emit();
 }
 
 function applyConnection(conn: Connection) {
-  cache[conn.personId] = conn;
+  cache[conn.personId] = mergeLastSeen(conn, cache[conn.personId]);
   lastPoll = Date.now();
   emit();
 }
 
 export function list(): Connection[] {
-  return Object.values(cache).sort(
-    (a, b) => (b.connectedAt ?? b.helloAt) - (a.connectedAt ?? a.helloAt),
-  );
+  return Object.values(cache)
+    .filter((c) => !isBlocked(c.personId))
+    .sort(
+      (a, b) => (b.connectedAt ?? b.helloAt) - (a.connectedAt ?? a.helloAt),
+    );
 }
 
 export function get(personId: string): Connection | null {
@@ -67,8 +77,9 @@ export function get(personId: string): Connection | null {
 export async function hydrateConnections(): Promise<Connection[]> {
   try {
     const rows = await listConnectionsFn();
+    const prev = cache;
     cache = {};
-    for (const c of rows) cache[c.personId] = c;
+    for (const c of rows) cache[c.personId] = mergeLastSeen(c, prev[c.personId]);
     lastPoll = Date.now();
     emit();
     startRealtime();
@@ -139,34 +150,25 @@ export function sayHello(
   personId: string,
   fromMe: HelloFromMe,
   originSessionId?: string,
-): Connection {
+): Promise<Connection> {
   const existing = cache[personId];
-  if (existing && existing.status !== "faded") return existing;
+  if (existing && existing.status !== "faded") return Promise.resolve(existing);
 
-  const optimistic: Connection = {
-    personId,
-    status: "sent",
-    initiatedBy: "me",
-    helloAt: Date.now(),
-    originSessionId,
-    fromMe,
-    messages: [],
-  };
-  cache[personId] = optimistic;
-  emit();
   startRealtime();
   startPolling();
 
-  void sayHelloFn({
+  return sayHelloFn({
     data: { personId, fromMe, originSessionId, lang: detectLang() },
   })
     .then((conn) => {
       cache[personId] = conn;
       emit();
+      return conn;
     })
-    .catch(console.error);
-
-  return optimistic;
+    .catch((e) => {
+      console.error(e);
+      throw e;
+    });
 }
 
 export function withdrawSent(personId: string) {
@@ -178,7 +180,7 @@ export function withdrawSent(personId: string) {
 }
 
 export function maybeSeedIncoming() {
-  // Server-side seed of incoming hellos deferred — fake people respond to outbound hellos.
+  // Seed personas are AI companions — user initiates hello; no fake incoming hellos.
 }
 
 export function respondToIncoming(personId: string, fromMe: HelloFromMe) {
@@ -216,11 +218,19 @@ export function removeFaded(personId: string) {
   undoFadedFor(personId);
 }
 
-export function send(personId: string, text: string) {
-  const t = text.trim();
-  if (!t) return;
+export function deleteConnection(personId: string) {
   const conn = cache[personId];
-  if (!conn || conn.status !== "connected") return;
+  if (!conn) return;
+  delete cache[personId];
+  emit();
+  void updateConnectionStatusFn({ data: { personId, action: "delete" } }).catch(console.error);
+}
+
+export function send(personId: string, text: string): Promise<void> {
+  const t = text.trim();
+  if (!t) return Promise.resolve();
+  const conn = cache[personId];
+  if (!conn || conn.status !== "connected") return Promise.resolve();
 
   const msg: ChatMsg = {
     id: Math.random().toString(36).slice(2, 10),
@@ -233,30 +243,40 @@ export function send(personId: string, text: string) {
   startRealtime();
   startPolling();
 
-  TYPING.add(personId);
-  emit();
-  void sendMessageFn({ data: { personId, text: t, lang: detectLang() } })
-    .then(() => {
-      // Prefer WS push for their reply; keep a short safety poll.
-      setTimeout(() => {
-        if (!isRealtimeConnected()) {
-          TYPING.delete(personId);
-          emit();
-          void pollOnce();
-        }
-      }, 8000);
-    })
-    .catch(() => {
-      TYPING.delete(personId);
+  return sendMessageFn({ data: { personId, text: t, lang: detectLang() } })
+    .then((result) => {
+      const cur = cache[personId];
+      if (!cur) return;
+      const withoutOptimistic = cur.messages.filter((m) => m.id !== msg.id);
+      const known = new Set(withoutOptimistic.map((m) => m.id));
+      const merged = [...withoutOptimistic];
+      for (const m of [result.userMessage, result.theirMessage]) {
+        if (known.has(m.id)) continue;
+        merged.push({
+          id: m.id,
+          from: m.from,
+          t: m.t,
+          text: m.text,
+        });
+      }
+      cache[personId] = { ...cur, messages: merged };
       emit();
+    })
+    .catch((e) => {
+      console.error(e);
+      throw e;
     });
 }
 
 export function markSeen(personId: string) {
   const conn = cache[personId];
-  if (!conn) return;
-  cache[personId] = { ...conn, lastSeenAt: Date.now() };
+  if (!conn || !hasUnseenFor(conn)) return;
+  const now = Date.now();
+  cache[personId] = { ...conn, lastSeenAt: now };
   emit();
+  void markConnectionSeenFn({ data: { personId } }).catch(() => {
+    /* offline */
+  });
 }
 
 export function hasUnseenFor(conn: Connection): boolean {

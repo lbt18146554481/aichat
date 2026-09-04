@@ -1,4 +1,5 @@
 import { getIntentById } from "./intents";
+import { isBlocked } from "./blocklist";
 import { listSavedIntentsFn, toggleSavedIntentFn } from "./api/data.functions";
 
 export interface SavedRecord {
@@ -31,7 +32,10 @@ export async function hydrateSavedIntents() {
 
 export function listSaved(): SavedRecord[] {
   return cache
-    .filter((r) => !!getIntentById(r.intentId))
+    .filter((r) => {
+      const it = getIntentById(r.intentId);
+      return !!it && !isBlocked(it.ownerId);
+    })
     .sort((a, b) => b.savedAt - a.savedAt);
 }
 

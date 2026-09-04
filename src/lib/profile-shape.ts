@@ -1,5 +1,7 @@
 // Profile shape — shared, no localStorage.
 
+import type { PersonIntent, PersonSource, PersonStatus, SocialPace } from "./types";
+
 export type WorkKind = "book" | "film" | "music" | "exhibition" | "food" | "sport" | "other";
 
 export type Gender = "" | "female" | "male" | "nonbinary" | "prefer_not_to_say";
@@ -36,6 +38,16 @@ export interface Profile {
   moments: ProfileMoment[];
   favorites: Favorite[];
   hidden: string[];
+  /** Soft-matching facets (same ids as person pool). */
+  interests?: string[];
+  traits?: string[];
+  socialPace?: SocialPace;
+  intent?: PersonIntent[];
+  languages?: string[];
+  status?: PersonStatus;
+  source?: PersonSource;
+  /** Built for vector / semantic recall. */
+  profileText?: string;
 }
 
 export const EMPTY_PROFILE: Profile = {

@@ -332,3 +332,52 @@ export function buildReasons(
 
   return out.slice(0, 3);
 }
+
+function reasonChatLine(reason: Reason, name: string, lang: Lang): string {
+  const zh = lang === "zh-CN";
+  if (reason.kind === "favorite") {
+    return zh
+      ? `你们都写下了《${reason.title}》。`
+      : `You both listed “${reason.title}”.`;
+  }
+  if (reason.kind === "values" || (reason.kind === "you_said" && reason.category === "values")) {
+    return zh
+      ? `${name} 在意的，正是你说过重要的那件事。`
+      : `What matters to ${name} lines up with what you said you care about.`;
+  }
+  return zh
+    ? `${name} 的日常节奏，和你描述的那种人很接近。`
+    : `${name}'s day-to-day fits the kind of person you described.`;
+}
+
+/** Chat-side intro when the server introduces someone on the right. */
+export function buildIntroduceReply(
+  person: Person,
+  profile: Profile,
+  understanding: UserUnderstanding,
+  lang: Lang,
+): string {
+  const zh = lang === "zh-CN";
+  const name = zh ? person.name_zh : person.name;
+  const city = zh ? person.city_zh : person.city;
+  const reasons = buildReasons(person, profile, understanding, lang);
+  const lines: string[] = [];
+  for (const r of reasons) {
+    const text = reasonChatLine(r, name, lang);
+    if (!lines.includes(text)) lines.push(text);
+  }
+
+  const header = zh
+    ? `先介绍 ${name}（${person.age}岁，${city}）。`
+    : `Meet ${name} (${person.age}, ${city}).`;
+
+  if (lines.length > 0) {
+    return zh
+      ? `${header}${lines.join("")}更多在右边。`
+      : `${header} ${lines.join(" ")} More on the right.`;
+  }
+
+  return zh
+    ? `${header}她在你现在的条件里比较适合；若右边「为什么是 TA」还空着，你可以再多说一句偏好，我好换更合适的人。`
+    : `${header} She fits your current filters well — see the right for details; say more if you want someone else.`;
+}

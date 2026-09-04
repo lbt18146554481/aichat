@@ -17,6 +17,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { MobileTabBar } from "@/components/mobile/tab-bar";
 import { useNativeBack } from "@/hooks/use-native-back";
 import { BUILD_INFO } from "@/lib/build-info.generated";
+import { clearActiveThreadOnReload } from "@/lib/active-thread";
+import { usePeopleBootstrap } from "@/data/hooks/use-people";
 
 initI18n();
 
@@ -133,12 +135,21 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function PeopleCacheBootstrap() {
+  usePeopleBootstrap();
+  return null;
+}
+
 function RootComponent() {
   useNativeBack();
   const { queryClient } = Route.useRouteContext();
 
   const { i18n } = useTranslation();
   const [lang, setLang] = useState<string>(i18n.resolvedLanguage ?? "en");
+
+  useEffect(() => {
+    clearActiveThreadOnReload();
+  }, []);
 
   useEffect(() => {
     // Apply the user's persisted language after mount so SSR and the
@@ -159,6 +170,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <PeopleCacheBootstrap />
       <Outlet />
       <MobileTabBar />
       <Toaster />

@@ -1,17 +1,18 @@
 import "dotenv/config";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { inviteCodes, people, intents } from "../src/lib/db/schema";
 
-// Dynamic import of PEOPLE so tsx can resolve path aliases poorly — use relative.
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL missing");
 
-  // Import compiled-ish module via relative path from scripts/
-  const { PEOPLE } = await import("../src/lib/people.ts");
+  const { buildSeedPeople } = await import("../src/lib/people-seed.data.ts");
+  const { SEED_PERSON_IDS } = await import("../src/lib/people-seed.ids.ts");
+  const { invalidatePeopleCache } = await import("../src/lib/people-store.server.ts");
   const { seedPool } = await import("../src/lib/intents.ts");
+  const { intentIndexFromIntent } = await import("../src/lib/intent-index.ts");
 
   const client = postgres(url, { max: 1 });
   const db = drizzle(client);
@@ -32,7 +33,8 @@ async function main() {
     }
   }
 
-  for (const person of PEOPLE) {
+  const seedPeople = buildSeedPeople();
+  for (const person of seedPeople) {
     await db
       .insert(people)
       .values({ id: person.id, data: person as unknown as Record<string, unknown> })
@@ -41,10 +43,13 @@ async function main() {
         set: { data: person as unknown as Record<string, unknown> },
       });
   }
-  console.log(`seeded ${PEOPLE.length} people`);
+  console.log(`seeded ${seedPeople.length} people`);
+  console.log("seed person ids:", SEED_PERSON_IDS.join(", "));
+  invalidatePeopleCache();
 
   const seedIntents = seedPool();
   for (const intent of seedIntents) {
+    const idx = intentIndexFromIntent(intent);
     await db
       .insert(intents)
       .values({
@@ -52,10 +57,23 @@ async function main() {
         ownerId: intent.ownerId,
         userId: null,
         data: intent as unknown as Record<string, unknown>,
+        kind: idx.kind,
+        cityId: idx.cityId,
+        status: idx.status,
+        whenTier: idx.whenTier,
+        levelTier: idx.levelTier,
       })
       .onConflictDoUpdate({
         target: intents.id,
-        set: { data: intent as unknown as Record<string, unknown>, ownerId: intent.ownerId },
+        set: {
+          data: intent as unknown as Record<string, unknown>,
+          ownerId: intent.ownerId,
+          kind: idx.kind,
+          cityId: idx.cityId,
+          status: idx.status,
+          whenTier: idx.whenTier,
+          levelTier: idx.levelTier,
+        },
       });
   }
   console.log(`seeded ${seedIntents.length} intents`);

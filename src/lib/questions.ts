@@ -10,6 +10,8 @@
 // you're building, where in this city you'd take someone. Not clever
 // abstractions.
 
+import { pickLocaleText } from "./lang";
+
 export interface Question {
   id: string;
   theme: "home" | "time" | "money" | "family" | "solitude" | "change";
@@ -179,9 +181,9 @@ export function getMomentPromptById(id: string): MomentPrompt | undefined {
 }
 
 export function localizedMomentPrompt(p: MomentPrompt, lang: "en" | "zh-CN"): string {
-  return lang === "zh-CN" ? p.text_zh : p.text;
+  return pickLocaleText(lang, p.text, p.text_zh);
 }
 
 export function localizedHint(p: MomentPrompt, lang: "en" | "zh-CN"): string {
-  return lang === "zh-CN" ? p.hint_zh : p.hint;
+  return pickLocaleText(lang, p.hint, p.hint_zh);
 }

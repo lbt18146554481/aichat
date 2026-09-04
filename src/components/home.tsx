@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, UserSearch, Users } from "lucide-react";
+import type { AgentId } from "@/lib/seed";
 import { AppChromeHeader } from "@/components/app-chrome-header";
 import { useAuth } from "@/lib/auth";
 import { normalizeLang } from "@/lib/lang";
@@ -11,18 +13,44 @@ import type { HandoffContext, GraftedMessage } from "@/lib/handoff";
 import { openMatchmakerFromHandoff, openSideBySideFromHandoff } from "@/lib/session-handoff";
 import type { UserUnderstanding } from "@/lib/understanding";
 import {
+  clearActiveThreadId,
+  getActiveThreadId,
+  setActiveThreadId,
+} from "@/lib/active-thread";
+import { seedForNewSession } from "@/lib/thread-title-milestone";
+import { deriveThreadTitle } from "@/lib/thread-title";
+import {
   createSession,
-  ensureSessionsHydrated,
-  getSession,
-  mostRecentReception,
+  getLatestSessionInThread,
   updateSession,
   type ReceptionState,
 } from "@/lib/sessions";
+import { useSessions } from "@/data/hooks";
 
 interface ReceptionMsg {
   role: "user" | "assistant";
   content: string;
 }
+
+const AGENT_CHIPS: {
+  id: AgentId;
+  labelKey: string;
+  promptKey: string;
+  Icon: typeof UserSearch;
+}[] = [
+  {
+    id: "matchmaker",
+    labelKey: "home.chip.intro",
+    promptKey: "home.chip_prompt_matchmaker",
+    Icon: UserSearch,
+  },
+  {
+    id: "sidebyside",
+    labelKey: "home.chip.together",
+    promptKey: "home.chip_prompt_sidebyside",
+    Icon: Users,
+  },
+];
 
 export function Home() {
   const { t, i18n } = useTranslation();
@@ -43,6 +71,7 @@ export function Home() {
   const [reception, setReception] = useState<ReceptionMsg[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [lastUnderstanding, setLastUnderstanding] = useState<UserUnderstanding | undefined>();
+  const { isFetched: sessionsReady } = useSessions();
 
   useEffect(() => {
     setMounted(true);
@@ -55,36 +84,62 @@ export function Home() {
       setThreadReady(true);
       return;
     }
-    let cancelled = false;
-    setThreadReady(false);
-    void (async () => {
-      await ensureSessionsHydrated();
-      if (cancelled) return;
-      const targetId = threadParam || mostRecentReception()?.id || null;
-      if (!targetId) {
-        setReceptionSessionId(null);
-        setReception([]);
-        persistSkip.current = true;
-        setThreadReady(true);
-        return;
+    if (!sessionsReady) {
+      setThreadReady(false);
+      return;
+    }
+    let skipResume = false;
+    try {
+      if (window.sessionStorage.getItem("kindred:home:focus") === "1") {
+        skipResume = true;
       }
-      const sess = getSession(targetId);
-      if (sess?.agent === "reception") {
-        const st = sess.state as ReceptionState;
-        setReceptionSessionId(sess.id);
-        setReception(Array.isArray(st.messages) ? st.messages : []);
-        persistSkip.current = true;
-      } else {
-        setReceptionSessionId(null);
-        setReception([]);
-        persistSkip.current = true;
-      }
+    } catch {
+      /* noop */
+    }
+
+    const threadId = threadParam || (skipResume ? null : getActiveThreadId());
+    if (!threadId) {
+      setReceptionSessionId(null);
+      setReception([]);
+      persistSkip.current = true;
       setThreadReady(true);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [user, threadParam]);
+      return;
+    }
+
+    const latest = getLatestSessionInThread(threadId);
+    if (!latest) {
+      if (!threadParam) clearActiveThreadId();
+      setReceptionSessionId(null);
+      setReception([]);
+      persistSkip.current = true;
+      setThreadReady(true);
+      return;
+    }
+
+    setActiveThreadId(threadId);
+
+    if (latest.agent === "introduce") {
+      void navigate({ to: "/matchmaker", search: { session: latest.id }, replace: !threadParam });
+      return;
+    }
+    if (latest.agent === "do_something") {
+      void navigate({
+        to: "/side-by-side",
+        search: { session: latest.id, chatWith: "" },
+        replace: !threadParam,
+      });
+      return;
+    }
+
+    const st = latest.state as ReceptionState;
+    setReceptionSessionId(latest.id);
+    setReception(Array.isArray(st.messages) ? st.messages : []);
+    persistSkip.current = true;
+    if (!threadParam) {
+      void navigate({ to: "/", search: { thread: threadId } as Record<string, string>, replace: true });
+    }
+    setThreadReady(true);
+  }, [user, sessionsReady, threadParam, navigate]);
 
   useEffect(() => {
     if (!user || !receptionSessionId || !threadReady) return;
@@ -93,10 +148,8 @@ export function Home() {
       return;
     }
     if (reception.length === 0) return;
-    const seed =
-      reception.find((m) => m.role === "user")?.content.slice(0, 120) ||
-      reception[0]?.content.slice(0, 120) ||
-      "";
+    const userMessages = reception.filter((m) => m.role === "user").map((m) => m.content);
+    const seed = deriveThreadTitle({ userMessages }) || seedForNewSession({ userMessages });
     updateSession(receptionSessionId, {
       state: { messages: reception } satisfies ReceptionState,
       seed,
@@ -128,6 +181,24 @@ export function Home() {
     if (forced || isDesktop) taRef.current?.focus();
   }, [mounted]);
 
+  function buildGraftForHandoff(
+    prior: ReceptionMsg[],
+    userBody: string,
+    assistantReply?: string,
+  ): GraftedMessage[] {
+    const out: GraftedMessage[] = prior.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+    out.push({ role: "user", content: userBody });
+    const reply = assistantReply?.trim();
+    if (!reply) return out;
+    const lastAssistant = [...out].reverse().find((m) => m.role === "assistant");
+    if (lastAssistant?.content.trim() === reply) return out;
+    out.push({ role: "assistant", content: reply });
+    return out;
+  }
+
   function goHandoff(opts: {
     target: "matchmaker" | "sidebyside";
     seed: string;
@@ -139,6 +210,7 @@ export function Home() {
   }) {
     const handoff: HandoffContext = {
       from: "orchestrator",
+      parentSessionId: receptionSessionId ?? undefined,
       seed: opts.seed,
       summary: opts.summary || opts.seed,
       understanding: opts.understanding,
@@ -148,15 +220,17 @@ export function Home() {
       transitionReply: opts.transition,
     };
     if (opts.target === "sidebyside") {
-      const s = openSideBySideFromHandoff(handoff);
+      const s = openSideBySideFromHandoff(handoff, receptionSessionId ?? undefined);
+      if (receptionSessionId) setActiveThreadId(s.threadId);
       void navigate({ to: "/side-by-side", search: { session: s.id, chatWith: "" } });
       return;
     }
-    const s = openMatchmakerFromHandoff(handoff);
+    const s = openMatchmakerFromHandoff(handoff, receptionSessionId ?? undefined);
+    if (receptionSessionId) setActiveThreadId(s.threadId);
     void navigate({ to: "/matchmaker", search: { session: s.id } });
   }
 
-  async function submit(override?: string) {
+  async function submit(override?: string, opts?: { forcedTarget?: AgentId | null }) {
     const body = (override ?? text).trim();
     if (!body || thinking) return;
     if (!user) {
@@ -166,17 +240,20 @@ export function Home() {
 
     let sid = receptionSessionId;
     if (!sid) {
-      const sess = createSession("reception", body, { messages: [] });
+      const sess = createSession("reception", seedForNewSession({ userText: body }), { messages: [] });
       sid = sess.id;
+      setActiveThreadId(sess.threadId);
       setReceptionSessionId(sid);
       persistSkip.current = false;
-      void navigate({ to: "/", search: { thread: sid } as Record<string, string>, replace: true });
+      void navigate({ to: "/", search: { thread: sess.threadId } as Record<string, string>, replace: true });
     }
 
     const historyBefore = [...reception, { role: "user" as const, content: body }];
-    setReception(historyBefore);
-    setText("");
-    setSuggestions([]);
+    flushSync(() => {
+      setReception(historyBefore);
+      setText("");
+      setSuggestions([]);
+    });
     setThinking(true);
 
     try {
@@ -185,21 +262,23 @@ export function Home() {
         lang,
         userMessage: body,
         history: reception,
-        forcedTarget: null,
+        forcedTarget: opts?.forcedTarget ?? null,
         onDelta: (chunk) => {
-          if (!streaming) {
-            streaming = true;
-            setReception((prev) => [...prev, { role: "assistant", content: chunk }]);
-            setThinking(false);
-            return;
-          }
-          setReception((prev) => {
-            if (!prev.length) return prev;
-            const copy = [...prev];
-            const last = copy[copy.length - 1];
-            if (last?.role !== "assistant") return prev;
-            copy[copy.length - 1] = { ...last, content: chunk };
-            return copy;
+          flushSync(() => {
+            if (!streaming) {
+              streaming = true;
+              setReception((prev) => [...prev, { role: "assistant", content: chunk }]);
+              setThinking(false);
+              return;
+            }
+            setReception((prev) => {
+              if (!prev.length) return prev;
+              const copy = [...prev];
+              const last = copy[copy.length - 1];
+              if (last?.role !== "assistant") return prev;
+              copy[copy.length - 1] = { ...last, content: chunk };
+              return copy;
+            });
           });
         },
       });
@@ -231,7 +310,7 @@ export function Home() {
           seed: body,
           summary: result.summary || body,
           understanding: result.understanding ?? lastUnderstanding,
-          history: historyBefore,
+          history: buildGraftForHandoff(reception, body),
           sideHints: result.sideBySideHints,
         });
         return;
@@ -287,13 +366,24 @@ export function Home() {
 
   const suggestionRow =
     suggestions.length > 0 && !thinking ? (
-      <div className="mb-2 flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {suggestions.map((s) => (
+      <div className="mb-2 flex flex-nowrap gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {suggestions.slice(0, 4).map((s) => (
           <button
             key={s}
             type="button"
             disabled={thinking}
-            onClick={() => void submit(s)}
+            onClick={(e) => {
+              e.preventDefault();
+              setText(s);
+              requestAnimationFrame(() => {
+                const el = taRef.current;
+                if (!el) return;
+                autosize(el);
+                el.focus();
+                const len = s.length;
+                el.setSelectionRange(len, len);
+              });
+            }}
             className="shrink-0 whitespace-nowrap rounded-full border border-border bg-card px-3 py-1.5 text-[12px] text-muted-foreground hover:border-foreground/40 hover:text-foreground disabled:opacity-40 transition-colors"
           >
             {s}
@@ -327,7 +417,27 @@ export function Home() {
           />
         </div>
 
-        <div className="px-2.5 md:px-3 pb-2.5 md:pb-3 pt-1 flex items-center justify-end gap-2">
+        <div className="px-2.5 md:px-3 pb-2.5 md:pb-3 pt-1 flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 pl-1.5">
+            {AGENT_CHIPS.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                disabled={thinking}
+                onClick={() => {
+                  if (thinking) return;
+                  void submit(t(c.promptKey), { forcedTarget: c.id });
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[12.5px] text-muted-foreground hover:text-foreground hover:border-foreground/20 disabled:opacity-40 transition-colors"
+                suppressHydrationWarning
+              >
+                <c.Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
+                <span suppressHydrationWarning>
+                  {mounted ? t(c.labelKey) : "\u00A0"}
+                </span>
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             onClick={() => void submit()}

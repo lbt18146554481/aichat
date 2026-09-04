@@ -34,6 +34,26 @@ export interface HandoffContext {
 
 export const MAX_HANDOFF_COUNT = 2;
 
+export type HandoffTargetAgent = "matchmaker" | "sidebyside";
+
+export function isHandoffMarker(msg: { kind?: string }): boolean {
+  return msg.kind === "handoff";
+}
+
+/** Strip handoff UI markers before sending chat to an LLM. */
+export function chatHistoryFromMessages(
+  messages: { role: string; text: string; kind?: string }[],
+): { role: "user" | "assistant"; content: string }[] {
+  return messages
+    .filter(
+      (m) =>
+        (m.role === "user" || m.role === "assistant") &&
+        !isHandoffMarker(m) &&
+        m.text.trim().length > 0,
+    )
+    .map((m) => ({ role: m.role as "user" | "assistant", content: m.text }));
+}
+
 export function targetAgentId(target: "matchmaker" | "sidebyside"): AgentId {
   return target;
 }

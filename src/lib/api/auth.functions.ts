@@ -102,6 +102,15 @@ export const signOutFn = createServerFn({ method: "POST" }).handler(async () => 
   return { ok: true as const };
 });
 
+export const deleteAccountFn = createServerFn({ method: "POST" }).handler(async () => {
+  const user = await getSessionUser();
+  if (!user) throw new AuthError("unauthorized", "Sign in required.");
+  const db = getDb();
+  await db.delete(users).where(eq(users.id, user.id));
+  await destroySession();
+  return { ok: true as const };
+});
+
 export const validateInviteFn = createServerFn({ method: "POST" })
   .inputValidator(z.object({ code: z.string() }))
   .handler(async ({ data }): Promise<{ valid: boolean }> => {

@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useEffect } from "react";
 import { ArrowUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -22,6 +22,12 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer
     el.style.height = "0px";
     el.style.height = Math.min(el.scrollHeight, 140) + "px";
   }
+
+  useEffect(() => {
+    const node =
+      typeof ref === "function" ? null : ref && "current" in ref ? ref.current : null;
+    if (node) autosize(node);
+  }, [value, ref]);
 
   return (
     <div className="rounded-3xl border border-border bg-card shadow-sm-soft focus-within:border-foreground/30 transition-colors">
@@ -82,6 +88,19 @@ export function AssistantBubble({ text }: { text: string }) {
   );
 }
 
+export function HandoffDivider({ agent }: { agent: "matchmaker" | "sidebyside" }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center gap-3 py-2" data-testid="handoff-divider">
+      <div className="flex-1 h-px bg-border" aria-hidden />
+      <span className="shrink-0 text-[11px] text-muted-foreground tracking-wide">
+        {t(`handoff.${agent}`)}
+      </span>
+      <div className="flex-1 h-px bg-border" aria-hidden />
+    </div>
+  );
+}
+
 export function ThinkingRow() {
   const { t } = useTranslation();
   return <p className="text-[13px] text-muted-foreground">{t("chat.starting")}</p>;
@@ -103,14 +122,14 @@ export function ChipRow({
   onPick: (action: unknown) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-nowrap gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {chips.map((c) => (
         <button
           key={c.id}
           type="button"
           disabled={disabled}
           onClick={() => onPick(c.action)}
-          className="rounded-full border border-border bg-card px-3 py-1.5 text-[12.5px] text-muted-foreground hover:border-foreground/30 hover:text-foreground disabled:opacity-40 transition-colors"
+          className="shrink-0 whitespace-nowrap rounded-full border border-border bg-card px-3 py-1.5 text-[12.5px] text-muted-foreground hover:border-foreground/30 hover:text-foreground disabled:opacity-40 transition-colors"
         >
           {c.label}
         </button>

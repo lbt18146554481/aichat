@@ -12,6 +12,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check } from "lucide-react";
+import type { WishDraft } from "@/lib/wish-types";
+import { WishPublishForm } from "@/components/wish-publish-form";
 
 interface CommonFields {
   id: string;
@@ -39,6 +41,15 @@ export type AgentAsk =
       confirmLabel: string;
       cancelLabel: string;
       tone?: "default" | "danger";
+    })
+  | (CommonFields & {
+      kind: "wish_form";
+      draft: WishDraft;
+      understandingNotes?: string[];
+      profileCity?: string;
+      placeError?: string;
+      confirmLabel: string;
+      cancelLabel: string;
     });
 
 interface Props {
@@ -64,6 +75,21 @@ export function AgentAskCard({ ask, disabled, onResolve }: Props) {
 
   if (ask.kind === "text") {
     return <TextAsk ask={ask} disabled={disabled} onResolve={onResolve} t={t} />;
+  }
+  if (ask.kind === "wish_form") {
+    return (
+      <WishPublishForm
+        prompt={ask.prompt}
+        draft={ask.draft}
+        understandingNotes={ask.understandingNotes}
+        profileCity={ask.profileCity}
+        placeError={ask.placeError}
+        confirmLabel={ask.confirmLabel}
+        cancelLabel={ask.cancelLabel}
+        disabled={disabled}
+        onResolve={onResolve}
+      />
+    );
   }
   if (ask.kind === "select") {
     return (
@@ -96,7 +122,7 @@ export function AgentAskCard({ ask, disabled, onResolve }: Props) {
       </div>
     );
   }
-  // confirm
+  if (ask.kind !== "confirm") return null;
   return (
     <div
       className={[

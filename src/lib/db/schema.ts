@@ -67,9 +67,20 @@ export const intents = pgTable(
     ownerId: text("owner_id").notNull(),
     userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
     data: jsonb("data").notNull().$type<Record<string, unknown>>(),
+    kind: text("kind").notNull().default("other"),
+    cityId: text("city_id").notNull().default(""),
+    status: text("status").notNull().default("active"),
+    whenTier: text("when_tier").notNull().default("any"),
+    levelTier: text("level_tier").notNull().default("any"),
+    recallCache: jsonb("recall_cache").$type<Record<string, unknown> | null>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("intents_owner_idx").on(t.ownerId), index("intents_user_idx").on(t.userId)],
+  (t) => [
+    index("intents_owner_idx").on(t.ownerId),
+    index("intents_user_idx").on(t.userId),
+    index("intents_recall_idx").on(t.status, t.kind, t.cityId),
+    index("intents_created_idx").on(t.createdAt),
+  ],
 );
 
 export const connections = pgTable(
@@ -118,14 +129,19 @@ export const chatSessions = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    threadId: text("thread_id").notNull(),
     agent: text("agent").notNull(),
     seed: text("seed").notNull().default(""),
     status: text("status").notNull().default("waiting"),
     state: jsonb("state").notNull().$type<unknown>(),
+    supersededAt: timestamp("superseded_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("chat_sessions_user_idx").on(t.userId)],
+  (t) => [
+    index("chat_sessions_user_idx").on(t.userId),
+    index("chat_sessions_thread_idx").on(t.userId, t.threadId),
+  ],
 );
 
 export const savedPeople = pgTable(

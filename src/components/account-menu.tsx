@@ -4,9 +4,9 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Copy, LogOut, UserCircle, Ticket } from "lucide-react";
 import { signOut, useAuth } from "@/lib/auth";
-import { hydrateProfile, loadProfile, subscribeProfile } from "@/lib/profile";
+import { useProfile } from "@/data/hooks";
+import { resolveUserDisplayName } from "@/lib/profile";
 import { generateInvite, listMyCodes, remainingInvites, type InviteCode } from "@/lib/invites";
-import type { Profile } from "@/lib/profile-shape";
 
 /**
  * Header-right account affordance:
@@ -20,7 +20,7 @@ export function AccountMenu({ compact }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [codes, setCodes] = useState<InviteCode[]>([]);
   const [remaining, setRemaining] = useState(0);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const { data: profile } = useProfile();
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -33,20 +33,6 @@ export function AccountMenu({ compact }: { compact?: boolean }) {
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
-
-  useEffect(() => {
-    if (!user) {
-      setProfile(null);
-      return;
-    }
-    setProfile(loadProfile());
-    const unsub = subscribeProfile(() => setProfile(loadProfile()));
-    void hydrateProfile();
-    return unsub;
-  }, [user]);
-
-  const displayName = (profile?.name && profile.name.trim()) || user?.name || user?.email || "";
-  const displayAvatar = profile?.avatar || user?.avatar || "";
 
   useEffect(() => {
     if (!user) return;
@@ -73,7 +59,10 @@ export function AccountMenu({ compact }: { compact?: boolean }) {
     );
   }
 
-  const initial = (displayName || user.email).charAt(0).toUpperCase();
+  const displayName = resolveUserDisplayName(profile, user);
+  const displayAvatar = profile?.avatar || user.avatar || "";
+
+  const initial = (displayName || user.email || "?").charAt(0).toUpperCase();
 
   async function onGenerate() {
     if (!user) return;

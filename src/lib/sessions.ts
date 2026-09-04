@@ -13,12 +13,14 @@ export interface ReceptionState {
 
 export interface Session {
   id: string;
+  threadId: string;
   agent: SessionAgent;
   createdAt: number;
   updatedAt: number;
   seed: string;
   status: SessionStatus;
   state: unknown;
+  supersededAt?: number;
 }
 
 let cache: Session[] = [];
@@ -59,21 +61,24 @@ function persist(row: Session) {
   void upsertSessionFn({
     data: {
       id: row.id,
+      threadId: row.threadId,
       agent: row.agent,
       seed: row.seed,
       status: row.status,
       state: row.state,
       createdAt: row.createdAt,
+      supersededAt: row.supersededAt,
     },
   }).catch(console.error);
 }
 
 export function deriveDoSomethingStatus(state: SideState): SessionStatus {
-  if (!state.myIntentId) return "revoked";
   if (state.stage === "chat") return "chatting";
-  if (state.stage === "published" && state.matchIntentId) return "matched";
-  if (state.stage === "published") return "waiting";
-  return "waiting";
+  if (state.matchIntentId) return "matched";
+  if (state.stage === "published" || state.myIntentId) return "waiting";
+  if (state.wishLane === "browse" && state.browseSearched) return "waiting";
+  if ((state.messages?.length ?? 0) > 0) return "waiting";
+  return "revoked";
 }
 
 export function deriveIntroduceStatus(state: MatchmakerState): SessionStatus {
@@ -99,9 +104,20 @@ export async function hydrateSessions(): Promise<Session[]> {
   return cache;
 }
 
+function visibleSessions(): Session[] {
+  return cache.filter((s) => !s.supersededAt);
+}
+
 export function listSessions(): Session[] {
   if (!hydrated) void ensureSessionsHydrated();
-  return [...cache].sort((a, b) => b.updatedAt - a.updatedAt);
+  return [...visibleSessions()].sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+export function getLatestSessionInThread(threadId: string): Session | null {
+  const rows = visibleSessions()
+    .filter((s) => s.threadId === threadId)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  return rows[0] ?? null;
 }
 
 export function mostRecentReception(): Session | null {
@@ -112,10 +128,29 @@ export function getSession(id: string): Session | null {
   return cache.find((s) => s.id === id) ?? null;
 }
 
-export function createSession(agent: SessionAgent, seed: string, initialState: unknown): Session {
+/** Find a matchmaker session that already knows this person (queue, current, or shown). */
+export function findIntroduceSessionForPerson(personId: string): Session | null {
+  const rows = listSessions().filter((s) => s.agent === "introduce");
+  for (const s of rows) {
+    const st = s.state as Partial<MatchmakerState>;
+    if (st.currentPersonId === personId) return s;
+    if (st.rankedQueue?.includes(personId)) return s;
+    if (st.shownIds?.includes(personId)) return s;
+  }
+  return rows[0] ?? null;
+}
+
+export function createSession(
+  agent: SessionAgent,
+  seed: string,
+  initialState: unknown,
+  opts?: { threadId?: string },
+): Session {
   const now = Date.now();
+  const id = uid();
   const sess: Session = {
-    id: uid(),
+    id,
+    threadId: opts?.threadId ?? id,
     agent,
     createdAt: now,
     updatedAt: now,
@@ -129,9 +164,32 @@ export function createSession(agent: SessionAgent, seed: string, initialState: u
   return sess;
 }
 
+export function supersedeSession(id: string) {
+  const idx = cache.findIndex((s) => s.id === id);
+  if (idx < 0 || cache[idx].supersededAt) return;
+  const now = Date.now();
+  const next: Session = { ...cache[idx], supersededAt: now, updatedAt: now };
+  cache = [...cache.slice(0, idx), next, ...cache.slice(idx + 1)];
+  persist(next);
+  emit();
+}
+
+/** Replace the active step in a thread (handoff) without adding a history row. */
+export function handoffSession(
+  fromSessionId: string,
+  agent: SessionAgent,
+  seed: string,
+  initialState: unknown,
+): Session {
+  const from = getSession(fromSessionId);
+  const threadId = from?.threadId ?? fromSessionId;
+  supersedeSession(fromSessionId);
+  return createSession(agent, seed, initialState, { threadId });
+}
+
 export function updateSession(
   id: string,
-  patch: { state?: unknown; status?: SessionStatus; seed?: string },
+  patch: { state?: unknown; status?: SessionStatus; seed?: string; supersededAt?: number },
 ) {
   const idx = cache.findIndex((s) => s.id === id);
   if (idx < 0) return;
@@ -140,6 +198,7 @@ export function updateSession(
     ...(patch.state !== undefined ? { state: patch.state } : {}),
     ...(patch.status !== undefined ? { status: patch.status } : {}),
     ...(patch.seed !== undefined ? { seed: patch.seed } : {}),
+    ...(patch.supersededAt !== undefined ? { supersededAt: patch.supersededAt } : {}),
     updatedAt: Date.now(),
   };
   cache = [...cache.slice(0, idx), next, ...cache.slice(idx + 1)];
@@ -152,8 +211,15 @@ export function revokeSession(id: string) {
 }
 
 export function deleteSession(id: string) {
-  cache = cache.filter((s) => s.id !== id);
-  void deleteSessionFn({ data: { id } }).catch(console.error);
+  const row = cache.find((s) => s.id === id);
+  const threadId = row?.threadId;
+  if (threadId) {
+    cache = cache.filter((s) => s.threadId !== threadId);
+    void deleteSessionFn({ data: { id, threadId } }).catch(console.error);
+  } else {
+    cache = cache.filter((s) => s.id !== id);
+    void deleteSessionFn({ data: { id } }).catch(console.error);
+  }
   emit();
 }
 

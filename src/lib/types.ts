@@ -66,11 +66,18 @@ export type EducationLevel =
   | "master"
   | "doctorate";
 
+export type PersonStatus = "active" | "paused" | "hidden";
+export type PersonSource = "seed" | "user";
+export type PersonGender = "female" | "male" | "nonbinary";
+export type SocialPace = "slow" | "balanced" | "fast";
+export type PersonIntent = "friends" | "dating" | "activity_partner" | "open";
+
 export interface Person {
   id: string;
   name: string;
   name_zh: string;
   age: number;
+  gender: PersonGender;
   city: string;
   city_zh: string;
   occupation: string;
@@ -85,7 +92,22 @@ export interface Person {
   /** One-sentence self-introduction — the public "bio" field. */
   bio?: string;
   bio_zh?: string;
+  /**
+   * @deprecated Legacy mixed tags — use interests + traits. Kept for angles / backward compat.
+   */
   signals: string[];
+  /** Controlled vocabulary — soft matching / vectors (not hard filter). */
+  interests: string[];
+  /** Controlled vocabulary — soft matching / vectors (not hard filter). */
+  traits: string[];
+  socialPace?: SocialPace;
+  intent?: PersonIntent[];
+  /** ISO-ish codes: zh, en, ja, … */
+  languages?: string[];
+  status: PersonStatus;
+  source: PersonSource;
+  /** Flattened text for semantic recall (portrait + facets + moments). */
+  profileText: string;
   angles: Angle[];
   activities: Activity[];
   reflections: Reflection[];

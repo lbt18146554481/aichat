@@ -2,18 +2,26 @@
 // bookmark and the mobile Me hub. Save must be an idempotent toggle that
 // never auto-advances or drops entries for people who still exist.
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, afterEach, describe, expect, it } from "vitest";
+import { clearPeopleCache, setPeopleCache } from "@/lib/people-client";
+import { TEST_PEOPLE_POOL } from "../fixtures/people-pool";
 import {
   _resetSavedPeopleCache,
   isPersonSaved,
   listSavedPeople,
+  openSavedPersonTarget,
   removeSavedPerson,
   savePerson,
   toggleSavedPerson,
 } from "@/lib/saved-people";
 
 beforeEach(() => {
+  setPeopleCache(TEST_PEOPLE_POOL);
   _resetSavedPeopleCache();
+});
+
+afterEach(() => {
+  clearPeopleCache();
 });
 
 describe("saved people", () => {
@@ -54,5 +62,12 @@ describe("saved people", () => {
 
   it("remove is safe on an unknown id", () => {
     expect(() => removeSavedPerson("nobody")).not.toThrow();
+  });
+
+  it("openSavedPersonTarget creates a session when none is stored", () => {
+    savePerson("isa", "");
+    const target = openSavedPersonTarget({ personId: "isa", sessionId: "", savedAt: Date.now() });
+    expect(target?.personId).toBe("isa");
+    expect(target?.sessionId).toMatch(/^[a-z0-9]+$/);
   });
 });

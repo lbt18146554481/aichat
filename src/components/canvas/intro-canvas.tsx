@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { avatarUrl, getPersonById, localized } from "@/lib/people";
-import type { Lang } from "@/lib/i18n";
+import { avatarUrl, isAiSeedPerson, localized } from "@/lib/people";
+import { usePerson } from "@/data/hooks";
+import { pickLocaleText, normalizeLang, type AppLang } from "@/lib/lang";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
 import type { MatchmakerState } from "@/lib/agents/matchmaker";
-import { pickBestMoment } from "@/lib/agents/matchmaker";
-import { get, sayHello, subscribe, type Connection } from "@/lib/connections";
+import { get, sayHello } from "@/lib/connections";
+import type { Connection } from "@/lib/connection-types";
+import { useConnections, useProfile, useSavedPeople } from "@/data/hooks";
 import { HelloComposer } from "@/components/hello-composer";
-import { isVitalsComplete, loadProfile, type Profile } from "@/lib/profile";
+import { isVitalsComplete } from "@/lib/profile";
 import { setFocusPerson } from "@/lib/seed";
 import { buildReasons, type Reason } from "@/lib/match-reasons";
 import type { UserUnderstanding } from "@/lib/understanding";
@@ -17,20 +19,23 @@ import {
   isPersonSaved,
   removeSavedPerson,
   savePerson,
-  subscribeSavedPeople,
 } from "@/lib/saved-people";
 import { PublicProfileSheet } from "@/components/public-profile-sheet";
-import { BookmarkPlus, BookmarkCheck, Eye } from "lucide-react";
+import { PersonPublicDetail } from "@/components/person-public-detail";
+import { AiPersonaBadge } from "@/components/ai-persona-badge";
+import { CanvasSwapShell } from "@/components/canvas/canvas-swap-shell";
+import { BookmarkPlus, BookmarkCheck, ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
 
 interface Props {
   state: MatchmakerState;
   sessionId: string;
-  /** Mark current person as passed and advance. Used for the neutral browse
-   *  action before any hello has been sent. */
-  onPassAndNext: () => void;
-  /** Advance to the next person WITHOUT marking current as passed. Used
-   *  after Say hello / connected / faded — the user isn't rejecting them. */
+  canGoPrev?: boolean;
+  /** Explicit reject — adds to passedIds. */
+  onRejectPerson: () => void;
+  /** Browse next in queue without rejecting. */
   onSeeNextPerson: () => void;
+  /** Step back to a previously browsed person. */
+  onSeePrevPerson: () => void;
 }
 
 // Per-person composer draft — survives a jump to /profile and back so the
@@ -93,22 +98,37 @@ function clearResumeHello() {
   }
 }
 
-export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }: Props) {
+export function IntroCanvas({
+  state,
+  sessionId,
+  canGoPrev = false,
+  onRejectPerson,
+  onSeeNextPerson,
+  onSeePrevPerson,
+}: Props) {
   const { t, i18n } = useTranslation();
-  const lang = (i18n.resolvedLanguage as Lang) ?? "en";
+  const lang = normalizeLang(i18n.resolvedLanguage);
   const navigate = useNavigate();
-  const person = state.currentPersonId ? getPersonById(state.currentPersonId) : null;
-  const [conn, setConn] = useState<Connection | null>(person ? get(person.id) : null);
+  const person = usePerson(state.currentPersonId);
+  const { data: connections = [] } = useConnections();
+  const { data: savedPeople = [] } = useSavedPeople();
+  const { data: myProfile } = useProfile();
+  const conn = useMemo(
+    () => (person ? connections.find((c) => c.personId === person.id) ?? get(person.id) : null),
+    [connections, person?.id],
+  );
+  const saved = person ? savedPeople.some((p) => p.personId === person.id) : false;
   const [composing, setComposing] = useState(false);
   const [draftPicked, setDraftPicked] = useState<string | null>(null);
   const [draftReply, setDraftReply] = useState("");
-  const [saved, setSaved] = useState<boolean>(() => (person ? isPersonSaved(person.id) : false));
   const [profileOpen, setProfileOpen] = useState(false);
-  // My own profile, used to work out why this person might fit.
-  const [myProfile, setMyProfile] = useState<Profile | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [helloSending, setHelloSending] = useState(false);
+  const swapToken = `${person?.id ?? ""}:${state.canvasSwapKey ?? 0}`;
+
   useEffect(() => {
-    setMyProfile(loadProfile());
-  }, []);
+    setDetailsOpen(false);
+  }, [swapToken]);
 
   const restoredRef = useRef<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -126,54 +146,45 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
     return null;
   }
 
-  // Track saved state for the current person; auto-remove once a real
-  // connection begins — Save is a pre-decision holding pattern only.
-  useEffect(() => {
-    if (!person) {
-      setSaved(false);
-      return;
-    }
-    const check = () => setSaved(isPersonSaved(person.id));
-    check();
-    return subscribeSavedPeople(check);
-    // Intentionally keyed on the person id only; `person` identity is unstable.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [person?.id]);
-
+  // Auto-remove saved once a real connection begins — Save is pre-decision only.
   useEffect(() => {
     if (person && conn && conn.status !== "faded" && isPersonSaved(person.id)) {
       removeSavedPerson(person.id);
     }
-    // Only re-run when the person or the connection status changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id, conn?.status]);
 
   useEffect(() => {
-    setConn(person ? get(person.id) : null);
-    // Restore composer draft for this person (if any), and resume the
-    // Say hello composer if we left for the first-time profile gate.
-    if (person) {
-      const resumeId = readResumeHello();
-      const resuming = resumeId !== null && isVitalsComplete(loadProfile());
-      const d =
-        loadDraft(person.id) ?? (resuming && resumeId !== person.id ? loadDraft(resumeId!) : null);
-      if (d) {
-        setComposing(d.composing || resuming);
-        setDraftPicked(d.picked);
-        setDraftReply(d.reply);
-      } else {
-        setComposing(resuming);
-        setDraftPicked(null);
-        setDraftReply("");
-      }
-      restoredRef.current = person.id;
+    if (!person) return;
+    const resumeId = readResumeHello();
+    const resuming = resumeId !== null && isVitalsComplete(myProfile);
+    const d =
+      loadDraft(person.id) ?? (resuming && resumeId !== person.id ? loadDraft(resumeId!) : null);
+    if (d) {
+      setComposing(d.composing || resuming);
+      setDraftPicked(d.picked);
+      setDraftReply(d.reply);
+    } else {
+      setComposing(resuming);
+      setDraftPicked(null);
+      setDraftReply("");
     }
-    const unsub = subscribe(() => setConn(person ? get(person.id) : null));
-    return () => {
-      unsub();
-    };
+    restoredRef.current = person.id;
+    // Only restore draft when switching to a different person — not on every profile cache tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id]);
+
+  useEffect(() => {
+    if (!person || restoredRef.current !== person.id) return;
+    const resumeId = readResumeHello();
+    if (!resumeId || !isVitalsComplete(myProfile)) return;
+    setComposing(true);
+    const d = loadDraft(person.id) ?? loadDraft(resumeId);
+    if (d) {
+      setDraftPicked(d.picked);
+      setDraftReply(d.reply);
+    }
+  }, [person?.id, myProfile]);
 
   // Persist draft whenever it changes (only after restore has run).
   useEffect(() => {
@@ -243,7 +254,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   const personId = person.id;
 
   function requestSayHello(opts?: { pickedMomentId?: string | null; draftReply?: string }) {
-    const p = loadProfile();
+    const p = myProfile;
     if (!isVitalsComplete(p)) {
       const nextDraft = {
         composing: true,
@@ -274,12 +285,15 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   }
 
   function handleHello(quotedMomentId: string | null, reply: string) {
-    sayHello(person!.id, { quotedMomentId, reply }, sessionId);
+    if (!person || helloSending) return;
+    setHelloSending(true);
+    void sayHello(person.id, { quotedMomentId, reply }, sessionId)
+      .finally(() => setHelloSending(false));
     clearResumeHello();
     setComposing(false);
     setDraftPicked(null);
     setDraftReply("");
-    clearDraft(person!.id);
+    clearDraft(person.id);
     savedScrollRef.current = null;
   }
 
@@ -303,10 +317,9 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
 
   const reasons =
     person && myProfile ? buildReasons(person, myProfile, state.understanding, lang) : [];
-  const bestMoment = pickBestMoment(person, state.understanding);
 
   function renderMoment(
-    m: NonNullable<typeof bestMoment>,
+    m: Person["moments"][number],
     opts: { clickable: boolean; mode: "select" | "quoteAndCompose" },
   ) {
     const prompt = getMomentPromptById(m.promptId);
@@ -319,7 +332,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
           </div>
         )}
         <p className="text-[14.5px] leading-[1.65] text-foreground">
-          {lang === "zh-CN" ? m.answer_zh : m.answer}
+          {pickLocaleText(lang, m.answer, m.answer_zh)}
         </p>
       </>
     );
@@ -352,48 +365,48 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
   }
 
   return (
-    <div
-      ref={rootRef}
-      className="h-full px-6 sm:px-8 pt-8 sm:pt-10 pb-[max(env(safe-area-inset-bottom),1rem)]"
-    >
-      <div className="mx-auto max-w-md">
-        {/* Header — clickable identity opens the public profile sheet */}
-        <button
-          type="button"
-          onClick={() => setProfileOpen(true)}
-          aria-label={t("intro.view_profile_of", { name: loc.name })}
-          className="group w-full flex items-start gap-4 text-left rounded-lg -mx-2 px-2 py-1 hover:bg-secondary/60 transition-colors"
+    <>
+      <CanvasSwapShell
+        swapToken={swapToken}
+        queueCursor={state.queueCursor}
+        className="h-full"
+      >
+        <div
+          ref={rootRef}
+          className="h-full px-6 sm:px-8 pt-8 sm:pt-10 pb-[max(env(safe-area-inset-bottom),1rem)]"
         >
-          <div className="relative shrink-0">
+      <div className="mx-auto max-w-lg">
+        {/* Identity + match reasons */}
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => setProfileOpen(true)}
+            aria-label={t("intro.view_profile_of", { name: loc.name })}
+            className="group inline-flex flex-col items-center rounded-lg px-2 py-1 hover:bg-secondary/60 transition-colors"
+          >
             <img
               src={avatarUrl(person.id)}
               alt={loc.name}
-              className="w-16 h-16 rounded-full border border-border bg-secondary"
+              className="w-20 h-20 rounded-full border border-border bg-secondary"
             />
-            <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full border border-border bg-background grid place-items-center opacity-70 group-hover:opacity-100 transition-opacity">
-              <Eye className="w-3 h-3 text-muted-foreground" strokeWidth={1.75} />
-            </span>
-          </div>
-          <div className="flex-1 min-w-0 pt-1">
-            <div className="flex items-baseline gap-2 flex-wrap">
+            <div className="mt-3 flex items-center justify-center gap-2 flex-wrap">
               <h2 className="text-[19px] font-semibold tracking-tight text-foreground">
                 {loc.name}
               </h2>
+              {isAiSeedPerson(personId) && <AiPersonaBadge />}
             </div>
-
             <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-              {loc.occupation} · {loc.city}
+              {personIdentitySubtitle(person, lang, t)}
             </p>
-          </div>
-        </button>
+          </button>
 
-        {/* Why this person — reasons, each traceable to a real source. */}
-        {!composing && myProfile && <WhyThisPerson person={person} lang={lang} reasons={reasons} />}
+          {!composing && myProfile && reasons.length > 0 && (
+            <MatchReasonsBelowAvatar lang={lang} reasons={reasons} name={loc.name} />
+          )}
+        </div>
 
-        {/* One Moment — TA's own voice, clickable to quote & compose.
-            Skipped when the "why" card already quotes them, so the same
-            sentence never appears twice. */}
-        {moments.length > 0 && (composing || reasons.length === 0) && (
+        {/* One Moment — for hello compose flow only */}
+        {moments.length > 0 && composing && (
           <div className="mt-5 space-y-4">
             {composing && (
               <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
@@ -402,58 +415,101 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
             )}
             {composing
               ? moments.map((m) => renderMoment(m, { clickable: true, mode: "select" }))
-              : bestMoment &&
-                renderMoment(bestMoment, { clickable: true, mode: "quoteAndCompose" })}
+              : null}
           </div>
         )}
 
-        {/* Primary closed-loop actions — Say hello / Save side by side,
-            with a soft "see someone else" link. */}
-        <div className="mt-7 pt-5 border-t border-border">
-          {!conn && !composing && (
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => requestSayHello()}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center min-h-11 px-4 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity"
-                >
-                  {t("connection.say_hello")}
-                </button>
-                <button
-                  onClick={() => {
-                    if (!person) return;
-                    if (saved) removeSavedPerson(person.id);
-                    else savePerson(person.id, sessionId);
-                  }}
-                  aria-pressed={saved}
-                  className={[
-                    "inline-flex items-center justify-center gap-1.5 min-h-11 px-4 rounded-md border text-[13px] font-medium transition-colors",
-                    saved
-                      ? "border-foreground/70 bg-secondary text-foreground"
-                      : "border-border text-foreground/85 hover:bg-secondary",
-                  ].join(" ")}
-                >
-                  {saved ? (
-                    <>
-                      <BookmarkCheck className="w-3.5 h-3.5" strokeWidth={1.75} />
-                      {t("connection.saved")}
-                    </>
-                  ) : (
-                    <>
-                      <BookmarkPlus className="w-3.5 h-3.5" strokeWidth={1.75} />
-                      {t("connection.save")}
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={onPassAndNext}
-                  className="inline-flex items-center justify-center min-h-11 px-3 rounded-md text-[13px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                >
-                  {t("intro.see_someone_else")}
-                </button>
-              </div>
+        <div className="relative mt-8">
+          {!composing && (
+            <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 z-10">
+              <button
+                type="button"
+                onClick={() => setDetailsOpen((v) => !v)}
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-border bg-background text-[12px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors shadow-sm"
+              >
+                {detailsOpen ? (
+                  <>
+                    <ChevronUp className="w-3.5 h-3.5" />
+                    {t("intro.collapse_details")}
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                    {t("intro.expand_details")}
+                  </>
+                )}
+              </button>
             </div>
           )}
+
+          <div className="border-t border-border pt-6">
+            {detailsOpen && !composing && (
+              <PersonPublicDetail person={person} lang={lang} />
+            )}
+
+            {/* Primary closed-loop actions */}
+            {!conn && !composing && (
+              <div className={detailsOpen ? "mt-6" : ""}>
+                <div className="flex flex-nowrap items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <button
+                    onClick={() => requestSayHello()}
+                    disabled={helloSending}
+                    className="shrink-0 inline-flex items-center justify-center min-h-10 px-4 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                  >
+                    {t("connection.say_hello")}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!person) return;
+                      if (saved) removeSavedPerson(person.id);
+                      else savePerson(person.id, sessionId);
+                    }}
+                    aria-pressed={saved}
+                    className={[
+                      "shrink-0 inline-flex items-center justify-center gap-1.5 min-h-10 px-4 rounded-md border text-[13px] font-medium transition-colors",
+                      saved
+                        ? "border-foreground/70 bg-secondary text-foreground"
+                        : "border-border text-foreground/85 hover:bg-secondary",
+                    ].join(" ")}
+                  >
+                    {saved ? (
+                      <>
+                        <BookmarkCheck className="w-3.5 h-3.5" strokeWidth={1.75} />
+                        {t("connection.saved")}
+                      </>
+                    ) : (
+                      <>
+                        <BookmarkPlus className="w-3.5 h-3.5" strokeWidth={1.75} />
+                        {t("connection.save")}
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onRejectPerson}
+                    className="shrink-0 inline-flex items-center justify-center min-h-10 px-3 rounded-md border border-red-500/45 text-[13px] font-medium text-red-600 hover:text-red-700 hover:bg-red-500/10 transition-colors"
+                  >
+                    {t("intro.unfollow")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onSeePrevPerson}
+                    disabled={!canGoPrev}
+                    className="shrink-0 inline-flex items-center justify-center gap-1 min-h-10 px-3 rounded-md border border-border text-[13px] text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    {t("intro.browse_prev")}
+                  </button>
+                  <button
+                    onClick={onSeeNextPerson}
+                    className="shrink-0 inline-flex items-center justify-center gap-1 min-h-10 px-3 rounded-md border border-border text-[13px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  >
+                    {t("intro.browse_next")}
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
 
           {!conn && composing && (
             <div className="space-y-2">
@@ -493,7 +549,14 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
             </div>
           )}
 
-          {conn?.status === "sent" && (
+          {helloSending && (
+            <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-[12.5px] text-muted-foreground">
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse" />
+              {t("persona.hello_sending")}
+            </div>
+          )}
+
+          {conn?.status === "sent" && !helloSending && (
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-[12.5px] text-muted-foreground">
                 <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
@@ -536,7 +599,7 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
                 </button>
               </div>
               <span className="block text-[12px] text-muted-foreground">
-                {t("connection.connected_note")}
+                {isAiSeedPerson(personId) ? t("persona.connected_note") : t("connection.connected_note")}
               </span>
             </div>
           )}
@@ -555,9 +618,12 @@ export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }
             </div>
           )}
         </div>
-      </div>
+        </div>
+        </div>
+        </div>
+      </CanvasSwapShell>
       <PublicProfileSheet person={person} open={profileOpen} onOpenChange={setProfileOpen} />
-    </div>
+    </>
   );
 }
 
@@ -567,8 +633,8 @@ function YourHelloRecap({
   lang,
 }: {
   fromMe: NonNullable<Connection["fromMe"]>;
-  person: ReturnType<typeof getPersonById>;
-  lang: Lang;
+  person: Person;
+  lang: AppLang;
 }) {
   const { t } = useTranslation();
   if (!person) return null;
@@ -596,27 +662,30 @@ function YourHelloRecap({
   );
 }
 
-// ---- Why this person ------------------------------------------------------
-//
-// One question: why might this person fit what I just asked for? The Agent
-// states the reason in plain language, and the person's own line sits under
-// it as the source. No category labels, no invented summary.
+// ---- Match reasons (compact, below avatar) ------------------------------
 
-function WhyThisPerson({
-  person,
+function personIdentitySubtitle(
+  person: Person,
+  lang: AppLang,
+  t: ReturnType<typeof useTranslation>["t"],
+): string {
+  const loc = localized(person, lang);
+  const gender = t(`profile.gender.${person.gender}`);
+  const age = lang === "zh-CN" ? `${person.age}岁` : String(person.age);
+  return [gender, age, loc.city, loc.occupation].join(" · ");
+}
+
+function MatchReasonsBelowAvatar({
   lang,
   reasons,
+  name,
 }: {
-  person: Person;
-  lang: Lang;
+  lang: AppLang;
   reasons: Reason[];
+  name: string;
 }) {
   const { t } = useTranslation();
-  const name = localized(person, lang).name;
 
-  // Reason only — the Agent states why this person fits. No quotes, no
-  // "you said / they said" attribution: the source lives one tap away in
-  // the profile sheet, not in the middle of the reasoning.
   function reasonText(r: Reason): string {
     if (r.kind === "favorite") return t("why.same_favorite", { title: r.title });
     if (r.kind === "values") return t("why.lead_values", { name });
@@ -625,28 +694,27 @@ function WhyThisPerson({
       : t("why.lead_lifestyle", { name });
   }
 
-  if (reasons.length === 0) return null;
-
-  // Distinct sentences only — two overlaps of the same kind read as padding.
   const lines: string[] = [];
   for (const r of reasons) {
     const text = reasonText(r);
     if (!lines.includes(text)) lines.push(text);
   }
+  if (lines.length === 0) return null;
 
   return (
-    <section className="mt-5 rounded-xl border border-border bg-secondary/35 px-4 py-3.5">
+    <div className="mt-4 text-center rounded-xl border border-border bg-secondary/35 px-4 py-3">
       <div className="text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
         {t("why.title", { name })}
       </div>
-      <ul className="mt-2.5 space-y-2">
+      <ul className="mt-2 space-y-1.5">
         {lines.map((line, i) => (
-          <li key={i} className="flex gap-2.5">
-            <span className="mt-[8px] w-1 h-1 rounded-full bg-primary/70 shrink-0" />
-            <p className="text-[13.5px] leading-relaxed text-foreground">{line}</p>
+          <li key={i} className="text-[13px] leading-relaxed text-foreground">
+            {line}
           </li>
         ))}
       </ul>
-    </section>
+    </div>
   );
 }
+
+// ---- Why this person (legacy export kept for tests if any) ----------------

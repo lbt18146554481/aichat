@@ -1,0 +1,21 @@
+[Unit]
+Description=AI Meet Chat WebSocket hub
+After=network.target docker.service aichat-web.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/aichat
+EnvironmentFile=/opt/aichat/.env
+Environment=NODE_ENV=production
+Environment=PATH=/home/ubuntu/.bun/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/ubuntu/.bun/bin/bun run ws
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

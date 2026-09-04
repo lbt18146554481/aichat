@@ -24,6 +24,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:seed": "tsx scripts/db-seed.ts",
+    "db:prune-seed": "tsx scripts/db-prune-seed.ts",
     "db:setup": "tsx scripts/db-migrate.ts && tsx scripts/db-seed.ts",
     "ws": "tsx scripts/ws-server.ts",
     "dev:all": "npx concurrently -k -n ws,web -c blue,green \"npm run ws\" \"npm run dev\""

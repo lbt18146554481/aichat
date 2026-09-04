@@ -2,7 +2,7 @@ import { orchestratorTurnFn, detectHandoffFn } from "./api/data.functions";
 import type { AgentId } from "./seed";
 import type { OrchestratorOutput, OrchestratorStreamEvent } from "./orchestrator-llm.server";
 import type { DetectHandoffOutput } from "./handoff-detect.server";
-import { consumeEventStream } from "./stream-client";
+import { consumeNdjsonResponse } from "./ndjson-stream.client";
 
 export async function requestOrchestratorTurn(opts: {
   lang: "en" | "zh-CN";
@@ -11,7 +11,7 @@ export async function requestOrchestratorTurn(opts: {
   forcedTarget?: AgentId | null;
   onDelta?: (text: string) => void;
 }): Promise<OrchestratorOutput> {
-  const stream = await orchestratorTurnFn({
+  const response = await orchestratorTurnFn({
     data: {
       lang: opts.lang,
       userMessage: opts.userMessage,
@@ -20,8 +20,12 @@ export async function requestOrchestratorTurn(opts: {
     },
   });
 
+  if (!(response instanceof Response)) {
+    throw new Error("orchestrator turn expected streaming Response");
+  }
+
   let result: OrchestratorOutput | null = null;
-  await consumeEventStream(stream as ReadableStream<OrchestratorStreamEvent>, (ev) => {
+  await consumeNdjsonResponse<OrchestratorStreamEvent>(response, (ev) => {
     if (ev.type === "delta") opts.onDelta?.(ev.text);
     else if (ev.type === "done") result = ev.result;
   });
@@ -39,5 +43,24 @@ export async function requestDetectHandoff(opts: {
   history: Array<{ role: "user" | "assistant"; content: string }>;
   handoffCount: number;
 }): Promise<DetectHandoffOutput> {
-  return detectHandoffFn({ data: opts });
+  const empty: DetectHandoffOutput = {
+    handoffTo: null,
+    askRevokeWish: false,
+    transitionReply: "",
+    summary: "",
+    needsClarify: false,
+    clarifyReply: "",
+  };
+  const timeoutMs = 8_000;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      detectHandoffFn({ data: opts }),
+      new Promise<DetectHandoffOutput>((resolve) => {
+        timer = setTimeout(() => resolve(empty), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }

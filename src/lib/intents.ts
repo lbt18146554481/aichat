@@ -10,8 +10,15 @@
 // keywords in the raw text — so "找人一起骑行" matches another "骑行" wish.
 
 import type { Activity, ActivityKind, Weekday } from "./types";
-import { PEOPLE } from "./people";
+import { buildSeedPeople } from "./people-seed.data";
+import { listBlocked } from "./blocklist";
+import type { IntentStatus } from "./intent-index";
+import { normalizeTimeHHmm } from "./wish-date";
+import { ownerSnapshotFromPerson, type OwnerSnapshot } from "./owner-snapshot";
+import type { WishPlace } from "./wish-place";
+import type { BuddyMatchQuery } from "./wish-match-profile";
 
+export type { OwnerSnapshot } from "./owner-snapshot";
 export type WhenTier = "weekend" | "weeknight" | "any";
 export type LevelTier = "beginner" | "intermediate" | "advanced";
 
@@ -46,10 +53,39 @@ export interface Intent {
   whenAny?: boolean;
   /** True when the intent's `level` was unspecified — matches anyone. */
   levelAny?: boolean;
+  status?: IntentStatus;
+  /** When true, when mismatch is hard-filtered during recall. */
+  strictWhen?: boolean;
+  /** When true, level must match exactly (tennis/climb). */
+  strictLevel?: boolean;
+  /** User opted in to cross-city recall. */
+  allowCrossCity?: boolean;
+  /** Publisher demographics snapshot at publish time. */
+  ownerSnapshot?: OwnerSnapshot;
+  /** Calendar window YYYY-MM-DD (inclusive). */
+  dateStart?: string;
+  dateEnd?: string;
+  /** Local start/end time HH:mm when a precise window is known. */
+  timeStart?: string;
+  timeEnd?: string;
   /** Legacy: free-text location note. No longer filters matches; kept
    *  only so old localStorage state stays readable. Use `city` instead. */
   location?: string;
   location_zh?: string;
+
+  /** Original free-text place from the publish form. */
+  placeRaw?: string;
+  /** User opted in to any offline location (不限). */
+  placeFlex?: boolean;
+  /** Activity is online-only (线上). */
+  placeOnline?: boolean;
+  /** Structured place extracted at publish. */
+  place?: WishPlace;
+
+  activityDescRaw?: string;
+  buddyPrefRaw?: string;
+  otherReqRaw?: string;
+  buddyMatchQuery?: BuddyMatchQuery;
 
   createdAt: number;
 }
@@ -289,6 +325,69 @@ const EXTRA_SEED_INTENTS: Omit<Intent, "createdAt">[] = [
     rawText_zh: "周日博尔盖塞轻松跑，走跑都行。",
   },
   {
+    id: "extra:beijing-walk-1",
+    ownerId: "seed-bj-walk-1",
+    ownerName: "Lin",
+    ownerName_zh: "林溪",
+    ownerCity: "Beijing",
+    ownerCity_zh: "北京",
+    city: "Beijing",
+    city_zh: "北京",
+    kind: "other",
+    level: "beginner",
+    day: "sat",
+    window: "morning",
+    venue: "Olympic Forest Park",
+    venue_zh: "奥林匹克森林公园",
+    rawText: "Easy weekend walk in Olympic Forest Park — slow pace, happy to chat.",
+    rawText_zh: "周末奥林匹克森林公园轻松散步，慢走就好，可以聊聊天。",
+    whenAny: false,
+    levelAny: true,
+    status: "active",
+  },
+  {
+    id: "extra:beijing-walk-2",
+    ownerId: "seed-bj-walk-2",
+    ownerName: "Yan",
+    ownerName_zh: "严悦",
+    ownerCity: "Beijing",
+    ownerCity_zh: "北京",
+    city: "Beijing",
+    city_zh: "北京",
+    kind: "other",
+    level: "beginner",
+    day: "sun",
+    window: "midday",
+    venue: "Beihai Park",
+    venue_zh: "北海公园",
+    rawText: "Sunday stroll around Beihai Park — no rush, casual outdoor walk.",
+    rawText_zh: "周日北海公园附近随便走走，轻松户外散步，不赶时间。",
+    whenAny: false,
+    levelAny: true,
+    status: "active",
+  },
+  {
+    id: "extra:beijing-walk-3",
+    ownerId: "seed-bj-walk-3",
+    ownerName: "Wei",
+    ownerName_zh: "魏然",
+    ownerCity: "Beijing",
+    ownerCity_zh: "北京",
+    city: "Beijing",
+    city_zh: "北京",
+    kind: "run",
+    level: "beginner",
+    day: "sat",
+    window: "morning",
+    venue: "Chaoyang Park",
+    venue_zh: "朝阳公园",
+    rawText: "Saturday morning easy walk-run loop in Chaoyang Park — beginner friendly.",
+    rawText_zh: "周六早上朝阳公园轻松走跑一圈，户外散步为主，新手友好。",
+    whenAny: false,
+    levelAny: true,
+    status: "active",
+  },
+  {
     id: "extra:vancouver-climb-1",
     ownerId: "seed-van-climb",
     ownerName: "Morgan",
@@ -437,7 +536,7 @@ const EXTRA_SEED_INTENTS: Omit<Intent, "createdAt">[] = [
 export function seedPool(): Intent[] {
   if (_cache) return _cache;
   const out: Intent[] = [];
-  for (const p of PEOPLE) {
+  for (const p of buildSeedPeople()) {
     p.activities.forEach((act, ai) => {
       act.slots.forEach((slot, si) => {
         const words = synthesize(act, slot);
@@ -448,6 +547,7 @@ export function seedPool(): Intent[] {
           ownerName_zh: p.name_zh,
           ownerCity: p.city,
           ownerCity_zh: p.city_zh,
+          ownerSnapshot: ownerSnapshotFromPerson(p),
           city: p.city,
           city_zh: p.city_zh,
           kind: act.kind,
@@ -477,6 +577,18 @@ export function getIntentById(id: string): Intent | null {
 // ---- My published intents (server-backed cache) -------------------------
 
 let myIntentsCache: Intent[] = [];
+const myIntentListeners = new Set<() => void>();
+
+function emitMyIntents() {
+  myIntentListeners.forEach((fn) => fn());
+}
+
+export function subscribeMyIntents(fn: () => void): () => void {
+  myIntentListeners.add(fn);
+  return () => {
+    myIntentListeners.delete(fn);
+  };
+}
 
 export function loadMyIntents(): Intent[] {
   return myIntentsCache;
@@ -484,14 +596,33 @@ export function loadMyIntents(): Intent[] {
 
 function saveMyIntents(list: Intent[]) {
   myIntentsCache = list;
+  emitMyIntents();
+}
+
+/** Replace one cached intent by id — returns false if not found. */
+export function replaceMyIntentRecord(next: Intent): boolean {
+  const list = loadMyIntents();
+  const idx = list.findIndex((i) => i.id === next.id);
+  if (idx < 0) return false;
+  const nextList = [...list];
+  nextList[idx] = next;
+  saveMyIntents(nextList);
+  return true;
 }
 
 export async function hydrateMyIntents() {
+  const local = [...myIntentsCache];
   try {
     const { listMyIntentsFn } = await import("./api/data.functions");
-    myIntentsCache = await listMyIntentsFn();
+    const server = await listMyIntentsFn();
+    const byId = new Map<string, Intent>();
+    for (const it of server) byId.set(it.id, it);
+    for (const it of local) {
+      if (!byId.has(it.id)) byId.set(it.id, it);
+    }
+    myIntentsCache = [...byId.values()];
   } catch {
-    myIntentsCache = [];
+    myIntentsCache = local;
   }
   return myIntentsCache;
 }
@@ -520,11 +651,35 @@ export function publishMyIntent(input: {
    *  text ("in Tokyo"). Pass ""/undefined only for tests. */
   city?: string;
   city_zh?: string;
+  strictWhen?: boolean;
+  strictLevel?: boolean;
+  allowCrossCity?: boolean;
+  ownerSnapshot?: OwnerSnapshot;
+  dateStart?: string;
+  dateEnd?: string;
+  timeStart?: string;
+  timeEnd?: string;
+  placeRaw?: string;
+  placeOnline?: boolean;
+  placeFlex?: boolean;
+  place?: WishPlace;
+  activityDescRaw?: string;
+  buddyPrefRaw?: string;
+  otherReqRaw?: string;
+  buddyMatchQuery?: BuddyMatchQuery;
+  /** Server publish path — caller persists via upsertIntentIndex. */
+  skipRemotePersist?: boolean;
 }): Intent {
   const when: WhenTier = input.when ?? "any";
   const { day, window } = whenToSlot(when, input.kind);
   const city = (input.city ?? "").trim();
   const city_zh = (input.city_zh ?? "").trim() || city;
+  const dateStart = input.dateStart?.trim() || undefined;
+  const dateEnd = (input.dateEnd?.trim() || dateStart) || undefined;
+  const timeStart = normalizeTimeHHmm(input.timeStart) || undefined;
+  const timeEnd = normalizeTimeHHmm(input.timeEnd) || undefined;
+  const activityDesc =
+    input.activityDescRaw?.trim() || input.rawText?.trim() || "";
   const intent: Intent = {
     id: `me:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
     ownerId: "me",
@@ -540,19 +695,38 @@ export function publishMyIntent(input: {
     window,
     venue: "",
     venue_zh: "",
-    rawText: input.rawText,
-    rawText_zh: input.rawText,
+    rawText: activityDesc,
+    rawText_zh: activityDesc,
     whenAny: !input.when,
     levelAny: !input.level,
+    status: "active",
+    strictWhen: input.strictWhen ?? false,
+    strictLevel: input.strictLevel ?? false,
+    allowCrossCity: input.allowCrossCity ?? false,
+    ownerSnapshot: input.ownerSnapshot,
+    dateStart,
+    dateEnd,
+    timeStart,
+    timeEnd,
+    placeRaw: input.placeRaw?.trim() || undefined,
+    placeOnline: input.placeOnline ?? false,
+    placeFlex: input.placeFlex ?? false,
+    place: input.place,
+    activityDescRaw: activityDesc || undefined,
+    buddyPrefRaw: input.buddyPrefRaw?.trim() || undefined,
+    otherReqRaw: input.otherReqRaw?.trim() || undefined,
+    buddyMatchQuery: input.buddyMatchQuery,
     createdAt: Date.now(),
   };
   const list = loadMyIntents();
   saveMyIntents([...list, intent]);
-  void import("./api/data.functions").then(({ publishIntentFn }) =>
-    publishIntentFn({ data: { intent: intent as unknown as Record<string, unknown> } }).catch(
-      console.error,
-    ),
-  );
+  if (!input.skipRemotePersist) {
+    void import("./api/data.functions").then(({ publishIntentFn }) =>
+      publishIntentFn({ data: { intent: intent as unknown as Record<string, unknown> } }).catch(
+        console.error,
+      ),
+    );
+  }
   return intent;
 }
 
@@ -563,6 +737,9 @@ export function updateMyIntent(
     when?: WhenTier;
     level?: LevelTier;
     location?: string;
+    strictWhen?: boolean;
+    strictLevel?: boolean;
+    allowCrossCity?: boolean;
     /** Per-wish city override. Empty string clears it — caller should then
      *  fall back to Profile.city on the next publish. */
     city?: string;
@@ -596,6 +773,9 @@ export function updateMyIntent(
     next.ownerCity = v;
     next.ownerCity_zh = next.city_zh;
   }
+  if (patch.strictWhen !== undefined) next.strictWhen = patch.strictWhen;
+  if (patch.strictLevel !== undefined) next.strictLevel = patch.strictLevel;
+  if (patch.allowCrossCity !== undefined) next.allowCrossCity = patch.allowCrossCity;
   const nextList = [...list];
   nextList[idx] = next;
   saveMyIntents(nextList);
@@ -747,6 +927,14 @@ function kindsCompatible(mine: Intent, other: Intent): boolean {
 
 type MatchOpts = { exclude?: string[]; excludeOwnerIds?: string[] };
 
+function excludedOwners(opts?: MatchOpts): Set<string> {
+  const s = new Set(opts?.excludeOwnerIds ?? []);
+  if (typeof window !== "undefined") {
+    for (const id of listBlocked()) s.add(id);
+  }
+  return s;
+}
+
 /** How well a candidate matches the user's wish. Drives the label on the card. */
 export type MatchQuality = "exact" | "relaxed-when" | "relaxed-level";
 
@@ -765,7 +953,7 @@ export function findCandidatesTiered(
   relaxedLevel: Intent[];
 } {
   const excluded = new Set(opts?.exclude ?? []);
-  const excludedOwners = new Set(opts?.excludeOwnerIds ?? []);
+  const excludedOwnersSet = excludedOwners(opts);
   const mineWhen: WhenTier | undefined = mine.whenAny
     ? undefined
     : slotToWhen(mine.day, mine.window);
@@ -775,7 +963,7 @@ export function findCandidatesTiered(
     const pool = [...seedPool(), ...loadMyIntents().filter((it) => it.id !== mine.id)]
       .filter(
         (it) =>
-          it.ownerId !== mine.ownerId && !excluded.has(it.id) && !excludedOwners.has(it.ownerId),
+          it.ownerId !== mine.ownerId && !excluded.has(it.id) && !excludedOwnersSet.has(it.ownerId),
       )
       .filter((it) => (respectCity ? sameCity(mine, it) : true))
       .filter((it) => kindsCompatible(mine, it));
@@ -856,7 +1044,7 @@ export function countAvailableMatches(mine: Intent, opts?: MatchOpts): number {
 /** Same kind, but when/level don't line up — useful "you might want to shift" hints. */
 export function findNearMisses(mine: Intent, opts?: MatchOpts): Intent[] {
   const excluded = new Set(opts?.exclude ?? []);
-  const excludedOwners = new Set(opts?.excludeOwnerIds ?? []);
+  const excludedOwnersSet = excludedOwners(opts);
   const mineWhen = slotToWhen(mine.day, mine.window);
   const seenOwners = new Set<string>();
   return seedPool()
@@ -864,7 +1052,7 @@ export function findNearMisses(mine: Intent, opts?: MatchOpts): Intent[] {
       (it) =>
         it.ownerId !== mine.ownerId &&
         !excluded.has(it.id) &&
-        !excludedOwners.has(it.ownerId) &&
+        !excludedOwnersSet.has(it.ownerId) &&
         sameCity(mine, it) &&
         kindsCompatible(mine, it),
     )

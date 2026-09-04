@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { eq, and, gt, desc, asc } from "drizzle-orm";
+import { eq, and, gt, desc, asc, isNull } from "drizzle-orm";
 import { getDb } from "../db/client.server";
 import { chatSessions, connections, messages, people, intents, savedPeople, savedIntents, userPrefs, profiles } from "../db/schema";
 import { getSessionUser, newId } from "../db/session.server";
@@ -44,20 +44,12 @@ export const publishIntentFn = createServerFn({ method: "POST" })
     if (!user) throw new Error("unauthorized");
     const intent = data.intent as unknown as Intent;
     const id = intent.id || newId("intent");
-    const full: Intent = { ...intent, id, ownerId: "me" };
-    const db = getDb();
-    await db
-      .insert(intents)
-      .values({
-        id,
-        ownerId: "me",
-        userId: user.id,
-        data: full as unknown as Record<string, unknown>,
-      })
-      .onConflictDoUpdate({
-        target: intents.id,
-        set: { data: full as unknown as Record<string, unknown> },
-      });
+    const full: Intent = { ...intent, id, ownerId: "me", status: intent.status ?? "active" };
+    const { upsertIntentIndex, invalidateIntentPoolCache } = await import("../intent-store.server");
+    const { invalidateWishRecallCache } = await import("../wish-recall-cache.server");
+    await upsertIntentIndex(full, user.id);
+    invalidateIntentPoolCache(full.id);
+    invalidateWishRecallCache();
     return full;
   });
 
@@ -80,16 +72,18 @@ export const listSessionsFn = createServerFn({ method: "GET" }).handler(async ()
   const rows = await db
     .select()
     .from(chatSessions)
-    .where(eq(chatSessions.userId, user.id))
+    .where(and(eq(chatSessions.userId, user.id), isNull(chatSessions.supersededAt)))
     .orderBy(desc(chatSessions.updatedAt));
   return rows.map((r) => ({
     id: r.id,
+    threadId: r.threadId,
     agent: r.agent,
     seed: r.seed,
     status: r.status,
     state: r.state,
     createdAt: r.createdAt.getTime(),
     updatedAt: r.updatedAt.getTime(),
+    supersededAt: r.supersededAt?.getTime(),
   }));
 });
 
@@ -97,11 +91,13 @@ export const upsertSessionFn = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       id: z.string(),
+      threadId: z.string(),
       agent: z.string(),
       seed: z.string().optional(),
       status: z.string().optional(),
       state: z.unknown(),
       createdAt: z.number().optional(),
+      supersededAt: z.number().optional(),
     }),
   )
   .handler(async ({ data }) => {
@@ -114,10 +110,12 @@ export const upsertSessionFn = createServerFn({ method: "POST" })
       .values({
         id: data.id,
         userId: user.id,
+        threadId: data.threadId,
         agent: data.agent,
         seed: data.seed ?? "",
         status: data.status ?? "waiting",
         state: data.state,
+        supersededAt: data.supersededAt ? new Date(data.supersededAt) : null,
         createdAt: data.createdAt ? new Date(data.createdAt) : now,
         updatedAt: now,
       })
@@ -127,6 +125,7 @@ export const upsertSessionFn = createServerFn({ method: "POST" })
           state: data.state,
           status: data.status ?? "waiting",
           seed: data.seed ?? "",
+          supersededAt: data.supersededAt ? new Date(data.supersededAt) : null,
           updatedAt: now,
         },
       });
@@ -134,12 +133,18 @@ export const upsertSessionFn = createServerFn({ method: "POST" })
   });
 
 export const deleteSessionFn = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ id: z.string() }))
+  .inputValidator(z.object({ id: z.string(), threadId: z.string().optional() }))
   .handler(async ({ data }) => {
     const user = await getSessionUser();
     if (!user) throw new Error("unauthorized");
     const db = getDb();
-    await db.delete(chatSessions).where(and(eq(chatSessions.id, data.id), eq(chatSessions.userId, user.id)));
+    if (data.threadId) {
+      await db
+        .delete(chatSessions)
+        .where(and(eq(chatSessions.userId, user.id), eq(chatSessions.threadId, data.threadId)));
+    } else {
+      await db.delete(chatSessions).where(and(eq(chatSessions.id, data.id), eq(chatSessions.userId, user.id)));
+    }
     return { ok: true as const };
   });
 
@@ -354,37 +359,53 @@ export const sayHelloFn = createServerFn({ method: "POST" })
       );
     }
 
-    const id = newId("conn");
     const now = new Date();
-    await db.insert(connections).values({
-      id,
-      userId: user.id,
-      personId: data.personId,
-      status: "sent",
-      initiatedBy: "me",
-      helloAt: now,
-      originSessionId: data.originSessionId ?? null,
-      fromMe: data.fromMe,
-      updatedAt: now,
-    });
+    let connectionId: string;
 
-    // Schedule async resolution via fire-and-forget LLM reply (run inline for reliability)
-    void resolveHello(user.id, id, data.personId, data.fromMe.reply, data.lang ?? "en").catch(console.error);
+    if (existing[0]?.status === "faded") {
+      connectionId = existing[0].id;
+      await db
+        .update(connections)
+        .set({
+          status: "sent",
+          initiatedBy: "me",
+          helloAt: now,
+          originSessionId: data.originSessionId ?? null,
+          fromMe: data.fromMe,
+          fromThem: null,
+          connectedAt: null,
+          fadedAt: null,
+          updatedAt: now,
+        })
+        .where(eq(connections.id, connectionId));
+      await db.delete(messages).where(eq(messages.connectionId, connectionId));
+    } else {
+      connectionId = newId("conn");
+      await db.insert(connections).values({
+        id: connectionId,
+        userId: user.id,
+        personId: data.personId,
+        status: "sent",
+        initiatedBy: "me",
+        helloAt: now,
+        originSessionId: data.originSessionId ?? null,
+        fromMe: data.fromMe,
+        updatedAt: now,
+      });
+    }
 
-    const created: Connection = {
-      id,
-      personId: data.personId,
-      status: "sent",
-      initiatedBy: "me",
-      helloAt: now.getTime(),
-      originSessionId: data.originSessionId,
-      fromMe: data.fromMe,
-      messages: [],
-    };
-    void import("../realtime-push.server").then(({ pushConnectionUpdate }) =>
-      pushConnectionUpdate(user.id, created),
+    await resolveHello(user.id, connectionId, data.personId, data.fromMe.reply, data.lang ?? "en");
+
+    const row = await db.select().from(connections).where(eq(connections.id, connectionId)).limit(1);
+    const msgs = await db.select().from(messages).where(eq(messages.connectionId, connectionId));
+    const conn = rowToConnection(
+      row[0]!,
+      msgs.map((m) => ({ id: m.id, from: m.from as "me" | "them", t: m.createdAt.getTime(), text: m.text })),
     );
-    return created;
+    void import("../realtime-push.server").then(({ pushConnectionUpdate }) =>
+      pushConnectionUpdate(user.id, conn),
+    );
+    return conn;
   });
 
 async function resolveHello(
@@ -394,40 +415,29 @@ async function resolveHello(
   userHello: string,
   lang: "zh" | "en",
 ) {
-  // Delay 3-8s to feel natural
-  await new Promise((r) => setTimeout(r, 3000 + Math.random() * 5000));
   const db = getDb();
   const rows = await db.select().from(connections).where(eq(connections.id, connectionId)).limit(1);
   const conn = rows[0];
   if (!conn || conn.status !== "sent") return;
 
-  const wantsToTalk = Math.random() < 0.75;
-  if (!wantsToTalk) {
-    await db
-      .update(connections)
-      .set({ status: "faded", fadedAt: new Date(), updatedAt: new Date() })
-      .where(eq(connections.id, connectionId));
-    await broadcastConnection(userId, connectionId);
-    return;
-  }
-
   const personRows = await db.select().from(people).where(eq(people.id, personId)).limit(1);
   const person = personRows[0]?.data as unknown as Person | undefined;
   const persona = person
-    ? `Name: ${person.name}. City: ${person.city}. Occupation: ${person.occupation}. Bio: ${person.portrait}. Signals: ${(person.signals ?? []).join(", ")}.`
-    : "You are a warm, thoughtful person open to meeting someone new.";
+    ? `Name: ${person.name} (${person.name_zh}). City: ${person.city}. Occupation: ${person.occupation}. Bio: ${person.portrait}. Signals: ${(person.signals ?? []).join(", ")}.`
+    : "A warm, thoughtful persona open to conversation.";
 
   const { generatePersonaReply } = await import("../llm.server");
   const reply =
     (await generatePersonaReply({
       persona,
       history: [],
-      userMessage: `Someone said hello to you with: "${userHello}". Write your reply accepting the hello.`,
+      userMessage: userHello,
       lang,
+      isHello: true,
     })) ||
     (lang === "zh"
-      ? "这句我看了两遍。很想继续聊聊。"
-      : "That landed. I'd love to talk more.");
+      ? "你好呀，这句我看到了。想继续聊聊吗？"
+      : "Hey — I read that twice. Happy to keep talking.");
 
   await db
     .update(connections)
@@ -473,17 +483,22 @@ export const sendMessageFn = createServerFn({ method: "POST" })
     await db.update(connections).set({ updatedAt: now }).where(eq(connections.id, conn.id));
     await broadcastConnection(user.id, conn.id);
 
-    const { pushTyping } = await import("../realtime-push.server");
-    void pushTyping(user.id, data.personId, true);
-    void replyAsPerson(user.id, conn.id, data.personId, data.text.trim(), data.lang ?? "en").catch(
-      console.error,
+    const theirMessage = await replyAsPerson(
+      user.id,
+      conn.id,
+      data.personId,
+      data.text.trim(),
+      data.lang ?? "en",
     );
 
     return {
-      id: msgId,
-      from: "me" as const,
-      t: now.getTime(),
-      text: data.text.trim(),
+      userMessage: {
+        id: msgId,
+        from: "me" as const,
+        t: now.getTime(),
+        text: data.text.trim(),
+      },
+      theirMessage,
     };
   });
 
@@ -493,8 +508,7 @@ async function replyAsPerson(
   personId: string,
   userText: string,
   lang: "zh" | "en",
-) {
-  await new Promise((r) => setTimeout(r, 2000 + Math.random() * 3000));
+): Promise<{ id: string; from: "them"; t: number; text: string }> {
   const db = getDb();
   const personRows = await db.select().from(people).where(eq(people.id, personId)).limit(1);
   const person = personRows[0]?.data as unknown as Person | undefined;
@@ -509,23 +523,24 @@ async function replyAsPerson(
   }));
   const persona = person
     ? `Name: ${person.name} (${person.name_zh}). ${person.portrait}. Occupation: ${person.occupation}.`
-    : "A thoughtful person.";
+    : "A thoughtful persona.";
   const { generatePersonaReply } = await import("../llm.server");
-  const reply =
+  const replyText =
     (await generatePersonaReply({ persona, history, userMessage: userText, lang })) ||
     (lang === "zh" ? "嗯，我也这么觉得。再多说一点？" : "Yeah — I feel that too. Say more?");
 
+  const msgId = newId("msg");
+  const now = new Date();
   await db.insert(messages).values({
-    id: newId("msg"),
+    id: msgId,
     connectionId,
     from: "them",
-    text: reply,
-    createdAt: new Date(),
+    text: replyText,
+    createdAt: now,
   });
-  await db.update(connections).set({ updatedAt: new Date() }).where(eq(connections.id, connectionId));
-  const { pushTyping } = await import("../realtime-push.server");
-  void pushTyping(userId, personId, false);
+  await db.update(connections).set({ updatedAt: now }).where(eq(connections.id, connectionId));
   await broadcastConnection(userId, connectionId);
+  return { id: msgId, from: "them", t: now.getTime(), text: replyText };
 }
 
 export const pollConnectionsFn = createServerFn({ method: "POST" })
@@ -558,11 +573,25 @@ export const pollConnectionsFn = createServerFn({ method: "POST" })
     return { connections: result, serverTime };
   });
 
+export const markConnectionSeenFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ personId: z.string() }))
+  .handler(async ({ data }) => {
+    const user = await getSessionUser();
+    if (!user) throw new Error("unauthorized");
+    const db = getDb();
+    const now = new Date();
+    await db
+      .update(connections)
+      .set({ lastSeenAt: now, updatedAt: now })
+      .where(and(eq(connections.userId, user.id), eq(connections.personId, data.personId)));
+    return { ok: true as const, lastSeenAt: now.getTime() };
+  });
+
 export const updateConnectionStatusFn = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       personId: z.string(),
-      action: z.enum(["withdraw", "respond", "dismiss", "undo_faded", "remove_faded"]),
+      action: z.enum(["withdraw", "respond", "dismiss", "undo_faded", "remove_faded", "delete"]),
       fromMe: z
         .object({ quotedMomentId: z.string().nullable(), reply: z.string() })
         .optional(),
@@ -609,7 +638,29 @@ export const updateConnectionStatusFn = createServerFn({ method: "POST" })
       await db.delete(connections).where(eq(connections.id, conn.id));
       return { ok: true };
     }
+    if (data.action === "delete") {
+      await db.delete(messages).where(eq(messages.connectionId, conn.id));
+      await db.delete(connections).where(eq(connections.id, conn.id));
+      return { ok: true };
+    }
     return { ok: false };
+  });
+
+// ---- Thread title (history list) ----
+
+export const generateThreadTitleFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      lang: z.enum(["en", "zh-CN"]),
+      agent: z.enum(["introduce", "do_something", "reception"]),
+      context: z.string(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await getSessionUser();
+    const { generateThreadTitle } = await import("../thread-title-llm.server");
+    const title = await generateThreadTitle(data);
+    return title ?? "";
   });
 
 // ---- Agent LLM helper ----
@@ -632,7 +683,7 @@ export const matchmakerTurnFn = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       lang: z.enum(["en", "zh-CN"]),
-      action: z.enum(["start", "message", "pass_and_next", "see_next"]),
+      action: z.enum(["start", "message", "confirm_match", "confirm_rematch", "pass_and_next", "see_next"]),
       userMessage: z.string().optional(),
       seed: z.string().optional(),
       history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })),
@@ -645,6 +696,8 @@ export const matchmakerTurnFn = createServerFn({ method: "POST" })
         .object({
           ageMin: z.number().nullable(),
           ageMax: z.number().nullable(),
+          genders: z.array(z.enum(["female", "male", "nonbinary"])),
+          excludeGenders: z.array(z.enum(["female", "male", "nonbinary"])),
           cities: z.array(z.string()),
           excludeCities: z.array(z.string()),
           educationMin: z
@@ -661,8 +714,14 @@ export const matchmakerTurnFn = createServerFn({ method: "POST" })
       currentPersonId: z.string().nullable(),
       shownIds: z.array(z.string()),
       passedIds: z.array(z.string()),
+      pendingMatchConfirm: z.string().nullable().optional(),
+      pendingRematchConfirm: z.string().nullable().optional(),
+      rankedQueue: z.array(z.string()).optional(),
+      queueCursor: z.number().optional(),
+      queueFingerprint: z.string().nullable().optional(),
       handoffCount: z.number().optional(),
       handoffSummary: z.string().optional(),
+      userBlocklist: z.array(z.string()).optional(),
     }),
   )
   .handler(async ({ data }) => {
@@ -676,19 +735,30 @@ export const matchmakerTurnFn = createServerFn({ method: "POST" })
       : { ...EMPTY_PROFILE };
 
     const connRows = await db.select().from(connections).where(eq(connections.userId, user.id));
-    const blockedPersonIds = connRows
-      .filter((c) => ["faded", "sent", "connected", "incoming"].includes(c.status))
-      .map((c) => c.personId);
+    const blockedPersonIds = [
+      ...connRows
+        .filter((c) => ["faded", "sent", "connected", "incoming"].includes(c.status))
+        .map((c) => c.personId),
+      ...(data.userBlocklist ?? []),
+    ];
 
-    const { matchmakerTurnReadable } = await import("../matchmaker-llm.server");
+    const { runMatchmakerTurnStream } = await import("../matchmaker-llm.server");
+    const { eventsToNdjsonResponse } = await import("../ndjson-stream.server");
     const { EMPTY_HARD_FILTERS } = await import("../match-types");
     try {
-      return matchmakerTurnReadable({
-        ...data,
-        hardFilters: data.hardFilters ?? EMPTY_HARD_FILTERS,
-        profile,
-        blockedPersonIds,
-      });
+      return eventsToNdjsonResponse(
+        runMatchmakerTurnStream({
+          ...data,
+          hardFilters: data.hardFilters ?? EMPTY_HARD_FILTERS,
+          profile,
+          blockedPersonIds,
+          pendingMatchConfirm: data.pendingMatchConfirm ?? null,
+          pendingRematchConfirm: data.pendingRematchConfirm ?? null,
+          rankedQueue: data.rankedQueue ?? [],
+          queueCursor: data.queueCursor ?? 0,
+          queueFingerprint: data.queueFingerprint ?? null,
+        }),
+      );
     } catch (e) {
       const { log } = await import("../logger.server");
       log.error("api", "matchmakerTurnFn failed", e);
@@ -708,14 +778,25 @@ export const orchestratorTurnFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const user = await getSessionUser();
     if (!user) throw new Error("unauthorized");
+
+    const db = getDb();
+    const profileRows = await db.select().from(profiles).where(eq(profiles.userId, user.id)).limit(1);
+    const profile: Profile = profileRows[0]?.data
+      ? { ...EMPTY_PROFILE, ...(profileRows[0].data as unknown as Profile) }
+      : { ...EMPTY_PROFILE };
+
     try {
-      const { orchestratorTurnReadable } = await import("../orchestrator-llm.server");
-      return orchestratorTurnReadable({
-        lang: data.lang,
-        userMessage: data.userMessage,
-        history: data.history,
-        forcedTarget: data.forcedTarget ?? null,
-      });
+      const { runOrchestratorTurnStream } = await import("../orchestrator-llm.server");
+      const { eventsToNdjsonResponse } = await import("../ndjson-stream.server");
+      return eventsToNdjsonResponse(
+        runOrchestratorTurnStream({
+          lang: data.lang,
+          userMessage: data.userMessage,
+          history: data.history,
+          profile,
+          forcedTarget: data.forcedTarget ?? null,
+        }),
+      );
     } catch (e) {
       const { log } = await import("../logger.server");
       log.error("api", "orchestratorTurnFn failed", e);
@@ -744,7 +825,7 @@ export const sideBySideTurnFn = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       lang: z.enum(["en", "zh-CN"]),
-      action: z.enum(["start", "message", "confirm_publish", "skip_match", "see_next", "rematch"]),
+      action: z.enum(["start", "message", "confirm_publish", "confirm_browse", "confirm_match", "skip_match", "see_next", "rematch"]),
       userMessage: z.string().optional(),
       seed: z.string().optional(),
       preferredTrait: z.string().optional(),
@@ -760,6 +841,13 @@ export const sideBySideTurnFn = createServerFn({ method: "POST" })
         kinds: z.array(
           z.enum(["tennis", "run", "climb", "cook", "exhibition", "bookstore", "other"]),
         ),
+        allowCrossCity: z.boolean().optional(),
+      }),
+      buddyHardFilters: z.object({
+        genders: z.array(z.enum(["female", "male", "nonbinary"])),
+        excludeGenders: z.array(z.enum(["female", "male", "nonbinary"])),
+        ageMin: z.number().nullable(),
+        ageMax: z.number().nullable(),
       }),
       wishDraft: z.object({
         kind: z
@@ -769,15 +857,66 @@ export const sideBySideTurnFn = createServerFn({ method: "POST" })
         level: z.enum(["beginner", "intermediate", "advanced"]).optional(),
         city: z.string().optional(),
         city_zh: z.string().optional(),
+        placeRaw: z.string().optional(),
+        placeOnline: z.boolean().optional(),
+        placeFlex: z.boolean().optional(),
+        place: z
+          .object({
+            continent: z.string().optional(),
+            country: z.string().optional(),
+            admin1: z.string().optional(),
+            city: z.string().optional(),
+            detail: z.string().optional(),
+            labels: z
+              .object({
+                country: z.string().optional(),
+                admin1: z.string().optional(),
+                city: z.string().optional(),
+                detail: z.string().optional(),
+              })
+              .optional(),
+          })
+          .optional(),
         rawText: z.string(),
         whenAny: z.boolean(),
         levelAny: z.boolean(),
+        strictWhen: z.boolean().optional(),
+        strictLevel: z.boolean().optional(),
+        allowCrossCity: z.boolean().optional(),
+        dateStart: z.string().optional(),
+        dateEnd: z.string().optional(),
+        timeStart: z.string().optional(),
+        timeEnd: z.string().optional(),
+        activityDescRaw: z.string().optional(),
+        buddyPrefRaw: z.string().optional(),
+        otherReqRaw: z.string().optional(),
+        buddyMatchQuery: z
+          .object({
+            genders: z.array(z.enum(["female", "male", "nonbinary"])),
+            genderMode: z.enum(["strict", "soft"]).nullable(),
+            ageMin: z.number().nullable(),
+            ageMax: z.number().nullable(),
+            ageMode: z.enum(["strict", "soft"]).nullable(),
+            personalityTags: z.array(z.string()),
+            personalityQueryText: z.string(),
+          })
+          .optional(),
       }),
       pendingConfirm: z.string().nullable(),
+      pendingBrowseConfirm: z.string().nullable(),
+      pendingMatchConfirm: z.string().nullable(),
+      pendingOfferMatch: z.boolean(),
+      wishLane: z.enum(["unset", "browse", "publish"]),
+      browseSearched: z.boolean(),
       myIntentId: z.string().nullable(),
       matchIntentId: z.string().nullable(),
       triedIntentIds: z.array(z.string()),
       triedOwnerIds: z.array(z.string()),
+      rankedQueue: z.array(z.string()).optional(),
+      queueCursor: z.number().optional(),
+      queueFingerprint: z.string().nullable().optional(),
+      passedIntentIds: z.array(z.string()).optional(),
+      shownIntentIds: z.array(z.string()).optional(),
       handoffCount: z.number().optional(),
       handoffSummary: z.string().optional(),
       handoffHints: z
@@ -800,8 +939,11 @@ export const sideBySideTurnFn = createServerFn({ method: "POST" })
       : { ...EMPTY_PROFILE };
 
     const { sideTurnReadable } = await import("../side-llm.server");
+    const { eventsToNdjsonResponse, readableToAsyncIterable } = await import("../ndjson-stream.server");
     try {
-      return sideTurnReadable({ ...data, profile });
+      return eventsToNdjsonResponse(
+        readableToAsyncIterable(sideTurnReadable({ ...data, profile, userId: user.id })),
+      );
     } catch (e) {
       const { log } = await import("../logger.server");
       log.error("api", "sideBySideTurnFn failed", e);

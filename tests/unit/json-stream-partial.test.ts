@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractPartialJsonStringField } from "@/lib/json-partial";
+import { extractPartialJsonStringField, recoverPlainTextAsJsonField } from "@/lib/json-partial";
 
 describe("extractPartialJsonStringField", () => {
   it("reads a growing reply field", () => {
@@ -10,5 +10,17 @@ describe("extractPartialJsonStringField", () => {
 
   it("handles escapes", () => {
     expect(extractPartialJsonStringField('{"reply":"a\\"b\\nc"', "reply")).toBe('a"b\nc');
+  });
+});
+
+describe("recoverPlainTextAsJsonField", () => {
+  it("wraps plain text as reply", () => {
+    expect(recoverPlainTextAsJsonField("明白，你想找搭子。", "reply")).toEqual({
+      reply: "明白，你想找搭子。",
+    });
+  });
+
+  it("ignores JSON-looking buffers", () => {
+    expect(recoverPlainTextAsJsonField('{"reply":"hi"}', "reply")).toBeNull();
   });
 });
