@@ -121,7 +121,8 @@ function draftAsMine(state: SideToolState, ownerCity = ""): Intent {
   const dates = resolveDraftDates(d);
   return {
     id: state.myIntentId ?? "draft-preview",
-    ownerId: "me",
+    // Published wishes use ownerId "me"; drafts must not, or browse recall excludes the whole pool.
+    ownerId: state.myIntentId ? "me" : "draft-browse",
     ownerName: "You",
     ownerName_zh: "你",
     ownerCity: city,

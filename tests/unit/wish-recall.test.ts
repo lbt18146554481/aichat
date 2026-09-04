@@ -317,4 +317,54 @@ describe("wish-recall", () => {
       expect(browse.candidates.length).toBe(0);
     }
   });
+
+  it("browse draft ownerId does not collide with published me wishes", async () => {
+    const { draftAsIntent, DRAFT_BROWSE_OWNER_ID } = await import("@/lib/wish-draft-intent");
+    const draft = draftAsIntent({
+      kind: "run",
+      rawText: "这周末在朝阳公园走跑",
+      city: "Beijing",
+      city_zh: "北京",
+      when: "weekend",
+      whenAny: false,
+      levelAny: true,
+      dateStart: "2026-09-05",
+      dateEnd: "2026-09-06",
+    });
+    expect(draft.ownerId).toBe(DRAFT_BROWSE_OWNER_ID);
+    const result = recallWishCandidates({
+      mine: draft,
+      hardFilters: { cities: ["beijing"], excludeCities: [], kinds: ["run"] },
+      buddyHardFilters: EMPTY_BUDDY_HARD_FILTERS,
+      understanding: EMPTY_U,
+      pool: seedPool(),
+      browseStrict: true,
+    });
+    expect(result.candidates.some((c) => c.id === "extra:beijing-walk-3")).toBe(true);
+  });
+
+  it("treats broad 运动 queries as compatible with run/walk sports wishes", async () => {
+    const { draftAsIntent } = await import("@/lib/wish-draft-intent");
+    const draft = draftAsIntent({
+      kind: "other",
+      rawText: "运动类活动",
+      city: "Beijing",
+      city_zh: "北京",
+      when: "weekend",
+      whenAny: false,
+      levelAny: true,
+      dateStart: "2026-09-05",
+      dateEnd: "2026-09-06",
+    });
+    const result = recallWishCandidates({
+      mine: draft,
+      hardFilters: { cities: ["beijing"], excludeCities: [], kinds: [] },
+      buddyHardFilters: EMPTY_BUDDY_HARD_FILTERS,
+      understanding: EMPTY_U,
+      pool: seedPool(),
+      browseStrict: true,
+    });
+    expect(result.candidates.length).toBeGreaterThan(0);
+    expect(result.candidates.some((c) => c.id.startsWith("extra:beijing-walk-"))).toBe(true);
+  });
 });

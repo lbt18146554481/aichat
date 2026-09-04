@@ -38,6 +38,9 @@ export interface Intent {
   city_zh: string;
 
   kind: ActivityKind;
+  /** Short open activity core (preferred for matching). */
+  activityCore?: string;
+  activityStrength?: import("./field-constraint").ConstraintStrength | null;
   level: LevelTier;
   day: Weekday;
   window: "morning" | "midday" | "evening";
@@ -54,10 +57,14 @@ export interface Intent {
   /** True when the intent's `level` was unspecified — matches anyone. */
   levelAny?: boolean;
   status?: IntentStatus;
-  /** When true, when mismatch is hard-filtered during recall. */
+  /** @deprecated prefer whenStrength */
   strictWhen?: boolean;
-  /** When true, level must match exactly (tennis/climb). */
+  /** @deprecated prefer levelStrength */
   strictLevel?: boolean;
+  whenStrength?: import("./field-constraint").ConstraintStrength | null;
+  levelStrength?: import("./field-constraint").ConstraintStrength | null;
+  placeStrength?: import("./field-constraint").ConstraintStrength | null;
+  buddyGenderStrength?: import("./field-constraint").ConstraintStrength | null;
   /** User opted in to cross-city recall. */
   allowCrossCity?: boolean;
   /** Publisher demographics snapshot at publish time. */
@@ -75,9 +82,11 @@ export interface Intent {
 
   /** Original free-text place from the publish form. */
   placeRaw?: string;
-  /** User opted in to any offline location (不限). */
+  /** online | offline | any */
+  placeMode?: import("./wish-place").PlaceMode;
+  /** @deprecated use place.city === "any" */
   placeFlex?: boolean;
-  /** Activity is online-only (线上). */
+  /** @deprecated use placeMode === "online" */
   placeOnline?: boolean;
   /** Structured place extracted at publish. */
   place?: WishPlace;
@@ -660,10 +669,17 @@ export function publishMyIntent(input: {
   timeStart?: string;
   timeEnd?: string;
   placeRaw?: string;
+  placeMode?: import("./wish-place").PlaceMode;
   placeOnline?: boolean;
   placeFlex?: boolean;
   place?: WishPlace;
   activityDescRaw?: string;
+  activityCore?: string;
+  activityStrength?: import("./field-constraint").ConstraintStrength | null;
+  whenStrength?: import("./field-constraint").ConstraintStrength | null;
+  levelStrength?: import("./field-constraint").ConstraintStrength | null;
+  placeStrength?: import("./field-constraint").ConstraintStrength | null;
+  buddyGenderStrength?: import("./field-constraint").ConstraintStrength | null;
   buddyPrefRaw?: string;
   otherReqRaw?: string;
   buddyMatchQuery?: BuddyMatchQuery;
@@ -680,6 +696,7 @@ export function publishMyIntent(input: {
   const timeEnd = normalizeTimeHHmm(input.timeEnd) || undefined;
   const activityDesc =
     input.activityDescRaw?.trim() || input.rawText?.trim() || "";
+  const activityCore = input.activityCore?.trim() || undefined;
   const intent: Intent = {
     id: `me:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
     ownerId: "me",
@@ -690,6 +707,8 @@ export function publishMyIntent(input: {
     city,
     city_zh,
     kind: input.kind,
+    activityCore,
+    activityStrength: input.activityStrength ?? null,
     level: input.level ?? "intermediate",
     day,
     window,
@@ -702,6 +721,10 @@ export function publishMyIntent(input: {
     status: "active",
     strictWhen: input.strictWhen ?? false,
     strictLevel: input.strictLevel ?? false,
+    whenStrength: input.whenStrength ?? null,
+    levelStrength: input.levelStrength ?? null,
+    placeStrength: input.placeStrength ?? null,
+    buddyGenderStrength: input.buddyGenderStrength ?? null,
     allowCrossCity: input.allowCrossCity ?? false,
     ownerSnapshot: input.ownerSnapshot,
     dateStart,
@@ -709,8 +732,11 @@ export function publishMyIntent(input: {
     timeStart,
     timeEnd,
     placeRaw: input.placeRaw?.trim() || undefined,
-    placeOnline: input.placeOnline ?? false,
-    placeFlex: input.placeFlex ?? false,
+    placeMode: input.placeMode,
+    placeOnline: input.placeOnline ?? (input.placeMode === "online"),
+    placeFlex:
+      input.placeFlex ??
+      (input.placeMode === "any" || input.place?.city === "any"),
     place: input.place,
     activityDescRaw: activityDesc || undefined,
     buddyPrefRaw: input.buddyPrefRaw?.trim() || undefined,

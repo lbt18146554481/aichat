@@ -3,31 +3,55 @@ import type { LevelTier, WhenTier } from "./intents";
 import type { BuddyHardFilters } from "./buddy-filters";
 import { EMPTY_BUDDY_HARD_FILTERS } from "./buddy-filters";
 import type { BuddyMatchQuery } from "./wish-match-profile";
+import type { PlaceMode, WishPlace } from "./wish-place";
+import type { ConstraintStrength } from "./field-constraint";
 
 export type { BuddyHardFilters } from "./buddy-filters";
 export { EMPTY_BUDDY_HARD_FILTERS } from "./buddy-filters";
+export type { PlaceMode, WishPlace } from "./wish-place";
 
 export type SideLang = "en" | "zh-CN";
 
 /** In-progress wish before publish. */
 export interface WishDraft {
   kind: ActivityKind | null;
+  /**
+   * Short open activity phrase only (e.g. 跑步), no when/where.
+   * Preferred over legacy enum `kind` for matching.
+   */
+  activityCore?: string;
+  /** hard = must clear similarity τ; flex = soft weight. Default flex. */
+  activityStrength?: ConstraintStrength | null;
   when?: WhenTier;
   level?: LevelTier;
   city?: string;
   city_zh?: string;
   /** Free-text place from the publish form; structured at publish time. */
   placeRaw?: string;
-  /** Explicit online activity — no physical meetup. */
+  /** online | offline | any — preferred over placeOnline/placeFlex. */
+  placeMode?: PlaceMode;
+  /** @deprecated use placeMode === "online" */
   placeOnline?: boolean;
+  /** @deprecated use place.city === "any" */
   placeFlex?: boolean;
   place?: WishPlace;
   rawText: string;
   whenAny: boolean;
   levelAny: boolean;
-  /** User said when is mandatory (e.g. 必须周末). */
+  /**
+   * Constraint strength for when a concrete `when` / dates is set.
+   * hard = must; flex = 最好是. Legacy: strictWhen≈hard; else flex.
+   */
+  whenStrength?: import("./field-constraint").ConstraintStrength | null;
+  /** Constraint strength for concrete `level`. Legacy: strictLevel≈hard; else flex. */
+  levelStrength?: import("./field-constraint").ConstraintStrength | null;
+  /** Constraint strength for concrete place.city. Default hard when city set. */
+  placeStrength?: import("./field-constraint").ConstraintStrength | null;
+  /** Constraint strength for buddy gender allow-list. */
+  buddyGenderStrength?: import("./field-constraint").ConstraintStrength | null;
+  /** @deprecated prefer whenStrength === "hard" */
   strictWhen?: boolean;
-  /** User said level must match (e.g. 同级别). */
+  /** @deprecated prefer levelStrength === "hard" */
   strictLevel?: boolean;
   /** User ok with cross-city matches (e.g. 异地也行). */
   allowCrossCity?: boolean;

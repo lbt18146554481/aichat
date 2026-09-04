@@ -14,15 +14,23 @@ export function matchPrefsFingerprint(
     positive: u.positive,
     negative: u.negative,
     notes: u.notes,
+    traits: u.traits ?? [],
+    interests: u.interests ?? [],
+    occupation: u.occupation ?? [],
+    pace: u.pace ?? [],
     ageMin: f.ageMin,
     ageMax: f.ageMax,
+    ageStrength: f.ageStrength ?? null,
     genders: f.genders,
     excludeGenders: f.excludeGenders,
+    genderStrength: f.genderStrength ?? null,
     cities: f.cities,
     excludeCities: f.excludeCities,
+    cityStrength: f.cityStrength ?? null,
     educationMin: f.educationMin,
     educationLevels: f.educationLevels,
     excludeEducationLevels: f.excludeEducationLevels,
+    educationStrength: f.educationStrength ?? null,
   });
 }
 

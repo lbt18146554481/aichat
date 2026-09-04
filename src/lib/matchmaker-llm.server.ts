@@ -1,5 +1,6 @@
 import type { Profile } from "./profile-shape";
 import type { UserUnderstanding } from "./understanding";
+import { softPrefsPresent } from "./understanding";
 import type { MatchHardFilters, RecallOpts } from "./match-types";
 import { chatCompletionJsonStream, runToolLoop } from "./llm.server";
 import { recallCandidates, ensureMatchableHardFilters } from "./match-recall";
@@ -108,13 +109,15 @@ function genderLabel(g: PersonGender, lang: MatchmakerLang): string {
 function filtersLine(f: MatchHardFilters, lang: MatchmakerLang): string {
   const isZh = lang === "zh-CN";
   const parts: string[] = [];
-  if (f.ageMin != null) parts.push(isZh ? `年龄≥${f.ageMin}` : `age≥${f.ageMin}`);
-  if (f.ageMax != null) parts.push(isZh ? `年龄≤${f.ageMax}` : `age≤${f.ageMax}`);
+  const ageFlex = f.ageStrength === "flex" ? (isZh ? "（最好）" : " (prefer)") : "";
+  if (f.ageMin != null) parts.push(isZh ? `年龄≥${f.ageMin}${ageFlex}` : `age≥${f.ageMin}${ageFlex}`);
+  if (f.ageMax != null) parts.push(isZh ? `年龄≤${f.ageMax}${ageFlex}` : `age≤${f.ageMax}${ageFlex}`);
   if (f.genders.length) {
+    const gFlex = f.genderStrength === "flex" ? (isZh ? "（最好）" : " (prefer)") : "";
     parts.push(
       isZh
-        ? `性别：${f.genders.map((g) => genderLabel(g, lang)).join("、")}`
-        : `gender: ${f.genders.join(", ")}`,
+        ? `性别：${f.genders.map((g) => genderLabel(g, lang)).join("、")}${gFlex}`
+        : `gender: ${f.genders.join(", ")}${gFlex}`,
     );
   }
   if (f.excludeGenders.length) {
@@ -126,7 +129,12 @@ function filtersLine(f: MatchHardFilters, lang: MatchmakerLang): string {
   }
   if (f.cities.length) {
     const label = formatPlaceList(parsePlaceList(f.cities), lang);
-    parts.push(isZh ? `地点：${label || f.cities.join(", ")}` : `location: ${label || f.cities.join(", ")}`);
+    const cFlex = f.cityStrength === "flex" ? (isZh ? "（最好）" : " (prefer)") : "";
+    parts.push(
+      isZh
+        ? `地点：${label || f.cities.join(", ")}${cFlex}`
+        : `location: ${label || f.cities.join(", ")}${cFlex}`,
+    );
   }
   if (f.excludeCities.length) {
     const label = formatPlaceList(parsePlaceList(f.excludeCities), lang);
@@ -134,15 +142,30 @@ function filtersLine(f: MatchHardFilters, lang: MatchmakerLang): string {
       isZh ? `不要地点：${label || f.excludeCities.join(", ")}` : `exclude: ${label || f.excludeCities.join(", ")}`,
     );
   }
-  if (f.educationMin) parts.push(isZh ? `最低学历：${f.educationMin}` : `educationMin: ${f.educationMin}`);
-  if (f.educationLevels.length)
-    parts.push(isZh ? `学历：${f.educationLevels.join(", ")}` : `education: ${f.educationLevels.join(", ")}`);
+  if (f.educationMin) {
+    const eFlex = f.educationStrength === "flex" ? (isZh ? "（最好）" : " (prefer)") : "";
+    parts.push(isZh ? `最低学历：${f.educationMin}${eFlex}` : `educationMin: ${f.educationMin}${eFlex}`);
+  }
+  if (f.educationLevels.length) {
+    const eFlex = f.educationStrength === "flex" ? (isZh ? "（最好）" : " (prefer)") : "";
+    parts.push(
+      isZh
+        ? `学历：${f.educationLevels.join(", ")}${eFlex}`
+        : `education: ${f.educationLevels.join(", ")}${eFlex}`,
+    );
+  }
   return parts.length ? parts.join("; ") : isZh ? "（暂无硬条件）" : "(no hard filters yet)";
 }
 
 /** User expressed openness on location — no need to pin a city hard filter. */
 export function locationFlexible(u: UserUnderstanding): boolean {
   const blob = [...u.notes, ...u.positive].join(" ");
+  if (
+    /(城市|地点|地方|city|location|place|异地)/i.test(blob) &&
+    /(不限|都行|anywhere|\bany\b)/i.test(blob)
+  ) {
+    return true;
+  }
   return /异地|不限.*(城市|地方|地点)|城市不限|其他城市|哪里都行|不局限|全国|线上|distance ok|any city|open to other|other cities ok/i.test(
     blob,
   );
@@ -155,7 +178,7 @@ function coreHardFiltersSet(f: MatchHardFilters, u?: UserUnderstanding): boolean
   return hasGender && hasAge && hasCity;
 }
 
-/** Guide the model on what to clarify next — conversational, not a form wizard. */
+/** Guide the model on what to clarify next — open-first, gaps as hints (not a script). */
 function clarifyFocusLine(f: MatchHardFilters, lang: MatchmakerLang, u: UserUnderstanding): string {
   const isZh = lang === "zh-CN";
   const hasAnySignal =
@@ -164,41 +187,46 @@ function clarifyFocusLine(f: MatchHardFilters, lang: MatchmakerLang, u: UserUnde
     f.cities.length > 0 ||
     f.ageMin != null ||
     f.ageMax != null ||
-    u.positive.length > 0 ||
+    softPrefsPresent(u) ||
     u.notes.length > 0;
-
-  if (coreHardFiltersSet(f, u)) {
-    return isZh
-      ? "硬性方向（性别、年龄、地点意愿）已基本清楚。若还想了解性格/节奏/兴趣，可轻问一句；信息够用时直接 confirmLine 复述即可。不要像填表一样逐项追问；用户说「随便/开始找」不必再挖软偏好。"
-      : "Core direction (gender, age, location stance) is clear. Optionally ask once about traits/pace/interests, or confirmLine when enough. No form-style interrogation; skip soft prefs if they want to start.";
-  }
 
   if (!hasAnySignal) {
     return isZh
-      ? "偏好几乎空白：用一句开放式话请用户描述想找什么样的人（性别、年龄、城市、性格、相处方式都可以一起说）。不要开场只问「男生还是女生」这类单项。"
-      : "Prefs nearly blank: one open invite to describe who they want (gender, age, city, traits, pace — any mix). Don't open with a single field like gender only.";
+      ? "状态：偏好几乎空白。先开放请用户用自己的话说想找什么样的人；不要按字段清单开场，也不要固定本轮必问某几项。"
+      : "State: prefs nearly blank. Invite them to describe who they hope to meet in their own words — no field checklist, no fixed questions this turn.";
   }
 
-  const missing: string[] = [];
+  const missingHard: string[] = [];
   if (!f.genders.length && !f.excludeGenders.length) {
-    missing.push(isZh ? "性别" : "gender");
+    missingHard.push(isZh ? "性别" : "gender");
   }
   if (!f.cities.length && !locationFlexible(u)) {
-    missing.push(isZh ? "城市/是否接受异地" : "city / remote ok");
+    missingHard.push(isZh ? "城市/是否接受异地" : "city / remote ok");
   }
   if (f.ageMin == null && f.ageMax == null) {
-    missing.push(isZh ? "年龄范围" : "age range");
+    missingHard.push(isZh ? "年龄范围" : "age range");
   }
 
-  if (missing.length === 0) {
+  const missingSoft: string[] = [];
+  if (!(u.traits?.length)) missingSoft.push(isZh ? "性格" : "traits");
+  if (!(u.interests?.length)) missingSoft.push(isZh ? "兴趣" : "interests");
+  if (!(u.occupation?.length)) missingSoft.push(isZh ? "对方在做什么" : "what they do");
+
+  if (!coreHardFiltersSet(f, u)) {
     return isZh
-      ? "硬条件已基本够用，可复述确认或轻问软偏好；不要机械逐项追问。"
-      : "Hard filters are enough — confirm or lightly ask soft prefs; no form wizard.";
+      ? `状态：已有一些信息，硬方向仍可能不足（缺口参考：${missingHard.join("、") || "无"}）。先回应用户刚说的话；若顺势补问，只从缺口里自然选 1-3 点，自行组织措辞——不要每轮按固定顺序/固定三项追问。用户说「随便/开始找」可跳过。`
+      : `State: some prefs exist; hard direction may still be thin (gap hints: ${missingHard.join(", ") || "none"}). Respond to what they said; if you follow up, pick 1-3 gaps in your own words — never a fixed per-turn script. Skip if they want to start.`;
+  }
+
+  if (!softPrefsPresent(u)) {
+    return isZh
+      ? `状态：硬方向大致够了，软画像仍空（可选缺口：${missingSoft.join("、")}）。可轻问一句，或直接 confirmLine；用户说「都行/开始找」就确认开找。不要规定本轮必须问性格+兴趣+职业。`
+      : `State: hard direction mostly set; soft portrait empty (optional gaps: ${missingSoft.join(", ")}). One light question or confirmLine; skip if they say anything goes / start. Do not mandate traits+interests+job this turn.`;
   }
 
   return isZh
-    ? `对照已收集的信息，只追问真正还缺的：${missing.join("、")}。同一轮可自然组合 2-3 个相关项（如「年龄大概什么范围？城市有偏好吗？」），不要像填表一样一次只问一个字段。用户说「随便/开始找」可跳过。`
-    : `Ask only what's still missing: ${missing.join(", ")}. You may combine 2-3 related items in one turn (e.g. age range and city preference). Not one field per turn. Skip if they want to start now.`;
+    ? "状态：信息已基本够用。用 confirmLine 复述想找什么样的人并请确认开找；不要再机械追问。用户说「随便/开始找」→ affirmMatch。"
+    : "State: prefs are enough. confirmLine recap and ask to start; no more form questions. affirmMatch when they say start.";
 }
 
 function actionHint(input: MatchmakerTurnInput): string {
@@ -214,8 +242,8 @@ function actionHint(input: MatchmakerTurnInput): string {
         : `${firstReply ? "First reply after takeover: one natural sentence on helping them meet someone new (one person at a time with reasons), then " : ""}Respond directly to what they already said — no empty greeting filler, never re-ask meet-vs-activity. Until prefs are clear, do not affirmMatch; fill only what's missing — up to 2-3 related items per turn.`;
     }
     return zh(input.lang)
-        ? `${firstReply ? "这是接手后第一次回复：先用一句自然介绍你能帮用户认识新朋友（一位一位推荐并说原因），再" : ""}用一句开放式问题请用户描述想找什么样的人（性别、年龄、城市、性格等可以一起说）。不要机械地只问「男生还是女生」。偏好还不够时不要 affirmMatch；自称只用「我」。`
-        : `${firstReply ? "First reply: one natural sentence on meeting someone new (one at a time with reasons), then " : ""}Open with one invite to describe who they want (gender, age, city, traits — any mix). Don't mechanically ask only gender first. No affirmMatch until prefs exist; I/me only.`;
+        ? `${firstReply ? "这是接手后第一次回复：先用一句自然介绍你能帮用户认识新朋友（一位一位推荐并说原因），再" : ""}用一句开放问题请用户用自己的话说想找什么样的人。不要按字段清单开场，也不要规定本轮必问性别/年龄/城市。偏好还不够时不要 affirmMatch；自称只用「我」。`
+        : `${firstReply ? "First reply: one natural sentence on meeting someone new (one at a time with reasons), then " : ""}one open invite to describe who they hope to meet in their own words. No field checklist; no mandated gender/age/city this turn. No affirmMatch until prefs exist; I/me only.`;
   }
   if (action === "pass_and_next") {
     return zh(input.lang)
@@ -242,7 +270,7 @@ function prefsReady(input: MatchmakerTurnInput): boolean {
   if (f.ageMin != null || f.ageMax != null) return true;
   if (f.genders.length > 0 || f.excludeGenders.length > 0) return true;
   if (f.cities.length > 0 || f.educationMin || f.educationLevels.length > 0) return true;
-  if (u.positive.length > 0 || u.negative.length > 0) return true;
+  if (softPrefsPresent(u) || u.negative.length > 0) return true;
   if (u.notes.some((n) => n.trim().length >= 6)) return true;
   return wantsImmediateMatch(input);
 }
@@ -394,9 +422,20 @@ function buildChatSystem(
       : "No one on the right yet.";
 
   const u = input.understanding;
+  const softBits = [
+    ...(u.traits ?? []),
+    ...(u.interests ?? []),
+    ...(u.occupation ?? []),
+    ...(u.pace ?? []),
+  ];
+  const wantLine = softBits.length
+    ? softBits.join(", ")
+    : u.positive.length
+      ? u.positive.join(", ")
+      : "";
   const mem = [
     u.notes.length ? `notes: ${u.notes.join(" | ")}` : "",
-    u.positive.length ? (isZh ? `希望对方：${u.positive.join(", ")}` : `wants in others: ${u.positive.join(", ")}`) : "",
+    wantLine ? (isZh ? `希望对方：${wantLine}` : `wants in others: ${wantLine}`) : "",
     u.negative.length ? (isZh ? `不要这类：${u.negative.join(", ")}` : `avoids: ${u.negative.join(", ")}`) : "",
   ]
     .filter(Boolean)
@@ -490,7 +529,7 @@ ${input.currentPersonId || opts.hasQueue ? "Note: someone is already on the righ
     isZh
       ? `你在 Maitri 帮用户认识新朋友。像真人聊天，2-5 句，温暖具体。不要提 AI。以用户为主导：先回应当下说的话，不要每句都催着补充偏好。
 用户也可能随时改去「找人一起做事 / 看有什么活动」——见下方「目的随时可能切换」规则；有活动类信号时，优先澄清目的，不要惯性继续推人。
-追问方式：先开放式了解用户想找什么样的人；对照下方已收集的信息，只补真正缺的要点。硬条件（性别、年龄、城市/是否异地）优先于性格/节奏，但可在一轮里自然问 2-3 个相关项，不要像填表一样逐项单问。用户说「都行/都可以」时，结合你刚问的是什么来理解（地点？年龄？性格？），不要把它当成一项性格偏好；具体哪些硬条件保留/清除由抽取层根据对话判断。用户资料已在下方，不必重复盘问其基本情况。
+追问方式：先听用户自己的想法（开放），再对照已收集信息看缺什么；缺了才自然补问。缺口列表只是参考，不要规定每轮固定问哪几项、也不要按「第一批/第二批」剧本推进。硬条件通常比软偏好更影响筛选，但措辞与组合由你决定。用户说「都行/都可以」时，结合你刚问的是什么来理解；具体哪些硬条件保留/清除由抽取层判断。用户资料已在下方，不必重复盘问其基本情况。
 重要：在用户还没给出具体偏好（至少一项硬条件或软偏好）之前，不要 affirmMatch。仅说想认识人、打招呼，都不够。
 信息已够时：首次用 confirmLine，或用户说「随便推/开始找」时 affirmMatch=true。用户已口头确认（好/好的/开始找）时也必须 affirmMatch=true，不要只说「找到合适我会介绍」——系统会立刻展示第一位或说明暂无匹配。
 用户要在同批里换人：调 browse_next_person 或等前端按钮；你自然接话即可。系统排序后会在右侧展示具体人选（introducePersonId 由服务端决定，你不要编造 id）；介绍时请在 reply 里自然说明为什么是 TA，可依据右侧「为什么是 TA」同源证据（用户说过的话、共同收藏、对方的 values 回答），不要空泛说「找到合适再介绍」。
@@ -498,7 +537,7 @@ ${recallEmpty ? "注意：硬过滤后无候选人——建议放宽年龄、性
 ${selfVoiceRule(true)}`
       : `You help people meet someone new on Maitri. Warm, concise, human. User-led: answer what they said; don't interrogate every turn.
 They may switch anytime to "do something together / browse activities" — see lane-switch rules below; when activity signals appear, clarify intent first; do not keep pushing people by inertia.
-Clarify style: start open ("who are you hoping to meet?"); then fill only what's missing. Hard filters (gender, age, city/remote) before traits, but 2-3 related items in one turn is fine — no form wizard. Profile is below; don't re-interview basics.
+Clarify style: listen first (open), then follow up only on real gaps. Gap lists are hints — never a fixed per-turn script or "batch 1 / batch 2" checklist. Hard filters often matter more for screening, but wording is yours. Profile is below; don't re-interview basics.
 Until they give a real preference (at least one hard or soft dimension), do not set affirmMatch. Greeting alone is not enough.
 When prefs are enough: first match uses confirmLine, or affirmMatch=true if they say "surprise me / start matching". After user confirms (ok / yes / start), affirmMatch=true — do not only say "I'll introduce when I find someone"; the system shows the first match or explains if none. Rematch uses rematchConfirmLine + affirmRematch. Server ranks candidates — never output person ids.
 Browse within batch: browse_next_person or client buttons; reply naturally.

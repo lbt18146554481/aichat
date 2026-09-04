@@ -342,6 +342,46 @@ for (const c of CITIES) {
   cityByAlias.set(tok(c.id), c);
 }
 
+/** Venue / landmark phrases → city id (「朝阳公园」→ beijing, not opaque city). */
+const LANDMARK_TO_CITY: Array<{ cityId: string; aliases: string[] }> = [
+  {
+    cityId: "beijing",
+    aliases: [
+      "朝阳公园",
+      "chaoyang park",
+      "奥林匹克森林公园",
+      "奥森",
+      "olympic forest park",
+      "北海公园",
+      "beihai park",
+      "香山",
+      "颐和园",
+      "天坛",
+      "故宫",
+      "三里屯",
+      "国贸",
+      "中关村",
+      "五道口",
+      "望京",
+    ],
+  },
+  {
+    cityId: "shanghai",
+    aliases: ["外滩", "the bund", "陆家嘴", "静安寺", "人民广场"],
+  },
+  {
+    cityId: "shenzhen",
+    aliases: ["深圳湾", "华强北"],
+  },
+];
+
+const landmarkByAlias = new Map<string, CityDef>();
+for (const row of LANDMARK_TO_CITY) {
+  const city = cityByAlias.get(tok(row.cityId));
+  if (!city) continue;
+  for (const a of row.aliases) landmarkByAlias.set(tok(a), city);
+}
+
 function countryPlace(c: CountryDef): GeoPlace {
   return { continent: c.continent, country: c.id };
 }
@@ -356,6 +396,31 @@ function cityPlace(c: CityDef): GeoPlace {
   };
 }
 
+function resolveLandmark(t: string): CityDef | null {
+  const exact = landmarkByAlias.get(t);
+  if (exact) return exact;
+  // Prefer longer aliases so「奥林匹克森林公园」wins over shorter tokens.
+  let best: { city: CityDef; len: number } | null = null;
+  for (const [alias, city] of landmarkByAlias) {
+    if (alias.length < 2) continue;
+    if (t.includes(alias) && (!best || alias.length > best.len)) {
+      best = { city, len: alias.length };
+    }
+  }
+  return best?.city ?? null;
+}
+
+function resolveCitySubstring(t: string): CityDef | null {
+  let best: { city: CityDef; len: number } | null = null;
+  for (const [alias, city] of cityByAlias) {
+    if (alias.length < 2) continue;
+    if (t.includes(alias) && (!best || alias.length > best.len)) {
+      best = { city, len: alias.length };
+    }
+  }
+  return best?.city ?? null;
+}
+
 /** Parse a user/LLM location phrase into a hierarchical place (CN/EN equivalent). */
 export function parsePlace(raw: string): GeoPlace | null {
   const t = tok(raw);
@@ -363,6 +428,9 @@ export function parsePlace(raw: string): GeoPlace | null {
 
   const city = cityByAlias.get(t);
   if (city) return cityPlace(city);
+
+  const landmark = resolveLandmark(t);
+  if (landmark) return cityPlace(landmark);
 
   const admin1 = admin1ByAlias.get(t);
   if (admin1) {
@@ -380,8 +448,21 @@ export function parsePlace(raw: string): GeoPlace | null {
   const continent = CONTINENT_ALIASES[t];
   if (continent) return { continent };
 
-  // Unknown token — treat as opaque city key so exact match still works.
+  const nestedCity = resolveCitySubstring(t);
+  if (nestedCity) return cityPlace(nestedCity);
+
+  // Unknown opaque token — keep for exact match of rare towns, but not venue-like phrases.
+  if (/公园|广场|场馆|商场|地铁|车站|机场|大学|park|station|mall|airport|university/i.test(t)) {
+    return null;
+  }
   return { city: t };
+}
+
+/** Labels for a known city id (e.g. beijing → Beijing / 北京). */
+export function cityLabelsForId(cityId: string): { city: string; city_zh: string } | null {
+  const c = cityByAlias.get(tok(cityId));
+  if (!c) return null;
+  return { city: c.label_en, city_zh: c.label_zh };
 }
 
 export function parsePlaceList(raw: string[] | undefined): GeoPlace[] {

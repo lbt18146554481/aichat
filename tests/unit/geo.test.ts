@@ -28,6 +28,13 @@ describe("geo aliases", () => {
   it("normalizeCityList stores country id for 中国", () => {
     expect(normalizeCityList(["中国", "China"])).toEqual(["cn"]);
   });
+
+  it("maps landmark venues like 朝阳公园 to Beijing", () => {
+    expect(parsePlace("朝阳公园")?.city).toBe("beijing");
+    expect(parsePlace("Chaoyang Park")?.city).toBe("beijing");
+    expect(normalizeCityList(["朝阳公园"])).toEqual(["beijing"]);
+    expect(parsePlace("这周末在朝阳公园走跑")?.city).toBe("beijing");
+  });
 });
 
 describe("geo hierarchy", () => {

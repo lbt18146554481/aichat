@@ -1,6 +1,7 @@
 // Cross-agent handoff: two sessions for state, grafted chat for continuity.
 
 import type { UserUnderstanding } from "./understanding";
+import { normalizeUnderstandingShape } from "./understanding";
 import type { AgentId } from "./seed";
 
 export type HandoffFrom = "home" | "orchestrator" | "matchmaker" | "sidebyside";
@@ -63,7 +64,15 @@ export function sessionAgentFromTarget(target: "matchmaker" | "sidebyside"): "in
 }
 
 export function emptyUnderstanding(): UserUnderstanding {
-  return { positive: [], negative: [], notes: [] };
+  return {
+    positive: [],
+    negative: [],
+    notes: [],
+    traits: [],
+    interests: [],
+    occupation: [],
+    pace: [],
+  };
 }
 
 export function mergeUnderstanding(
@@ -72,9 +81,13 @@ export function mergeUnderstanding(
 ): UserUnderstanding {
   const b = base ?? emptyUnderstanding();
   if (!patch) return b;
-  return {
-    positive: [...new Set([...(patch.positive ?? b.positive)])].slice(0, 12),
+  return normalizeUnderstandingShape({
+    positive: [...new Set([...(patch.positive ?? b.positive)])].slice(0, 24),
     negative: [...new Set([...(patch.negative ?? b.negative)])].slice(0, 12),
     notes: (patch.notes ?? b.notes).slice(-6),
-  };
+    traits: patch.traits ?? b.traits,
+    interests: patch.interests ?? b.interests,
+    occupation: patch.occupation ?? b.occupation,
+    pace: patch.pace ?? b.pace,
+  });
 }

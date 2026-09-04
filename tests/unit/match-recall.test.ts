@@ -143,4 +143,45 @@ describe("recallCandidates", () => {
     expect(fixed.ageMax).toBe(30);
     expect(fixed.genders).toEqual(["female"]);
   });
+
+  it("ageStrength flex does not hard-drop outside range", () => {
+    const hard = recallCandidates({
+      understanding: { positive: [], negative: [], notes: [] },
+      hardFilters: { ...EMPTY_HARD_FILTERS, ageMax: 30, ageStrength: "hard" },
+      blockedIds: [],
+      shownIds: [],
+      passedIds: [],
+      pool: TEST_PEOPLE_POOL,
+    });
+    const flex = recallCandidates({
+      understanding: { positive: [], negative: [], notes: [] },
+      hardFilters: { ...EMPTY_HARD_FILTERS, ageMax: 30, ageStrength: "flex" },
+      blockedIds: [],
+      shownIds: [],
+      passedIds: [],
+      pool: TEST_PEOPLE_POOL,
+    });
+    expect(flex.filteredCount).toBeGreaterThanOrEqual(hard.filteredCount);
+  });
+
+  it("scores structured soft prefs without requiring hard age/gender", () => {
+    const result = recallCandidates({
+      understanding: {
+        positive: [],
+        negative: [],
+        notes: [],
+        traits: ["安静"],
+        interests: ["读书"],
+        occupation: ["设计师"],
+        pace: [],
+      },
+      hardFilters: { ...EMPTY_HARD_FILTERS },
+      blockedIds: [],
+      shownIds: [],
+      passedIds: [],
+      pool: TEST_PEOPLE_POOL,
+      limit: 5,
+    });
+    expect(result.candidates.length).toBeGreaterThan(0);
+  });
 });

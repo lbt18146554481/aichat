@@ -40,7 +40,7 @@ import {
 } from "./wish-types";
 import { ownerSnapshotFromProfile } from "./owner-snapshot";
 import { formatDateRangeLine, formatNowContext, intentDateRange, resolveDraftDates } from "./wish-date";
-import { assessWishClarifyProgress, isBrowseClarifyComplete } from "./wish-clarify";
+import { assessWishClarifyProgress, isBrowseClarifyComplete, wishClarifyPromptSection, buildBrowseConfirmRecap } from "./wish-clarify";
 import {
   assessWishPublishClarifyProgress,
   buildPublishConfirmRecap,
@@ -53,8 +53,14 @@ import { runPlaceExtract } from "./place-extract.server";
 import { runBuddyPrefExtract } from "./buddy-pref-extract.server";
 import {
   cityLabelsFromPlace,
+  citiesFromPlaceFields,
+  isPlaceAny,
+  isPlaceClarifyComplete,
+  legacyFlagsFromSpec,
+  normalizePlaceSpec,
   resolvePlaceRaw,
 } from "./wish-place";
+import { cityLabelsForId } from "./geo";
 import { wishDescriptionsFromDraft } from "./wish-match-profile";
 import {
   type WishLane,
@@ -356,34 +362,37 @@ async function handleSideQueueBrowseAction(
   };
 }
 
-function isMatchAffirmation(text: string, action: SideTurnAction): boolean {
-  if (action === "confirm_match") return true;
-  const t = text.trim();
-  if (!t) return false;
-  if (/^(是的|对|好|好的|确认|可以|行|嗯|ok|okay|yes|yep|sure|go ahead)/i.test(t)) return true;
-  return /没有了|就这些|开始(吧|找)|没有别的|可以找了|就这样|你找吧|找吧|帮我找|that's all|no more|start matching|find someone/i.test(
-    t,
-  );
-}
-
-function isBrowseAffirmation(text: string, action: SideTurnAction): boolean {
-  if (action === "confirm_browse") return true;
-  const t = text.trim();
-  if (!t) return false;
-  if (/^(是的|对|好|好的|确认|可以|行|嗯|开始|看看|ok|okay|yes|sure|go ahead)/i.test(t)) return true;
-  return /开始看|就这样找|可以找了|按这个找|搜吧|找吧/i.test(t);
-}
-
-function forcedMatchConfirmLine(
-  input: SideTurnInput,
+/** Sync placeMode / legacy flags; hardFilters.cities derived from structured place only. */
+function enrichDraftLocation(
   draft: WishDraft,
-  mine: Intent | null,
-): string {
-  const raw = draft.rawText?.trim() || mine?.rawText?.trim() || "";
-  if (zh(input.lang)) {
-    return `好的，心愿记下了${raw ? `：${raw}` : ""}。还要补充时间、水平或搭子偏好吗？没有的话我就开始帮你找搭子了。`;
+  hardFilters: WishHardFilters,
+  _profileCity: string,
+  _userMessage: string,
+): { draft: WishDraft; hardFilters: WishHardFilters } {
+  const spec = normalizePlaceSpec(draft);
+  const flags = legacyFlagsFromSpec(spec);
+  let next: WishDraft = {
+    ...draft,
+    placeMode: flags.placeMode,
+    placeOnline: flags.placeOnline,
+    placeFlex: flags.placeFlex,
+    place: flags.place ?? draft.place,
+  };
+
+  const cities = citiesFromPlaceFields(next);
+  if (cities.length) {
+    const labels = cityLabelsForId(cities[0]!);
+    if (labels && !(next.city?.trim() || next.city_zh?.trim())) {
+      next = { ...next, city: labels.city, city_zh: labels.city_zh };
+    }
+  } else if (flags.placeMode === "online" || flags.placeMode === "any" || isPlaceAny(flags.place?.city)) {
+    // clear stale city labels that fight unrestricted place
+    if (isPlaceAny(flags.place?.city) || flags.placeMode === "any" || flags.placeMode === "online") {
+      /* keep city empty for online/any */
+    }
   }
-  return `Got it${raw ? `: ${raw}` : ""}. Anything else — when, level, or buddy prefs? If not, I'll start looking.`;
+
+  return { draft: next, hardFilters: { ...hardFilters, cities } };
 }
 
 function draftCity(input: SideTurnInput, draft: WishDraft): { en: string; zh: string } {
@@ -398,10 +407,15 @@ function mergePlaceIntoDraft(
   draft: WishDraft,
   extracted: Awaited<ReturnType<typeof runPlaceExtract>>,
 ): WishDraft {
-  if (extracted.placeOnline) {
+  const flags = legacyFlagsFromSpec({
+    placeMode: extracted.placeMode,
+    place: extracted.place,
+  });
+  if (flags.placeMode === "online") {
     return {
       ...draft,
       placeRaw: extracted.placeRaw,
+      placeMode: "online",
       placeOnline: true,
       placeFlex: false,
       place: undefined,
@@ -413,11 +427,12 @@ function mergePlaceIntoDraft(
   return {
     ...draft,
     placeRaw: extracted.placeRaw,
-    placeOnline: false,
-    placeFlex: extracted.placeFlex,
+    placeMode: flags.placeMode,
+    placeOnline: flags.placeOnline,
+    placeFlex: flags.placeFlex,
     place: extracted.place ?? undefined,
-    city: labels.city,
-    city_zh: labels.city_zh,
+    city: isPlaceAny(extracted.place?.city) ? "" : labels.city,
+    city_zh: isPlaceAny(extracted.place?.city) ? "" : labels.city_zh,
   };
 }
 
@@ -430,9 +445,9 @@ function publishPlaceErrorMessage(lang: SideLang): string {
 async function publishDraft(input: SideTurnInput, draft: WishDraft): Promise<Intent> {
   if (input.myIntentId) revokeMyIntent(input.myIntentId);
   const placeRaw = resolvePlaceRaw(draft.placeRaw, draft.city, input.profile.city);
-  const cityLabels = draft.placeOnline
+  const cityLabels = draft.placeOnline || draft.placeMode === "online"
     ? { city: "", city_zh: "" }
-    : draft.placeFlex
+    : draft.placeFlex || draft.placeMode === "any" || isPlaceAny(draft.place?.city)
       ? (() => {
           const c = draftCity(input, draft);
           return { city: c.en, city_zh: c.zh };
@@ -452,8 +467,9 @@ async function publishDraft(input: SideTurnInput, draft: WishDraft): Promise<Int
     allowCrossCity: draft.allowCrossCity ?? input.hardFilters.allowCrossCity,
     ownerSnapshot: ownerSnapshotFromProfile(input.profile),
     placeRaw,
-    placeOnline: draft.placeOnline ?? false,
-    placeFlex: draft.placeFlex,
+    placeMode: draft.placeMode,
+    placeOnline: draft.placeOnline ?? draft.placeMode === "online",
+    placeFlex: draft.placeFlex ?? isPlaceAny(draft.place?.city),
     place: draft.place,
     activityDescRaw: desc.activityDescRaw,
     buddyPrefRaw: desc.buddyPrefRaw,
@@ -484,22 +500,13 @@ function browseClarifyComplete(input: SideTurnInput, draft: WishDraft, hardFilte
   });
 }
 
-function shouldUseMatchTwoPhase(input: SideTurnInput, wishLane: WishLane, browseReady: boolean): boolean {
+function shouldUseMatchTwoPhase(input: SideTurnInput, _wishLane: WishLane, _browseReady: boolean): boolean {
   const light: SideTurnAction[] = ["skip_match", "see_next", "rematch"];
-  const browseAffirm =
-    input.action === "confirm_browse" ||
-    (input.pendingBrowseConfirm &&
-      isBrowseAffirmation(input.userMessage ?? "", input.action)) ||
-    (browseReady && isBrowseAffirmation(input.userMessage ?? "", input.action));
   const offerAffirm = input.pendingOfferMatch && isOfferMatchAffirmation(input.userMessage ?? "");
-  const matchAffirm = isMatchAffirmation(input.userMessage ?? "", input.action);
   return (
     input.action === "confirm_browse" ||
-    input.action === "confirm_match" ||
     light.includes(input.action) ||
-    (wishLane === "browse" && browseAffirm && draftSearchable(input.wishDraft)) ||
-    (offerAffirm && Boolean(input.myIntentId || draftSearchable(input.wishDraft))) ||
-    (matchAffirm && Boolean(input.myIntentId) && wishLane === "publish")
+    (offerAffirm && Boolean(input.myIntentId || draftSearchable(input.wishDraft)))
   );
 }
 
@@ -541,6 +548,8 @@ function buildChatSystem(
     afterToolResults?: boolean;
     /** User just sent a lane selection message this turn. */
     laneJustPicked?: boolean;
+    /** Browse/publish clarify progress for prompt injection. */
+    clarifyProgress?: ReturnType<typeof assessWishClarifyProgress> | null;
   },
 ): string {
   const isZh = zh(input.lang);
@@ -593,24 +602,24 @@ Pending form prefill: ${opts.pendingConfirm ?? "none"}`
   const browseConfirmRule =
     opts.wishLane === "browse"
       ? isZh
-        ? `看心愿规则：收集完搜索条件后，用 confirmLine 复述条件并问是否按此在池子里找（不是发布，禁止说「心愿记下/发布」）。用户用自然语言确认（如「好的」「开始找吧」）后系统才搜索；不要用按钮文案；affirmMatch=true 表示用户已口头确认、可以开始搜。
+        ? `看心愿规则：收集完搜索条件后，用 confirmLine 复述条件并问是否按此在池子里找（不是发布，禁止说「心愿记下/发布」）。
+用户确认开搜时：必须把 affirmMatch 设为 true（服务端只认这个标志与 confirm_browse，不会解析「好的」等口头词）。未确认时 affirmMatch=false。不要用按钮文案。
 已挂起浏览确认：${opts.pendingBrowseConfirm ?? "无"}`
-        : `Browse rule: after criteria collected, confirmLine recap search filters (not publish; never say wish saved/published). Search starts only after the user verbally confirms (e.g. "yes" / "start looking"); affirmMatch=true means verbal OK to search.
+        : `Browse rule: after criteria collected, confirmLine recap search filters (not publish; never say wish saved/published).
+When the user confirms search: set affirmMatch=true (server trusts only this flag / confirm_browse — it does not parse "yes"/"ok" itself). Otherwise affirmMatch=false. No button copy.
 Pending browse confirm: ${opts.pendingBrowseConfirm ?? "none"}`
       : "";
 
   const offerMatchRule =
     opts.pendingOfferMatch
       ? isZh
-        ? `心愿刚发布：reply 末尾自然轻问一句「要不要顺便帮你找找搭子？」——不要 confirmLine，不要 affirmMatch。用户用自然语言说好（如「好」「帮我找」）再匹配，不要提按钮。`
-        : `Wish just published: end reply with a light "Want me to find a buddy too?" — no confirmLine; match only after verbal yes (e.g. "sure" / "find someone"), not buttons.`
+        ? `心愿刚发布：reply 末尾自然轻问一句「要不要顺便帮你找找搭子？」——不要 confirmLine。用户同意找搭子时 affirmMatch=true；否则 false。不要提按钮。`
+        : `Wish just published: end reply with a light "Want me to find a buddy too?" — no confirmLine; set affirmMatch=true only when they agree to search. No buttons.`
       : opts.published && opts.wishLane === "publish" && !opts.pendingOfferMatch
         ? isZh
-          ? `已发布：不要自动开始匹配；除非用户明确说要找搭子。`
-          : `Published: do not auto-match unless user asks to find a buddy.`
+          ? `已发布：不要自动开始匹配；除非用户明确说要找搭子（此时 affirmMatch=true）。`
+          : `Published: do not auto-match unless user asks to find a buddy (then affirmMatch=true).`
         : "";
-
-  const matchConfirmRule = "";
 
   const personLaneRule =
     (input.handoffCount ?? 0) >= 2
@@ -694,11 +703,11 @@ ${input.matchIntentId ? "Note: a buddy candidate is on the right — if they men
       ? ""
       : opts.wishLane === "publish"
         ? isZh
-          ? `澄清节奏（publish）：还缺什么就用 reply 自然追问。四条（活动、时间、地点或地点不限、搭子/补充）都齐且本回合不再追问时 → **必须** confirmLine 非空（开表单）+ reply 引导看右侧；还在追问时 confirmLine 必须为 null。needsTools=false。`
-          : `Publish clarify: ask in reply for gaps. When all four fields are complete and you stop asking → confirmLine MUST be non-empty (opens form) + reply nudges right pane; while still asking, confirmLine=null. needsTools=false.`
+          ? `澄清节奏（publish）：先听用户自己的心愿；对照缺口自然补问（不要固定每轮问什么）。活动、时间、地点（或不限）、搭子/补充都齐且本回合不再追问时 → **必须** confirmLine 非空（开表单）+ reply 引导看右侧；还在追问时 confirmLine 必须为 null。needsTools=false。`
+          : `Publish clarify: listen first; follow up only on real gaps (no fixed per-turn script). When activity/time/place/buddy are complete and you stop asking → confirmLine MUST be non-empty (opens form) + reply nudges right pane; while still asking, confirmLine=null. needsTools=false.`
         : isZh
-          ? `澄清节奏（browse）：还缺什么就用 reply 自然追问。条件齐且不再追问时用 confirmLine 复述搜索条件；还在追问时 confirmLine 必须为 null。needsTools=false。`
-          : `Browse clarify: ask in reply for gaps. When criteria complete, confirmLine recaps search filters; while asking, confirmLine=null. needsTools=false.`;
+          ? `澄清节奏（browse）：先听用户自己的想法；缺什么再自然补问（不要固定每轮追问清单）。条件齐且不再追问时用 confirmLine 复述搜索条件；还在追问时 confirmLine 必须为 null。needsTools=false。`
+          : `Browse clarify: listen first; follow up only on gaps (no fixed question script). When criteria complete, confirmLine recaps search filters; while asking, confirmLine=null. needsTools=false.`;
 
   const lazyToolsRule =
     opts.matchAckOnly || opts.afterToolResults
@@ -741,8 +750,8 @@ ${input.matchIntentId ? "Note: a buddy candidate is on the right — if they men
       ? `你在 Maitri 帮用户找一起做事的搭子。温暖、具体，2-5 句。用自然语言，不要像系统播报。
 用户也可能随时改去「找喜欢某类事的人」——见下方「目的随时可能切换」规则；有模糊信号时，优先澄清「找活动 vs 找喜欢的人」，不要惯性继续推搭子或发布心愿。
 未选定 lane 时：只问发布还是浏览，不要澄清字段。
-browse lane：先开放问心愿+要求 → 用户说完后只补问缺失项（活动→时间地点→搭子偏好）→ confirmLine 复述 → 用户口头确认后系统才搜心愿池；澄清未齐时禁止说「我去搜/稍等/在现有的人里找」。
-publish lane：先开放问心愿+要求 → 补问缺失项 → confirmLine 仅预填表单 → 用户亲手点发布；禁止口头确认就发布；发布后轻问是否找搭子（用户口头说好再匹配）。
+browse lane：先开放听用户想找什么活动心愿 → 对照缺口自然补问（不要固定按活动→时间→地点→搭子每轮剧本）→ confirmLine 复述 → 用户确认且 affirmMatch=true 后系统才搜；澄清未齐时禁止说「我去搜/稍等/在现有的人里找」。
+publish lane：先开放听用户心愿 → 缺什么再补问 → confirmLine 仅预填表单 → 用户亲手点发布；禁止口头确认就发布；发布后轻问是否找搭子（用户同意时 affirmMatch=true）。
 已发布：${opts.published ? `id=${input.myIntentId}` : "否"}
 ${crossCityUsed ? "跨城候选——reply 里说明。" : "优先同城。"}
 ${recallEmpty ? "无候选人——pickMatchIntentId=null，明确说暂时没有。" : "有候选人。"}
@@ -751,8 +760,8 @@ ${selfVoiceRule(true)}`
       : `You help people find someone to do activities with on Maitri. Warm, concise, human — not a system announcer.
 They may switch anytime to "meet someone new" — see lane-switch rules below; when meet-someone signals appear, clarify first; do not keep pushing buddies or publishing by inertia.
 Before lane chosen: only ask publish vs browse.
-Browse lane: open question for wish + requirements first → after user answers, follow up only on gaps (activity → time/place → buddy) → confirmLine → pool search only after verbal confirm; while clarifying NEVER say you're searching / wait / looking through people.
-Publish lane: open question → fill gaps → confirmLine prefill form only → user taps Publish; never publish from chat text; after publish lightly offer buddy search (verbal yes to match).
+Browse lane: listen open for wish + requirements → follow up only on real gaps (no fixed activity→time→place→buddy script) → confirmLine → pool search only when affirmMatch=true; while clarifying NEVER say you're searching / wait / looking through people.
+Publish lane: listen open → fill gaps → confirmLine prefill form only → user taps Publish; never publish from chat text; after publish lightly offer buddy search (affirmMatch=true when they agree).
 Published: ${opts.published ? `id=${input.myIntentId}` : "no"}
 ${crossCityUsed ? "Cross-city — say so in reply." : "Same-city first."}
 ${recallEmpty ? "No candidates — pickMatchIntentId=null; say none yet." : "Candidates available."}
@@ -782,6 +791,16 @@ ${selfVoiceRule(false)}`,
     laneRule,
     opts.laneJustPicked && opts.wishLane !== "unset"
       ? wishLanePickedPromptSection(opts.wishLane, input.lang)
+      : "",
+    opts.clarifyProgress &&
+      (opts.wishLane === "browse" || opts.wishLane === "publish") &&
+      !opts.published &&
+      !opts.matchAckOnly
+      ? wishClarifyPromptSection(
+          opts.clarifyProgress,
+          input.lang,
+          opts.wishLane === "browse" ? "browse" : "publish",
+        )
       : "",
     clarifyRule,
     draftLine,
@@ -844,18 +863,13 @@ function replyMentionsEmptyPool(reply: string, lang: SideLang): boolean {
 
 function replyLooksLikeStartingSearch(reply: string, lang: SideLang): boolean {
   if (zh(lang)) {
-    return /开始(帮)?你找|这就.*找|我去找|找找看|开始匹配|帮你找搭子|开始帮你/.test(reply);
+    return /开始(帮)?你找|这就.*找|我去找|找找看|开始匹配|帮你找搭子|开始帮你|在心愿池里|池子里.*找|去池子|按.*条件.*找/.test(
+      reply,
+    );
   }
-  return /start (looking|matching|searching)|i'?ll (look|find|search)|finding someone for you/i.test(
+  return /start (looking|matching|searching)|i'?ll (look|find|search)|finding someone for you|search(ing)? the pool|check(ing)? the pool/i.test(
     reply,
   );
-}
-
-function replyLooksLikeMatchIntro(reply: string, lang: SideLang): boolean {
-  if (zh(lang)) {
-    return /有一位|这位.*想|右边.*卡片|搭子候选|匹配到|找到了|推荐.*搭子|详情在右边/.test(reply);
-  }
-  return /found someone|on the right|matched with|introducing|meet \w+/i.test(reply);
 }
 
 function explicitEmptyPoolReply(
@@ -1068,6 +1082,7 @@ async function runSideChat(
     afterToolResults?: boolean;
     toolResultsBlock?: string;
     laneJustPicked?: boolean;
+    clarifyProgress?: ReturnType<typeof assessWishClarifyProgress> | null;
   },
   onDelta?: (text: string) => void,
 ): Promise<LlmSideChatJson | null> {
@@ -1556,6 +1571,20 @@ export async function runSideTurn(
 
   const laneJustPicked =
     isWishLaneSelectionMessage(content) && wishLane !== "unset";
+  const clarifyProgress =
+    (wishLane === "browse" || wishLane === "publish") && !myIntentId
+      ? assessWishClarifyProgress({
+          draft,
+          hardFilters,
+          buddyHardFilters,
+          understanding,
+          profile: input.profile,
+          history: [
+            ...input.history,
+            ...(content.trim() ? [{ role: "user" as const, content }] : []),
+          ],
+        })
+      : null;
   const chatOpts = {
     published: Boolean(myIntentId),
     wishLane,
@@ -1567,6 +1596,7 @@ export async function runSideTurn(
     matchAckOnly: useMatchTwoPhase,
     showCandidates: preRecallNeeded,
     laneJustPicked,
+    clarifyProgress,
   };
 
   const candidateIds = preRecall?.candidates.map((c) => c.id) ?? [];
@@ -1600,11 +1630,9 @@ export async function runSideTurn(
     hooks?.onChatDone?.({ reply: chatReply, suggestions: chatSuggestions });
   }
 
-  const userMsgForAffirmPre = (input.userMessage ?? content).trim();
   const userAffirmedSearchPre =
     input.action === "confirm_browse" ||
     input.action === "confirm_match" ||
-    isBrowseAffirmation(userMsgForAffirmPre, input.action) ||
     Boolean(chatParsed?.affirmMatch);
 
   const runExtract = shouldRunSideExtract(input, chatParsed, input.action, {
@@ -1630,6 +1658,14 @@ export async function runSideTurn(
       buddyHardFilters = extracted.buddyHardFilters;
       understanding = extracted.understanding;
       readyToPublish = extracted.readyToPublish;
+      const enriched = enrichDraftLocation(
+        draft,
+        hardFilters,
+        input.profile.city ?? "",
+        content,
+      );
+      draft = enriched.draft;
+      hardFilters = enriched.hardFilters;
     }
   }
 
@@ -1706,17 +1742,47 @@ export async function runSideTurn(
     understanding,
   );
 
-  const userMsgForAffirm = (input.userMessage ?? content).trim();
-  const browseVerbal = isBrowseAffirmation(userMsgForAffirm, input.action);
-  const matchVerbal = isMatchAffirmation(userMsgForAffirm, input.action);
   const userAffirmedBrowse =
     input.action === "confirm_browse" ||
-    (input.pendingBrowseConfirm && (browseVerbal || Boolean(chatParsed?.affirmMatch))) ||
-    (browseReady && (browseVerbal || Boolean(chatParsed?.affirmMatch)));
+    (wishLane === "browse" && Boolean(chatParsed?.affirmMatch));
   const userAffirmedMatch =
     wishLane !== "browse" &&
     Boolean(myIntentId) &&
-    (matchVerbal || Boolean(chatParsed?.affirmMatch));
+    (input.action === "confirm_match" || Boolean(chatParsed?.affirmMatch));
+
+  /** Affirm said yes, but place extract may still block search. */
+  let browseSearchReady = userAffirmedBrowse;
+  let placeGateReply: string | null = null;
+
+  if (userAffirmedBrowse && wishLane === "browse" && !input.matchIntentId) {
+    const placeCue = [draft.placeRaw, draft.city_zh, draft.city, draft.rawText, content]
+      .map((s) => (s || "").trim())
+      .filter(Boolean)
+      .join("\n");
+    const extracted = await runPlaceExtract({
+      lang: input.lang,
+      placeRaw: placeCue,
+      profileCity: input.profile.city,
+      rawText: draft.rawText,
+      history: [
+        ...input.history,
+        ...(content.trim() ? [{ role: "user" as const, content }] : []),
+      ],
+    });
+    draft = mergePlaceIntoDraft(input, draft, extracted);
+    const synced = enrichDraftLocation(draft, hardFilters, "", content);
+    draft = synced.draft;
+    hardFilters = synced.hardFilters;
+    if (!isPlaceClarifyComplete(draft)) {
+      browseSearchReady = false;
+      pendingBrowseConfirm =
+        pendingBrowseConfirm?.trim() ||
+        buildBrowseConfirmRecap(input.lang, draft, hardFilters);
+      placeGateReply = zh(input.lang)
+        ? "还差点地点信息：想在哪个城市，或者说地点不限 / 线上？说清楚后我再帮你在池子里找。"
+        : "I still need a place: which city, or say anywhere / online — then I'll search the pool.";
+    }
+  }
 
   if (
     wishLane === "publish" &&
@@ -1757,6 +1823,32 @@ export async function runSideTurn(
     pendingBrowseConfirm = chatParsed.confirmLine.trim();
   }
 
+  const browseProgress = assessWishClarifyProgress({
+    draft,
+    hardFilters,
+    buddyHardFilters,
+    understanding,
+    profile: input.profile,
+    history: [
+      ...input.history,
+      ...(content.trim() ? [{ role: "user" as const, content }] : []),
+    ],
+  });
+
+  // All done or cap: force a browse confirm card even if the LLM forgot confirmLine.
+  if (
+    wishLane === "browse" &&
+    !userAffirmedBrowse &&
+    !input.matchIntentId &&
+    input.action !== "confirm_browse" &&
+    (browseProgress.allDone || browseProgress.capReached)
+  ) {
+    pendingBrowseConfirm =
+      pendingBrowseConfirm?.trim() ||
+      chatParsed?.confirmLine?.trim() ||
+      buildBrowseConfirmRecap(input.lang, draft, hardFilters);
+  }
+
   const recallMine = resolveRecallMine(
     { ...input, wishDraft: draft, hardFilters },
     draft,
@@ -1769,7 +1861,7 @@ export async function runSideTurn(
     if (queued) return queued;
   }
 
-  if (userAffirmedBrowse) {
+  if (browseSearchReady) {
     pendingBrowseConfirm = null;
   }
 
@@ -1780,21 +1872,21 @@ export async function runSideTurn(
   if (input.action === "confirm_publish" && myIntentId) {
     pendingConfirm = null;
   }
-  if (input.action === "confirm_browse") {
+  if (input.action === "confirm_browse" && browseSearchReady) {
     pendingBrowseConfirm = null;
   }
 
   const userWantsMatch =
     !publishedThisTurn &&
     (wishLane === "browse"
-      ? userAffirmedBrowse || input.action === "confirm_browse"
+      ? browseSearchReady
       : wishLane === "publish"
         ? input.action === "confirm_match" ||
           (pendingOfferMatch &&
             (isOfferMatchAffirmation(input.userMessage ?? "") ||
               Boolean(chatParsed?.affirmMatch))) ||
           (Boolean(myIntentId) && userAffirmedMatch)
-        : userAffirmedBrowse ||
+        : browseSearchReady ||
           input.action === "confirm_browse" ||
           userAffirmedMatch) ||
     (lightActions.includes(input.action) && Boolean(myIntentId || input.matchIntentId));
@@ -1802,6 +1894,28 @@ export async function runSideTurn(
   const shouldPick =
     Boolean(recallMine) &&
     (userWantsMatch || Boolean(input.matchIntentId));
+
+  log.info("side", "match-gate", {
+    wishLane,
+    action: input.action,
+    shouldPick,
+    userWantsMatch,
+    userAffirmedBrowse,
+    browseSearchReady,
+    userAffirmedMatch,
+    browseReady,
+    affirmMatchFlag: Boolean(chatParsed?.affirmMatch),
+    hasRecallMine: Boolean(recallMine),
+    recallMineOwnerId: recallMine?.ownerId ?? null,
+    recallMineKind: recallMine?.kind ?? null,
+    recallMineCity: recallMine
+      ? recallMine.city_zh || recallMine.city || recallMine.ownerCity_zh || recallMine.ownerCity || ""
+      : null,
+    draftRaw: (draft.rawText || "").slice(0, 80),
+    pendingBrowseConfirm: Boolean(pendingBrowseConfirm || input.pendingBrowseConfirm),
+    myIntentId: myIntentId ?? null,
+    matchIntentIdIn: input.matchIntentId ?? null,
+  });
 
   let rankedQueue = input.rankedQueue ?? [];
   let queueCursor = input.queueCursor ?? 0;
@@ -1923,13 +2037,43 @@ export async function runSideTurn(
         mine: recallMine,
       });
     }
+
+    log.info("side", "match-result", {
+      wishLane,
+      browseSearched,
+      recallEmpty,
+      candidateCount: recall.candidates.length,
+      filteredCount: recall.filteredCount,
+      filtersRelaxed: filtersRelaxed,
+      relaxHints,
+      crossCityMatch,
+      picked: matchIntentId,
+      topIds: recall.candidates.slice(0, 5).map((c) => c.id),
+      nearMissIds: nearMissIds.slice(0, 3),
+    });
+  } else if (wishLane === "browse" || userWantsMatch) {
+    log.info("side", "match-skipped", {
+      wishLane,
+      shouldPick,
+      hasRecallMine: Boolean(recallMine),
+      hasRecall: Boolean(recall),
+      reason: !recallMine
+        ? "no_recall_mine"
+        : !recall
+          ? "no_recall_result"
+          : !shouldPick
+            ? "gate_closed"
+            : "unknown",
+    });
   }
 
   const mine = recallMine;
 
   let reply = (chatParsed.reply ?? "").trim();
   let suppressAssistantReply = false;
-  if (
+  if (placeGateReply) {
+    reply = placeGateReply;
+  } else if (
     input.pendingConfirm &&
     !myIntentId &&
     isPublishFormAcknowledgement(input.userMessage ?? content)
@@ -1944,38 +2088,12 @@ export async function runSideTurn(
 
   if (
     wishLane === "browse" &&
-    !browseReady &&
+    !browseSearchReady &&
     !input.matchIntentId &&
-    (replyLooksLikeStartingSearch(reply, input.lang) || /现有的人|搜一下|稍等/i.test(reply))
+    (browseProgress.allDone || browseProgress.capReached) &&
+    !pendingBrowseConfirm?.trim()
   ) {
-    const progress = assessWishClarifyProgress({
-      draft,
-      hardFilters,
-      buddyHardFilters,
-      understanding,
-      profile: input.profile,
-      history: input.history,
-    });
-    const activity = draft.rawText?.trim() || (draft.kind ? "跑步" : "");
-    if (zh(input.lang)) {
-      reply =
-        progress.focus === "intake"
-          ? "好的，先跟我说说你想做什么、有什么要求吧——时间地点、对搭子的期待都可以一起说。"
-          : progress.focus === "whenWhere"
-          ? `好的，${activity ? `${activity}记下了。` : ""}还想在什么时间、什么区域找？比如周末、工作日晚上，或同城某个片区。`
-          : progress.focus === "buddy"
-            ? `好的，${activity ? `${activity}记下了。` : ""}对搭子有什么偏好吗？比如水平、性格；没有要求也可以说「没要求」。`
-            : `好的，${activity ? `${activity}记下了。` : ""}我们先把条件聊清楚，确认后我再帮你在心愿池里找。`;
-    } else {
-      reply =
-        progress.focus === "intake"
-          ? "Sure — tell me what you'd like to do and any requirements (timing, place, buddy prefs — all in one go is fine)."
-          : progress.focus === "whenWhere"
-          ? `Got it${activity ? ` — ${activity}` : ""}. When and which area work for you?`
-          : progress.focus === "buddy"
-            ? `Got it${activity ? ` — ${activity}` : ""}. Any buddy preferences, or say no preference?`
-            : `Got it${activity ? ` — ${activity}` : ""}. Let's nail down the filters first, then I'll search the wish pool.`;
-    }
+    pendingBrowseConfirm = buildBrowseConfirmRecap(input.lang, draft, hardFilters);
   }
 
   let handoffTo: "matchmaker" | null =

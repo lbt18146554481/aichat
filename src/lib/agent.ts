@@ -46,7 +46,7 @@ export interface AgentState {
 
 export const EMPTY_STATE: AgentState = {
   phase: "clarifying",
-  context: { positive: [], negative: [], notes: [] },
+  context: { positive: [], negative: [], notes: [], traits: [], interests: [], occupation: [], pace: [] },
   messages: [],
   shownIds: [],
   passedIds: [],

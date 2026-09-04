@@ -6,6 +6,7 @@ import type { Profile } from "./profile-shape";
 import type { UserUnderstanding } from "./understanding";
 import type { SideLang, WishDraft, WishHardFilters } from "./wish-types";
 import { formatActivityWindow } from "./wish-date";
+import { isPlaceClarifyComplete } from "./wish-place";
 
 export const PUBLISH_CLARIFY_MAX_ROUNDS = 5;
 
@@ -85,30 +86,21 @@ function publishPlaceDone(
   hardFilters: WishHardFilters,
   combinedUserText: string,
 ): boolean {
+  if (isPlaceClarifyComplete(draft)) return true;
   const text = combinedUserText.trim();
   if (!text) return false;
 
-  const placeFlex =
-    /地点不限|位置不限|哪(儿|里)都(行|可以)|没有具体(地点|位置|偏好)|不挑(地点|地方|在哪)|随便哪|全城|全市|anywhere|any place|any area|no (specific )?(place|location|area|preference)/i;
-  if (placeFlex.test(text)) return true;
-
-  const specificPlace =
-    /公园|路线|跑道|奥森|朝阳|海淀|浦东|陆家嘴|区|路\d|街|venue|park|trail|track|gym|场|湖|江|河|广场|中心|mall|studio|河沿|绿道|滨江|操场|体育馆|cycle path|running route/i;
-  if (specificPlace.test(text)) return true;
-  if (specificPlace.test(draft.placeRaw ?? "")) return true;
-  if (specificPlace.test(draft.rawText ?? "")) return true;
-  if (/(市区|郊区|城东|城西|北边|南边|downtown|district|suburb)/i.test(text)) return true;
-
-  // Named city without a venue is enough to prefill the form — user can refine there.
+  if (/地点不限|位置不限|哪(儿|里)都(行|可以)|anywhere|any place/i.test(text)) {
+    return true;
+  }
+  if (/线上|远程|online|virtual/i.test(text)) return true;
+  if (draft.placeRaw?.trim() && draft.placeRaw.trim().length >= 2) return true;
+  if (hardFilters.cities.length > 0) return true;
   if (
-    /(?:在|^)(北京|上海|广州|深圳|杭州|成都|武汉|南京|西安|重庆|天津|苏州|长沙|郑州|青岛|大连|厦门|福州|昆明|贵阳|哈尔滨|沈阳|长春|石家庄|太原|济南|合肥|南昌|南宁|海口|兰州|银川|西宁|拉萨|呼和浩特|乌鲁木齐)(?:市)?/.test(
-      text,
-    )
+    /(?:在|^)(北京|上海|广州|深圳|杭州|成都|武汉|南京|西安|重庆|天津|苏州)(?:市)?/.test(text)
   ) {
     return true;
   }
-  if (hardFilters.cities.length > 0 && specificPlace.test(text)) return true;
-
   return false;
 }
 

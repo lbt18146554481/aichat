@@ -12,6 +12,7 @@ import {
   isIntentRecallable,
   WISH_INTENT_MAX_AGE_MS,
 } from "./intent-index";
+import { log } from "./logger.server";
 
 const poolCache = new Map<string, { at: number; items: Intent[] }>();
 const POOL_CACHE_MS = 60_000;
@@ -53,14 +54,39 @@ export function intentIndexValues(intent: Intent) {
 export async function queryRecallIntentPool(mine: Intent): Promise<Intent[]> {
   const key = cacheKey(mine);
   const hit = poolCache.get(key);
-  if (hit && Date.now() - hit.at < POOL_CACHE_MS) return hit.items;
+  if (hit && Date.now() - hit.at < POOL_CACHE_MS) {
+    log.debug("wish-pool", "cache hit", {
+      mineOwnerId: mine.ownerId,
+      mineKind: mine.kind,
+      poolSize: hit.items.length,
+      cacheKey: key,
+    });
+    return hit.items;
+  }
+
+  const { seedPool, loadMyIntents } = await import("./intents");
+  const mergeDemoSeeds = (items: Intent[]): Intent[] => {
+    const byId = new Map(items.map((it) => [it.id, it]));
+    for (const seed of seedPool()) {
+      if (!byId.has(seed.id) && seed.id !== mine.id && seed.ownerId !== mine.ownerId) {
+        byId.set(seed.id, seed);
+      }
+    }
+    for (const mineLocal of loadMyIntents()) {
+      if (!byId.has(mineLocal.id) && mineLocal.id !== mine.id) {
+        byId.set(mineLocal.id, mineLocal);
+      }
+    }
+    return [...byId.values()].filter((it) => isIntentRecallable(it) && it.id !== mine.id);
+  };
 
   try {
     const db = getDb();
     const minCreated = new Date(Date.now() - WISH_INTENT_MAX_AGE_MS);
+    // kind=other (e.g.「运动类」) must still see run/climb/tennis in SQL; refine in recall.
     const kindClause =
       mine.kind === "other"
-        ? or(eq(intents.kind, "other"), eq(intents.kind, mine.kind))
+        ? undefined
         : or(eq(intents.kind, mine.kind), eq(intents.kind, "other"));
 
     const rows = await db
@@ -77,15 +103,32 @@ export async function queryRecallIntentPool(mine: Intent): Promise<Intent[]> {
       )
       .limit(500);
 
-    const items = rows
-      .map(intentRowToIntent)
-      .filter((it) => isIntentRecallable(it) && it.id !== mine.id);
-
+    const fromDb = rows.map(intentRowToIntent);
+    const items = mergeDemoSeeds(fromDb);
+    const addedFromSeeds = items.filter((it) => !fromDb.some((d) => d.id === it.id)).length;
     poolCache.set(key, { at: Date.now(), items });
+    log.info("wish-pool", "loaded", {
+      mineId: mine.id,
+      mineOwnerId: mine.ownerId,
+      mineKind: mine.kind,
+      mineCity: mine.city_zh || mine.city || mine.ownerCity_zh || mine.ownerCity || "",
+      cacheKey: key,
+      dbRows: fromDb.length,
+      afterMerge: items.length,
+      addedFromSeeds,
+      kindFilter: mine.kind === "other" ? "all" : `${mine.kind}|other`,
+      sampleIds: items.slice(0, 6).map((it) => it.id),
+    });
     return items;
-  } catch {
-    const { seedPool, loadMyIntents } = await import("./intents");
-    return [...seedPool(), ...loadMyIntents()].filter((it) => it.id !== mine.id);
+  } catch (err) {
+    const items = mergeDemoSeeds([]);
+    log.warn("wish-pool", "db failed — using seeds/local", {
+      mineId: mine.id,
+      mineOwnerId: mine.ownerId,
+      poolSize: items.length,
+      err,
+    });
+    return items;
   }
 }
 

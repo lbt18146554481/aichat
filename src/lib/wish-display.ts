@@ -2,8 +2,7 @@ import type { Intent } from "./intents";
 import { slotToWhen } from "./intents";
 import type { SideLang } from "./wish-types";
 import { formatActivityWindow } from "./wish-date";
-import { formatWishPlace, resolvePlaceOnline } from "./wish-place";
-import { pickLocaleText } from "./lang";
+import { formatWishPlace } from "./wish-place";
 
 export interface WishContentLines {
   time: string;
@@ -20,21 +19,29 @@ export function formatWishContentLines(intent: Intent, lang: SideLang): WishCont
       dateEnd: intent.dateEnd,
       timeStart: intent.timeStart,
       timeEnd: intent.timeEnd,
-      whenAny: intent.whenAny,
+      whenAny: intent.whenAny ?? false,
       when,
     },
     lang,
   );
 
-  const placeRaw =
-    intent.placeRaw?.trim() ||
-    pickLocaleText(lang, intent.city || intent.ownerCity, intent.city_zh || intent.ownerCity_zh);
   const place = formatWishPlace(
-    intent.place ?? null,
-    placeRaw,
-    intent.placeFlex ?? false,
+    {
+      placeMode: intent.placeMode,
+      placeOnline: intent.placeOnline,
+      placeFlex: intent.placeFlex,
+      place: intent.place,
+      placeRaw:
+        intent.placeRaw?.trim() ||
+        intent.city_zh ||
+        intent.city ||
+        intent.ownerCity_zh ||
+        intent.ownerCity ||
+        "",
+      city: intent.city,
+      city_zh: intent.city_zh,
+    },
     lang,
-    resolvePlaceOnline(intent),
   );
 
   const activity =

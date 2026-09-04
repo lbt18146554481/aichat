@@ -2,7 +2,6 @@ import {
   findNearMisses,
   getIntentById,
   loadMyIntents,
-  LEVEL_KINDS,
   seedPool,
   slotToWhen,
   whenCompatible,
@@ -19,6 +18,7 @@ import {
   placeFromCityLabels,
 } from "./geo";
 import { isIntentRecallable } from "./intent-index";
+import { passesActivityCoreHardFilter, resolveActivityCoreText } from "./activity-core";
 import {
   buddyFiltersActive,
   EMPTY_BUDDY_HARD_FILTERS,
@@ -26,20 +26,25 @@ import {
   type BuddyHardFilters,
 } from "./buddy-filters";
 import { resolveOwnerSnapshot } from "./owner-snapshot";
-import { buildPreferenceQuery } from "./person-facets";
-import { semanticSimilarity } from "./text-similarity";
 import type { UserUnderstanding } from "./understanding";
 import { datesCompatible, intentDateRange } from "./wish-date";
 import type { SideLang, WishHardFilters } from "./wish-types";
-import { resolvePlaceOnline, passesOfflinePlaceHardFilter } from "./wish-place";
+import { resolvePlaceOnline, passesPlaceModeHardFilter as placeModeOk, normalizePlaceSpec } from "./wish-place";
+import {
+  isHardConstrained,
+  passesLevelHardFilter,
+  passesPlaceCityHardFilter,
+  passesWhenHardFilter,
+  resolvePlaceCityConstraint,
+  resolveWhenConstraint,
+} from "./wish-constraints";
 import type { BuddyMatchQuery } from "./wish-match-profile";
 import {
   buddyHardFiltersFromMatchQuery,
-  otherReqSimilarityScore,
   passesBuddyStrictMatch,
-  personalityProfileScore,
-  softBuddyDemographicScore,
 } from "./buddy-match";
+import { scoreWishCandidate } from "./wish-match-score";
+import { semanticSimilarity } from "./text-similarity";
 
 export const WISH_RECALL_LIMIT = 8;
 export const OTHER_SEMANTIC_MIN = 0.12;
@@ -103,12 +108,38 @@ function otherSemanticScore(a: string, b: string): number {
   return semanticSimilarity(a, b);
 }
 
+const SPORT_KINDS = new Set(["run", "tennis", "climb"]);
+const SPORT_QUERY_RE =
+  /运动|体育|健身|走跑|跑步|慢跑|快跑|徒步|爬山|攀岩|网球|羽毛球|篮球|足球|骑行|游泳|sport|run|jog|hike|climb|tennis|gym|workout/i;
+const SPORT_DOC_RE =
+  /运动|体育|健身|走跑|跑步|慢跑|快跑|徒步|爬山|攀岩|网球|羽毛球|篮球|足球|骑行|游泳|散步|走一?圈|park|run|jog|hike|climb|tennis|gym|walk-?run|bouldering/i;
+
+function intentBlob(it: Intent): string {
+  return `${it.rawText ?? ""} ${it.rawText_zh ?? ""} ${it.activityDescRaw ?? ""} ${it.venue ?? ""} ${it.venue_zh ?? ""}`;
+}
+
+function sportsCompatible(mine: Intent, other: Intent): boolean {
+  const mineBlob = intentBlob(mine);
+  if (!SPORT_QUERY_RE.test(mineBlob)) return false;
+  if (SPORT_KINDS.has(other.kind)) return true;
+  return SPORT_DOC_RE.test(intentBlob(other));
+}
+
 function kindsCompatible(mine: Intent, other: Intent): boolean {
+  // When either side has an activity core (explicit or mapped from kind),
+  // enum kind is not a hard gate — activity hard/flex + τ handles it.
+  if (resolveActivityCoreText(mine) || resolveActivityCoreText(other)) {
+    return true;
+  }
   if (mine.kind !== "other" && other.kind !== "other") {
     return mine.kind === other.kind;
   }
-  if (mine.kind !== "other" && other.kind === "other") return false;
+  if (mine.kind !== "other" && other.kind === "other") {
+    // Specific seeker (e.g. run) vs vague pool wish: allow if pool text is sports-compatible.
+    return sportsCompatible(mine, other) || sportsCompatible(other, mine);
+  }
   if (mine.kind === "other" && other.kind !== "other") {
+    if (sportsCompatible(mine, other)) return true;
     return (
       otherSemanticScore(
         `${mine.rawText} ${mine.rawText_zh}`,
@@ -116,30 +147,13 @@ function kindsCompatible(mine: Intent, other: Intent): boolean {
       ) >= OTHER_SEMANTIC_MIN
     );
   }
+  if (sportsCompatible(mine, other)) return true;
   return (
     otherSemanticScore(
       `${mine.rawText} ${mine.rawText_zh}`,
       `${other.rawText} ${other.rawText_zh}`,
     ) >= OTHER_SEMANTIC_MIN
   );
-}
-
-function passesStrictWhen(mine: Intent, other: Intent): boolean {
-  if (!mine.strictWhen || mine.whenAny) return true;
-  const mineRange = intentDateRange(mine);
-  if (mineRange && !datesCompatible(mine, other)) return false;
-  const mineWhen = slotToWhen(mine.day, mine.window);
-  const theirWhen: WhenTier = other.whenAny ? "any" : slotToWhen(other.day, other.window);
-  if (mineRange) return true;
-  return whenCompatible(mineWhen, theirWhen);
-}
-
-function passesStrictLevel(mine: Intent, other: Intent): boolean {
-  if (!mine.strictLevel || mine.levelAny) return true;
-  const kind = mine.kind !== "other" ? mine.kind : other.kind;
-  if (!LEVEL_KINDS.includes(kind)) return true;
-  if (other.levelAny) return false;
-  return mine.level === other.level;
 }
 
 function resolveBuddyQuery(opts: WishRecallOpts): BuddyMatchQuery | null {
@@ -153,7 +167,7 @@ function effectiveBuddyHardFilters(opts: WishRecallOpts): BuddyHardFilters {
 }
 
 function passesPlaceModeHardFilter(mine: Intent, other: Intent): boolean {
-  return resolvePlaceOnline(mine) === resolvePlaceOnline(other);
+  return placeModeOk(mine, other);
 }
 
 function passesOfflineGeoHardFilter(
@@ -161,7 +175,71 @@ function passesOfflineGeoHardFilter(
   other: Intent,
   respectCity: boolean,
 ): boolean {
-  return passesOfflinePlaceHardFilter(mine, other, respectCity, sameCity);
+  const placeC = resolvePlaceCityConstraint(mine);
+  if (!isHardConstrained(placeC)) return true;
+  return passesPlaceCityHardFilter(mine, other, respectCity, sameCity);
+}
+
+function hardFilterDropReason(
+  it: Intent,
+  mine: Intent,
+  f: WishHardFilters,
+  opts: WishRecallOpts,
+  respectCity: boolean,
+): string | null {
+  const buddy = effectiveBuddyHardFilters(opts);
+  const buddyQ = resolveBuddyQuery(opts);
+  if (it.ownerId === mine.ownerId || it.id === mine.id) return "same_owner";
+  if (!isIntentRecallable(it)) return "not_recallable";
+  if (!passesPlaceModeHardFilter(mine, it)) return "place_mode";
+
+  const mineOnline = resolvePlaceOnline(mine);
+  if (!mineOnline && !passesOfflineGeoHardFilter(mine, it, respectCity)) return "offline_geo";
+
+  const place = intentPlace(it);
+  const include = respectCity ? parsePlaceList(f.cities) : [];
+  const exclude = parsePlaceList(f.excludeCities);
+  if (
+    include.length > 0 &&
+    isHardConstrained(resolvePlaceCityConstraint(mine)) &&
+    !matchesLocationFilters(place, include, exclude)
+  ) {
+    return "location_filters";
+  }
+  if (exclude.length > 0 && !matchesLocationFilters(place, [], exclude)) {
+    return "location_filters";
+  }
+
+  if (
+    f.kinds.length > 0 &&
+    !f.kinds.includes(it.kind) &&
+    it.kind !== "other" &&
+    mine.kind !== "other"
+  ) {
+    if (!f.kinds.includes(mine.kind)) return "kinds";
+    if (it.kind !== mine.kind) return "kinds";
+  }
+
+  if (!kindsCompatible(mine, it)) return "kinds_compatible";
+  if (!passesActivityCoreHardFilter(mine, it)) return "activity_core";
+  if (!passesWhenHardFilter(mine, it)) return "strict_when";
+  if (!passesLevelHardFilter(mine, it)) return "strict_level";
+  if (
+    intentDateRange(mine) &&
+    isHardConstrained(resolveWhenConstraint(mine)) &&
+    !datesCompatible(mine, it)
+  ) {
+    return "dates";
+  }
+  if (
+    buddyFiltersActive(buddy) &&
+    (mine.buddyGenderStrength !== "flex") &&
+    !ownerPassesBuddyHardFilters(resolveOwnerSnapshot(it), buddy)
+  ) {
+    return "buddy_hard";
+  }
+  if (buddyQ && !passesBuddyStrictMatch(it, buddyQ)) return "buddy_strict";
+  return null;
 }
 
 function passesHardFilters(
@@ -171,99 +249,69 @@ function passesHardFilters(
   opts: WishRecallOpts,
   respectCity: boolean,
 ): boolean {
-  const buddy = effectiveBuddyHardFilters(opts);
-  const buddyQ = resolveBuddyQuery(opts);
-  if (it.ownerId === mine.ownerId || it.id === mine.id) return false;
-  if (!isIntentRecallable(it)) return false;
-  if (!passesPlaceModeHardFilter(mine, it)) return false;
-
-  const mineOnline = resolvePlaceOnline(mine);
-  if (!mineOnline && !passesOfflineGeoHardFilter(mine, it, respectCity)) return false;
-
-  const place = intentPlace(it);
-  const include = respectCity ? parsePlaceList(f.cities) : [];
-  const exclude = parsePlaceList(f.excludeCities);
-  if (!matchesLocationFilters(place, include, exclude)) return false;
-
-  if (
-    f.kinds.length > 0 &&
-    !f.kinds.includes(it.kind) &&
-    it.kind !== "other" &&
-    mine.kind !== "other"
-  ) {
-    if (!f.kinds.includes(mine.kind)) return false;
-    if (it.kind !== mine.kind) return false;
-  }
-
-  if (!kindsCompatible(mine, it)) return false;
-  if (!passesStrictWhen(mine, it)) return false;
-  if (!passesStrictLevel(mine, it)) return false;
-  if (intentDateRange(mine) && !datesCompatible(mine, it)) return false;
-  if (
-    buddyFiltersActive(buddy) &&
-    !ownerPassesBuddyHardFilters(resolveOwnerSnapshot(it), buddy)
-  ) {
-    return false;
-  }
-  if (buddyQ && !passesBuddyStrictMatch(it, buddyQ)) return false;
-  return true;
+  return hardFilterDropReason(it, mine, f, opts, respectCity) == null;
 }
 
-function freshnessScore(it: Intent): number {
-  const age = Date.now() - (it.createdAt || 0);
-  const day = 86_400_000;
-  if (age <= 7 * day) return 2;
-  if (age <= 30 * day) return 1;
-  return 0;
-}
+/** Why candidates dropped — for server logs when recall is empty. */
+export function diagnoseWishRecallDrops(
+  opts: WishRecallOpts,
+  respectCity = true,
+): {
+  poolSize: number;
+  afterExclude: number;
+  survivors: number;
+  drops: Record<string, number>;
+  sampleDropped: Array<{ id: string; reason: string; kind: string; city: string; ownerId: string }>;
+} {
+  const excluded = new Set([...(opts.exclude ?? []), ...(opts.passedIds ?? [])]);
+  const excludedOwners = new Set(opts.excludeOwnerIds ?? []);
+  const pool = poolFor(opts.mine, opts.pool);
+  const drops: Record<string, number> = {};
+  const sampleDropped: Array<{
+    id: string;
+    reason: string;
+    kind: string;
+    city: string;
+    ownerId: string;
+  }> = [];
+  let afterExclude = 0;
+  let survivors = 0;
 
-function semanticScore(mine: Intent, other: Intent, u: UserUnderstanding): number {
-  const query = [buildPreferenceQuery(u), mine.rawText, mine.rawText_zh].filter(Boolean).join(" ");
-  const doc = `${other.rawText} ${other.rawText_zh}`;
-  if (!query.trim() || !doc.trim()) return 0;
-  let s = semanticSimilarity(query, doc) * 10;
-  for (const neg of u.negative) {
-    s -= semanticSimilarity(neg, doc) * 0.85;
+  for (const it of pool) {
+    if (excluded.has(it.id) || excludedOwners.has(it.ownerId)) {
+      drops.excluded = (drops.excluded ?? 0) + 1;
+      continue;
+    }
+    afterExclude += 1;
+    const reason = hardFilterDropReason(it, opts.mine, opts.hardFilters, opts, respectCity);
+    if (!reason) {
+      survivors += 1;
+      continue;
+    }
+    drops[reason] = (drops[reason] ?? 0) + 1;
+    if (sampleDropped.length < 8) {
+      sampleDropped.push({
+        id: it.id,
+        reason,
+        kind: it.kind,
+        city: it.city_zh || it.city || it.ownerCity_zh || it.ownerCity || "",
+        ownerId: it.ownerId,
+      });
+    }
   }
-  return s;
+
+  return { poolSize: pool.length, afterExclude, survivors, drops, sampleDropped };
 }
 
 function softScore(mine: Intent, other: Intent, u: UserUnderstanding, opts: WishRecallOpts): number {
-  let s = 0;
+  const buddy = effectiveBuddyHardFilters(opts);
   const buddyQ = resolveBuddyQuery(opts);
-  const mineWhen: WhenTier | undefined = mine.whenAny ? undefined : slotToWhen(mine.day, mine.window);
-  const theirWhen: WhenTier = other.whenAny ? "any" : slotToWhen(other.day, other.window);
-  const mineLevel: LevelTier | undefined = mine.levelAny ? undefined : mine.level;
-  const theirLevel: LevelTier | undefined = other.levelAny ? undefined : other.level;
-  const kind = mine.kind !== "other" ? mine.kind : other.kind;
-
-  if (mine.day === other.day && mine.window === other.window) s += 5;
-  else if (whenCompatible(mineWhen, theirWhen)) s += 2;
-  const mineDates = intentDateRange(mine);
-  const otherDates = intentDateRange(other);
-  if (mineDates && otherDates && mineDates.start === otherDates.start && mineDates.end === otherDates.end) {
-    s += 4;
-  } else if (mineDates && otherDates && datesCompatible(mine, other)) {
-    s += 2;
-  }
-  if (mine.level === other.level) s += 3;
-  if (levelCompatible(kind, mineLevel, theirLevel ?? "intermediate")) s += 1;
-
-  s += semanticScore(mine, other, u);
-  if (buddyQ) {
-    s += softBuddyDemographicScore(other, buddyQ);
-    s += personalityProfileScore(other, buddyQ);
-  }
-  s += otherReqSimilarityScore(mine, other);
-  s += freshnessScore(other);
-
-  if (resolvePlaceOnline(mine) && resolvePlaceOnline(other)) s += 4;
-  else if (!resolvePlaceOnline(mine) && sameCity(mine, other)) s += 3;
-
-  if (opts.shownIds?.includes(other.id)) s -= 1.5;
-  if (opts.passedIds?.includes(other.id)) s -= 4;
-
-  return s;
+  return scoreWishCandidate(mine, other, u, {
+    buddyHardFilters: buddy,
+    buddyMatchQuery: buddyQ,
+    shownIds: opts.shownIds,
+    passedIds: opts.passedIds,
+  }).total;
 }
 
 function classifyQuality(mine: Intent, other: Intent): MatchQuality {
@@ -634,7 +682,8 @@ export function wishRecallFingerprint(
     strictLevel: ctx.mine.strictLevel,
     allowCrossCity: ctx.mine.allowCrossCity ?? ctx.hardFilters.allowCrossCity,
     placeOnline: resolvePlaceOnline(ctx.mine),
-    placeFlex: ctx.mine.placeFlex ?? false,
+    placeMode: normalizePlaceSpec(ctx.mine).placeMode,
+    placeCity: normalizePlaceSpec(ctx.mine).place?.city ?? null,
     buddy: ctx.buddyHardFilters,
     buddyMatchQuery: ctx.buddyMatchQuery ?? ctx.mine.buddyMatchQuery,
     filters: ctx.hardFilters,

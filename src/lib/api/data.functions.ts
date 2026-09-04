@@ -691,15 +691,22 @@ export const matchmakerTurnFn = createServerFn({ method: "POST" })
         positive: z.array(z.string()),
         negative: z.array(z.string()),
         notes: z.array(z.string()),
+        traits: z.array(z.string()).optional(),
+        interests: z.array(z.string()).optional(),
+        occupation: z.array(z.string()).optional(),
+        pace: z.array(z.string()).optional(),
       }),
       hardFilters: z
         .object({
           ageMin: z.number().nullable(),
           ageMax: z.number().nullable(),
+          ageStrength: z.enum(["hard", "flex"]).nullable().optional(),
           genders: z.array(z.enum(["female", "male", "nonbinary"])),
           excludeGenders: z.array(z.enum(["female", "male", "nonbinary"])),
+          genderStrength: z.enum(["hard", "flex"]).nullable().optional(),
           cities: z.array(z.string()),
           excludeCities: z.array(z.string()),
+          cityStrength: z.enum(["hard", "flex"]).nullable().optional(),
           educationMin: z
             .enum(["high_school", "associate", "bachelor", "master", "doctorate"])
             .nullable(),
@@ -709,6 +716,7 @@ export const matchmakerTurnFn = createServerFn({ method: "POST" })
           excludeEducationLevels: z.array(
             z.enum(["high_school", "associate", "bachelor", "master", "doctorate"]),
           ),
+          educationStrength: z.enum(["hard", "flex"]).nullable().optional(),
         })
         .optional(),
       currentPersonId: z.string().nullable(),
@@ -834,6 +842,10 @@ export const sideBySideTurnFn = createServerFn({ method: "POST" })
         positive: z.array(z.string()),
         negative: z.array(z.string()),
         notes: z.array(z.string()),
+        traits: z.array(z.string()).optional(),
+        interests: z.array(z.string()).optional(),
+        occupation: z.array(z.string()).optional(),
+        pace: z.array(z.string()).optional(),
       }),
       hardFilters: z.object({
         cities: z.array(z.string()),
@@ -853,6 +865,8 @@ export const sideBySideTurnFn = createServerFn({ method: "POST" })
         kind: z
           .enum(["tennis", "run", "climb", "cook", "exhibition", "bookstore", "other"])
           .nullable(),
+        activityCore: z.string().optional(),
+        activityStrength: z.enum(["hard", "flex"]).nullable().optional(),
         when: z.enum(["weekend", "weeknight", "any"]).optional(),
         level: z.enum(["beginner", "intermediate", "advanced"]).optional(),
         city: z.string().optional(),
@@ -860,6 +874,7 @@ export const sideBySideTurnFn = createServerFn({ method: "POST" })
         placeRaw: z.string().optional(),
         placeOnline: z.boolean().optional(),
         placeFlex: z.boolean().optional(),
+        placeMode: z.enum(["online", "offline", "any"]).optional(),
         place: z
           .object({
             continent: z.string().optional(),

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   assessWishClarifyProgress,
+  buildBrowseConfirmRecap,
+  isBrowseClarifyComplete,
+  wishClarifyPromptSection,
   WISH_CLARIFY_MAX_ROUNDS,
 } from "@/lib/wish-clarify";
 import { EMPTY_BUDDY_HARD_FILTERS, EMPTY_WISH_HARD_FILTERS, emptyWishDraft } from "@/lib/wish-types";
@@ -47,10 +50,10 @@ describe("wish-clarify", () => {
     });
     expect(p.activity).toBe("done");
     expect(p.intakeDone).toBe(true);
-    expect(["whenWhere", "buddy", "confirm"]).toContain(p.focus);
+    expect(["time", "place", "buddy", "confirm"]).toContain(p.focus);
   });
 
-  it("moves to whenWhere after kind is set", () => {
+  it("moves to place after kind when time already in rawText", () => {
     const p = assessWishClarifyProgress({
       draft: { ...emptyWishDraft("周末散步"), kind: "other", whenAny: true, levelAny: true },
       hardFilters: EMPTY_WISH_HARD_FILTERS,
@@ -60,10 +63,11 @@ describe("wish-clarify", () => {
       history: [{ role: "user", content: "想找户外散步" }],
     });
     expect(p.activity).toBe("done");
-    expect(p.focus).toBe("whenWhere");
+    expect(p.time).toBe("done");
+    expect(p.focus).toBe("place");
   });
 
-  it("marks whenWhere done when weekend and location flexible", () => {
+  it("splits time and place; marks both done when weekend and location flexible", () => {
     const p = assessWishClarifyProgress({
       draft: {
         ...emptyWishDraft("周末轻松散步，地点都可以"),
@@ -81,7 +85,8 @@ describe("wish-clarify", () => {
         { role: "user", content: "周末，地点都可以" },
       ],
     });
-    expect(p.whenWhere).toBe("done");
+    expect(p.time).toBe("done");
+    expect(p.place).toBe("done");
     expect(p.focus).toBe("buddy");
   });
 
@@ -93,21 +98,32 @@ describe("wish-clarify", () => {
       whenAny: false,
       levelAny: true,
     };
+    const history = [
+      { role: "user" as const, content: "散步" },
+      { role: "user" as const, content: "周末，地点都可以" },
+      { role: "user" as const, content: "对搭子没要求" },
+    ];
     const p = assessWishClarifyProgress({
       draft,
       hardFilters: EMPTY_WISH_HARD_FILTERS,
       buddyHardFilters: EMPTY_BUDDY_HARD_FILTERS,
       understanding: EMPTY_U,
       profile,
-      history: [
-        { role: "user", content: "散步" },
-        { role: "user", content: "周末，都可以" },
-        { role: "user", content: "对搭子没要求" },
-      ],
+      history,
     });
     expect(p.buddy).toBe("done");
     expect(p.allDone).toBe(true);
     expect(p.focus).toBe("confirm");
+    expect(
+      isBrowseClarifyComplete({
+        draft,
+        hardFilters: EMPTY_WISH_HARD_FILTERS,
+        buddyHardFilters: EMPTY_BUDDY_HARD_FILTERS,
+        understanding: EMPTY_U,
+        profile,
+        history,
+      }),
+    ).toBe(true);
   });
 
   it("hits cap focus after max user turns", () => {
@@ -125,5 +141,47 @@ describe("wish-clarify", () => {
     });
     expect(p.capReached).toBe(true);
     expect(p.focus).toBe("cap");
+    expect(isBrowseClarifyComplete({
+      draft: emptyWishDraft(),
+      hardFilters: EMPTY_WISH_HARD_FILTERS,
+      buddyHardFilters: EMPTY_BUDDY_HARD_FILTERS,
+      understanding: EMPTY_U,
+      profile,
+      history,
+    })).toBe(true);
+  });
+
+  it("builds browse confirm recap and prompt section", () => {
+    const draft = {
+      ...emptyWishDraft("朝阳公园走跑"),
+      kind: "run" as const,
+      when: "weekend" as const,
+      whenAny: false,
+      city: "Beijing",
+      city_zh: "北京",
+      placeRaw: "朝阳公园",
+    };
+    const line = buildBrowseConfirmRecap("zh-CN", draft, {
+      ...EMPTY_WISH_HARD_FILTERS,
+      cities: ["beijing"],
+    });
+    expect(line).toContain("朝阳公园");
+    expect(line).toContain("池子");
+
+    const p = assessWishClarifyProgress({
+      draft,
+      hardFilters: { ...EMPTY_WISH_HARD_FILTERS, cities: ["beijing"] },
+      buddyHardFilters: EMPTY_BUDDY_HARD_FILTERS,
+      understanding: EMPTY_U,
+      profile,
+      history: [
+        { role: "user", content: "走跑" },
+        { role: "user", content: "这周末朝阳公园" },
+        { role: "user", content: "搭子都行" },
+      ],
+    });
+    const section = wishClarifyPromptSection(p, "zh-CN", "browse");
+    expect(section).toContain("建议焦点");
+    expect(section).toMatch(/活动|时间|地点|搭子/);
   });
 });

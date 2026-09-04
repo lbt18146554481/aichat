@@ -66,7 +66,7 @@ export interface MatchmakerState {
 
 export const EMPTY: MatchmakerState = {
   phase: "clarifying",
-  understanding: { positive: [], negative: [], notes: [] },
+  understanding: { positive: [], negative: [], notes: [], traits: [], interests: [], occupation: [], pace: [] },
   hardFilters: { ...EMPTY_HARD_FILTERS },
   messages: [],
   shownIds: [],

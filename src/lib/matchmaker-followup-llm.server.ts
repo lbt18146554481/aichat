@@ -86,13 +86,24 @@ Use ONLY facts from [Match evidence] — do not invent overlaps. If evidence is 
 ${selfVoiceRule(false)}
 JSON only: {"reply":"..."}`;
 
+  const want = [
+    ...(opts.understanding.traits ?? []),
+    ...(opts.understanding.interests ?? []),
+    ...(opts.understanding.occupation ?? []),
+    ...(opts.understanding.pace ?? []),
+    ...opts.understanding.positive,
+    ...opts.understanding.notes,
+  ]
+    .filter(Boolean)
+    .join(isZh ? "；" : "; ");
+
   const user = isZh
     ? `【人选】${loc.name}，${opts.person.age}岁，${loc.city}，${loc.occupation}
-【用户想找的人（摘要）】${[...opts.understanding.positive, ...opts.understanding.notes].join("；") || "较少"}
+【用户想找的人（摘要）】${want || "较少"}
 【匹配依据】
 ${evidence}`
     : `[Person] ${loc.name}, ${opts.person.age}, ${loc.city}, ${loc.occupation}
-[What user wants] ${[...opts.understanding.positive, ...opts.understanding.notes].join("; ") || "sparse"}
+[What user wants] ${want || "sparse"}
 [Match evidence]
 ${evidence}`;
 

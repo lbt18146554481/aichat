@@ -194,15 +194,39 @@ export function buildProfileText(
 /** User preference blob for semantic recall (not hard filter). */
 export function buildPreferenceQuery(u: UserUnderstanding): string {
   const parts: string[] = [];
-  if (u.positive.length) {
+  const traits = u.traits ?? [];
+  const interests = u.interests ?? [];
+  const occupation = u.occupation ?? [];
+  const pace = u.pace ?? [];
+
+  if (traits.length) {
+    parts.push(...traits);
+    parts.push(...facetLabels(traits, "en"));
+    parts.push(...facetLabels(traits, "zh-CN"));
+  }
+  if (interests.length) {
+    parts.push(...interests);
+    parts.push(...facetLabels(interests, "en"));
+    parts.push(...facetLabels(interests, "zh-CN"));
+  }
+  if (occupation.length) parts.push(...occupation);
+  if (pace.length) parts.push(...pace);
+
+  // Legacy bag only when structured soft prefs are empty.
+  if (
+    !traits.length &&
+    !interests.length &&
+    !occupation.length &&
+    !pace.length &&
+    u.positive.length
+  ) {
     parts.push(...u.positive);
     parts.push(...facetLabels(u.positive, "en"));
     parts.push(...facetLabels(u.positive, "zh-CN"));
   }
+
   parts.push(...u.notes);
-  if (u.negative.length) {
-    parts.push(...u.negative.map((n) => `not ${n}`));
-  }
+  // Negatives scored separately in recall — don't inject "not X" into positive query.
   return parts
     .map((p) => p.trim())
     .filter(Boolean)
