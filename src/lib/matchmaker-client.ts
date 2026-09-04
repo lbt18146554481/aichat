@@ -9,7 +9,7 @@ import type {
   MatchmakerTurnOutput,
 } from "./matchmaker-llm.server";
 import { chatHistoryFromMessages } from "./handoff";
-import { consumeNdjsonResponse } from "./ndjson-stream.client";
+import { consumeNdjsonResponse } from "./ndjson-stream-consume";
 
 export async function requestMatchmakerTurn(opts: {
   lang: MatchmakerLang;

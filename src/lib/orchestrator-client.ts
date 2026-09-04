@@ -2,7 +2,7 @@ import { orchestratorTurnFn, detectHandoffFn } from "./api/data.functions";
 import type { AgentId } from "./seed";
 import type { OrchestratorOutput, OrchestratorStreamEvent } from "./orchestrator-llm.server";
 import type { DetectHandoffOutput } from "./handoff-detect.server";
-import { consumeNdjsonResponse } from "./ndjson-stream.client";
+import { consumeNdjsonResponse } from "./ndjson-stream-consume";
 
 export async function requestOrchestratorTurn(opts: {
   lang: "en" | "zh-CN";

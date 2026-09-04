@@ -2,7 +2,7 @@ import type { SideState } from "./agents/side-by-side";
 import { sideBySideTurnFn } from "./api/data.functions";
 import type { SideStreamEvent, SideTurnAction, SideTurnOutput } from "./side-llm.server";
 import { EMPTY_WISH_HARD_FILTERS, emptyWishDraft, EMPTY_BUDDY_HARD_FILTERS } from "./wish-types";
-import { consumeNdjsonResponse } from "./ndjson-stream.client";
+import { consumeNdjsonResponse } from "./ndjson-stream-consume";
 import { chatHistoryFromMessages } from "./handoff";
 
 export async function requestSideBySideTurn(opts: {

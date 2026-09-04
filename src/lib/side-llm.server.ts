@@ -19,7 +19,7 @@ import {
   rosterFromIntentIds,
   WISH_RECALL_LIMIT,
 } from "./wish-recall";
-import { recallWishCandidatesServer } from "./wish-recall.server";
+import { recallWishCandidatesServer, prewarmWishRecallCache } from "./wish-recall.server";
 import { runSideWishRank } from "./side-rank.server";
 import {
   advanceSideWishQueue,
@@ -468,9 +468,7 @@ async function publishDraft(input: SideTurnInput, draft: WishDraft): Promise<Int
   }
   void import("./wish-recall-cache.server").then((m) => m.invalidateWishRecallCache());
   void import("./intent-store.server").then((m) => m.invalidateIntentPoolCache(intent.id));
-  void import("./wish-recall.server").then((m) =>
-    m.prewarmWishRecallCache(intent, input.hardFilters, input.buddyHardFilters, input.understanding),
-  );
+  void prewarmWishRecallCache(intent, input.hardFilters, input.buddyHardFilters, input.understanding);
   return intent;
 }
 
