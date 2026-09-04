@@ -133,7 +133,7 @@ VITE_WS_URL=ws://13.251.22.192/ws
 - 若 API Key 曾出现在聊天/截图里，请立刻在 DeepSeek 控制台轮换。
 - `SESSION_SECRET` 生产环境必须换成长随机串。
 - `.env` 已在 `.gitignore` 中；密钥只放服务器与 GitHub Secrets。
-- 纯 HTTP + IP 部署时，登录 cookie 不要开 `Secure`（否则写不进浏览器）。
+- 纯 HTTP + IP 部署时，登录 cookie 默认不设 `Secure`（见 `COOKIE_SECURE`）。上 HTTPS 后再设 `COOKIE_SECURE=1`。
 - 私有 IP `172.31.26.215` 仅 VPC 内可达，不要当成对外访问地址。
 
 ## 6. 功能对照

@@ -191,6 +191,9 @@ write_env() {
     else
       sed -i "s|^VITE_WS_URL=.*|VITE_WS_URL=ws://${PUBLIC_HOST}/ws|" "$env_file"
     fi
+    if ! grep -qE '^COOKIE_SECURE=' "$env_file"; then
+      echo "COOKIE_SECURE=0" >>"$env_file"
+    fi
     sed -i 's/^NODE_ENV=.*/NODE_ENV=production/' "$env_file" || true
     return 0
   fi
@@ -205,6 +208,7 @@ DEEPSEEK_MODEL=deepseek-v4-pro
 NODE_ENV=production
 WS_PORT=3001
 VITE_WS_URL=ws://${PUBLIC_HOST}/ws
+COOKIE_SECURE=0
 EOF
   chmod 600 "$env_file"
 }

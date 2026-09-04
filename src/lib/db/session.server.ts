@@ -18,11 +18,14 @@ export function newToken(): string {
 }
 
 function cookieOpts(maxAgeSeconds: number) {
+  // Pure HTTP (IP / no TLS) cannot use Secure cookies — browsers drop them.
+  // Enable only when the site is served over HTTPS: COOKIE_SECURE=1
+  const secure = process.env.COOKIE_SECURE === "1" || process.env.COOKIE_SECURE === "true";
   return {
     httpOnly: true,
     path: "/",
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    secure,
     maxAge: maxAgeSeconds,
   };
 }
