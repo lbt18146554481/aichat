@@ -711,6 +711,7 @@
     "invite_change": "Change",
     "email_label": "Email",
     "password_label": "Password",
+    "password_confirm_label": "Confirm password",
     "create_account": "Create account",
     "continue_google": "Continue with Google",
     "continue_apple": "Continue with Apple",
@@ -726,12 +727,14 @@
     "switch_to_signin_cta": "Sign in",
     "err": {
       "invite_required": "Enter your invite code.",
-      "invite_invalid": "That invite code isn't valid or has already been used.",
+      "invite_invalid": "That invite code isn't valid.",
       "account_not_found": "No account with that email. Join with an invite code to create one.",
       "invalid_credentials": "Email or password is incorrect.",
       "email_taken": "An account with this email already exists. Try signing in instead.",
       "credentials_required": "Enter email and password.",
       "password_short": "Password must be at least 6 characters.",
+      "password_confirm_required": "Please enter your password again.",
+      "password_mismatch": "The two passwords do not match.",
       "unauthorized": "Please sign in to continue.",
       "generic": "Something went wrong. Please try again.",
       "server_error": "Something went wrong. Please try again."

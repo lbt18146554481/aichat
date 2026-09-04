@@ -49,6 +49,7 @@ function AuthPage() {
   const [verifiedCode, setVerifiedCode] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [pending, setPending] = useState<"verify" | "submit" | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -66,6 +67,7 @@ function AuthPage() {
   useEffect(() => {
     setErr(null);
     setNotFound(false);
+    setPasswordConfirm("");
   }, [mode]);
 
   useEffect(() => {
@@ -134,6 +136,16 @@ function AuthPage() {
     if (pw.length < 6) {
       setErr(t("auth.err.password_short"));
       return;
+    }
+    if (mode === "signup") {
+      if (!passwordConfirm) {
+        setErr(t("auth.err.password_confirm_required"));
+        return;
+      }
+      if (pw !== passwordConfirm) {
+        setErr(t("auth.err.password_mismatch"));
+        return;
+      }
     }
     setPending("submit");
     try {
@@ -310,6 +322,20 @@ function AuthPage() {
                     className="mt-1.5 w-full rounded-md border border-border bg-card px-3 py-2.5 text-[15px] text-foreground outline-none focus:border-foreground/50"
                   />
                 </label>
+                {mode === "signup" && (
+                  <label className="block">
+                    <span className="text-[11px] font-mono uppercase tracking-wide text-muted-foreground">
+                      {t("auth.password_confirm_label")}
+                    </span>
+                    <input
+                      type="password"
+                      value={passwordConfirm}
+                      onChange={(e) => setPasswordConfirm(e.target.value)}
+                      autoComplete="new-password"
+                      className="mt-1.5 w-full rounded-md border border-border bg-card px-3 py-2.5 text-[15px] text-foreground outline-none focus:border-foreground/50"
+                    />
+                  </label>
+                )}
 
                 {notFound && (
                   <div className="rounded-md border border-border bg-secondary/40 px-3 py-2.5">

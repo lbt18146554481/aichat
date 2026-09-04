@@ -1,12 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { eq, and, isNull, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { getDb } from "../db/client.server";
 import { users, inviteCodes, profiles } from "../db/schema";
 import { createSession, destroySession, getSessionUser, newId } from "../db/session.server";
 import { AuthError, type AuthUser } from "../auth-types";
 import { EMPTY_PROFILE } from "../profile-shape";
+
+/**
+ * Temporary: invite codes may be reused any number of times.
+ * Flip to false to restore single-use consumption (mark usedBy on signup).
+ */
+export const INVITE_CODES_UNLIMITED_REUSE = true;
 
 function toAuthError(e: unknown): never {
   if (e instanceof AuthError) throw e;
@@ -32,12 +38,11 @@ export const signUpFn = createServerFn({ method: "POST" })
       const code = data.inviteCode.trim().toUpperCase();
       const db = getDb();
 
-      const invite = await db
-        .select()
-        .from(inviteCodes)
-        .where(and(eq(inviteCodes.code, code), isNull(inviteCodes.usedBy)))
-        .limit(1);
-      if (!invite[0]) throw new AuthError("invite_invalid", "That invite code isn't valid or has been used.");
+      const invite = await db.select().from(inviteCodes).where(eq(inviteCodes.code, code)).limit(1);
+      if (!invite[0]) throw new AuthError("invite_invalid", "That invite code isn't valid.");
+      if (!INVITE_CODES_UNLIMITED_REUSE && invite[0].usedBy) {
+        throw new AuthError("invite_invalid", "That invite code has already been used.");
+      }
 
       const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
       if (existing[0]) throw new AuthError("email_taken", "An account with this email already exists.");
@@ -47,10 +52,12 @@ export const signUpFn = createServerFn({ method: "POST" })
       const name = (data.name?.trim() || email.split("@")[0]) ?? "member";
 
       await db.insert(users).values({ id, email, passwordHash, name, avatar: "" });
-      await db
-        .update(inviteCodes)
-        .set({ usedBy: id, usedAt: new Date() })
-        .where(eq(inviteCodes.code, code));
+      if (!INVITE_CODES_UNLIMITED_REUSE) {
+        await db
+          .update(inviteCodes)
+          .set({ usedBy: id, usedAt: new Date() })
+          .where(eq(inviteCodes.code, code));
+      }
       await db.insert(profiles).values({ userId: id, data: EMPTY_PROFILE as unknown as Record<string, unknown> });
 
       await createSession(id);
@@ -119,11 +126,14 @@ export const validateInviteFn = createServerFn({ method: "POST" })
       if (!code) return { valid: false };
       const db = getDb();
       const rows = await db
-        .select({ code: inviteCodes.code })
+        .select({ code: inviteCodes.code, usedBy: inviteCodes.usedBy })
         .from(inviteCodes)
-        .where(and(eq(inviteCodes.code, code), isNull(inviteCodes.usedBy)))
+        .where(eq(inviteCodes.code, code))
         .limit(1);
-      return { valid: rows.length > 0 };
+      const row = rows[0];
+      if (!row) return { valid: false };
+      if (INVITE_CODES_UNLIMITED_REUSE) return { valid: true };
+      return { valid: !row.usedBy };
     } catch (e) {
       toAuthError(e);
     }

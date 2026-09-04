@@ -711,6 +711,7 @@
     "invite_change": "换一个",
     "email_label": "邮箱",
     "password_label": "密码",
+    "password_confirm_label": "确认密码",
     "create_account": "创建账号",
     "continue_google": "使用 Google 继续",
     "continue_apple": "使用 Apple 继续",
@@ -726,12 +727,14 @@
     "switch_to_signin_cta": "登录",
     "err": {
       "invite_required": "请填入邀请码。",
-      "invite_invalid": "邀请码无效或已被使用。",
+      "invite_invalid": "邀请码无效。",
       "account_not_found": "没有这个邮箱的账号。用邀请码加入吧。",
       "invalid_credentials": "邮箱或密码不正确。",
       "email_taken": "这个邮箱已经注册过了，可以直接登录。",
       "credentials_required": "请填写邮箱和密码。",
       "password_short": "密码至少 6 位。",
+      "password_confirm_required": "请再输入一遍密码。",
+      "password_mismatch": "两次输入的密码不一致。",
       "unauthorized": "请先登录。",
       "generic": "出了点问题，请稍后再试。",
       "server_error": "出了点问题，请稍后再试。"
