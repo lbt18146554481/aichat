@@ -60,13 +60,28 @@ ensure_deepseek_key() {
 }
 
 ensure_docker() {
-  if command -v docker >/dev/null 2>&1; then
-    log "docker already present: $(docker --version 2>/dev/null || true)"
+  # Ubuntu package "containerd" conflicts with Docker CE's "containerd.io".
+  # A previous failed apt install of docker.io can leave the resolver broken
+  # for ANY later apt-get install — clean that up first.
+  if dpkg -l containerd 2>/dev/null | grep -q '^ii'; then
+    warn "removing Ubuntu package 'containerd' (conflicts with Docker CE containerd.io)"
+    sudo DEBIAN_FRONTEND=noninteractive apt-get remove -y containerd || true
+  fi
+  if dpkg -l docker.io 2>/dev/null | grep -qE '^(ii|iU)'; then
+    warn "removing Ubuntu package 'docker.io' (use Docker CE already on this host)"
+    sudo DEBIAN_FRONTEND=noninteractive apt-get remove -y docker.io || true
+  fi
+  sudo DEBIAN_FRONTEND=noninteractive apt-get -y -f install || true
+
+  if command -v docker >/dev/null 2>&1 || [[ -x /usr/bin/docker ]]; then
+    log "docker already present: $(docker --version 2>/dev/null || /usr/bin/docker --version 2>/dev/null || true)"
     sudo systemctl enable --now docker 2>/dev/null || true
+  elif dpkg -l containerd.io 2>/dev/null | grep -q '^ii'; then
+    log "containerd.io present — installing docker-ce (not docker.io)"
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli docker-compose-plugin \
+      || die "docker-ce install failed; run: sudo apt-get install -y docker-ce"
+    sudo systemctl enable --now docker
   else
-    # Prefer Ubuntu package only when no Docker CE / containerd.io is installed.
-    # Official Docker CE uses containerd.io, which conflicts with apt package "containerd"
-    # pulled in by docker.io — so never force docker.io onto a CE host.
     log "install docker.io (Ubuntu package)"
     if ! sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io; then
       die "docker not found and docker.io install failed (containerd conflict?). Install Docker CE manually, then re-run."
@@ -87,12 +102,13 @@ install_base_packages() {
     return 0
   fi
 
+  # Fix broken docker/containerd apt state BEFORE any other installs.
+  ensure_docker
+
   log "apt packages"
   sudo apt-get update -y
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     git curl ca-certificates nginx openssl
-
-  ensure_docker
 
   if ! command -v node >/dev/null 2>&1 || [[ "$(node -v | sed 's/^v//' | cut -d. -f1)" -lt 20 ]]; then
     log "install Node.js 20"
@@ -114,7 +130,7 @@ install_base_packages() {
 
   command -v node >/dev/null || die "node missing after install"
   command -v bun >/dev/null || die "bun missing after install"
-  command -v docker >/dev/null || die "docker missing after install"
+  command -v docker >/dev/null || [[ -x /usr/bin/docker ]] || die "docker missing after install"
 }
 
 sync_repo() {
