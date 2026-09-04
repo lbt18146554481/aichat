@@ -51,6 +51,12 @@ curl -fsSL https://raw.githubusercontent.com/lbt18146554481/aichat/main/scripts/
 安全组至少放行：**22**、**80**。浏览器打开：`http://13.251.22.192/`  
 种子邀请码：`KINDRED2026` / `WELCOME` / `FRIENDS`
 
+若代码已在 `/opt/aichat`、只缺 systemd / Nginx（报 `Unit aichat-web.service not found`），跑：
+
+```bash
+cd /opt/aichat && git pull && PUBLIC_HOST=13.251.22.192 bash scripts/install-services.sh
+```
+
 ### 手动安装（不推荐，逐步对照）
 
 见 git 历史或按脚本步骤拆开执行；日常维护用 `bash /opt/aichat/scripts/deploy.sh`。
