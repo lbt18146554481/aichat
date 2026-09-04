@@ -17,6 +17,20 @@ jobs:
     name: deploy / ubuntu vps
     runs-on: ubuntu-latest
     steps:
+      - name: Check deploy secrets
+        run: |
+          missing=
+          [ -n "${{ secrets.DEPLOY_HOST }}" ] || missing="$missing DEPLOY_HOST"
+          [ -n "${{ secrets.DEPLOY_USER }}" ] || missing="$missing DEPLOY_USER"
+          [ -n "${{ secrets.DEPLOY_KEY }}" ] || missing="$missing DEPLOY_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing GitHub Actions secrets:$missing"
+            echo "Add them under Settings → Secrets and variables → Actions"
+            echo "See DEPLOY.md section 2."
+            exit 1
+          fi
+          echo "Deploy secrets present."
+
       - name: SSH deploy
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -30,4 +44,7 @@ jobs:
             set -euo pipefail
             export APP_DIR=/opt/aichat
             export DEPLOY_BRANCH=main
+            export PUBLIC_HOST=13.251.22.192
+            export PATH="$HOME/.bun/bin:$PATH"
+            test -x "$APP_DIR/scripts/deploy.sh" || { echo "missing $APP_DIR/scripts/deploy.sh"; exit 1; }
             bash "$APP_DIR/scripts/deploy.sh"

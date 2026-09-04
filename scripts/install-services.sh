@@ -73,9 +73,9 @@ sudo nginx -t
 sudo systemctl enable nginx
 sudo systemctl reload nginx
 
-log "passwordless systemctl for deploy.sh"
+log "passwordless sudo for deploy.sh (systemctl + nginx)"
 sudo tee /etc/sudoers.d/aichat-deploy >/dev/null <<EOF
-$DEPLOY_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart aichat-web, /bin/systemctl restart aichat-ws, /bin/systemctl status aichat-web, /bin/systemctl status aichat-ws, /bin/systemctl --no-pager --full status aichat-web aichat-ws
+$DEPLOY_USER ALL=(ALL) NOPASSWD: /bin/systemctl, /usr/sbin/nginx, /bin/cp, /usr/bin/tee, /bin/ln, /bin/mkdir, /bin/rm
 EOF
 sudo chmod 440 /etc/sudoers.d/aichat-deploy
 
