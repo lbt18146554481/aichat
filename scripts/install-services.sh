@@ -6,7 +6,7 @@
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/aichat}"
-PUBLIC_HOST="${PUBLIC_HOST:-13.251.22.192}"
+PUBLIC_HOST="${PUBLIC_HOST:-pelegant.info}"
 DEPLOY_USER="${DEPLOY_USER:-${SUDO_USER:-$USER}}"
 
 log() { printf '\n\033[1;32m==>\033[0m %s\n' "$*"; }

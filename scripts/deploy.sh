@@ -5,7 +5,7 @@ set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/aichat}"
 BRANCH="${DEPLOY_BRANCH:-main}"
-PUBLIC_HOST="${PUBLIC_HOST:-13.251.22.192}"
+PUBLIC_HOST="${PUBLIC_HOST:-pelegant.info}"
 DEPLOY_USER="${DEPLOY_USER:-${SUDO_USER:-$USER}}"
 
 cd "$APP_DIR"
@@ -29,9 +29,26 @@ git fetch --prune origin "$BRANCH"
 git checkout "$BRANCH"
 git reset --hard "origin/${BRANCH}"
 
-# HTTP IP deploys need non-Secure session cookies
-if [[ -f .env ]] && ! grep -qE '^COOKIE_SECURE=' .env; then
-  echo "COOKIE_SECURE=0" >> .env
+# Prefer wss + Secure cookies when Let's Encrypt cert exists for this host
+if [[ -d "/etc/letsencrypt/live/${PUBLIC_HOST}" ]]; then
+  if [[ -f .env ]]; then
+    grep -qE '^VITE_WS_URL=' .env \
+      && sed -i "s|^VITE_WS_URL=.*|VITE_WS_URL=wss://${PUBLIC_HOST}/ws|" .env \
+      || echo "VITE_WS_URL=wss://${PUBLIC_HOST}/ws" >> .env
+    grep -qE '^COOKIE_SECURE=' .env \
+      && sed -i 's|^COOKIE_SECURE=.*|COOKIE_SECURE=1|' .env \
+      || echo 'COOKIE_SECURE=1' >> .env
+  fi
+else
+  # HTTP IP/domain deploys need non-Secure session cookies
+  if [[ -f .env ]] && ! grep -qE '^COOKIE_SECURE=' .env; then
+    echo "COOKIE_SECURE=0" >> .env
+  fi
+  if [[ -f .env ]]; then
+    grep -qE '^VITE_WS_URL=' .env \
+      && sed -i "s|^VITE_WS_URL=.*|VITE_WS_URL=ws://${PUBLIC_HOST}/ws|" .env \
+      || echo "VITE_WS_URL=ws://${PUBLIC_HOST}/ws" >> .env
+  fi
 fi
 
 echo ">>> install deps"
@@ -76,11 +93,17 @@ fi
 
 echo ">>> refresh nginx (if template present)"
 if [[ -f deploy/nginx-aichat.conf ]]; then
-  sed "s/server_name .*/server_name $PUBLIC_HOST;/" \
-    deploy/nginx-aichat.conf | sudo tee /etc/nginx/sites-available/aichat >/dev/null
-  sudo ln -sf /etc/nginx/sites-available/aichat /etc/nginx/sites-enabled/aichat
-  sudo nginx -t
-  sudo systemctl reload nginx
+  if [[ -d "/etc/letsencrypt/live/${PUBLIC_HOST}" ]]; then
+    echo ">>> keep existing nginx site (Let's Encrypt cert for ${PUBLIC_HOST})"
+    sudo nginx -t
+    sudo systemctl reload nginx
+  else
+    sed "s/server_name .*/server_name ${PUBLIC_HOST} www.${PUBLIC_HOST};/" \
+      deploy/nginx-aichat.conf | sudo tee /etc/nginx/sites-available/aichat >/dev/null
+    sudo ln -sf /etc/nginx/sites-available/aichat /etc/nginx/sites-enabled/aichat
+    sudo nginx -t
+    sudo systemctl reload nginx
+  fi
 fi
 
 echo ">>> restart services"

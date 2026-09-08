@@ -1,12 +1,22 @@
-# 部署说明（自有云服务器 + IP）
+# 部署说明（域名 pelegant.info）
 
 目标机（当前）：
 
-- 公有 IPv4：`13.251.22.192`（浏览器访问用这个）
-- 私有 IPv4：`172.31.26.215`（AWS 内网，一般不用写进 Nginx / `VITE_WS_URL`）
+- 域名：`pelegant.info`（推荐访问 `https://pelegant.info`）
+- 公有 IPv4：`13.251.22.192`（DNS A 记录指向这里；SSH / `DEPLOY_HOST` 仍可用 IP）
+- 私有 IPv4：`172.31.26.215`（AWS 内网）
 - 代码目录：`/opt/aichat`
 - 运行时：Ubuntu + bun + systemd + Nginx
 - 自动部署分支：`main`
+
+## 换成域名 + HTTPS（摘要）
+
+1. 域名 DNS：A 记录 `@` / `www` → `13.251.22.192`，安全组放行 **80** 和 **443**  
+2. 服务器：`PUBLIC_HOST=pelegant.info bash scripts/deploy.sh`（先 HTTP 可用）  
+3. `sudo certbot --nginx -d pelegant.info -d www.pelegant.info`  
+4. 再 `bun run build && sudo systemctl restart aichat-web aichat-ws`（`.env` 会写成 `wss://` + `COOKIE_SECURE=1`）
+
+HTTPS = 地址栏小锁、流量加密；WebSocket 用 `wss://`，登录 cookie 可开 Secure。
 
 ## 依赖
 

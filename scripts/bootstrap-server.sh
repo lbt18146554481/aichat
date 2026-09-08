@@ -21,7 +21,7 @@ set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/aichat}"
 BRANCH="${BRANCH:-main}"
-PUBLIC_HOST="${PUBLIC_HOST:-13.251.22.192}"
+PUBLIC_HOST="${PUBLIC_HOST:-pelegant.info}"
 REPO_URL="${REPO_URL:-}"
 DEPLOY_USER="${DEPLOY_USER:-${SUDO_USER:-$USER}}"
 

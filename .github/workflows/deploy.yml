@@ -44,7 +44,7 @@ jobs:
             set -euo pipefail
             export APP_DIR=/opt/aichat
             export DEPLOY_BRANCH=main
-            export PUBLIC_HOST=13.251.22.192
+            export PUBLIC_HOST=pelegant.info
             export PATH="$HOME/.bun/bin:$PATH"
             test -x "$APP_DIR/scripts/deploy.sh" || { echo "missing $APP_DIR/scripts/deploy.sh"; exit 1; }
             bash "$APP_DIR/scripts/deploy.sh"
