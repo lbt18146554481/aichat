@@ -15,7 +15,6 @@ import { selfVoiceRule, agentCapabilityIntroRule, isAgentFirstReply } from "./ag
 import { profileSummaryForPrompt } from "./profile-summary";
 import {
   pickNextFromRecall,
-  rosterFromIntentIds,
   WISH_RECALL_LIMIT,
 } from "./wish-recall";
 import { recallWishCandidatesServer, prewarmWishRecallCache } from "./wish-recall.server";
@@ -78,9 +77,6 @@ import {
   isNonWishDraftSeed,
   isVagueExploreWishSeed,
   isWishLaneSelectionMessage,
-  wishLaneChoicePromptSection,
-  wishLanePickedPromptSection,
-  wishLaneSwitchPromptSection,
 } from "./wish-lane";
 import { draftAsIntent } from "./wish-draft-intent";
 import { runSideMatchIntroReply } from "./side-match-followup-llm.server";
@@ -406,17 +402,17 @@ function userContent(input: SideTurnInput): string {
       Boolean(input.handoffSummary?.trim()) || input.history.some((h) => h.role === "user");
     if (fromHandoff && isAgentFirstReply(input.history)) {
       return zh(input.lang)
-        ? "[继续] 这是接手后第一次回复：先自然介绍你能帮用户找一起做事的搭子（可发布心愿或先看别人的），再回应用户已说的内容。"
-        : "[continue] First reply after takeover: briefly introduce finding activity buddies (publish or browse), then respond to what they already said.";
+        ? "[继续] 第一次回复：介绍找一起做事的搭子，再回应用户已说的内容。"
+        : "[continue] First reply: introduce activity-buddy help, then respond to what they said.";
     }
     if (trait) {
       return zh(input.lang)
-        ? `[对话开始] 用户上次偏好搭子特质：「${trait}」。这是接手后第一次回复：先自然介绍你能帮用户找一起做事的搭子（发布心愿或先看别人的），可轻轻带一句偏好，再邀请开始。`
-        : `[conversation start] User previously preferred trait: "${trait}". First reply: briefly introduce finding activity buddies (publish or browse), nod to the trait, invite them in.`;
+        ? `[对话开始] 用户上次偏好搭子特质：「${trait}」。第一次回复：介绍找搭子，可轻带偏好，请对方说想一起做什么。`
+        : `[conversation start] Preferred trait: "${trait}". First reply: introduce buddy help, nod to trait, ask what to do together.`;
     }
     return zh(input.lang)
-      ? "[对话开始] 这是接手后第一次回复：先自然介绍你能帮用户找一起做事的搭子（可发布心愿或先看别人的），再邀请对方开始。"
-      : "[conversation start] First reply: briefly introduce helping find activity buddies (publish or browse wishes), then invite them to begin.";
+      ? "[对话开始] 第一次回复：介绍找一起做事的搭子，再请对方说想一起做什么。"
+      : "[conversation start] First reply: introduce finding activity buddies, then ask what they want to do together.";
   }
   if (input.action === "confirm_publish") {
     return zh(input.lang)
@@ -425,8 +421,8 @@ function userContent(input: SideTurnInput): string {
   }
   if (input.action === "confirm_browse") {
     return zh(input.lang)
-      ? "[用户口头确认开始浏览] 简短确认，按当前条件去池子里找；confirmLine 必须为 null；不要 pickMatchIntentId（系统会匹配）。"
-      : "[User verbally confirmed browse] Acknowledge briefly; confirmLine null; no pickMatchIntentId (server will match).";
+      ? "[用户口头确认开始找搭子] 简短确认，按当前活动条件找愿意一起做的人；confirmLine 必须为 null；不要 pickMatchIntentId（系统会匹配）。禁止提心愿池。"
+      : "[User verbally confirmed start matching] Acknowledge briefly; find people for the activity; confirmLine null; no pickMatchIntentId. No wish pool.";
   }
   if (input.action === "confirm_match") {
     return zh(input.lang) ? "[用户口头确认开始找搭子]" : "[User verbally confirmed start matching]";
@@ -804,25 +800,22 @@ function buildChatSystem(
     pendingMatchConfirm: string | null;
     pendingOfferMatch: boolean;
     readyToPublish: boolean;
-    /** When false, omit candidate roster from the prompt (clarify turns). */
+    /** Unused — people-search planning no longer injects wish-pool roster. */
     showCandidates?: boolean;
     afterToolResults?: boolean;
-    /** User just sent a lane selection message this turn. */
+    toolResultsBlock?: string;
     laneJustPicked?: boolean;
     /** Browse/publish clarify progress for prompt injection. */
     clarifyProgress?: ReturnType<typeof assessWishClarifyProgress> | null;
   },
 ): string {
+  void candidateIds;
+  void recallEmpty;
+  void crossCityUsed;
+  void opts.showCandidates;
   const isZh = zh(input.lang);
-  const blocked = new Set([...input.triedIntentIds]);
-  const showCandidates = opts.showCandidates ?? candidateIds.length > 0;
-  const roster = !showCandidates
-    ? ""
-    : candidateIds.length > 0
-      ? rosterFromIntentIds(candidateIds, input.lang, blocked)
-      : isZh
-        ? "（当前没有合适候选人）"
-        : "(No candidates in pool)";
+  const isPublish = opts.wishLane === "publish";
+  const firstReply = isAgentFirstReply(input.history);
 
   const draftDates = formatDateRangeLine(
     intentDateRange({
@@ -835,149 +828,158 @@ function buildChatSystem(
     input.wishDraft.timeStart && input.wishDraft.timeEnd
       ? `${input.wishDraft.timeStart}-${input.wishDraft.timeEnd}`
       : "any";
+  const profileCity = input.profile.city?.trim() || "";
+  const placeKnown =
+    Boolean(input.wishDraft.placeRaw?.trim()) ||
+    Boolean(input.wishDraft.city_zh?.trim()) ||
+    Boolean(input.wishDraft.city?.trim()) ||
+    input.wishDraft.placeMode === "online" ||
+    input.wishDraft.placeMode === "any" ||
+    Boolean(input.wishDraft.placeOnline) ||
+    Boolean(input.wishDraft.placeFlex) ||
+    Boolean(profileCity);
+  const placeStatus = isZh
+    ? placeKnown
+      ? profileCity &&
+        !input.wishDraft.placeRaw?.trim() &&
+        !input.wishDraft.city?.trim() &&
+        !input.wishDraft.city_zh?.trim()
+        ? `地点=已有（来自用户资料城市「${profileCity}」，冷启动可用；禁止再 askUserInfo 要地点）`
+        : `地点=已有（禁止再 askUserInfo 要地点）`
+      : "地点=缺失（本轮要搜才弹 activity_place 卡）"
+    : placeKnown
+      ? profileCity &&
+        !input.wishDraft.placeRaw?.trim() &&
+        !input.wishDraft.city?.trim() &&
+        !input.wishDraft.city_zh?.trim()
+        ? `place=known (from profile city "${profileCity}" — cold-start OK; do NOT askUserInfo for place)`
+        : `place=known (do NOT askUserInfo for place)`
+      : "place=MISSING (only then show activity_place card when searching)";
   const draftLine = isZh
-    ? `草稿心愿：kind=${input.wishDraft.kind ?? "?"} when=${input.wishDraft.whenAny ? "any" : input.wishDraft.when ?? "?"} ${draftDates} time=${draftTimes} level=${input.wishDraft.levelAny ? "any" : input.wishDraft.level ?? "?"} text=${input.wishDraft.rawText}`
-    : `Draft wish: kind=${input.wishDraft.kind ?? "?"} when=${input.wishDraft.whenAny ? "any" : input.wishDraft.when ?? "?"} ${draftDates} time=${draftTimes} level=${input.wishDraft.levelAny ? "any" : input.wishDraft.level ?? "?"} text=${input.wishDraft.rawText}`;
+    ? `【本轮状态】lane=${opts.wishLane}；已发布=${opts.published ? input.myIntentId : "否"}；${placeStatus}；草稿 kind=${input.wishDraft.kind ?? "?"} when=${input.wishDraft.whenAny ? "any" : input.wishDraft.when ?? "?"} ${draftDates} time=${draftTimes} level=${input.wishDraft.levelAny ? "any" : input.wishDraft.level ?? "?"} text=${input.wishDraft.rawText || "（空）"}`
+    : `[State] lane=${opts.wishLane}; published=${opts.published ? input.myIntentId : "no"}; ${placeStatus}; draft kind=${input.wishDraft.kind ?? "?"} when=${input.wishDraft.whenAny ? "any" : input.wishDraft.when ?? "?"} ${draftDates} time=${draftTimes} level=${input.wishDraft.levelAny ? "any" : input.wishDraft.level ?? "?"} text=${input.wishDraft.rawText || "(empty)"}`;
 
-  const confirmRule =
-    opts.wishLane === "publish"
+  const core = isZh
+    ? `你在 Maitri 帮用户找一起做事的搭子。温暖、具体，2-5 句；自然语言，不要系统播报。
+产品：用户说想一起做什么 → 介绍愿意一起做的人（一位一位）。禁止提心愿池/发布心愿/看别人的心愿。
+${selfVoiceRule(true)}
+handoffTo 必须始终为 null。若用户明确要认识新朋友/找对象：在 reply 请回首页开「想认识人」新对话；suggestions 可给「回首页开新对话」。
+
+【决策】（唯一权威；以【本轮状态】的地点=为准，不要自己再猜「有没有地点」）
+1. 闲聊 / 还没说清活动 / 开场 → affirmMatch=false；开放问想一起做什么，不要字段清单。
+2. 本轮要找人 + 地点=缺失 → askUserInfo（fieldKey=activity_place，kind=text）；affirmMatch=false；reply 只短提还差地点并看本条回复下的填写卡。
+3. 本轮要找人 + 地点=已有 → affirmMatch=true，reply 必须为 ""；askUserInfo 必须为 null。资料里已有城市也算地点已有（冷启动），禁止再要地点卡。
+地点算「已有」：草稿城市/区域、明确线上或不限、或资料城市。时间/搭子偏好可空。
+affirmPublish 永远 false；找人不要 confirmLine。`
+    : `You help find activity buddies on Maitri. Warm, 2-5 sentences; not a system announcer.
+Product: they say what to do → introduce people one at a time. Never mention wish pool / publish / browse wishes.
+${selfVoiceRule(false)}
+handoffTo always null. If they want to meet someone new / dating: tell them to start a “meet someone” chat from home.
+
+[Decision] (sole authority; trust place= in [State] — do not re-judge emptiness yourself)
+1. Chat / no activity yet / opening → affirmMatch=false; open question what to do together — no field checklist.
+2. Search this turn + place=MISSING → askUserInfo (fieldKey=activity_place, kind=text); affirmMatch=false; short reply pointing to the card under this message.
+3. Search this turn + place=known → affirmMatch=true, reply MUST be ""; askUserInfo MUST be null. Profile city counts as known (cold-start) — never ask for place again.
+Place known = draft city/area, explicit online/anywhere, or profile city. Other prefs may be empty.
+affirmPublish always false; no confirmLine for people search.`;
+
+  const opening =
+    firstReply || input.action === "start" || opts.wishLane === "unset"
       ? isZh
-        ? `发布规则（confirmLine 是开表单的**唯一**开关；reply 写什么都不会自动开表单）：
-- 信息已齐、本回合 reply 不再追问时：**同一轮**必须 confirmLine=一句完整复述（活动/时间/地点/搭子要求），系统才展示右侧表单。
-- reply 只简短引导用户看右侧检查并点「发布」；**禁止**把复述只写在 reply 里而 confirmLine 留 null。
-- **禁止** reply 提到「预填/表单/点发布」而 confirmLine 仍为 null——说了开表单就必须填 confirmLine。
-- affirmPublish 永远 false；禁止在 reply 里说「已发布/记下了/挂上了」（除非 action 是 confirm_publish）。
-已挂起表单预填：${opts.pendingConfirm ?? "无"}`
-        : `Publish rule (confirmLine is the **only** switch for the form — reply alone never opens it):
-- When info is complete and this reply asks no further questions: same turn MUST set confirmLine to a one-line recap; only then the form appears.
-- reply only nudges the user to check the right pane and tap Publish — never put the recap only in reply with confirmLine null.
-- If reply mentions prefill/form/publish button, confirmLine MUST be non-empty.
-- affirmPublish always false; never say "published/saved" in reply unless action is confirm_publish.
-Pending form prefill: ${opts.pendingConfirm ?? "none"}`
+        ? `【开场】${firstReply ? "本会话第一次回复须含一句能力介绍（见下），再" : ""}用开放问题请对方说想一起做什么。suggestions：2-4 条第一人称活动例子。不要问发布还是浏览。
+${firstReply ? agentCapabilityIntroRule("sidebyside", true) : ""}`
+        : `[Opening] ${firstReply ? "First reply needs one capability sentence (below), then " : ""}one open question what to do together. suggestions: 2-4 first-person activity examples. Never ask publish vs browse.
+${firstReply ? agentCapabilityIntroRule("sidebyside", false) : ""}`
       : "";
 
-  const browseConfirmRule =
+  const laneNote =
     opts.wishLane === "browse"
       ? isZh
-        ? `看心愿 / 搜搭子：搜索由你决定。本轮用户有搜池子/找搭子意图 → affirmMatch=true（或 needsTools + search_wishes），系统立刻搜。
-「提供信息」和「搜索」拆开：几乎没说活动也能搜，未提及维度用资料冷启动 soft，空字段不参与得分。
-不要 confirmLine，不要等「好的」。不是发布，禁止说「心愿记下/发布」。
-affirmMatch=false：仅闲聊、选模式、或澄清偏好且本轮不要搜。`
-        : `Browse / search: you decide when to search. Search intent this turn → affirmMatch=true (or search_wishes).
-Split providing info from search: almost empty draft is OK; cold-start soft fills gaps; empty fields simply don't score.
-No confirmLine wait. Not publish; never say wish saved.
-affirmMatch=false only when chatting / lane-only / clarifying with no search this turn.`
-      : "";
-
-  const offerMatchRule =
-    opts.pendingOfferMatch
-      ? isZh
-        ? `心愿刚发布：若用户已表示要找搭子，本轮 affirmMatch=true 立刻搜；否则可轻问一句要不要找，不要 confirmLine。信息不齐也能搜。`
-        : `Wish just published: if they already want a buddy, affirmMatch=true and search now; else one light offer — no confirmLine. Sparse prefs OK.`
-      : opts.published && opts.wishLane === "publish" && !opts.pendingOfferMatch
-        ? isZh
-          ? `已发布：用户明确要找搭子时 affirmMatch=true 立刻搜；不要在没有意图时自动搜。`
-          : `Published: affirmMatch=true when they ask for a buddy; don't auto-search without intent.`
-        : "";
-
-  const personLaneRule = isZh
-    ? `本会话只做「一起做事 / 活动搭子」。不要设置 handoffTo，也不要尝试切到认识新朋友。
-若用户明确想认识喜欢某类事的人 / 找对象 / 看人：handoffTo 必须为 null；在 reply 里礼貌说明请回首页开一个「想认识人」的新对话；suggestions 可给「回首页开新对话」类第一人称短句。
-若用户仍在描述这次活动的搭子条件（性别、水平等）→ 留在本会话继续。`
-    : `This session is do-something / activity-buddy only. Never set handoffTo or switch to meet-someone.
-If they clearly want to meet people who like X / dating / browse people: handoffTo must stay null; politely tell them to start a new “meet someone” chat from home; suggestions may include a first-person “start a new chat” phrase.
-If they are still describing buddy filters for this activity → stay here.`;
-
-  const firstReply = isAgentFirstReply(input.history);
-  const capabilityIntro = firstReply ? agentCapabilityIntroRule("sidebyside", isZh) : "";
-
-  const startHint =
-    input.action === "start"
-      ? isZh
-        ? firstReply
-          ? opts.wishLane === "unset"
-            ? "这是接手后第一次回复：先自然介绍你能做什么（见「首句能力介绍」），再问用户想「发布自己的心愿」还是「先看看别人的心愿」；不要直接问活动细节。"
-            : "这是接手后第一次回复：先自然介绍你能做什么（见「首句能力介绍」），再用一条开放问题请用户说出心愿和要求；不要拆成活动/时间/地点逐项问。"
-          : opts.wishLane === "unset"
-            ? "先问用户想「发布自己的心愿」还是「先看看别人的心愿」（见 lane 规则），不要直接问活动细节。"
-            : "简短打招呼后，用一条开放问题请用户说出心愿和要求；不要拆成字段逐项问。"
-        : firstReply
-          ? opts.wishLane === "unset"
-            ? "First reply after takeover: naturally introduce what you do (see capability intro), then ask publish vs browse — do not jump to activity details."
-            : "First reply after takeover: introduce what you do, then one open question for wish + requirements — no field checklist yet."
-          : opts.wishLane === "unset"
-            ? "Ask publish vs browse first (see lane rules); do not jump to activity details."
-            : "Brief greet, then one open question for wish + requirements — no field checklist yet."
-      : "";
-
-  const laneRule =
-    opts.wishLane === "unset"
-      ? wishLaneChoicePromptSection(input.lang)
-      : wishLaneSwitchPromptSection(opts.wishLane, input.lang);
-
-  const clarifyRule =
-    opts.wishLane === "unset"
-      ? ""
+        ? "【模式】找人（介绍搭子）。用户补充活动条件=完善邀约，不是换模式。"
+        : "[Mode] people search. Extra criteria refine the invite."
       : opts.wishLane === "publish"
         ? isZh
-          ? `澄清节奏（publish）：用户主导，不要追问字段清单。有活动核即可 confirmLine 开表单；缺维可空。needsTools=false。`
-          : `Publish clarify: user-led, don't chase field checklists. confirmLine when activity is clear enough; missing dims can stay empty. needsTools=false.`
-        : isZh
-          ? `澄清节奏（browse）：用户主导。本轮要搜就 affirmMatch=true（或 search_wishes），立刻交付；不要 confirmLine 等待确认。缺维冷启动 soft。`
-          : `Browse clarify: user-led. If this turn is a search, affirmMatch=true (or search_wishes) and deliver now — no confirmLine wait. Missing dims cold-start soft.`;
+          ? "【模式】说清活动邀约（可开右侧表单）。用户要直接找人时走【决策】找人分支。"
+          : "[Mode] clarify invite (optional form). Direct “find someone” → Decision search branch."
+        : "";
 
-  const lazyToolsRule = opts.afterToolResults
-    ? ""
-    : isZh
-      ? `Lazy tools（needsTools 放 JSON 最前）：
-- 默认 needsTools=false，正常写 reply。
-- 本轮需求是搜池子/找搭子：优先 affirmMatch=true 让系统搜；或 needsTools=true + toolNames=["search_wishes"] / ["preview_wish_matches"]（reply 必须为 ""）。
-- 用户要看本会话已发心愿：needsTools=true，toolNames=["show_my_wishes"]；reply 必须为 ""。
-- 不要用 confirmLine 做「等确认再搜」；browse 的 confirmLine 应始终为 null（publish 开表单除外）。
-- 系统会在工具跑完后另起一轮生成最终 reply（第一轮 reply 不会进历史）。
-- 若本轮会搜池子：reply 可简短，系统会在搜完后用一条介绍替换为最终回复（像 Matchmaker 一拍）。`
-      : `Lazy tools (needsTools first in JSON):
-- Default needsTools=false with a normal reply.
-- This turn is a pool search: prefer affirmMatch=true for server search; or needsTools=true with toolNames=["search_wishes"] / ["preview_wish_matches"] (reply must be "").
-- Show session wishes: needsTools=true, toolNames=["show_my_wishes"]; reply "".
-- Never use confirmLine to wait before searching; browse confirmLine must stay null (publish form excepted).
-- The server runs tools then a second reply turn; the first reply is discarded.
-- If this turn searches the pool: keep reply short — server replaces with one intro after recall (Matchmaker-style single beat).`;
+  const lanePicked =
+    opts.laneJustPicked && opts.wishLane !== "unset"
+      ? isZh
+        ? "用户刚表明方向：自然确认；还没说活动则问想一起做什么（affirmMatch=false）。要搜则严格按【决策】。"
+        : "They just chose a direction: acknowledge; if no activity yet, ask what to do (affirmMatch=false). Search → follow Decision."
+      : "";
 
-  const afterToolsRule = opts.afterToolResults
+  const publishAppendix = isPublish
     ? isZh
-      ? "工具已跑完：根据【工具结果】写最终 reply。needsTools 必须为 false。可引用数量/是否为空，禁止编造 id。"
-      : "Tools finished: write the final reply from [tool results]. needsTools must be false. Cite counts/empty honestly; no invented ids."
+      ? `【发布附录】confirmLine 是开表单的唯一开关（reply 不会开表单）。信息够且本轮不再追问 → confirmLine=一句复述；reply 引导看右侧点发布。affirmPublish 永远 false；未点发布前禁止说已发布。
+已挂起预填：${opts.pendingConfirm ?? "无"}
+${
+  opts.pendingConfirm
+    ? "表单已在右侧：用户说好的/OK → reply 只提醒点「发布」；confirmLine=null。"
+    : "开表单轮 confirmLine 必填；澄清轮 confirmLine=null。"
+}`
+      : `[Publish appendix] confirmLine alone opens the form. When ready: confirmLine=one-line recap; reply nudges Publish. affirmPublish always false.
+Pending prefill: ${opts.pendingConfirm ?? "none"}
+${
+  opts.pendingConfirm
+    ? "Form on screen: if they say ok → one-line Publish nudge; confirmLine=null."
+    : "Form-open turn needs confirmLine; clarify turns confirmLine=null."
+}`
     : "";
+
+  const clarifyHint =
+    opts.clarifyProgress &&
+    (opts.wishLane === "browse" || opts.wishLane === "publish") &&
+    !opts.published
+      ? wishClarifyPromptSection(
+          opts.clarifyProgress,
+          input.lang,
+          opts.wishLane === "browse" ? "browse" : "publish",
+        )
+      : "";
+
+  const lazyTools = opts.afterToolResults
+    ? isZh
+      ? "工具已跑完：按【工具结果】写最终 reply；needsTools=false；勿编造 id。"
+      : "Tools done: final reply from [tool results]; needsTools=false; no invented ids."
+    : isZh
+      ? `【工具】默认 needsTools=false。几乎只用 affirmMatch / askUserInfo。仅当用户要看本会话已发内容：needsTools=true，toolNames=["show_my_wishes"]，reply=""。`
+      : `[Tools] Default needsTools=false. Prefer affirmMatch / askUserInfo. Only for session wishes list: needsTools=true, toolNames=["show_my_wishes"], reply="".`;
+
+  const offerNote =
+    opts.pendingOfferMatch || (opts.published && isPublish)
+      ? isZh
+        ? "用户明确要找搭子时走【决策】；不要无意图自动搜。"
+        : "If they clearly want a buddy, follow Decision; don't auto-search."
+      : "";
+
+  const pendingBrowse =
+    opts.pendingBrowseConfirm
+      ? isZh
+        ? "用户在确认是否开始找：suggestions 给确认开搜/再改条件等第一人称短句。"
+        : "Confirming start search: suggestions for confirm / tweak."
+      : "";
+
+  const jsonBlock = isZh
+    ? `【JSON】needsTools、affirmMatch 靠前。affirmMatch=true 或 needsTools=true → reply=""。
+搜人：{"needsTools":false,"affirmMatch":true,"toolNames":[],"confirmLine":null,"askUserInfo":null,"reply":"","suggestions":[],"affirmPublish":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
+缺地点：{"needsTools":false,"affirmMatch":false,"toolNames":[],"confirmLine":null,"askUserInfo":{"fieldKey":"activity_place","prompt":"活动想在哪个城市或区域？也可写线上/地点不限","kind":"text","placeholder":"例如：上海"},"reply":"找搭子还差一个地点，填一下下面的卡片就行。","suggestions":[],"affirmPublish":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
+闲聊：{"needsTools":false,"affirmMatch":false,"toolNames":[],"confirmLine":null,"askUserInfo":null,"reply":"...","suggestions":["短句1"],"affirmPublish":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
+reply 用简体中文。suggestions：2-4 条第一人称短句（用户可直接发送），勿写成你的提问。`
+    : `[JSON] Put needsTools/affirmMatch early. affirmMatch or needsTools true → reply="".
+Search: {"needsTools":false,"affirmMatch":true,"toolNames":[],"confirmLine":null,"askUserInfo":null,"reply":"","suggestions":[],"affirmPublish":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
+Missing place: {"needsTools":false,"affirmMatch":false,"toolNames":[],"confirmLine":null,"askUserInfo":{"fieldKey":"activity_place","prompt":"Where should the activity be? City/area, or online/anywhere","kind":"text"},"reply":"I still need a place — fill in the card below.","suggestions":[],"affirmPublish":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
+Chat: {"needsTools":false,"affirmMatch":false,"toolNames":[],"confirmLine":null,"askUserInfo":null,"reply":"...","suggestions":["..."],"affirmPublish":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
+English reply. suggestions: 2-4 first-person phrases (not your questions).`;
 
   return [
     formatNowContext(input.lang),
-    isZh
-      ? `你在 Maitri 帮用户找一起做事的搭子。温暖、具体，2-5 句。用自然语言，不要像系统播报。
-本会话只负责一起做事；若用户明确要找人/看人，提示回首页开新对话。
-未选定 lane 时：只问发布还是浏览，不要澄清字段。
-browse：本轮有搜池子意图 → affirmMatch=true（或 search_wishes）立刻搜；信息不齐也可搜（冷启动 soft）；禁止 confirmLine 等待。
-publish：有活动核即可 confirmLine 开表单 → 用户点发布；禁止口头发布；发布后用户要找搭子则 affirmMatch=true 立刻搜。
-必填信息 / 弹卡：见下方【必填信息】专块，不要另起一套追问清单。
-已发布：${opts.published ? `id=${input.myIntentId}` : "否"}
-${crossCityUsed ? "跨城候选——reply 里说明。" : "优先同城。"}
-${recallEmpty ? "无候选人——pickMatchIntentId=null，明确说暂时没有。" : "有候选人。"}
-handoffTo 必须始终为 null。
-${selfVoiceRule(true)}`
-      : `You help people find someone to do activities with on Maitri. Warm, concise, human — not a system announcer.
-Do-something only; if they want to meet people, send them to a new home chat.
-Before lane: only ask publish vs browse.
-Browse: search intent this turn → affirmMatch=true (or search_wishes); sparse prefs OK with cold-start soft; no confirmLine wait.
-Publish: confirmLine opens form when activity is clear → user taps Publish; after publish, affirmMatch=true when they want a buddy.
-Required fields / askUserInfo: see the 【Required info】 block below — do not invent extra checklists.
-Published: ${opts.published ? `id=${input.myIntentId}` : "no"}
-${crossCityUsed ? "Cross-city — say so in reply." : "Same-city first."}
-${recallEmpty ? "No candidates — pickMatchIntentId=null; say none yet." : "Candidates available."}
-handoffTo must always be null.
-${selfVoiceRule(false)}`,
-    requiredInfoPromptSection(input.lang),
-    startHint,
-    capabilityIntro,
+    core,
+    draftLine,
+    opening,
+    laneNote,
+    lanePicked,
     input.preferredTrait?.trim()
       ? isZh
         ? `用户偏好搭子特质：${input.preferredTrait.trim()}`
@@ -994,67 +996,12 @@ ${selfVoiceRule(false)}`,
         : `Activity hint: ${input.handoffHints.activity}`
       : "",
     profileSummaryForPrompt(input.profile, input.lang),
-    lazyToolsRule,
-    afterToolsRule,
-    laneRule,
-    opts.laneJustPicked && opts.wishLane !== "unset"
-      ? wishLanePickedPromptSection(opts.wishLane, input.lang)
-      : "",
-    opts.clarifyProgress &&
-      (opts.wishLane === "browse" || opts.wishLane === "publish") &&
-      !opts.published
-      ? wishClarifyPromptSection(
-          opts.clarifyProgress,
-          input.lang,
-          opts.wishLane === "browse" ? "browse" : "publish",
-        )
-      : "",
-    clarifyRule,
-    draftLine,
-    confirmRule,
-    browseConfirmRule,
-    offerMatchRule,
-    personLaneRule,
-    opts.published
-      ? isZh
-        ? `已发布心愿 id=${input.myIntentId}`
-        : `Published wish id=${input.myIntentId}`
-      : opts.wishLane === "browse"
-        ? isZh
-          ? "看心愿模式（未发布也可匹配）"
-          : "Browse mode (match without publish)"
-        : isZh
-          ? "尚未发布心愿"
-          : "Wish not published yet",
-    roster
-      ? isZh
-        ? `候选人（Top ${WISH_RECALL_LIMIT}）：\n${roster}`
-        : `Candidates (Top ${WISH_RECALL_LIMIT}):\n${roster}`
-      : "",
-    isZh
-      ? `JSON（needsTools 放最前；confirmLine 紧跟其后；needsTools=true 时 reply 为 ""）：
-澄清中：{"needsTools":false,"toolNames":[],"confirmLine":null,"askUserInfo":null,"reply":"...","suggestions":["短句1"],"affirmPublish":false,"affirmMatch":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
-browse 缺地点弹卡：{"needsTools":false,"toolNames":[],"confirmLine":null,"askUserInfo":{"fieldKey":"activity_place","prompt":"活动想在哪个城市或区域？也可写线上/地点不限","kind":"text","placeholder":"例如：上海"},"reply":"找活动还差一个地点。","suggestions":[],"affirmPublish":false,"affirmMatch":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
-publish 开表单（同一轮）：{"needsTools":false,"toolNames":[],"confirmLine":"这周末北京香山徒步，搭子最好是男生","askUserInfo":null,"reply":"信息齐了，请检查右侧表单并点发布。","suggestions":[],"affirmPublish":false,"affirmMatch":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}`
-      : `JSON (needsTools first; confirmLine right after; reply="" when needsTools=true):
-While clarifying: {"needsTools":false,"toolNames":[],"confirmLine":null,"askUserInfo":null,"reply":"...","suggestions":["..."],"affirmPublish":false,...}
-Browse missing place card: {"needsTools":false,"toolNames":[],"confirmLine":null,"askUserInfo":{"fieldKey":"activity_place","prompt":"Where should the activity be? City/area, or online/anywhere","kind":"text"},"reply":"I still need a place before searching.","suggestions":[],"affirmMatch":false,...}
-Publish — open form (same turn): {"needsTools":false,"toolNames":[],"confirmLine":"Weekend hike at Xiangshan, prefer male buddy","askUserInfo":null,"reply":"Looks good — check the form on the right and tap Publish.","suggestions":[],"affirmPublish":false,...}`,
-    opts.pendingBrowseConfirm
-      ? isZh
-        ? "用户在确认是否按条件开始浏览池子：suggestions 给 2-4 条第一人称短句（确认开搜 / 再改条件等），随上下文生成，勿用固定模板。"
-        : "User confirming browse search: 2-4 contextual first-person suggestions (confirm search / edit criteria) — no fixed templates."
-      : opts.pendingConfirm
-        ? isZh
-          ? "发布表单**已在右侧展示**。用户口头说「好的/可以/OK」时：reply 只一句提醒点「发布」；confirmLine 必须为 null；不要重复复述心愿。"
-          : "Publish form is **already on screen**. If user says ok/yes: one-line nudge to tap Publish; confirmLine must be null; do not recap the wish again."
-        : opts.wishLane === "publish"
-          ? isZh
-            ? "reply 用简体中文。开表单轮：confirmLine 必填复述，reply 引导看右侧；澄清轮 confirmLine=null。suggestions 2-4 条第一人称短句（非你的提问）。"
-            : "English reply. Form-open turn: confirmLine required with recap, reply nudges right pane; clarify turns confirmLine=null. suggestions = 2-4 first-person phrases."
-          : isZh
-            ? "reply 用简体中文。suggestions 必须给 2-4 条非空短句（第一人称、用户可直接当回复），根据当前对话自行生成，勿照抄固定话术；不要写成你对用户的提问。澄清「找活动 vs 找喜欢的人 / 先聊右边这位」时，给 3 条立场不同的第一人称短句。"
-            : "Write reply and suggestions in English only. suggestions = 2-4 contextual first-person phrases the user might say next (no fixed templates; not your questions). When clarifying activity vs people-who-like-it vs chat-with-match, give 3 distinct first-person options.",
+    clarifyHint,
+    publishAppendix,
+    offerNote,
+    pendingBrowse,
+    lazyTools,
+    jsonBlock,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -1197,39 +1144,6 @@ function shouldRunSideExtract(
   return true;
 }
 
-/** Dedicated block: when required fields are missing, ask via card — never search. */
-function requiredInfoPromptSection(lang: SideLang): string {
-  if (lang === "zh-CN") {
-    return `【必填信息】单独规则块——先对场景，再决定搜还是弹卡。
-
-一、什么场景必须有什么信息
-- browse 搜活动/找搭子：必须有活动地点。城市/区域算有；用户明确「线上」或「地点不限/anywhere」也算有；资料城市可当作已有（冷启动）。时间/搭子不齐也能搜。
-- publish 开表单：有活动核即可；地点可在右侧表单补。
-- 其它场景：无额外硬必填（不要为凑字段追问）。
-
-二、本轮想搜但必填缺失时（必须弹卡，禁止搜）
-1. reply 先说清楚缺什么（只提真正缺的那一项，例如「还差活动地点」）
-2. 设 askUserInfo（等同调用 ask_user_info 工具）：fieldKey=activity_place（或对应缺失项），prompt 问该项，kind=text 或 select
-3. affirmMatch 必须为 false；needsTools=false；confirmLine=null
-4. 用户确认/取消/忽略卡片后下一轮再决定；取消或忽略 → 该项视为空
-
-三、必填已齐且本轮有搜意图 → affirmMatch=true，askUserInfo=null。`;
-  }
-  return `[Required info] Dedicated rules — match the scenario, then search or show a card.
-
-1) What each scenario requires
-- Browse search: activity place required. City/area counts; explicit “online”/“anywhere” counts; profile city may count (cold-start). When/buddy may be sparse.
-- Publish form: activity core is enough; place can be filled on the form.
-- Otherwise: no extra hard requirements (don’t chase fields).
-
-2) Want to search this turn but a required field is missing (must use card; do not search)
-1. In reply, state what is missing (only that field)
-2. Set askUserInfo (same as ask_user_info tool): fieldKey=activity_place (or the missing key), clear prompt, kind=text|select
-3. affirmMatch must be false; needsTools=false; confirmLine=null
-4. After confirm/cancel/skip, decide next turn; cancel/skip = empty for that field
-
-3) Required fields present + search intent → affirmMatch=true, askUserInfo=null.`;
-}
 
 async function ensureDraftForTools(
   input: SideTurnInput,
@@ -1331,13 +1245,15 @@ async function runSideChat(
     ? `${content}\n\n${chatOpts.toolResultsBlock}`
     : content;
   let value: LlmSideChatJson | null = null;
-  const streamOpts = chatOpts.afterToolResults
-    ? { temperature: 0.85, maxTokens: 1500 }
-    : {
-        temperature: 0.85,
-        maxTokens: 1500,
-        suppressReplyWhen: { field: "needsTools", equals: true },
-      };
+  const streamOpts = {
+    temperature: 0.85,
+    maxTokens: 1500,
+    // Planning turns: never stream provisional reply when tools or people-search will follow.
+    suppressReplyWhen: [
+      { field: "needsTools", equals: true },
+      { field: "affirmMatch", equals: true },
+    ],
+  };
   for await (const ev of chatCompletionJsonStream<LlmSideChatJson>(
     [
       { role: "system", content: system },
@@ -1424,7 +1340,7 @@ async function runSideChatWithLazyTools(
     content,
     {
       ...chatOpts,
-      showCandidates: toolState.lastSearchIds.length > 0,
+      showCandidates: false,
       afterToolResults: true,
       toolResultsBlock: toolBlock,
     },
@@ -1850,7 +1766,7 @@ export async function runSideTurn(
     pendingMatchConfirm,
     pendingOfferMatch,
     readyToPublish: false,
-    showCandidates: preRecallNeeded,
+    showCandidates: false,
     laneJustPicked,
     clarifyProgress,
   };
@@ -1876,6 +1792,9 @@ export async function runSideTurn(
       triedOwnerIds: input.triedOwnerIds,
     });
   } else {
+    // Planning chat must not stream: if the model sets affirmMatch (or needsTools),
+    // a provisional reply would flash then get replaced by the people-intro stream.
+    // Visible text comes from onChatDone (clarify) or runSidePeopleMatchTurn (search).
     const chatResult = await runSideChatWithLazyTools(
       workingInput,
       candidateIds,
@@ -1887,7 +1806,7 @@ export async function runSideTurn(
       hardFilters,
       buddyHardFilters,
       understanding,
-      onDelta,
+      undefined,
     );
     chatParsed = chatResult.parsed;
     toolState = chatResult.toolState;

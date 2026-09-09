@@ -119,6 +119,8 @@ export function sidePlaceHardFilters(
 export function recallSidePeople(opts: SidePeopleRecallOpts): SidePeopleRecallResult {
   const limit = opts.limit ?? SIDE_RECALL_LIMIT;
   const blocked = new Set(opts.blockedIds);
+  const shown = new Set(opts.shownIds);
+  const passed = new Set(opts.passedIds);
   const preferenceQuery = buildPreferenceQuery(opts.understanding);
   const activityQuery = buildActivityQuery(opts.wishDraft);
 
@@ -133,7 +135,9 @@ export function recallSidePeople(opts: SidePeopleRecallOpts): SidePeopleRecallRe
     limit,
   };
 
-  const available = opts.pool.filter((p) => !blocked.has(p.id));
+  const available = opts.pool.filter(
+    (p) => !blocked.has(p.id) && !shown.has(p.id) && !passed.has(p.id),
+  );
   const afterHard = available.filter((p) => personPassesHardFilters(p, recallOpts));
 
   if (afterHard.length === 0) {
@@ -162,8 +166,6 @@ export function recallSidePeople(opts: SidePeopleRecallOpts): SidePeopleRecallRe
     }))
     .sort((a, b) => b.total - a.total)
     .slice(0, limit);
-
-  // Soft demote already-shown inside sort already via softScore; keep order.
 
   return {
     candidates,

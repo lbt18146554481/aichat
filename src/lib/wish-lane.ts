@@ -63,12 +63,30 @@ export function isNonWishDraftSeed(text: string): boolean {
 export function wishLanePickedPromptSection(lane: WishLane, lang: SideLang): string {
   if (lang === "zh-CN") {
     return lane === "publish"
-      ? `用户刚选了「发布心愿」。自然确认即可，用开放问题请他们说想做什么、有什么要求（时间地点、搭子期待可一起说）——措辞随上下文，勿用固定模板；confirmLine=null。若用户这轮其实就要搜搭子再设 affirmMatch；只是选模式则 affirmMatch=false。`
-      : `用户刚选了「先看看别人的心愿」。自然确认；若只是选模式，问想找什么样的活动，affirmMatch=false。若用户这轮明确就要搜（随便看看/帮我找），affirmMatch=true——信息不齐也能搜，冷启动 soft。`;
+      ? `用户刚想说清活动邀约：自然确认；开放问想一起做什么；confirmLine=null。要搜走主提示【决策】。`
+      : `用户刚想找搭子：自然确认；没说活动则问想一起做什么（affirmMatch=false）。要搜走【决策】。`;
   }
   return lane === "publish"
-    ? `User just chose publish. Acknowledge; one open question for activity + requirements — no templates; confirmLine=null. affirmMatch only if they also want a search this turn.`
-    : `User just chose browse. If lane-only, ask what activity they want (affirmMatch=false). If they clearly want to search now, affirmMatch=true — sparse draft + cold-start soft is fine.`;
+    ? `They want to spell out an invite: acknowledge; open question; confirmLine=null. Search → Decision.`
+    : `They want a buddy: acknowledge; if no activity, ask what to do (affirmMatch=false). Search → Decision.`;
+}
+
+export function wishLaneChoicePromptSection(lang: SideLang): string {
+  if (lang === "zh-CN") {
+    return `开场：能力介绍后请对方说想一起做什么；不要问发布/看池子。suggestions 给活动例子短句。`;
+  }
+  return `Opening: after capability intro, ask what to do together — never publish vs browse. Activity-example suggestions.`;
+}
+
+export function wishLaneSwitchPromptSection(lane: WishLane, lang: SideLang): string {
+  if (lang === "zh-CN") {
+    return lane === "browse"
+      ? `模式：找人。补充条件=完善邀约。缺地点按【决策】弹卡。`
+      : `模式：说清邀约（可开表单）。直接找人 →【决策】。`;
+  }
+  return lane === "browse"
+    ? `Mode: people search. Extra criteria refine invite. Missing place → Decision card.`
+    : `Mode: clarify invite (optional form). Find someone → Decision.`;
 }
 
 export function inferWishLaneFromText(text: string): WishLane | null {
@@ -118,28 +136,4 @@ export function isOfferMatchAffirmation(text: string): boolean {
 
 export function isOfferMatchDecline(text: string): boolean {
   return OFFER_MATCH_NO_RE.test(text.trim());
-}
-
-export function wishLaneChoicePromptSection(lang: SideLang): string {
-  if (lang === "zh-CN") {
-    return `心愿 lane（未选择时必做）：
-先问用户想「发布自己的心愿」还是「先看看池子里别人的心愿」——自然一句话即可，不要模板腔。
-suggestions 根据当前对话自行生成 2 条第一人称短句（发布 vs 浏览），勿照抄固定模板。
-未选定 lane 前：不要追问活动/时间等字段；affirmPublish=false；pickMatchIntentId=null；confirmLine=null。`;
-  }
-  return `Wish lane (required when unset):
-Ask whether they want to publish their own wish or browse others' wishes in the pool — one natural sentence.
-suggestions MUST be exactly 2 first-person phrases (publish vs browse) tailored to context — do not copy fixed templates.
-Until lane is chosen: do not clarify activity/time; affirmPublish=false; pickMatchIntentId=null; confirmLine=null.`;
-}
-
-export function wishLaneSwitchPromptSection(lane: WishLane, lang: SideLang): string {
-  if (lang === "zh-CN") {
-    return lane === "browse"
-      ? `当前 lane：看心愿（在心愿池里搜别人的活动心愿，不是「介绍具体某个人」；不要求发布）。用户说「找跑步搭子」等是在补充搜索条件，不是切换 lane。仅当用户明确说「我还是自己发一个」才切换到发布。`
-      : `当前 lane：发心愿（AI 只总结并预填表单，用户亲手点发布；不自动匹配）。用户可说「还是先看看别人的」切换到浏览。`;
-  }
-  return lane === "browse"
-    ? `Current lane: browse (search activity wishes in the pool — not introducing a specific person; publish not required). "Running buddy" etc. are search filters, not a lane switch. Switch to publish only if they clearly want to post their own wish.`
-    : `Current lane: publish (AI summarizes and prefills the form; user taps Publish — no auto-match). User may switch to browse.`;
 }

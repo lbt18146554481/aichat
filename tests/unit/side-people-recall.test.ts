@@ -93,4 +93,38 @@ describe("side-people-recall", () => {
     expect(result.candidates.map((c) => c.id)).not.toContain("other-city");
     expect(result.candidates[0]?.id).toBe("tennis-fan");
   });
+
+  it("hard-excludes already shown and passed people", () => {
+    const pool = [
+      person({
+        id: "a",
+        city: "Shanghai",
+        city_zh: "上海",
+        profileText: "tennis player",
+      }),
+      person({
+        id: "b",
+        city: "Shanghai",
+        city_zh: "上海",
+        profileText: "also plays tennis often",
+      }),
+    ];
+    const draft = {
+      ...emptyWishDraft(),
+      kind: "tennis" as const,
+      activityCore: "tennis",
+      city: "Shanghai",
+    };
+    const hard = sidePlaceHardFilters(draft, null, { ...EMPTY_HARD_FILTERS });
+    const result = recallSidePeople({
+      understanding: emptyUnderstanding(),
+      hardFilters: hard,
+      wishDraft: draft,
+      blockedIds: [],
+      shownIds: ["a"],
+      passedIds: [],
+      pool,
+    });
+    expect(result.candidates.map((c) => c.id)).toEqual(["b"]);
+  });
 });

@@ -147,27 +147,6 @@ JSON: {"reply":"..."}`;
   return runFollowup(system, user, fallback);
 }
 
-export async function runMatchmakerClarifyCapReply(opts: {
-  lang: MatchmakerLang;
-  recapFacts: string;
-}): Promise<string> {
-  const isZh = zh(opts.lang);
-  const fallback = isZh
-    ? `${opts.recapFacts}没有的话我就按这些开始帮你找。`
-    : `${opts.recapFacts} If not, I'll start searching with this.`;
-
-  const system = isZh
-    ? `你是 Maitri。追问已够多轮，请复述目前已知的找人偏好，并问用户还有没有其他要求；不要继续追问新细节。
-必须包含【已知偏好】里的要点；语气自然，2-4 句。${selfVoiceRule(true)}
-JSON：{"reply":"..."}`
-    : `You are Maitri. Recap what you know about who they want and ask if anything else; no new questions.
-Include points from [Known prefs]. 2-4 sentences. ${selfVoiceRule(false)}
-JSON: {"reply":"..."}`;
-
-  const user = isZh ? `【已知偏好】\n${opts.recapFacts}` : `[Known prefs]\n${opts.recapFacts}`;
-  return runFollowup(system, user, fallback);
-}
-
 export async function runMatchmakerQueueExhaustedReply(opts: {
   lang: MatchmakerLang;
   filterSummary: string;

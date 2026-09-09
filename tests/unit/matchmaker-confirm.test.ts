@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  countClarifyAssistantTurns,
-  isClarifyCapReached,
   locationFlexible,
   matchmakerCoreHardFiltersSet,
   matchmakerIsAffirmation,
@@ -128,12 +126,4 @@ describe("matchmaker match confirm", () => {
     ).toBe(true);
   });
 
-  it("never forces clarify-cap confirm (quota removed)", () => {
-    const history = Array.from({ length: 8 }, (_, i) => ({
-      role: "assistant" as const,
-      content: `追问 ${i + 1}`,
-    }));
-    expect(countClarifyAssistantTurns(baseInput({ history }))).toBe(8);
-    expect(isClarifyCapReached(baseInput({ history }))).toBe(false);
-  });
 });

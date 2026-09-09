@@ -126,21 +126,29 @@ export async function executeSidePeopleMatch(
   let rankedQueue = [...(input.rankedQueue ?? [])];
   let queueCursor = input.queueCursor ?? 0;
   let queueReasons: Record<string, string> = {};
-  let shownIds = [...input.shownIds];
+  // Hanging rematch may re-introduce previously shown people.
+  let shownIds = input.action === "rematch_hang" ? [] : [...input.shownIds];
   let passedIds = [...input.passedIds];
 
+  // see_next advances cursor; skip marks current passed then advances like see_next.
+  // Only full-rebuild on search / rematch_hang / empty queue (not on every skip).
   const rebuild =
     input.action === "search" ||
     input.action === "rematch_hang" ||
-    rankedQueue.length === 0 ||
-    input.action === "skip";
+    rankedQueue.length === 0;
 
-  if (input.action === "skip" && input.rankedQueue[input.queueCursor]) {
+  if (
+    (input.action === "skip" || input.action === "see_next") &&
+    input.rankedQueue[input.queueCursor]
+  ) {
     const cur = input.rankedQueue[input.queueCursor]!;
-    if (!passedIds.includes(cur)) passedIds = [...passedIds, cur];
+    if (input.action === "skip" && !passedIds.includes(cur)) {
+      passedIds = [...passedIds, cur];
+    }
+    if (!shownIds.includes(cur)) shownIds = [...shownIds, cur];
   }
 
-  if (rebuild && input.action !== "see_next") {
+  if (rebuild && input.action !== "see_next" && input.action !== "skip") {
     const recall = recallSidePeople({
       understanding: input.understanding,
       hardFilters,

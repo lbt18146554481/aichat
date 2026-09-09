@@ -274,28 +274,6 @@ function userMessageBlob(input: MatchmakerTurnInput): string {
   return `${input.userMessage ?? ""} ${input.seed ?? ""} ${input.handoffSummary ?? ""} ${userBits}`;
 }
 
-/** @deprecated Clarify quotas removed — kept so old imports don't break. Always false. */
-export const MAX_CLARIFY_TURNS = 0;
-
-export function isStillClarifyingBeforeIntro(input: MatchmakerTurnInput): boolean {
-  return (
-    !input.currentPersonId &&
-    input.shownIds.length === 0 &&
-    (input.rankedQueue?.length ?? 0) === 0 &&
-    !input.pendingRematchConfirm
-  );
-}
-
-export function countClarifyAssistantTurns(input: MatchmakerTurnInput): number {
-  if (!isStillClarifyingBeforeIntro(input)) return 0;
-  return input.history.filter((h) => h.role === "assistant").length;
-}
-
-/** Clarify cap removed — never force a confirm round. */
-export function isClarifyCapReached(_input: MatchmakerTurnInput): boolean {
-  return false;
-}
-
 /** Answering "any is fine" on a preference dimension — not "start matching now". */
 function isPreferenceFlexMessage(text: string): boolean {
   const t = text.trim();
@@ -373,6 +351,10 @@ function buildChatSystem(
     awaitingUserAsk?: PendingUserAsk | null;
   },
 ): string {
+  void candidateIds;
+  void opts.pendingMatchConfirm;
+  void opts.pendingRematchConfirm;
+  void opts.readyToMatch;
   const isZh = zh(input.lang);
   const firstReply = isAgentFirstReply(input.history);
   const capabilityIntro = firstReply ? agentCapabilityIntroRule("matchmaker", isZh) : "";
@@ -410,52 +392,45 @@ function buildChatSystem(
     .filter(Boolean)
     .join("\n");
 
-  const confirmRule = isZh
-    ? `搜索由你决定（像调用工具）：本轮用户有找人/认识新朋友的意图时，设 affirmMatch=true，系统会立刻排序出人——不要 confirmLine，不要等用户再说「好的」。
-- 信息不齐也能搜：未提及维度用资料冷启动 soft；空字段不参与得分即可。
-- affirmMatch=true：本轮要搜（含「随便推一个」「帮我找」「先看看」等，即使几乎没说偏好）。
-- affirmMatch=false：仅闲聊/打招呼、或只在澄清偏好、本轮不要出人。
-- 重筛：条件/软偏好明显变了或用户要换一批 → 调 request_rematch，affirmRematch=true（或 rematchConfirmLine 非空）；不要再等一轮口头确认。
-- 不确定「同批下一位」还是「重筛」：只在 reply 问一句，不调工具。
-- 同批浏览：右侧「看下一个人」记入 passed；聊天明确不合适 → browse_next_person mode=pass；只想看下一位 → mode=see。
-当前有队列：${opts.hasQueue ? "是" : "否"}`
-    : `You decide when to search (tool-like): if this turn the user wants to meet someone, set affirmMatch=true — server ranks immediately. No confirmLine, no waiting for "ok".
-- Sparse prefs are fine: unstated dims use profile cold-start soft; empty fields simply don't score.
-- affirmMatch=true: search this turn (incl. "show anyone" / "find someone" even with almost no prefs).
-- affirmMatch=false: chatting/greeting/clarifying only — do not introduce someone this turn.
-- Rematch: criteria changed or new batch → request_rematch with affirmRematch=true (or non-empty rematchConfirmLine); no second confirm.
-- Unsure browse vs rematch: ask in reply only — no tools.
-- Same-batch browse: UI next records passed; clear reject → browse_next_person mode=pass; casual next → mode=see.
-Has queue: ${opts.hasQueue ? "yes" : "no"}`;
+  const role = isZh
+    ? `你在 Maitri 帮用户认识新朋友。像真人聊天，2-5 句，温暖具体。
+本会话做「认识新朋友」。若对方想找活动搭子 / 一起做事：handoffTo 保持 null，在 reply 里请回首页开「一起做事」新对话；suggestions 可给「回首页开新对话」。爱好当作交友偏好（认识喜欢跑步的人）时留在本会话，记入软偏好。
+${selfVoiceRule(true)}`
+    : `You help people meet someone new on Maitri. Warm, concise, human, 2-5 sentences.
+This session is meet-someone. If they want activity buddies: keep handoffTo null and point them to a new “do something together” chat from home; suggestions may include starting that chat. Activity-as-people-pref (meet someone who likes running) stays here as soft preference.
+${selfVoiceRule(false)}`;
 
-  const activityLaneRule = isZh
-    ? `本会话只做「认识新朋友」。不要设置 handoffTo，也不要尝试切到一起做事。
-若用户明确想找活动搭子 / 一起做事 / 查活动池：handoffTo 必须为 null；在 reply 里礼貌说明请回首页开一个「一起做事」的新对话；suggestions 可给「回首页开新对话」类第一人称短句。
-若用户只是把爱好当交友偏好（认识喜欢跑步的人）→ 留在本会话，记入软偏好。`
-    : `This session is meet-someone only. Never set handoffTo or switch to do-something.
-If they clearly want activity buddies / browse wishes: handoffTo must stay null; politely tell them to start a new “do something together” chat from home; suggestions may include a first-person “start a new chat” phrase.
-If the activity is only a people preference (meet someone who likes running) → stay here and treat it as a soft preference.`;
+  const decision = isZh
+    ? `【搜索决策】
+本轮有找人/认识新朋友意图（含「随便推一个」「帮我找」「先看看」等，偏好很少也行）→ affirmMatch=true，系统排序出人，你介绍 TA；introducePersonId 由服务端决定。
+闲聊、打招呼、或只想多聊几句还不找人 → affirmMatch=false。
+偏好不齐也能搜：未提及维度用资料冷启动 soft，空字段不参与得分；confirmLine 始终为 null，不必等用户再说「好的」，也不必为凑字段追问。
+右侧已有人、用户收紧或改方向（如「安静一点」「换个更…的」）→ 本轮按新偏好重新找：调 request_rematch 且 affirmRematch=true（或 rematchConfirmLine 非空）；若本轮会清空旧队列，也可 affirmMatch=true。reply 一两句确认新方向即可，新介绍由系统写出——先出人，其他偏好留到之后再聊。
+主动要换一批 / 条件明显变了 → 同样走重筛（request_rematch + affirmRematch）。
+同批浏览：右侧「看下一个人」记入 passed；聊天里明确不合适 → browse_next_person mode=pass；只想看下一位 → mode=see。拿不准浏览还是重筛时，只在 reply 问一句。
+当前有队列：${opts.hasQueue ? "是" : "否"}
+${recallEmpty ? "硬过滤后暂无候选人时，在 reply 里自然建议放宽年龄、性别、城市或学历。" : ""}`
+    : `[Search decision]
+Meet/search intent this turn (incl. “show anyone” / “find someone”, even with sparse prefs) → affirmMatch=true; server ranks and you introduce; introducePersonId is server-chosen.
+Chat / greet / talk without searching → affirmMatch=false.
+Sparse prefs OK: cold-start soft for unstated dims; empty fields don’t score; confirmLine always null — no waiting for “ok”, no field checklist.
+Someone already on the right and they tighten or change direction (e.g. “quieter”) → rematch this turn: request_rematch with affirmRematch=true (or rematchConfirmLine), or affirmMatch=true if the old queue will clear. Brief ack of the new direction; server writes the new intro — find first, more prefs can wait.
+Explicit new batch / clear criteria change → same rematch path.
+Same-batch: UI next records passed; clear reject → browse_next_person mode=pass; casual next → mode=see. Unsure browse vs rematch → ask in reply only.
+Has queue: ${opts.hasQueue ? "yes" : "no"}
+${recallEmpty ? "If hard filters yield no one, suggest relaxing age, gender, city, or education in reply." : ""}`;
 
-  const deliverRule = isZh
-    ? `「提供信息」和「搜索」拆开：用户不提供偏好也能搜（affirmMatch=true 即可）。不要为凑齐字段追问。confirmLine 必须始终为 null。`
-    : `Split "providing prefs" from "search": users can search with almost no prefs (affirmMatch=true). Never chase fields to complete a checklist. confirmLine must always be null.`;
+  const jsonBlock = isZh
+    ? `【JSON】reply 与 suggestions 放最前：
+{"reply":"...","suggestions":["短句1","短句2"],"confirmLine":null,"affirmMatch":false,"rematchConfirmLine":null,"affirmRematch":false,"passCurrentPerson":false,"handoffTo":null,"handoffSummary":"","transitionReply":""}
+reply 用简体中文。suggestions：2-4 条第一人称短句（用户可直接发送）。`
+    : `[JSON] Put reply and suggestions first:
+{"reply":"...","suggestions":["..."],"confirmLine":null,"affirmMatch":false,"rematchConfirmLine":null,"affirmRematch":false,"passCurrentPerson":false,"handoffTo":null,"handoffSummary":"","transitionReply":""}
+English reply. suggestions: 2-4 first-person phrases the user might send.`;
 
   return [
-    isZh
-      ? `你在 Maitri 帮用户认识新朋友。像真人聊天，2-5 句，温暖具体。不要提 AI。
-本会话只负责认识新朋友；若用户明确要找活动搭子，提示回首页开新对话。
-核心：本轮若用户有搜索/找人意图 → affirmMatch=true，系统出人，你介绍 TA；没有搜索意图就只聊天或轻问一句，不要自动出人。
-信息不齐也能搜；未提及维度由资料冷启动。用户资料在下方。
-换人：browse_next_person 或右侧按钮。introducePersonId 由服务端决定，不要编造 id；介绍时说明为什么是 TA。
-${recallEmpty ? "注意：硬过滤后无候选人——建议放宽年龄、性别、城市或学历。" : ""}
-${selfVoiceRule(true)}`
-      : `You help people meet someone new on Maitri. Warm, concise, human.
-Meet-someone only; if they want activity buddies, send them to a new home chat.
-Core: if this turn has search/meet intent → affirmMatch=true and the server shows someone; otherwise just chat — never auto-introduce without intent.
-Sparse prefs are fine; cold-start fills gaps. Profile below.
-Browse: browse_next_person or UI. Server picks introducePersonId — never invent ids; explain why this person.
-${recallEmpty ? "Note: zero candidates after hard filters — suggest relaxing age, gender, city, or education." : ""}
-${selfVoiceRule(false)}`,
+    role,
+    decision,
     input.handoffSummary
       ? isZh
         ? `接手摘要：${input.handoffSummary}`
@@ -466,20 +441,10 @@ ${selfVoiceRule(false)}`,
     clarifyFocusLine(input.hardFilters, input.lang, input.understanding),
     mem ? (isZh ? `软偏好：\n${mem}` : `Soft prefs:\n${mem}`) : "",
     currentLine,
-    confirmRule,
-    activityLaneRule,
-    deliverRule,
     awaitingHint,
     capabilityIntro,
     actionHint(input),
-    isZh
-      ? `只输出 JSON（reply 与 suggestions 放最前）：
-{"reply":"...","suggestions":["短句1","短句2"],"confirmLine":null,"affirmMatch":false,"rematchConfirmLine":null,"affirmRematch":false,"passCurrentPerson":false,"handoffTo":null,"handoffSummary":"","transitionReply":""}`
-      : `JSON only (put reply and suggestions first):
-{"reply":"...","suggestions":["..."],"confirmLine":null,"affirmMatch":false,"rematchConfirmLine":null,"affirmRematch":false,"passCurrentPerson":false,"handoffTo":null,"handoffSummary":"","transitionReply":""}`,
-    isZh
-      ? "reply 用简体中文。suggestions 必须给 2-4 条非空短句（第一人称、用户可直接当回复），根据当前对话自行生成；不要写成你的提问。"
-      : "Write reply and suggestions in English only. suggestions = 2-4 contextual first-person phrases (not your questions).",
+    jsonBlock,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -974,7 +939,15 @@ async function* runMatchmakerChatStream(
       ...input.history.map((m) => ({ role: m.role, content: m.content })),
       { role: "user", content },
     ],
-    { temperature: 0.85, maxTokens: 1500 },
+    {
+      temperature: 0.85,
+      maxTokens: 1500,
+      // Search/rematch turns: intro polish replaces chat reply — don't stream a provisional one.
+      suppressReplyWhen: [
+        { field: "affirmMatch", equals: true },
+        { field: "affirmRematch", equals: true },
+      ],
+    },
   )) {
     if (ev.type === "delta") yield { type: "delta", text: ev.text };
     else if (ev.type === "done") value = ev.value;
@@ -1239,6 +1212,8 @@ export async function* runMatchmakerTurnStream(
       transitionReply: "",
     };
   } else {
+    // Buffer chat deltas until we know whether this turn searches. Forwarding them
+    // early causes a provisional reply that then gets replaced by the polished intro.
     for await (const ev of runMatchmakerChatStream(
       extractedInput,
       candidateIds,
@@ -1247,8 +1222,7 @@ export async function* runMatchmakerTurnStream(
       toolState.pool,
       chatOpts,
     )) {
-      if (ev.type === "delta") yield { type: "delta", text: ev.text };
-      else if (ev.type === "done") chatParsed = ev.value;
+      if (ev.type === "done") chatParsed = ev.value;
     }
 
     const chatReply = (chatParsed?.reply ?? "").trim();
@@ -1262,7 +1236,7 @@ export async function* runMatchmakerTurnStream(
         Boolean(chatParsed?.affirmRematch) ||
         Boolean(chatParsed?.rematchConfirmLine?.trim()) ||
         rematchNow);
-    // Defer ready until polished intro when this turn will introduce someone.
+    // Search turns: only the polished intro (via done). Non-search: ready once.
     if (chatReply && !willSearchThisTurn) {
       yield { type: "ready", reply: chatReply, suggestions: chatSuggestions };
     }

@@ -351,43 +351,39 @@ export function wishClarifyPromptSection(
   const isZh = lang === "zh-CN";
   const lines = isZh
     ? [
-        "心愿澄清（用户主导；话术自行生成）：",
-        "不要主动追问性别/年龄/城市/时间/搭子等字段清单。开放邀请对方用自己的话说想做什么；对方没说的维度由系统用资料做 soft 冷启动。",
-        "进度与「建议焦点」只是参考——不要按字段审问。browse：本轮要搜就 affirmMatch=true 立刻搜（不要 confirmLine 等确认）。publish：开表单才用 confirmLine。",
-        "额外要求只顺手记下。用户说「都行/随便」按语境理解。",
-        `澄清轮次上限 ${WISH_CLARIFY_MAX_ROUNDS} 轮（已用 ${progress.roundCount}/${WISH_CLARIFY_MAX_ROUNDS}，按用户发言次数计）。`,
+        "澄清进度（仅参考，勿按字段审问）：",
+        "用户主导；不要追问性别/年龄/城市清单。没说的维可用资料 soft 冷启动——但找人缺地点仍须走主提示【决策】弹卡，不能「缺地点也搜」。",
+        `轮次 ${progress.roundCount}/${WISH_CLARIFY_MAX_ROUNDS}。`,
         progress.capReached
           ? mode === "browse"
-            ? "⚠ 已达上限：affirmMatch=true 立刻搜；缺维空着=冷启动 soft。禁止再追问。"
-            : "⚠ 已达上限：confirmLine 预填表单，让用户点发布或继续改。"
+            ? "⚠ 已达上限：按【决策】搜或弹地点卡；禁止再追问字段。"
+            : "⚠ 已达上限：confirmLine 预填表单，或让用户继续改。"
           : progress.allDone
             ? mode === "browse"
-              ? "已可开搜：affirmMatch=true 本轮立刻搜；禁止 confirmLine 等待确认；缺维不必追问。"
-              : "信息已齐：confirmLine 预填发布表单；reply 引导点「发布」；affirmPublish 永远 false。"
+              ? "条件大致齐：要搜则按【决策】（看地点状态）。"
+              : "信息已齐：confirmLine 开表单；affirmPublish=false。"
             : mode === "browse"
-              ? "还可补：先回应用户。本轮若是搜人需求 → affirmMatch=true；不要 confirmLine 闸门。"
-              : "还可补：先回应用户；勿强制填齐字段。不要提前发布或 pickMatchIntentId。",
-        `进度（参考）：活动 ${statusLabel(progress.activity, lang)} · 时间 ${statusLabel(progress.time, lang)} · 地点 ${statusLabel(progress.place, lang)} · 搭子 ${statusLabel(progress.buddy, lang)}`,
+              ? "还可补：先回应用户；要搜走【决策】。"
+              : "还可补：先回应用户；勿强制填齐。",
+        `进度：活动 ${statusLabel(progress.activity, lang)} · 时间 ${statusLabel(progress.time, lang)} · 地点 ${statusLabel(progress.place, lang)} · 搭子 ${statusLabel(progress.buddy, lang)}`,
         `建议焦点（非剧本）：${focusHint(progress.focus, lang)}`,
       ]
     : [
-        "Wish clarification (user-led; your wording):",
-        "Do NOT chase gender/age/city/time/buddy checklists. Open invite for wish in their words; missing dims use soft profile cold-start.",
-        "Progress is hints only. Browse: affirmMatch=true searches now (no confirmLine wait). Publish: confirmLine only to open the form.",
-        "Extra notes are soft-only. Interpret “anything goes” from context.",
-        `Cap: ${WISH_CLARIFY_MAX_ROUNDS} user turns (${progress.roundCount}/${WISH_CLARIFY_MAX_ROUNDS} used).`,
+        "Clarify progress (hints only — do not interrogate fields):",
+        "User-led. Missing dims may cold-start soft — but missing place for people search still follows Decision (card), never search without place.",
+        `Rounds ${progress.roundCount}/${WISH_CLARIFY_MAX_ROUNDS}.`,
         progress.capReached
           ? mode === "browse"
-            ? "⚠ Cap: affirmMatch=true search now; missing dims cold-start soft. No more chase."
-            : "⚠ Cap reached: confirmLine prefill form — user taps Publish or edits."
+            ? "⚠ Cap: follow Decision (search or place card); no more field chase."
+            : "⚠ Cap: confirmLine form or let them edit."
           : progress.allDone
             ? mode === "browse"
-              ? "Ready: affirmMatch=true search this turn; no confirmLine wait; don't chase missing dims."
-              : "Complete: confirmLine prefill publish form; guide user to tap Publish; affirmPublish always false."
+              ? "Roughly ready: search via Decision (check place)."
+              : "Complete: confirmLine form; affirmPublish=false."
             : mode === "browse"
-              ? "Optional gaps: respond first. If this turn is a search → affirmMatch=true; no confirmLine gate."
-              : "Optional gaps: respond first; don't force fields. No early publish or pickMatchIntentId.",
-        `Progress (hint): activity ${statusLabel(progress.activity, lang)} · time ${statusLabel(progress.time, lang)} · place ${statusLabel(progress.place, lang)} · buddy ${statusLabel(progress.buddy, lang)}`,
+              ? "Optional gaps: respond first; search via Decision."
+              : "Optional gaps: respond first; don't force fields.",
+        `Progress: activity ${statusLabel(progress.activity, lang)} · time ${statusLabel(progress.time, lang)} · place ${statusLabel(progress.place, lang)} · buddy ${statusLabel(progress.buddy, lang)}`,
         `Suggested focus (not a script): ${focusHint(progress.focus, lang)}`,
       ];
   return lines.join("\n");

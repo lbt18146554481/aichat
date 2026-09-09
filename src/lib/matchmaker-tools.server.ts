@@ -619,7 +619,7 @@ export function matchmakerToolSystem(state: MatchmakerToolState): string {
   return zh
     ? `你是 Matchmaker 的工具规划助手。根据用户这句话，在需要时调用工具：
 - 仅在同批队列里看下一位/换一个（不改条件）→ browse_next_person（默认 mode=see）；明确说不合适 → mode=pass
-- 改条件/软偏好并重新筛选一批 → request_rematch（硬条件可带 filter 参数；软偏好由 extract 同步，你负责 rematchConfirmLine）；不确定要不要重筛时不要调用
+- 改条件/软偏好并重新筛选一批（含右侧已有人时说「安静一点」「换个更…」）→ request_rematch（硬条件可带 filter 参数；软偏好由 extract 同步，你负责 rematchConfirmLine）
 - 问池子统计/分布/放宽哪条 → pool_facets
 - 试探条件、问还有多少人 → preview_pool
 - 仅改硬条件、不立刻重筛 → update_filters
@@ -631,7 +631,7 @@ export function matchmakerToolSystem(state: MatchmakerToolState): string {
 池中共有 ${state.pool.length} 人（含各国城市）。中国别名：中国=China=cn。`
     : `You plan Matchmaker tools. Call tools when needed:
 - browse within current batch → browse_next_person (default mode=see); explicit rejection → mode=pass
-- change criteria/soft prefs and re-screen → request_rematch (optional hard-filter args; soft prefs via extract — you output rematchConfirmLine); if intent unclear, call none
+- change criteria/soft prefs and re-screen (incl. someone on the right and “quieter” / “more …”) → request_rematch (optional hard-filter args; soft prefs via extract — you output rematchConfirmLine)
 - pool stats / distribution / what to relax → pool_facets
 - trial filters / how many → preview_pool
 - filter edit without rematch → update_filters

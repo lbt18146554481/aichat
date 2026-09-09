@@ -289,11 +289,18 @@ export async function* chatCompletionJsonStream<T>(
     temperature?: number;
     maxTokens?: number;
     replyField?: string;
-    /** When this field equals the given value in partial JSON, stop streaming reply deltas. */
-    suppressReplyWhen?: { field: string; equals: boolean };
+    /** When any of these fields match in partial JSON, stop streaming reply deltas. */
+    suppressReplyWhen?:
+      | { field: string; equals: boolean }
+      | Array<{ field: string; equals: boolean }>;
   },
 ): AsyncGenerator<JsonStreamEvent<T>> {
   const replyField = opts?.replyField ?? "reply";
+  const suppressRules = opts?.suppressReplyWhen
+    ? Array.isArray(opts.suppressReplyWhen)
+      ? opts.suppressReplyWhen
+      : [opts.suppressReplyWhen]
+    : [];
   let raw = "";
   let lastReply = "";
   for await (const chunk of chatCompletionStream(messages, {
@@ -302,10 +309,9 @@ export async function* chatCompletionJsonStream<T>(
     thinking: false,
   })) {
     raw += chunk;
-    const suppressField = opts?.suppressReplyWhen?.field;
-    const suppress =
-      suppressField != null &&
-      extractPartialJsonBooleanField(raw, suppressField) === opts!.suppressReplyWhen!.equals;
+    const suppress = suppressRules.some(
+      (rule) => extractPartialJsonBooleanField(raw, rule.field) === rule.equals,
+    );
     // Model sometimes streams plain text instead of JSON — still show tokens live.
     if (!raw.includes("{")) {
       const plain = raw.trim();
