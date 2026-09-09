@@ -93,13 +93,51 @@ fi
 
 echo ">>> refresh nginx (if template present)"
 if [[ -f deploy/nginx-aichat.conf ]]; then
-  if [[ -d "/etc/letsencrypt/live/${PUBLIC_HOST}" ]]; then
-    echo ">>> keep existing nginx site (Let's Encrypt cert for ${PUBLIC_HOST})"
+  # live/ is often root-only; must use sudo test or we falsely overwrite and wipe SSL
+  if sudo test -d "/etc/letsencrypt/live/${PUBLIC_HOST}"; then
+    echo ">>> install HTTPS nginx template for ${PUBLIC_HOST}"
+    sudo cp deploy/nginx-aichat.conf /etc/nginx/sites-available/aichat
+    sudo ln -sf /etc/nginx/sites-available/aichat /etc/nginx/sites-enabled/aichat
     sudo nginx -t
     sudo systemctl reload nginx
   else
-    sed "s/server_name .*/server_name ${PUBLIC_HOST} www.${PUBLIC_HOST};/" \
-      deploy/nginx-aichat.conf | sudo tee /etc/nginx/sites-available/aichat >/dev/null
+    echo ">>> install HTTP nginx template (no Let's Encrypt cert yet)"
+    sudo tee /etc/nginx/sites-available/aichat >/dev/null <<EOF
+server {
+  listen 80;
+  listen [::]:80;
+  server_name ${PUBLIC_HOST} www.${PUBLIC_HOST};
+  client_max_body_size 10m;
+  location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+  }
+  location = /ws {
+    proxy_pass http://127.0.0.1:3001/;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host \$host;
+    proxy_set_header Cookie \$http_cookie;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_read_timeout 86400;
+  }
+  location /ws/ {
+    proxy_pass http://127.0.0.1:3001/;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host \$host;
+    proxy_set_header Cookie \$http_cookie;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_read_timeout 86400;
+  }
+}
+EOF
     sudo ln -sf /etc/nginx/sites-available/aichat /etc/nginx/sites-enabled/aichat
     sudo nginx -t
     sudo systemctl reload nginx
