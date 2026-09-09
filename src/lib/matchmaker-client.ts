@@ -17,6 +17,7 @@ export async function requestMatchmakerTurn(opts: {
   userMessage?: string;
   state: MatchmakerState;
   seed?: string;
+  userAskResolution?: import("./ask-user-info").UserAskResolution | null;
   onDelta?: (text: string) => void;
   /** Fired when chat reply is complete; extract/introduce may still be running. */
   onReady?: (opts: { reply: string; suggestions: string[] }) => void;
@@ -40,9 +41,12 @@ export async function requestMatchmakerTurn(opts: {
       pendingMatchConfirm: opts.state.pendingMatchConfirm ?? null,
       pendingRematchConfirm: opts.state.pendingRematchConfirm ?? null,
       rankedQueue: opts.state.rankedQueue ?? [],
+      queueReasons: opts.state.queueReasons ?? {},
+      chatHardFilters: opts.state.chatHardFilters ?? EMPTY_HARD_FILTERS,
       queueCursor: opts.state.queueCursor ?? 0,
       queueFingerprint: opts.state.queueFingerprint ?? null,
       userBlocklist: listBlocked(),
+      userAskResolution: opts.userAskResolution ?? undefined,
     },
   });
 

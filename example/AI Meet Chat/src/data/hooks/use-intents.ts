@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { repos } from "@/data";
 import type { ActivityKind } from "@/lib/types";
-import type { Intent } from "@/lib/intents";
+import { getIntentById, type Intent } from "@/lib/intents";
 import type { PublishIntentInput, UpdateIntentPatch } from "@/data/ports";
 import { dataKeys } from "./internal";
 
@@ -44,7 +44,16 @@ export function useIntentLookup(): (id: string | null | undefined) => Intent | n
   return useCallback(
     (id) => {
       if (!id) return null;
-      return mine.find((i) => i.id === id) ?? pool.find((i) => i.id === id) ?? null;
+      // A wish published via the agent orchestrator (submitPrompt) lands in the
+      // store before the query cache invalidates; fall back to a synchronous
+      // read so narration in the same tick can summarize it. With a remote
+      // adapter this fallback simply returns null and the cached lists rule.
+      return (
+        mine.find((i) => i.id === id) ??
+        pool.find((i) => i.id === id) ??
+        getIntentById(id) ??
+        null
+      );
     },
     [mine, pool],
   );

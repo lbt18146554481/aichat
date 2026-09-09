@@ -56,12 +56,21 @@ export interface MatchmakerState {
   pendingRematchConfirm?: string | null;
   /** LLM-ranked browse order (snapshot for current prefs). */
   rankedQueue: string[];
+  /** One short match reason per id in rankedQueue (filled at rank time). */
+  queueReasons: Record<string, string>;
+  /**
+   * Hard filters from chat/tools only — never includes cold-start fill.
+   * Effective search filters = cold-start(profile, chatHardFilters).
+   */
+  chatHardFilters?: MatchHardFilters;
   queueCursor: number;
   queueFingerprint: string | null;
   /** Bumped after rematch rank so the right pane crossfades. */
   canvasSwapKey?: number;
   parentSessionId?: string;
   suspended?: boolean;
+  /** ask_user_info card waiting for confirm/cancel (or skip on next message). */
+  pendingUserAsk?: import("../ask-user-info").PendingUserAsk | null;
 }
 
 export const EMPTY: MatchmakerState = {
@@ -77,6 +86,7 @@ export const EMPTY: MatchmakerState = {
   pendingMatchConfirm: null,
   pendingRematchConfirm: null,
   rankedQueue: [],
+  queueReasons: {},
   queueCursor: 0,
   queueFingerprint: null,
 };
@@ -208,12 +218,15 @@ export interface MatchmakerTurnResult {
   pendingMatchConfirm?: string | null;
   pendingRematchConfirm?: string | null;
   rankedQueue?: string[];
+  queueReasons?: Record<string, string>;
+  chatHardFilters?: MatchHardFilters;
   queueCursor?: number;
   queueFingerprint?: string | null;
   queueAdvance?: QueueAdvanceMode;
   rematchRefresh?: boolean;
   passedIds?: string[];
   shownIds?: string[];
+  pendingUserAsk?: import("../ask-user-info").PendingUserAsk | null;
 }
 
 function pushA(s: MatchmakerState, text: string): MatchmakerState {
@@ -246,6 +259,7 @@ export function applyTurnResult(
     next = {
       ...next,
       rankedQueue: [],
+      queueReasons: {},
       queueCursor: 0,
       queueFingerprint: null,
       currentPersonId: null,
@@ -256,9 +270,17 @@ export function applyTurnResult(
     next = {
       ...next,
       rankedQueue: output.rankedQueue,
+      queueReasons:
+        output.queueReasons !== undefined ? output.queueReasons : next.queueReasons,
       queueCursor: output.queueCursor ?? 0,
       queueFingerprint: output.queueFingerprint ?? fp,
     };
+  } else if (output.queueReasons !== undefined) {
+    next = { ...next, queueReasons: output.queueReasons };
+  }
+
+  if (output.chatHardFilters !== undefined) {
+    next = { ...next, chatHardFilters: output.chatHardFilters };
   }
 
   // Heal stale sessions where the queue was ranked but currentPersonId was dropped
@@ -314,6 +336,7 @@ export function applyTurnResult(
         : [],
     pendingMatchConfirm: output.pendingMatchConfirm ?? null,
     pendingRematchConfirm: output.pendingRematchConfirm ?? null,
+    pendingUserAsk: output.pendingUserAsk ?? null,
   };
 }
 
@@ -400,6 +423,10 @@ export function load(sessionId?: string | null): MatchmakerState {
         ...EMPTY,
         ...partial,
         hardFilters: { ...EMPTY_HARD_FILTERS, ...partial.hardFilters },
+        queueReasons: partial.queueReasons ?? {},
+        chatHardFilters: partial.chatHardFilters
+          ? { ...EMPTY_HARD_FILTERS, ...partial.chatHardFilters }
+          : undefined,
       });
     }
     return EMPTY;

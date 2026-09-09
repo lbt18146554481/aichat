@@ -2,25 +2,40 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { eq, and, gt, desc, asc, isNull } from "drizzle-orm";
 import { getDb } from "../db/client.server";
-import { chatSessions, connections, messages, people, intents, savedPeople, savedIntents, userPrefs, profiles } from "../db/schema";
+import { chatSessions, connections, messages, people, premiumPeople, intents, savedPeople, savedIntents, userPrefs, profiles } from "../db/schema";
 import { getSessionUser, newId } from "../db/session.server";
-import { EMPTY_PROFILE, type Profile } from "../profile-shape";
+import { EMPTY_PROFILE, isVitalsComplete, type Profile } from "../profile-shape";
 import type { Person } from "../types";
 import type { Intent } from "../intents";
 import type { Connection, ChatMsg } from "../connection-types";
 
 export const listPeopleFn = createServerFn({ method: "GET" }).handler(async (): Promise<Person[]> => {
+  const user = await getSessionUser();
   const db = getDb();
+
+  let usePremium = true;
+  if (user) {
+    const profileRows = await db.select().from(profiles).where(eq(profiles.userId, user.id)).limit(1);
+    const profile: Profile = profileRows[0]?.data
+      ? { ...EMPTY_PROFILE, ...(profileRows[0].data as unknown as Profile) }
+      : { ...EMPTY_PROFILE };
+    usePremium = !isVitalsComplete(profile);
+  }
+
+  if (usePremium) {
+    const rows = await db.select().from(premiumPeople);
+    return rows.map((r) => r.data as unknown as Person).filter((p) => (p.status ?? "active") === "active");
+  }
+
   const rows = await db.select().from(people);
-  return rows.map((r) => r.data as unknown as Person);
+  return rows.map((r) => r.data as unknown as Person).filter((p) => (p.status ?? "active") === "active");
 });
 
 export const getPersonFn = createServerFn({ method: "POST" })
   .inputValidator(z.object({ id: z.string() }))
   .handler(async ({ data }): Promise<Person | null> => {
-    const db = getDb();
-    const rows = await db.select().from(people).where(eq(people.id, data.id)).limit(1);
-    return rows[0] ? (rows[0].data as unknown as Person) : null;
+    const { findPersonById } = await import("../people-store.server");
+    return findPersonById(data.id);
   });
 
 export const listSeedIntentsFn = createServerFn({ method: "GET" }).handler(async (): Promise<Intent[]> => {
@@ -420,8 +435,7 @@ async function resolveHello(
   const conn = rows[0];
   if (!conn || conn.status !== "sent") return;
 
-  const personRows = await db.select().from(people).where(eq(people.id, personId)).limit(1);
-  const person = personRows[0]?.data as unknown as Person | undefined;
+  const person = await (await import("../people-store.server")).findPersonById(personId);
   const persona = person
     ? `Name: ${person.name} (${person.name_zh}). City: ${person.city}. Occupation: ${person.occupation}. Bio: ${person.portrait}. Signals: ${(person.signals ?? []).join(", ")}.`
     : "A warm, thoughtful persona open to conversation.";
@@ -510,8 +524,7 @@ async function replyAsPerson(
   lang: "zh" | "en",
 ): Promise<{ id: string; from: "them"; t: number; text: string }> {
   const db = getDb();
-  const personRows = await db.select().from(people).where(eq(people.id, personId)).limit(1);
-  const person = personRows[0]?.data as unknown as Person | undefined;
+  const person = await (await import("../people-store.server")).findPersonById(personId);
   const historyRows = await db
     .select()
     .from(messages)
@@ -683,7 +696,15 @@ export const matchmakerTurnFn = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       lang: z.enum(["en", "zh-CN"]),
-      action: z.enum(["start", "message", "confirm_match", "confirm_rematch", "pass_and_next", "see_next"]),
+      action: z.enum([
+        "start",
+        "message",
+        "confirm_match",
+        "confirm_rematch",
+        "pass_and_next",
+        "see_next",
+        "resolve_user_ask",
+      ]),
       userMessage: z.string().optional(),
       seed: z.string().optional(),
       history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })),
@@ -725,11 +746,44 @@ export const matchmakerTurnFn = createServerFn({ method: "POST" })
       pendingMatchConfirm: z.string().nullable().optional(),
       pendingRematchConfirm: z.string().nullable().optional(),
       rankedQueue: z.array(z.string()).optional(),
+      queueReasons: z.record(z.string(), z.string()).optional(),
+      chatHardFilters: z
+        .object({
+          ageMin: z.number().nullable(),
+          ageMax: z.number().nullable(),
+          ageStrength: z.enum(["hard", "flex"]).nullable().optional(),
+          genders: z.array(z.enum(["female", "male", "nonbinary"])),
+          excludeGenders: z.array(z.enum(["female", "male", "nonbinary"])),
+          genderStrength: z.enum(["hard", "flex"]).nullable().optional(),
+          cities: z.array(z.string()),
+          excludeCities: z.array(z.string()),
+          cityStrength: z.enum(["hard", "flex"]).nullable().optional(),
+          educationMin: z
+            .enum(["high_school", "associate", "bachelor", "master", "doctorate"])
+            .nullable(),
+          educationLevels: z.array(
+            z.enum(["high_school", "associate", "bachelor", "master", "doctorate"]),
+          ),
+          excludeEducationLevels: z.array(
+            z.enum(["high_school", "associate", "bachelor", "master", "doctorate"]),
+          ),
+          educationStrength: z.enum(["hard", "flex"]).nullable().optional(),
+        })
+        .optional(),
       queueCursor: z.number().optional(),
       queueFingerprint: z.string().nullable().optional(),
       handoffCount: z.number().optional(),
       handoffSummary: z.string().optional(),
       userBlocklist: z.array(z.string()).optional(),
+      userAskResolution: z
+        .object({
+          status: z.enum(["confirmed", "cancelled", "skipped"]),
+          value: z.string().nullable(),
+          fieldKey: z.string(),
+          prompt: z.string(),
+        })
+        .nullable()
+        .optional(),
     }),
   )
   .handler(async ({ data }) => {
@@ -763,6 +817,8 @@ export const matchmakerTurnFn = createServerFn({ method: "POST" })
           pendingMatchConfirm: data.pendingMatchConfirm ?? null,
           pendingRematchConfirm: data.pendingRematchConfirm ?? null,
           rankedQueue: data.rankedQueue ?? [],
+          queueReasons: data.queueReasons ?? {},
+          chatHardFilters: data.chatHardFilters ?? EMPTY_HARD_FILTERS,
           queueCursor: data.queueCursor ?? 0,
           queueFingerprint: data.queueFingerprint ?? null,
         }),
@@ -833,7 +889,18 @@ export const sideBySideTurnFn = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       lang: z.enum(["en", "zh-CN"]),
-      action: z.enum(["start", "message", "confirm_publish", "confirm_browse", "confirm_match", "skip_match", "see_next", "rematch"]),
+      action: z.enum([
+        "start",
+        "message",
+        "confirm_publish",
+        "confirm_browse",
+        "confirm_match",
+        "skip_match",
+        "see_next",
+        "rematch",
+        "rematch_hang",
+        "resolve_user_ask",
+      ]),
       userMessage: z.string().optional(),
       seed: z.string().optional(),
       preferredTrait: z.string().optional(),
@@ -924,7 +991,9 @@ export const sideBySideTurnFn = createServerFn({ method: "POST" })
       wishLane: z.enum(["unset", "browse", "publish"]),
       browseSearched: z.boolean(),
       myIntentId: z.string().nullable(),
+      myIntentIds: z.array(z.string()).optional(),
       matchIntentId: z.string().nullable(),
+      currentPersonId: z.string().nullable().optional(),
       triedIntentIds: z.array(z.string()),
       triedOwnerIds: z.array(z.string()),
       rankedQueue: z.array(z.string()).optional(),
@@ -932,6 +1001,39 @@ export const sideBySideTurnFn = createServerFn({ method: "POST" })
       queueFingerprint: z.string().nullable().optional(),
       passedIntentIds: z.array(z.string()).optional(),
       shownIntentIds: z.array(z.string()).optional(),
+      passedIds: z.array(z.string()).optional(),
+      shownIds: z.array(z.string()).optional(),
+      hangingInvite: z
+        .object({
+          summary: z.string(),
+          createdAt: z.number(),
+          nextRematchAt: z.number(),
+        })
+        .nullable()
+        .optional(),
+      matchHardFilters: z
+        .object({
+          ageMin: z.number().nullable(),
+          ageMax: z.number().nullable(),
+          ageStrength: z.enum(["hard", "flex"]).nullable().optional(),
+          genders: z.array(z.enum(["female", "male", "nonbinary"])),
+          excludeGenders: z.array(z.enum(["female", "male", "nonbinary"])),
+          genderStrength: z.enum(["hard", "flex"]).nullable().optional(),
+          cities: z.array(z.string()),
+          excludeCities: z.array(z.string()),
+          cityStrength: z.enum(["hard", "flex"]).nullable().optional(),
+          educationMin: z
+            .enum(["high_school", "associate", "bachelor", "master", "doctorate"])
+            .nullable(),
+          educationLevels: z.array(
+            z.enum(["high_school", "associate", "bachelor", "master", "doctorate"]),
+          ),
+          excludeEducationLevels: z.array(
+            z.enum(["high_school", "associate", "bachelor", "master", "doctorate"]),
+          ),
+          educationStrength: z.enum(["hard", "flex"]).nullable().optional(),
+        })
+        .optional(),
       handoffCount: z.number().optional(),
       handoffSummary: z.string().optional(),
       handoffHints: z
@@ -940,6 +1042,15 @@ export const sideBySideTurnFn = createServerFn({ method: "POST" })
           when: z.string().optional(),
           area: z.string().optional(),
         })
+        .optional(),
+      userAskResolution: z
+        .object({
+          status: z.enum(["confirmed", "cancelled", "skipped"]),
+          value: z.string().nullable(),
+          fieldKey: z.string(),
+          prompt: z.string(),
+        })
+        .nullable()
         .optional(),
     }),
   )

@@ -356,6 +356,24 @@ export function isPlaceClarifyComplete(item: PlaceFields): boolean {
   return isPlaceLevelSet(spec.place?.city);
 }
 
+/**
+ * Enough place signal to run Side activity-pool search.
+ * Explicit online / anywhere counts; bare empty draft does not (even if profile is empty).
+ */
+export function hasPlaceForActivitySearch(
+  draft: PlaceFields & { city?: string; city_zh?: string; placeRaw?: string },
+  hardFilters?: { cities?: string[] },
+): boolean {
+  if (isPlaceClarifyComplete(draft)) return true;
+  if ((hardFilters?.cities?.length ?? 0) > 0) return true;
+  const city = draft.city?.trim() || draft.city_zh?.trim() || "";
+  if (city && !isPlaceAny(city)) return true;
+  const raw = (draft.placeRaw || "").trim();
+  if (!raw) return false;
+  if (isPlaceOnlineText(raw) || isPlaceFlexText(raw)) return true;
+  return false;
+}
+
 export function resolvePlaceRaw(
   draftPlaceRaw: string | undefined,
   legacyCity: string | undefined,

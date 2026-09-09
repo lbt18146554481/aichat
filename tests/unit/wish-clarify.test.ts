@@ -50,44 +50,60 @@ describe("wish-clarify", () => {
     });
     expect(p.activity).toBe("done");
     expect(p.intakeDone).toBe(true);
-    expect(["time", "place", "buddy", "confirm"]).toContain(p.focus);
+    expect(p.focus).toBe("confirm");
+    expect(p.allDone).toBe(true);
   });
 
-  it("moves to place after kind when time already in rawText", () => {
+  it("moves to confirm after intake even when place/buddy still missing", () => {
+    const draft = { ...emptyWishDraft("周末散步"), kind: "other" as const, whenAny: true, levelAny: true };
+    const history = [{ role: "user" as const, content: "想找户外散步" }];
     const p = assessWishClarifyProgress({
-      draft: { ...emptyWishDraft("周末散步"), kind: "other", whenAny: true, levelAny: true },
+      draft,
       hardFilters: EMPTY_WISH_HARD_FILTERS,
       buddyHardFilters: EMPTY_BUDDY_HARD_FILTERS,
       understanding: EMPTY_U,
       profile,
-      history: [{ role: "user", content: "想找户外散步" }],
+      history,
     });
     expect(p.activity).toBe("done");
-    expect(p.time).toBe("done");
-    expect(p.focus).toBe("place");
+    expect(p.intakeDone).toBe(true);
+    expect(p.focus).toBe("confirm");
+    expect(
+      isBrowseClarifyComplete({
+        draft,
+        hardFilters: EMPTY_WISH_HARD_FILTERS,
+        buddyHardFilters: EMPTY_BUDDY_HARD_FILTERS,
+        understanding: EMPTY_U,
+        profile,
+        history,
+      }),
+    ).toBe(true);
   });
 
-  it("splits time and place; marks both done when weekend and location flexible", () => {
+  it("tracks time/place done independently while browse is search-ready after intake", () => {
+    const draft = {
+      ...emptyWishDraft("周末轻松散步，地点都可以"),
+      kind: "other" as const,
+      when: "weekend" as const,
+      whenAny: false,
+      levelAny: true,
+    };
+    const history = [
+      { role: "user" as const, content: "户外散步" },
+      { role: "user" as const, content: "周末，地点都可以" },
+    ];
     const p = assessWishClarifyProgress({
-      draft: {
-        ...emptyWishDraft("周末轻松散步，地点都可以"),
-        kind: "other",
-        when: "weekend",
-        whenAny: false,
-        levelAny: true,
-      },
+      draft,
       hardFilters: EMPTY_WISH_HARD_FILTERS,
       buddyHardFilters: EMPTY_BUDDY_HARD_FILTERS,
       understanding: EMPTY_U,
       profile,
-      history: [
-        { role: "user", content: "户外散步" },
-        { role: "user", content: "周末，地点都可以" },
-      ],
+      history,
     });
     expect(p.time).toBe("done");
     expect(p.place).toBe("done");
-    expect(p.focus).toBe("buddy");
+    expect(p.intakeDone).toBe(true);
+    expect(p.focus).toBe("confirm");
   });
 
   it("marks buddy done on explicit no preference", () => {

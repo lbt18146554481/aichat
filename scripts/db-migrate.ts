@@ -51,6 +51,11 @@ async function migrate() {
       data JSONB NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS premium_people (
+      id TEXT PRIMARY KEY,
+      data JSONB NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS intents (
       id TEXT PRIMARY KEY,
       owner_id TEXT NOT NULL,

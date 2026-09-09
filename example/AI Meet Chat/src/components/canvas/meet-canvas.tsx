@@ -238,9 +238,9 @@ function MatchView({ state, onStartChat, onSkip, onSave }: Props) {
           )}
           <button
             onClick={onSkip}
-            disabled={remaining === 0}
-            title={remaining === 0 ? t("intent.pool_empty_hint") : undefined}
-            className="inline-flex items-center gap-1.5 min-h-11 px-3 rounded-md border border-border text-[13px] text-foreground/85 hover:bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            // Never disabled: skipping the last candidate is exactly how the
+            // "you've seen everyone" view (NoMatchView) is reached.
+            className="inline-flex items-center gap-1.5 min-h-11 px-3 rounded-md border border-border text-[13px] text-foreground/85 hover:bg-secondary transition-colors"
           >
             <SkipForward className="w-3.5 h-3.5" />
             {t("intent.next_match")}

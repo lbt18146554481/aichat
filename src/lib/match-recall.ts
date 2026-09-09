@@ -10,6 +10,7 @@ import {
 import { buildPreferenceQuery, facetLabels } from "./person-facets";
 import { semanticSimilarity } from "./text-similarity";
 import { softPrefLists } from "./understanding";
+import { cultureAffinityScoreFromProfilePerson } from "./culture-affinity";
 
 const DEFAULT_LIMIT = 10;
 
@@ -32,7 +33,7 @@ function educationMatches(p: Person, f: MatchHardFilters): boolean {
   return true;
 }
 
-function personPassesHardFilters(p: Person, opts: RecallOpts): boolean {
+export function personPassesHardFilters(p: Person, opts: RecallOpts): boolean {
   const f = opts.hardFilters;
 
   if (!personIsActive(p)) return false;
@@ -123,7 +124,7 @@ function structuredSoftScore(p: Person, opts: RecallOpts): number {
   return s;
 }
 
-function softScore(p: Person, opts: RecallOpts, preferenceQuery: string): number {
+export function softScore(p: Person, opts: RecallOpts, preferenceQuery: string): number {
   let vectorScore = 0;
   if (preferenceQuery.trim()) {
     vectorScore = semanticSimilarity(preferenceQuery, p.profileText);
@@ -146,9 +147,11 @@ function softScore(p: Person, opts: RecallOpts, preferenceQuery: string): number
   }
   s += ageFlexScore(p, f);
   s += educationFlexScore(p, f);
+  s += cultureAffinityScoreFromProfilePerson(opts.seekerProfile, p);
 
   if (opts.shownIds.includes(p.id)) s -= 1.5;
-  if (opts.passedIds.includes(p.id)) s -= 4;
+  /** Passed = soft demote on rematch (not hard-excluded). */
+  if (opts.passedIds.includes(p.id)) s -= 6;
 
   return s;
 }
@@ -159,9 +162,7 @@ export function recallCandidates(opts: RecallOpts): RecallResult {
   const preferenceQuery = buildPreferenceQuery(opts.understanding);
   const pool = opts.pool ?? [];
 
-  const available = pool.filter(
-    (p) => !blocked.has(p.id) && !opts.passedIds.includes(p.id),
-  );
+  const available = pool.filter((p) => !blocked.has(p.id));
 
   const afterHard = available.filter((p) => personPassesHardFilters(p, opts));
 

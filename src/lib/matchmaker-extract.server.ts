@@ -5,7 +5,6 @@ import type { UserUnderstanding } from "./understanding";
 import {
   mergePositiveBag,
   normalizeUnderstandingShape,
-  softPrefLists,
 } from "./understanding";
 import {
   clampAge,
@@ -62,12 +61,9 @@ function zh(lang: MatchmakerLang) {
   return lang === "zh-CN";
 }
 
-function listField(
-  raw: string[] | undefined,
-  prev: string[] | undefined,
-  lim: number,
-): string[] {
-  if (raw === undefined) return (prev ?? []).map((s) => s.trim()).filter(Boolean).slice(0, lim);
+/** Soft lists: when the model returns an understanding object, treat missing keys as []. */
+function snapshotListField(raw: string[] | undefined, lim: number): string[] {
+  if (raw === undefined) return [];
   return raw.map((s) => s.trim()).filter(Boolean).slice(0, lim);
 }
 
@@ -76,25 +72,19 @@ function normalizeUnderstanding(
   raw: LlmExtractJson["understanding"],
 ): UserUnderstanding {
   const prevN = normalizeUnderstandingShape(prev);
+  // No understanding block → keep previous (model chose not to touch soft prefs).
   if (!raw) return prevN;
 
-  const traits = listField(raw.traits, prevN.traits, 12);
-  const interests = listField(raw.interests, prevN.interests, 12);
-  const occupation = listField(raw.occupation, prevN.occupation, 8);
-  const pace = listField(raw.pace, prevN.pace, 8);
-  const notes = listField(raw.notes, prevN.notes, 6).slice(-6);
-  const negative = listField(raw.dislikes, prevN.negative, 12);
+  // Full soft snapshot: LLM decides reset/change/keep by what it puts in each array.
+  const traits = snapshotListField(raw.traits, 12);
+  const interests = snapshotListField(raw.interests, 12);
+  const occupation = snapshotListField(raw.occupation, 8);
+  const pace = snapshotListField(raw.pace, 8);
+  const notes = snapshotListField(raw.notes, 6).slice(-6);
+  const negative = snapshotListField(raw.dislikes, 12);
 
-  // Legacy likes: keep when structured soft fields weren't sent this turn.
   const legacyLikes =
-    raw.likes !== undefined
-      ? raw.likes.map((s) => s.trim()).filter(Boolean)
-      : softPrefLists(prevN).traits.length ||
-          softPrefLists(prevN).interests.length ||
-          softPrefLists(prevN).occupation.length ||
-          softPrefLists(prevN).pace.length
-        ? []
-        : prevN.positive;
+    raw.likes !== undefined ? raw.likes.map((s) => s.trim()).filter(Boolean) : [];
 
   const structuredEmpty =
     traits.length === 0 &&
@@ -102,7 +92,6 @@ function normalizeUnderstanding(
     occupation.length === 0 &&
     pace.length === 0;
 
-  // If LLM only filled likes, park leftovers in positive via merge.
   const positive = mergePositiveBag(
     { traits, interests, occupation, pace },
     structuredEmpty ? legacyLikes : raw.likes !== undefined ? legacyLikes : [],
@@ -221,60 +210,65 @@ function buildExtractSystem(lang: MatchmakerLang): string {
     isZh
       ? `你是 Matchmaker 的信息抽取器。只从对话中提取结构化偏好，不生成聊天回复。
 
-你会收到【当前状态】和【本轮用户消息】。请输出本轮结束后仍然有效的完整偏好。
+你会收到【当前状态】和【本轮用户消息】。请判断本轮结束后，每条偏好应「保留 / 修改 / 重置」，并输出仍然有效的完整状态。
 
-hardFilters（硬/软约束字段 — 用户明确说出的才填）：
-- ageMin / ageMax：整数年龄；要取消年龄限制 → 显式设 null
-- ageStrength: hard|flex|null — 「必须25-30」→ hard；「最好30左右」→ flex；有年龄默认 hard
+【如何判断 — 由你根据语境决定，不要机械套模板】
+- 保留：用户没提、也没否定该项 → hardFilters 里可省略该字段（系统沿用）；understanding 里仍要写出仍有效的完整列表
+- 修改：用户补充或改写（如「还要开朗」「改成25-30岁」）→ 写入新值
+- 重置/清空：用户换方向或明确放弃（如「我想再找开朗的」不再要运动；「城市不限」）→ 对应字段写 null 或 []
+- 「再找一个…」「换…」「不要…了」多半是切换/重置相关软偏好，不要把已过时的兴趣/性格悄悄留着
+- 「还要…」「最好也…」多半是补充，在旧偏好上合并
+
+hardFilters（硬/软约束 — 用户明确说出的才填）：
+- ageMin / ageMax；取消年龄 → 显式 null
+- ageStrength / genderStrength / cityStrength / educationStrength: hard|flex|null
 - genders / excludeGenders：female | male | nonbinary
-- genderStrength: hard|flex|null — 「必须女生」→ hard；「最好女生」→ flex；有 genders 默认 hard
-- cities / excludeCities：国家/省/市短语；不限地点 → cities 设 []
-- cityStrength: hard|flex|null — 「必须在北京」→ hard；「最好北京」→ flex；有 cities 默认 hard
+- cities / excludeCities；不限地点 → cities=[]
 - educationMin / educationLevels / excludeEducationLevels
-- educationStrength: hard|flex|null — 「必须硕士」→ hard；「最好本科以上」→ flex；有学历默认 hard
+- 未改动的 hard 字段可以省略（系统沿用【当前状态】）；要清空必须显式 null 或 []
 
 understanding（想找的人的软偏好 — 不是用户自己）：
-- traits：性格短词（安静、幽默…）
-- interests：兴趣短词（徒步、读书…）
-- occupation：对方在做什么（设计师、在上学、自由职业…）短词列表
-- pace：节奏/相处（慢热、话少…）
-- dislikes：不想要的
-- notes：补充说明
-- likes：兼容旧字段；能归入 traits/interests/occupation/pace 时优先用分字段
-- 「异地可接受」「城市不限」→ cities=[] + notes，不要编造城市
+- 每次只要输出 understanding，就必须给出完整快照：traits / interests / occupation / pace / dislikes / notes / likes 都写上
+- 仍有效的项原样留下；本轮不要的项不要出现在列表里（用 [] 表示该类清空）
+- 缺省的列表键会被当成 []（清空），不会自动沿用旧 soft
+- traits / interests / occupation / pace / dislikes / notes；likes 仅兼容旧字段
+- 「随便找一个」通常是开始匹配，不是性格标签
 
-【「都行 / 都可以 / 随便」— 必须结合语境判断，不要写死规则】
-看用户是在回应哪一类问题，再决定清除哪些字段、是否新增软偏好：
-1) 助手刚问城市/地点，用户说「都行」「其他城市也可以」→ 清空 cities（不限地点），已确定的性别/年龄等保留
-2) 助手刚问年龄，用户说「都行」「差不多就行」→ 清空 ageMin/ageMax
-3) 助手刚问性格/节奏/兴趣/职业，用户说「都行」→ 不新增 soft；不要动 hardFilters
-4) 用户说「年龄30以下，其他的都行」→ 保留 ageMax=30，清空其他尚未敲定的硬条件
-5) 助手问「还有别的要求吗」，用户说「没有了」「都行」「随便找一个」→ 不再加新限制；已明确说过的保留
-6) 「随便找一个」通常表示可以开始匹配，不是性格标签 — 不要写入 traits/likes
-
-输出 hardFilters 时：对需要清除的维度必须显式设 null 或 []；未改变的字段可以省略（系统会沿用【当前状态】）。
+【「都行 / 都可以 / 随便」— 结合在回应什么来判断】
+1) 刚问城市 → 清空 cities，其它 hard 保留
+2) 刚问年龄 → 清空年龄
+3) 刚问性格/兴趣 → 不要新增 soft；是否清空看用户是「没要求」还是「先这样」
+4) 「年龄30以下，其他都行」→ 保留 ageMax，其它未敲定 hard 可清
+5) 「没有了 / 开始找」→ 不再加限制；已明确的保留
 
 只输出 JSON：
 {"hardFilters":{"ageMin":null,"ageMax":null,"ageStrength":null,"genders":[],"excludeGenders":[],"genderStrength":null,"cities":[],"excludeCities":[],"cityStrength":null,"educationMin":null,"educationLevels":[],"excludeEducationLevels":[],"educationStrength":null},"understanding":{"notes":[],"traits":[],"interests":[],"occupation":[],"pace":[],"dislikes":[],"likes":[]}}`
       : `You extract structured match preferences. No chat reply.
 
-You receive [current state] and [this user message]. Output prefs still valid after this turn.
+You receive [current state] and [this user message]. For each preference, decide keep / change / reset, then output the prefs still valid after this turn.
 
-hardFilters: explicit constraints. To remove a constraint, set that field to null or []. Omitted fields keep the current state.
-- Prefer / ideally → value + ageStrength/genderStrength/cityStrength/educationStrength="flex"; must / only → "hard".
-- Location-flex ("any city") → cities=[].
+How to decide (you judge from context):
+- Keep: not mentioned and not contradicted → omit that hardFilters field (system keeps it); for understanding, still list all soft prefs that remain valid
+- Change: user updates or adds → write the new value
+- Reset/clear: user pivots or drops something (e.g. "find someone outgoing instead" after sports; "any city") → null or []
+- "Find another…" / "switch to…" often resets stale soft prefs — do not silently keep obsolete interests/traits
+- "Also…" / "preferably also…" usually merges onto existing soft prefs
 
-understanding (who they want — not the seeker's self-profile):
-- traits, interests, occupation (job/studying), pace, dislikes, notes
-- legacy likes only if you cannot classify into the fields above
+hardFilters: explicit constraints. Omit unchanged fields (kept). Clear with null or [].
+- Prefer → flex strength; must → hard. Any city → cities=[].
 
-["Anything goes" — interpret from context:]
-1) Asked city → "any city" → clear cities []; keep gender/age
-2) Asked age → "flexible" → clear ageMin/ageMax
-3) Asked personality/interests/job → "either" → no new soft prefs; leave hardFilters
-4) "Under 30, anything else fine" → keep ageMax=30
+understanding (who they want — not the seeker):
+- Whenever you output understanding, emit a FULL snapshot: traits, interests, occupation, pace, dislikes, notes, likes
+- Keep still-valid items; omit dropped ones (use [] to clear a category)
+- Missing list keys are treated as [] (cleared) — soft prefs are NOT auto-carried from previous state
+- "Just find someone" is not a personality trait
+
+["Anything goes" — interpret from what was asked:]
+1) City → clear cities
+2) Age → clear age
+3) Personality/interests → usually no new soft; clear only if they reject prior soft prefs
+4) "Under 30, else fine" → keep ageMax
 5) "That's all" → no new constraints
-6) "Just find someone" is not a personality trait
 
 JSON only:
 {"hardFilters":{"ageMin":null,"ageMax":null,"ageStrength":null,"genders":[],"excludeGenders":[],"genderStrength":null,"cities":[],"excludeCities":[],"cityStrength":null,"educationMin":null,"educationLevels":[],"excludeEducationLevels":[],"educationStrength":null},"understanding":{"notes":[],"traits":[],"interests":[],"occupation":[],"pace":[],"dislikes":[],"likes":[]}}`,
@@ -305,6 +299,7 @@ function buildExtractUserContent(input: ExtractInput): string {
       lastAssistant ? `【上一条助手消息】\n${lastAssistant.content}` : "",
       "【本轮用户消息】",
       input.userMessage,
+      "请自行判断哪些偏好保留、修改或重置；输出结束后仍有效的完整状态。understanding 须为完整快照。",
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -316,6 +311,7 @@ function buildExtractUserContent(input: ExtractInput): string {
     lastAssistant ? `[Last assistant message]\n${lastAssistant.content}` : "",
     "[This user message]",
     input.userMessage,
+    "Decide keep / change / reset for each pref; output the full valid state. understanding must be a complete snapshot.",
   ]
     .filter(Boolean)
     .join("\n\n");

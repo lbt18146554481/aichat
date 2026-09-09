@@ -24,6 +24,12 @@ import {
   rosterFromIntentIds,
   WISH_RECALL_LIMIT,
 } from "./wish-recall";
+import {
+  ASK_USER_INFO_TOOL,
+  ASK_USER_INFO_TOOL_NAME,
+  parseAskUserInfoArgs,
+  type PendingUserAsk,
+} from "./ask-user-info";
 
 const KINDS: ActivityKind[] = [
   "tennis",
@@ -45,6 +51,8 @@ export type SideToolState = {
   wishDraft: WishDraft;
   pendingConfirm: string | null;
   myIntentId: string | null;
+  /** Session wish ids (for show_my_wishes summaries). */
+  myIntentIds: string[];
   matchIntentId: string | null;
   triedIntentIds: string[];
   triedOwnerIds: string[];
@@ -55,6 +63,10 @@ export type SideToolState = {
   affirmPublish: boolean;
   suggestedMatchId: string | null;
   lastSearchIds: string[];
+  /** Set only by the show_my_wishes tool. */
+  showMyWishes: boolean;
+  /** Human-in-the-loop card from ask_user_info (native tool path). */
+  pendingUserAsk: PendingUserAsk | null;
 };
 
 export function createSideToolState(input: {
@@ -65,6 +77,7 @@ export function createSideToolState(input: {
   wishDraft: WishDraft;
   pendingConfirm: string | null;
   myIntentId: string | null;
+  myIntentIds?: string[];
   matchIntentId: string | null;
   triedIntentIds: string[];
   triedOwnerIds: string[];
@@ -82,6 +95,12 @@ export function createSideToolState(input: {
     wishDraft: { ...input.wishDraft },
     pendingConfirm: input.pendingConfirm,
     myIntentId: input.myIntentId,
+    myIntentIds:
+      input.myIntentIds?.length
+        ? [...input.myIntentIds]
+        : input.myIntentId
+          ? [input.myIntentId]
+          : [],
     matchIntentId: input.matchIntentId,
     triedIntentIds: [...input.triedIntentIds],
     triedOwnerIds: [...input.triedOwnerIds],
@@ -91,6 +110,8 @@ export function createSideToolState(input: {
     affirmPublish: false,
     suggestedMatchId: null,
     lastSearchIds: [],
+    showMyWishes: false,
+    pendingUserAsk: null,
   };
 }
 
@@ -149,20 +170,6 @@ function draftAsMine(state: SideToolState, ownerCity = ""): Intent {
 }
 
 function previewMatches(state: SideToolState, limit = WISH_RECALL_LIMIT) {
-  if (!state.myIntentId && !state.wishDraft.kind) {
-    return {
-      published: false,
-      count: 0,
-      empty: true,
-      tip:
-        state.lang === "zh-CN"
-          ? "还没有可匹配的心愿草稿（缺活动类型）。"
-          : "No wish draft ready (missing activity kind).",
-      candidates: [] as Array<Record<string, unknown>>,
-      crossCityUsed: false,
-    };
-  }
-
   const mine = state.myIntentId
     ? getIntentById(state.myIntentId)
     : draftAsMine(state);
@@ -318,14 +325,44 @@ export const SIDE_TOOLS: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "show_my_wishes",
+      description:
+        "Show the user's published wishes for this Side session in the right pane. Call when they ask to see / list / review their wishes (e.g. 「看看我发的心愿」「show my wishes」). Does not publish or match.",
+      parameters: {
+        type: "object",
+        properties: {},
+      },
+    },
+  },
+  ASK_USER_INFO_TOOL,
 ];
 
 export function executeSideTool(
   state: SideToolState,
   name: string,
   args: Record<string, unknown>,
+  meta?: { toolCallId?: string },
 ): unknown {
   switch (name) {
+    case ASK_USER_INFO_TOOL_NAME: {
+      const ask = parseAskUserInfoArgs(args, meta?.toolCallId ?? ASK_USER_INFO_TOOL_NAME);
+      if (!ask) {
+        return {
+          error: "invalid_args",
+          tip: "fieldKey, prompt, and kind required; select needs options",
+        };
+      }
+      state.pendingUserAsk = ask;
+      return {
+        status: "awaiting_user",
+        askId: ask.id,
+        fieldKey: ask.fieldKey,
+        tip: "UI will show an inline card; answer arrives next turn (or empty if skipped).",
+      };
+    }
     case "update_wish_draft": {
       if (args.clear === true) {
         state.wishDraft = emptyWishDraft();
@@ -473,6 +510,44 @@ export function executeSideTool(
             : "Form prefill updated; wish goes live only when the user taps Publish on the form.",
       };
     }
+    case "show_my_wishes": {
+      state.showMyWishes = true;
+      const ids = state.myIntentIds.length
+        ? state.myIntentIds
+        : state.myIntentId
+          ? [state.myIntentId]
+          : [];
+      const wishes = [...ids].reverse().map((id) => {
+        const it = getIntentById(id);
+        return {
+          id,
+          active: id === state.myIntentId,
+          kind: it?.kind ?? null,
+          raw:
+            state.lang === "zh-CN"
+              ? it?.rawText_zh || it?.rawText || ""
+              : it?.rawText || "",
+          city:
+            state.lang === "zh-CN"
+              ? it?.city_zh || it?.ownerCity_zh || ""
+              : it?.city || it?.ownerCity || "",
+        };
+      });
+      return {
+        ok: true,
+        shown: true,
+        count: wishes.length,
+        wishes,
+        tip:
+          state.lang === "zh-CN"
+            ? wishes.length
+              ? `右侧已展示本会话 ${wishes.length} 条心愿（最新在上）。`
+              : "本会话还没有已发布的心愿。"
+            : wishes.length
+              ? `Right pane shows ${wishes.length} wish(es) from this session (newest first).`
+              : "No published wishes in this session yet.",
+      };
+    }
     default:
       return { error: `unknown_tool:${name}` };
   }
@@ -494,15 +569,17 @@ export function sideToolSystem(state: SideToolState): string {
 - 问大概能配上几个 / 发布前预览 → preview_wish_matches
 - 已发布要找人 → search_wishes
 - 信息够清楚、可展示发布表单 → confirm_publish_wish（只写 confirmLine 预填，不发布；用户必须点表单发布）
+- 用户要看本会话已发心愿 → show_my_wishes（切右侧心愿列表；不要用 JSON 字段）
 不需要则不调用。不要输出最终聊天 JSON。
-草稿：kind=${d.kind ?? "?"} when=${d.whenAny ? "any" : d.when ?? "?"} ${dates} level=${d.levelAny ? "any" : d.level ?? "?"} published=${state.myIntentId ?? "no"}`
+草稿：kind=${d.kind ?? "?"} when=${d.whenAny ? "any" : d.when ?? "?"} ${dates} level=${d.levelAny ? "any" : d.level ?? "?"} published=${state.myIntentId ?? "no"} sessionWishes=${state.myIntentIds.join(",") || "none"}`
       : `You plan Side by Side tools. Call when needed:
 - clarify activity/when/level/city → update_wish_draft (resolve relative dates to dateStart/dateEnd)
 - location/kind filters → update_wish_filters
 - how many matches / pre-publish check → preview_wish_matches
 - find matches after publish → search_wishes
 - draft ready for form → confirm_publish_wish (confirmLine prefill only; user must tap Publish on form)
+- user asks to see wishes from this session → show_my_wishes (right-pane list; never a JSON field)
 If none needed, call none. Do not output final chat JSON yet.
-Draft: kind=${d.kind ?? "?"} when=${d.whenAny ? "any" : d.when ?? "?"} ${dates} level=${d.levelAny ? "any" : d.level ?? "?"} published=${state.myIntentId ?? "no"}`,
+Draft: kind=${d.kind ?? "?"} when=${d.whenAny ? "any" : d.when ?? "?"} ${dates} level=${d.levelAny ? "any" : d.level ?? "?"} published=${state.myIntentId ?? "no"} sessionWishes=${state.myIntentIds.join(",") || "none"}`,
   ].join("\n\n");
 }

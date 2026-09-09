@@ -441,14 +441,26 @@ export async function chatCompletionToolTurn(opts: {
 export async function runToolLoop(opts: {
   messages: ToolLoopMessage[];
   tools: ToolDefinition[];
-  execute: (name: string, args: Record<string, unknown>) => Promise<unknown> | unknown;
+  execute: (
+    name: string,
+    args: Record<string, unknown>,
+    meta: { toolCallId: string },
+  ) => Promise<unknown> | unknown;
   maxRounds?: number;
   temperature?: number;
-}): Promise<{ messages: ToolLoopMessage[]; rounds: number; called: string[] }> {
+  /** When true after a tool result, stop further tool rounds (human-in-the-loop). */
+  shouldPauseAfter?: (name: string, result: unknown) => boolean;
+}): Promise<{
+  messages: ToolLoopMessage[];
+  rounds: number;
+  called: string[];
+  paused: boolean;
+}> {
   const maxRounds = opts.maxRounds ?? 4;
   const messages = [...opts.messages];
   const called: string[] = [];
   let rounds = 0;
+  let paused = false;
 
   for (let i = 0; i < maxRounds; i++) {
     const turn = await chatCompletionToolTurn({
@@ -482,7 +494,7 @@ export async function runToolLoop(opts: {
       }
       let result: unknown;
       try {
-        result = await opts.execute(tc.function.name, args);
+        result = await opts.execute(tc.function.name, args, { toolCallId: tc.id });
       } catch (err) {
         result = { error: err instanceof Error ? err.message : String(err) };
       }
@@ -491,8 +503,13 @@ export async function runToolLoop(opts: {
         tool_call_id: tc.id,
         content: JSON.stringify(result),
       });
+      if (opts.shouldPauseAfter?.(tc.function.name, result)) {
+        paused = true;
+        break;
+      }
     }
+    if (paused) break;
   }
 
-  return { messages, rounds, called };
+  return { messages, rounds, called, paused };
 }

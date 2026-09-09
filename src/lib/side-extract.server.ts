@@ -62,6 +62,7 @@ interface LlmSideExtractJson {
   levelStrength?: string | null;
   placeStrength?: string | null;
   buddyGenderStrength?: string | null;
+  buddyAgeStrength?: string | null;
   strictWhen?: boolean;
   strictLevel?: boolean;
   allowCrossCity?: boolean;
@@ -186,17 +187,18 @@ allowCrossCity: 用户明确接受异地/跨城 → true
 （不要填写 cities：地点由专门的地点抽取器写入 structured place）
 placeStrength: hard|flex|null — 有具体城市时：「必须同城」→ hard；「最好北京」→ flex；默认 hard
 kinds：只接受的活动类型列表（兼容旧枚举）
-rawText：用户原话或合并后的一句话心愿
+rawText：活动心愿原文；仅当用户说了具体活动/心愿时填写。打招呼、选发布/浏览、无活动内容 → 空字符串 ""，不要把闲聊原话塞进来。
 readyToPublish：仅当 activityCore（或 kind）明确且用户已表达完整意愿时为 true（只用于判断可展示表单，不会自动发布）
 understanding：软偏好 notes/likes/dislikes；用户明确说对搭子「没要求/随便」时写入 notes（如「搭子无特别要求」）
 buddyHardFilters：搭子人群 — genders[]、excludeGenders[]、ageMin、ageMax
 buddyGenderStrength: hard|flex|null — 「必须女生」→ hard；「最好女生」→ flex；默认 hard
+buddyAgeStrength: hard|flex|null — 「必须 25-30」→ hard；「最好差不多大」→ flex；有年龄区间时默认 hard
 buddyPrefRaw：搭子偏好描述原文
 otherReqRaw：其他信息原文（非活动核、非时间地点的补充）
 区分：「搭子最好女生」→ genders=["female"] + buddyGenderStrength=flex；「想认识女生」→ 不要填 buddy（那是 Matchmaker）
 兼容：whenAny/levelAny/strictWhen/strictLevel 仍可输出，但优先 whenStrength/levelStrength
 JSON:
-{"activityCore":null,"activityStrength":null,"kind":null,"when":null,"whenStrength":null,"dateStart":null,"dateEnd":null,"timeStart":null,"timeEnd":null,"level":null,"levelStrength":null,"placeStrength":null,"buddyGenderStrength":null,"buddyHardFilters":{"genders":[],"excludeGenders":[],"ageMin":null,"ageMax":null},"kinds":[],"rawText":"","whenAny":true,"levelAny":true,"strictWhen":false,"strictLevel":false,"readyToPublish":false,"understanding":{"notes":[],"likes":[],"dislikes":[]}}`
+{"activityCore":null,"activityStrength":null,"kind":null,"when":null,"whenStrength":null,"dateStart":null,"dateEnd":null,"timeStart":null,"timeEnd":null,"level":null,"levelStrength":null,"placeStrength":null,"buddyGenderStrength":null,"buddyAgeStrength":null,"buddyHardFilters":{"genders":[],"excludeGenders":[],"ageMin":null,"ageMax":null},"kinds":[],"rawText":"","whenAny":true,"levelAny":true,"strictWhen":false,"strictLevel":false,"readyToPublish":false,"understanding":{"notes":[],"likes":[],"dislikes":[]}}`
     : `Extract wish fields from Side by Side chat. No reply text.
 ${nowLine}
 activityCore: short activity phrase only (e.g. "run", "casual reading") — no when/where. null if unmentioned
@@ -209,6 +211,7 @@ strictWhen/strictLevel/allowCrossCity: set true only when user explicitly requir
 Do NOT fill cities — location is handled by a dedicated place extractor.
 kinds: activity kind allow-list only (legacy)
 readyToPublish true only when activityCore (or kind) is clear and user intent is complete (signals form-ready only — never auto-publishes)
+rawText: activity wish text only when the user stated a concrete activity/wish. Greetings, publish/browse lane picks, or no activity → "" — never dump idle chat into rawText.
 understanding: soft prefs; if user says no buddy preference, add note like "no buddy preference"
 JSON:
 {"activityCore":null,"activityStrength":null,"kind":null,"when":null,"dateStart":null,"dateEnd":null,"timeStart":null,"timeEnd":null,"level":null,"buddyHardFilters":{"genders":[],"excludeGenders":[],"ageMin":null,"ageMax":null},"cities":[],"excludeCities":[],"kinds":[],"rawText":"","whenAny":true,"levelAny":true,"readyToPublish":false,"understanding":{"notes":[],"likes":[],"dislikes":[]}}`;
@@ -237,7 +240,10 @@ export async function runSideExtract(input: SideExtractInput): Promise<SideExtra
   const kind = parsed.kind !== undefined ? normKind(parsed.kind) : input.prevDraft.kind;
   const when = parsed.when !== undefined ? normWhen(parsed.when) : input.prevDraft.when;
   const level = parsed.level !== undefined ? normLevel(parsed.level) : input.prevDraft.level;
-  const rawText = (parsed.rawText ?? input.prevDraft.rawText ?? input.userMessage).trim();
+  const parsedRaw = (parsed.rawText ?? "").trim();
+  const prevRaw = (input.prevDraft.rawText ?? "").trim();
+  // Draft text comes from the extract LLM (or prior draft) — never dump raw userMessage.
+  const rawText = parsedRaw || prevRaw;
 
   const parsedCore =
     parsed.activityCore !== undefined
@@ -281,6 +287,8 @@ export async function runSideExtract(input: SideExtractInput): Promise<SideExtra
       parseStrength(parsed.placeStrength) ?? input.prevDraft.placeStrength ?? null,
     buddyGenderStrength:
       parseStrength(parsed.buddyGenderStrength) ?? input.prevDraft.buddyGenderStrength ?? null,
+    buddyAgeStrength:
+      parseStrength(parsed.buddyAgeStrength) ?? input.prevDraft.buddyAgeStrength ?? null,
     rawText: rawText || input.prevDraft.rawText,
     activityDescRaw: rawText || input.prevDraft.activityDescRaw || input.prevDraft.rawText,
     buddyPrefRaw:

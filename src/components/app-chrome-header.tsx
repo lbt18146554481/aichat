@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { MessageCircle, Sparkles } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { LangSwitcher } from "./lang-switcher";
 import { HistoryTrigger } from "./history-trigger";
 import { SavedTrigger } from "./saved-trigger";
@@ -60,13 +60,6 @@ export function AppChromeHeader() {
                     </span>
                   )}
                 </Link>
-                <Link
-                  to="/wishes"
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                >
-                  <Sparkles className="w-3.5 h-3.5" strokeWidth={1.75} />
-                  <span suppressHydrationWarning>{mounted ? t("tabs.wishes") : ""}</span>
-                </Link>
               </>
             )}
             {mounted && user && <SavedTrigger />}
@@ -105,13 +98,6 @@ export function AppChromeHeader() {
                   {unseen && (
                     <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />
                   )}
-                </Link>
-                <Link
-                  to="/wishes"
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] text-muted-foreground hover:text-foreground"
-                >
-                  <Sparkles className="w-3.5 h-3.5" strokeWidth={1.75} />
-                  <span>{t("tabs.wishes_short")}</span>
                 </Link>
               </>
             )}

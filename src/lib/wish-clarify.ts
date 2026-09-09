@@ -211,9 +211,15 @@ export function assessWishClarifyProgress(input: {
 
   const allDone = activity === "done" && time === "done" && place === "done" && buddy === "done";
   const intakeComplete = intakeDone(input.draft, input.history);
-  const focus = allDone
-    ? "confirm"
-    : nextFocus(intakeComplete, activity, time, place, buddy, capReached);
+  // Browse: after intake, gaps are soft hints only — ready to confirm/search with what we have.
+  const searchReady = intakeComplete;
+  const focus = capReached
+    ? "cap"
+    : !intakeComplete
+      ? "intake"
+      : allDone || searchReady
+        ? "confirm"
+        : nextFocus(intakeComplete, activity, time, place, buddy, capReached);
 
   return {
     activity,
@@ -223,7 +229,7 @@ export function assessWishClarifyProgress(input: {
     focus,
     roundCount,
     capReached,
-    allDone,
+    allDone: allDone || searchReady,
     intakeDone: intakeComplete,
   };
 }
@@ -247,9 +253,9 @@ function focusHint(focus: WishClarifyProgress["focus"], lang: SideLang): string 
       case "buddy":
         return "缺口参考·搭子（对一起的人有没有偏好；说「没要求」也算齐）。额外要求可顺手记。";
       case "confirm":
-        return "信息已够——browse：confirmLine 复述并请确认开搜；publish：confirmLine 预填表单";
+        return "信息已够——browse：affirmMatch=true 立刻搜；publish：confirmLine 预填表单";
       case "cap":
-        return "已达轮次上限——不要再开新问题；confirmLine 按现有信息请确认（缺的字段空着=匹配不限）";
+        return "已达轮次上限——不要再开新问题；browse：affirmMatch=true 立刻搜；publish：confirmLine 开表单（缺的字段空着=匹配不限）";
     }
   }
   switch (focus) {
@@ -264,9 +270,9 @@ function focusHint(focus: WishClarifyProgress["focus"], lang: SideLang): string 
     case "buddy":
       return "gap hint · buddy prefs (“no preference” counts). Extra notes soft-only.";
     case "confirm":
-      return "enough info — confirmLine for browse search or publish form";
+      return "enough info — browse: affirmMatch=true search now; publish: confirmLine form";
     case "cap":
-      return "turn cap — confirmLine with what we have; missing = no hard filter";
+      return "turn cap — browse: affirmMatch=true search now; publish: confirmLine form; missing = no hard filter";
   }
 }
 
@@ -279,7 +285,8 @@ export function isBrowseClarifyComplete(input: {
   history: Array<{ role: "user" | "assistant"; content: string }>;
 }): boolean {
   const p = assessWishClarifyProgress(input);
-  return p.allDone || p.capReached;
+  // User-led: intake (or cap) is enough to confirm search — no field checklist gate.
+  return p.intakeDone || p.allDone || p.capReached;
 }
 
 /** One-line browse confirm recap from current structured draft (server fallback). */
@@ -344,43 +351,43 @@ export function wishClarifyPromptSection(
   const isZh = lang === "zh-CN";
   const lines = isZh
     ? [
-        "心愿澄清（话术自行生成，禁止固定模板句 / 禁止每轮固定追问清单）：",
-        "先听用户自己的想法：开放请对方说想做什么、有什么要求。",
-        "再说完后对照进度，只补真正还缺的维度（活动 / 时间 / 地点 / 搭子）。缺口列表与「建议焦点」只是参考——不要规定本轮必须问某一项，也不要强制按 ①→②→③→④ 逐项审问；可自然组合 1-3 个相关缺口，或先回应用户再决定问不问。",
-        "额外要求只顺手记下，不单独当完成门槛。用户说「都行/随便」按你刚问的语境理解。",
+        "心愿澄清（用户主导；话术自行生成）：",
+        "不要主动追问性别/年龄/城市/时间/搭子等字段清单。开放邀请对方用自己的话说想做什么；对方没说的维度由系统用资料做 soft 冷启动。",
+        "进度与「建议焦点」只是参考——不要按字段审问。browse：本轮要搜就 affirmMatch=true 立刻搜（不要 confirmLine 等确认）。publish：开表单才用 confirmLine。",
+        "额外要求只顺手记下。用户说「都行/随便」按语境理解。",
         `澄清轮次上限 ${WISH_CLARIFY_MAX_ROUNDS} 轮（已用 ${progress.roundCount}/${WISH_CLARIFY_MAX_ROUNDS}，按用户发言次数计）。`,
         progress.capReached
           ? mode === "browse"
-            ? "⚠ 已达上限：必须用 confirmLine 复述目前已知条件，问是否按此开搜；缺的字段保持空即可（匹配时当作不限）。affirmMatch 须用户确认后。禁止再说「我去搜」。"
+            ? "⚠ 已达上限：affirmMatch=true 立刻搜；缺维空着=冷启动 soft。禁止再追问。"
             : "⚠ 已达上限：confirmLine 预填表单，让用户点发布或继续改。"
           : progress.allDone
             ? mode === "browse"
-              ? "信息已齐：必须用 confirmLine 复述搜索条件并请用户确认开搜（不是发布）；affirmMatch 仅用户确认后为 true；禁止说「我去搜/稍等」。"
+              ? "已可开搜：affirmMatch=true 本轮立刻搜；禁止 confirmLine 等待确认；缺维不必追问。"
               : "信息已齐：confirmLine 预填发布表单；reply 引导点「发布」；affirmPublish 永远 false。"
             : mode === "browse"
-              ? "未齐：先回应用户；若补问只针对缺口参考，措辞自定。禁止说「我去搜/稍等/在池子里找」——开搜须等 confirmLine + 用户口头确认。affirmMatch=false；pickMatchIntentId=null。"
-              : "未齐：先回应用户；若补问只针对缺口参考。不要提前发布或 pickMatchIntentId。",
-        `进度：活动 ${statusLabel(progress.activity, lang)} · 时间 ${statusLabel(progress.time, lang)} · 地点 ${statusLabel(progress.place, lang)} · 搭子 ${statusLabel(progress.buddy, lang)}`,
+              ? "还可补：先回应用户。本轮若是搜人需求 → affirmMatch=true；不要 confirmLine 闸门。"
+              : "还可补：先回应用户；勿强制填齐字段。不要提前发布或 pickMatchIntentId。",
+        `进度（参考）：活动 ${statusLabel(progress.activity, lang)} · 时间 ${statusLabel(progress.time, lang)} · 地点 ${statusLabel(progress.place, lang)} · 搭子 ${statusLabel(progress.buddy, lang)}`,
         `建议焦点（非剧本）：${focusHint(progress.focus, lang)}`,
       ]
     : [
-        "Wish clarification (your wording — no fixed templates / no per-turn question script):",
-        "Listen first: open invite for wish + requirements in their words.",
-        "Then fill only real gaps (activity / time / place / buddy). Progress + suggested focus are hints — never mandate one field per turn or force ①→②→③→④ interrogation; combine 1-3 related gaps or just respond.",
-        "Extra notes are soft-only. Interpret “anything goes” from what you just asked.",
+        "Wish clarification (user-led; your wording):",
+        "Do NOT chase gender/age/city/time/buddy checklists. Open invite for wish in their words; missing dims use soft profile cold-start.",
+        "Progress is hints only. Browse: affirmMatch=true searches now (no confirmLine wait). Publish: confirmLine only to open the form.",
+        "Extra notes are soft-only. Interpret “anything goes” from context.",
         `Cap: ${WISH_CLARIFY_MAX_ROUNDS} user turns (${progress.roundCount}/${WISH_CLARIFY_MAX_ROUNDS} used).`,
         progress.capReached
           ? mode === "browse"
-            ? "⚠ Cap reached: must use confirmLine to recap known filters and ask to search; leave missing fields empty (= no hard filter). affirmMatch only after user confirms. Never say you're searching now."
+            ? "⚠ Cap: affirmMatch=true search now; missing dims cold-start soft. No more chase."
             : "⚠ Cap reached: confirmLine prefill form — user taps Publish or edits."
           : progress.allDone
             ? mode === "browse"
-              ? "Enough info: must confirmLine recap search filters and ask to start browsing (not publish); affirmMatch only after confirm; never say you're searching now."
+              ? "Ready: affirmMatch=true search this turn; no confirmLine wait; don't chase missing dims."
               : "Complete: confirmLine prefill publish form; guide user to tap Publish; affirmPublish always false."
             : mode === "browse"
-              ? "Incomplete: respond first; follow-ups only from gap hints, wording yours. NEVER say you'll search / wait — browsing runs after confirmLine + verbal confirm. affirmMatch=false; pickMatchIntentId=null."
-              : "Incomplete: respond first; follow-ups only from gap hints. No publish or pickMatchIntentId yet.",
-        `Progress: activity ${statusLabel(progress.activity, lang)} · time ${statusLabel(progress.time, lang)} · place ${statusLabel(progress.place, lang)} · buddy ${statusLabel(progress.buddy, lang)}`,
+              ? "Optional gaps: respond first. If this turn is a search → affirmMatch=true; no confirmLine gate."
+              : "Optional gaps: respond first; don't force fields. No early publish or pickMatchIntentId.",
+        `Progress (hint): activity ${statusLabel(progress.activity, lang)} · time ${statusLabel(progress.time, lang)} · place ${statusLabel(progress.place, lang)} · buddy ${statusLabel(progress.buddy, lang)}`,
         `Suggested focus (not a script): ${focusHint(progress.focus, lang)}`,
       ];
   return lines.join("\n");

@@ -14,6 +14,7 @@ import {
   type Orientation,
   isHidden,
   toggleHidden,
+  isVitalsComplete,
 } from "./profile-shape";
 
 export type { Profile, ProfileMoment, Favorite, WorkKind, Gender, Orientation };
@@ -24,6 +25,7 @@ export {
   MIN_MOMENTS,
   isHidden,
   toggleHidden,
+  isVitalsComplete,
 };
 
 let cache: Profile = { ...EMPTY_PROFILE };
@@ -87,17 +89,6 @@ export function resolveUserDisplayName(
   const custom = profile?.name?.trim();
   if (custom) return custom;
   return user?.email?.trim() || "";
-}
-
-export function isVitalsComplete(p: Profile): boolean {
-  return (
-    p.name.trim().length > 0 &&
-    typeof p.age === "number" &&
-    p.age >= 18 &&
-    p.city.trim().length > 0 &&
-    p.occupation.trim().length > 0 &&
-    p.gender !== ""
-  );
 }
 
 function filledFavorites(p: Profile): Favorite[] {

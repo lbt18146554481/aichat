@@ -22,7 +22,7 @@ import { passesActivityCoreHardFilter, resolveActivityCoreText } from "./activit
 import {
   buddyFiltersActive,
   EMPTY_BUDDY_HARD_FILTERS,
-  ownerPassesBuddyHardFilters,
+  ownerFailsBuddyHardConstraints,
   type BuddyHardFilters,
 } from "./buddy-filters";
 import { resolveOwnerSnapshot } from "./owner-snapshot";
@@ -70,6 +70,8 @@ export interface WishRecallOpts {
   pool?: Intent[];
   /** Browse lane: no silent cross-city or city-filter relaxation. */
   browseStrict?: boolean;
+  /** Seeker profile for shared favorites / moments soft score. */
+  seekerProfile?: import("./profile-shape").Profile | null;
 }
 
 export interface RecalledWish {
@@ -233,8 +235,10 @@ function hardFilterDropReason(
   }
   if (
     buddyFiltersActive(buddy) &&
-    (mine.buddyGenderStrength !== "flex") &&
-    !ownerPassesBuddyHardFilters(resolveOwnerSnapshot(it), buddy)
+    ownerFailsBuddyHardConstraints(resolveOwnerSnapshot(it), buddy, {
+      buddyGenderStrength: mine.buddyGenderStrength,
+      buddyAgeStrength: mine.buddyAgeStrength,
+    })
   ) {
     return "buddy_hard";
   }
@@ -311,6 +315,7 @@ function softScore(mine: Intent, other: Intent, u: UserUnderstanding, opts: Wish
     buddyMatchQuery: buddyQ,
     shownIds: opts.shownIds,
     passedIds: opts.passedIds,
+    seekerProfile: opts.seekerProfile,
   }).total;
 }
 

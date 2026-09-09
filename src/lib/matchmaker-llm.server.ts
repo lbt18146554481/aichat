@@ -2,10 +2,12 @@ import type { Profile } from "./profile-shape";
 import type { UserUnderstanding } from "./understanding";
 import { softPrefsPresent } from "./understanding";
 import type { MatchHardFilters, RecallOpts } from "./match-types";
+import { EMPTY_HARD_FILTERS } from "./match-types";
+import { applyMatchmakerColdStart, profileHasColdStartSignal } from "./cold-start-prefs";
 import { chatCompletionJsonStream, runToolLoop } from "./llm.server";
 import { recallCandidates, ensureMatchableHardFilters } from "./match-recall";
 import { buildPoolFacets } from "./pool-facets.server";
-import { findPersonInPool, getMatchablePeople } from "./people-store.server";
+import { findPersonInPool, getMatchablePeopleForSeeker } from "./people-store.server";
 import type { Person, PersonGender } from "./types";
 import { runMatchmakerExtract } from "./matchmaker-extract.server";
 import type { MatchmakerLang } from "./match-types";
@@ -14,9 +16,8 @@ import { selfVoiceRule, agentCapabilityIntroRule, isAgentFirstReply } from "./ag
 import { formatPlaceList, parsePlaceList } from "./geo";
 import { profileSummaryForPrompt } from "./profile-summary";
 import { MATCH_QUEUE_LIMIT, matchPrefsFingerprint, advanceMatchmakerQueue } from "./matchmaker-queue";
-import { runMatchmakerRank } from "./matchmaker-rank.server";
+import { runMatchmakerRank, ensureQueueReasons } from "./matchmaker-rank.server";
 import {
-  runMatchmakerClarifyCapReply,
   runMatchmakerEmptyReply,
   runMatchmakerIntroReply,
   runMatchmakerQueueExhaustedReply,
@@ -28,6 +29,13 @@ import {
   matchmakerToolSystem,
   type MatchmakerToolState,
 } from "./matchmaker-tools.server";
+import {
+  ASK_USER_INFO_TOOL_NAME,
+  awaitingUserAskChatHint,
+  formatUserAskResolutionForLlm,
+  type PendingUserAsk,
+  type UserAskResolution,
+} from "./ask-user-info";
 
 export type { MatchmakerLang };
 export type MatchmakerTurnAction =
@@ -36,7 +44,8 @@ export type MatchmakerTurnAction =
   | "confirm_match"
   | "confirm_rematch"
   | "pass_and_next"
-  | "see_next";
+  | "see_next"
+  | "resolve_user_ask";
 
 export interface MatchmakerTurnInput {
   lang: MatchmakerLang;
@@ -53,11 +62,16 @@ export interface MatchmakerTurnInput {
   pendingMatchConfirm: string | null;
   pendingRematchConfirm: string | null;
   rankedQueue: string[];
+  queueReasons: Record<string, string>;
+  /** Chat/tool hard filters only (no cold-start). */
+  chatHardFilters?: MatchHardFilters;
   queueCursor: number;
   queueFingerprint: string | null;
   seed?: string;
   handoffCount?: number;
   handoffSummary?: string;
+  /** Result of a previous ask_user_info card (confirm / cancel / skip). */
+  userAskResolution?: UserAskResolution | null;
 }
 
 export interface MatchmakerTurnOutput {
@@ -74,12 +88,16 @@ export interface MatchmakerTurnOutput {
   pendingMatchConfirm: string | null;
   pendingRematchConfirm: string | null;
   rankedQueue: string[];
+  queueReasons: Record<string, string>;
+  chatHardFilters: MatchHardFilters;
   queueCursor: number;
   queueFingerprint: string | null;
   queueAdvance?: "pass" | "see";
   rematchRefresh?: boolean;
   passedIds?: string[];
   shownIds?: string[];
+  /** Inline ask_user_info card waiting for the user. */
+  pendingUserAsk?: PendingUserAsk | null;
 }
 
 interface LlmChatJson {
@@ -178,7 +196,7 @@ function coreHardFiltersSet(f: MatchHardFilters, u?: UserUnderstanding): boolean
   return hasGender && hasAge && hasCity;
 }
 
-/** Guide the model on what to clarify next — open-first, gaps as hints (not a script). */
+/** Guide: deliver when searchable — never chase fields or wait for confirm. */
 function clarifyFocusLine(f: MatchHardFilters, lang: MatchmakerLang, u: UserUnderstanding): string {
   const isZh = lang === "zh-CN";
   const hasAnySignal =
@@ -192,41 +210,13 @@ function clarifyFocusLine(f: MatchHardFilters, lang: MatchmakerLang, u: UserUnde
 
   if (!hasAnySignal) {
     return isZh
-      ? "状态：偏好几乎空白。先开放请用户用自己的话说想找什么样的人；不要按字段清单开场，也不要固定本轮必问某几项。"
-      : "State: prefs nearly blank. Invite them to describe who they hope to meet in their own words — no field checklist, no fixed questions this turn.";
-  }
-
-  const missingHard: string[] = [];
-  if (!f.genders.length && !f.excludeGenders.length) {
-    missingHard.push(isZh ? "性别" : "gender");
-  }
-  if (!f.cities.length && !locationFlexible(u)) {
-    missingHard.push(isZh ? "城市/是否接受异地" : "city / remote ok");
-  }
-  if (f.ageMin == null && f.ageMax == null) {
-    missingHard.push(isZh ? "年龄范围" : "age range");
-  }
-
-  const missingSoft: string[] = [];
-  if (!(u.traits?.length)) missingSoft.push(isZh ? "性格" : "traits");
-  if (!(u.interests?.length)) missingSoft.push(isZh ? "兴趣" : "interests");
-  if (!(u.occupation?.length)) missingSoft.push(isZh ? "对方在做什么" : "what they do");
-
-  if (!coreHardFiltersSet(f, u)) {
-    return isZh
-      ? `状态：已有一些信息，硬方向仍可能不足（缺口参考：${missingHard.join("、") || "无"}）。先回应用户刚说的话；若顺势补问，只从缺口里自然选 1-3 点，自行组织措辞——不要每轮按固定顺序/固定三项追问。用户说「随便/开始找」可跳过。`
-      : `State: some prefs exist; hard direction may still be thin (gap hints: ${missingHard.join(", ") || "none"}). Respond to what they said; if you follow up, pick 1-3 gaps in your own words — never a fixed per-turn script. Skip if they want to start.`;
-  }
-
-  if (!softPrefsPresent(u)) {
-    return isZh
-      ? `状态：硬方向大致够了，软画像仍空（可选缺口：${missingSoft.join("、")}）。可轻问一句，或直接 confirmLine；用户说「都行/开始找」就确认开找。不要规定本轮必须问性格+兴趣+职业。`
-      : `State: hard direction mostly set; soft portrait empty (optional gaps: ${missingSoft.join(", ")}). One light question or confirmLine; skip if they say anything goes / start. Do not mandate traits+interests+job this turn.`;
+      ? "尚无可搜信号：可开放邀请对方说说想认识什么样的人，不要索要字段。一有偏好/冷启动可搜，系统本轮就会出人——禁止追问、禁止 confirmLine。"
+      : "No searchable signal yet: invite who they hope to meet — no checklist. Once prefs/cold-start allow search, server introduces this turn — no chase, no confirmLine.";
   }
 
   return isZh
-    ? "状态：信息已基本够用。用 confirmLine 复述想找什么样的人并请确认开找；不要再机械追问。用户说「随便/开始找」→ affirmMatch。"
-    : "State: prefs are enough. confirmLine recap and ask to start; no more form questions. affirmMatch when they say start.";
+    ? "已有可搜信号：系统本轮会排序并展示人选（你看不到最终人选前不要写介绍）。reply 不要点名、不要描述具体某人；系统出人后会另写介绍。禁止 confirmLine。"
+    : "Searchable prefs present: server ranks someone this turn. Do NOT name or describe a specific person in reply — intro is written after ranking. No confirmLine.";
 }
 
 function actionHint(input: MatchmakerTurnInput): string {
@@ -238,12 +228,12 @@ function actionHint(input: MatchmakerTurnInput): string {
   if (action === "start") {
     if (fromPriorChat) {
       return zh(input.lang)
-        ? `${firstReply ? "这是接手后第一次回复：先用一句自然介绍你能帮用户认识新朋友（一位一位推荐并说原因），再" : ""}直接回应用户已说的意图，不要「嗨/好，我们开始」等空泛接待套话，也别再问想认识人还是一起做事。偏好不够时不要 affirmMatch；对照已有信息只补真正缺的要点，可一轮问 2-3 项。`
-        : `${firstReply ? "First reply after takeover: one natural sentence on helping them meet someone new (one person at a time with reasons), then " : ""}Respond directly to what they already said — no empty greeting filler, never re-ask meet-vs-activity. Until prefs are clear, do not affirmMatch; fill only what's missing — up to 2-3 related items per turn.`;
+        ? `${firstReply ? "这是接手后第一次回复：先用一句自然介绍你能帮用户认识新朋友（一位一位推荐并说原因），再" : ""}直接回应用户已说的意图。有可搜偏好时系统本轮会出人，你负责介绍；没有偏好时开放邀请一句即可。禁止追问字段、禁止 confirmLine。`
+        : `${firstReply ? "First reply after takeover: one natural sentence on helping them meet someone new (one person at a time with reasons), then " : ""}respond to what they already said. If prefs are searchable the server shows someone this turn — you introduce; if not, one open invite. No field chase, no confirmLine.`;
     }
     return zh(input.lang)
-        ? `${firstReply ? "这是接手后第一次回复：先用一句自然介绍你能帮用户认识新朋友（一位一位推荐并说原因），再" : ""}用一句开放问题请用户用自己的话说想找什么样的人。不要按字段清单开场，也不要规定本轮必问性别/年龄/城市。偏好还不够时不要 affirmMatch；自称只用「我」。`
-        : `${firstReply ? "First reply: one natural sentence on meeting someone new (one at a time with reasons), then " : ""}one open invite to describe who they hope to meet in their own words. No field checklist; no mandated gender/age/city this turn. No affirmMatch until prefs exist; I/me only.`;
+        ? `${firstReply ? "这是接手后第一次回复：先用一句自然介绍你能帮用户认识新朋友（一位一位推荐并说原因），再" : ""}用一句开放问题请用户用自己的话说想找什么样的人。不要字段清单。有偏好后系统立刻出人。自称只用「我」。`
+        : `${firstReply ? "First reply: one natural sentence on meeting someone new (one at a time with reasons), then " : ""}one open invite to describe who they hope to meet. No checklist. Once prefs exist the server introduces immediately. I/me only.`;
   }
   if (action === "pass_and_next") {
     return zh(input.lang)
@@ -257,21 +247,22 @@ function actionHint(input: MatchmakerTurnInput): string {
   }
   if (seed) {
     return zh(input.lang)
-      ? `用户开场相关：「${seed}」。若只是想认识人、打招呼而没有具体偏好，不要 affirmMatch；可轻轻问问想找什么样的人，但不要催促。`
-      : `Opening context: "${seed}". If they only greeted with no real prefs, do not affirmMatch; you may gently ask who they want to meet — don't push.`;
+      ? `用户开场相关：「${seed}」。若只是打招呼、没有找人意图，不要 affirmMatch；可轻轻问问想找什么样的人。若明确要找人/随便推一个，affirmMatch=true（即使没说偏好）。`
+      : `Opening context: "${seed}". If they only greeted with no search intent, do not affirmMatch; you may gently ask who they want to meet. If they clearly want to meet someone / see anyone, affirmMatch=true even with no prefs.`;
   }
   return "";
 }
 
-/** Enough signal to introduce someone — greeting / "想认识人" alone is not enough. */
+/** Enough to introduce — cold-start profile priors count; greeting alone still not enough unless immediate match. */
 function prefsReady(input: MatchmakerTurnInput): boolean {
   const u = input.understanding;
-  const f = input.hardFilters;
+  const f = applyMatchmakerColdStart(input.profile, input.hardFilters);
   if (f.ageMin != null || f.ageMax != null) return true;
   if (f.genders.length > 0 || f.excludeGenders.length > 0) return true;
   if (f.cities.length > 0 || f.educationMin || f.educationLevels.length > 0) return true;
   if (softPrefsPresent(u) || u.negative.length > 0) return true;
   if (u.notes.some((n) => n.trim().length >= 6)) return true;
+  if (profileHasColdStartSignal(input.profile)) return true;
   return wantsImmediateMatch(input);
 }
 
@@ -283,8 +274,8 @@ function userMessageBlob(input: MatchmakerTurnInput): string {
   return `${input.userMessage ?? ""} ${input.seed ?? ""} ${input.handoffSummary ?? ""} ${userBits}`;
 }
 
-/** Max assistant clarify turns before forcing the confirm-and-search flow. */
-export const MAX_CLARIFY_TURNS = 5;
+/** @deprecated Clarify quotas removed — kept so old imports don't break. Always false. */
+export const MAX_CLARIFY_TURNS = 0;
 
 export function isStillClarifyingBeforeIntro(input: MatchmakerTurnInput): boolean {
   return (
@@ -295,37 +286,14 @@ export function isStillClarifyingBeforeIntro(input: MatchmakerTurnInput): boolea
   );
 }
 
-/** Assistant turns spent追问 before anyone is shown. */
 export function countClarifyAssistantTurns(input: MatchmakerTurnInput): number {
   if (!isStillClarifyingBeforeIntro(input)) return 0;
   return input.history.filter((h) => h.role === "assistant").length;
 }
 
-/** Already asked MAX_CLARIFY_TURNS times — next reply must confirm, not追问. */
-export function isClarifyCapReached(input: MatchmakerTurnInput): boolean {
-  return isStillClarifyingBeforeIntro(input) && countClarifyAssistantTurns(input) >= MAX_CLARIFY_TURNS;
-}
-
-function buildClarifyCapConfirmLine(
-  input: MatchmakerTurnInput,
-  understanding: UserUnderstanding,
-  hardFilters: MatchHardFilters,
-): string {
-  const isZh = zh(input.lang);
-  const bits = [...understanding.positive.slice(0, 3), ...understanding.notes.slice(-2)].filter(
-    Boolean,
-  );
-  const filters = filtersLine(hardFilters, input.lang);
-  const hasFilters = !/暂无硬条件|no hard filters yet/i.test(filters);
-  const recap = [hasFilters ? filters : "", ...bits].filter(Boolean).join(isZh ? "；" : "; ");
-  if (recap) {
-    return isZh
-      ? `我先按这些理解：${recap}。还有别的要求吗？`
-      : `So far I'm hearing: ${recap}. Anything else?`;
-  }
-  return isZh
-    ? "我们聊了好几轮啦。还有别的要求吗？没有的话我就按目前已了解的帮你找。"
-    : "We've gone back and forth a bit. Anything else? If not, I'll search with what I have.";
+/** Clarify cap removed — never force a confirm round. */
+export function isClarifyCapReached(_input: MatchmakerTurnInput): boolean {
+  return false;
 }
 
 /** Answering "any is fine" on a preference dimension — not "start matching now". */
@@ -402,14 +370,15 @@ function buildChatSystem(
     pendingRematchConfirm: string | null;
     readyToMatch: boolean;
     hasQueue: boolean;
-    clarifyTurns: number;
-    clarifyCapReached: boolean;
+    awaitingUserAsk?: PendingUserAsk | null;
   },
 ): string {
   const isZh = zh(input.lang);
   const firstReply = isAgentFirstReply(input.history);
   const capabilityIntro = firstReply ? agentCapabilityIntroRule("matchmaker", isZh) : "";
-  const blocked = new Set([...input.blockedPersonIds, ...input.passedIds]);
+  const awaitingHint = opts.awaitingUserAsk
+    ? awaitingUserAskChatHint(opts.awaitingUserAsk, input.lang)
+    : "";
   const current = input.currentPersonId
     ? findPersonInPool(pool, input.currentPersonId)
     : null;
@@ -442,105 +411,49 @@ function buildChatSystem(
     .join("\n");
 
   const confirmRule = isZh
-    ? `首次匹配确认：信息已够且尚无队列时，用 confirmLine 复述想找什么样的人；用户确认前 affirmMatch=false。用户用自然语言确认（好/好的/开始找吧）后 affirmMatch=true（系统排序并展示第一位）——不要提按钮或「点击确认」。
-重筛确认：用户已看过人且要改条件/换一批时，用 request_rematch 工具后输出 rematchConfirmLine 复述新条件；确认前 affirmRematch=false。用户口头确认后 affirmRematch=true（系统重新排序，保留已跳过名单）。
-软偏好（性格、相处节奏、希望对方的兴趣等 understanding 变化）与硬条件同等：明显变了且要按新标准找人 → request_rematch + rematchConfirmLine，不要只靠 update_filters 或 browse_next_person。
-不确定用户是要「同批看下一位」还是「改条件/偏好重筛」：只在 reply 里问一句，不要调工具、不要出确认卡片。
-同批浏览：用户明确只要换/看下一位、不改条件 → browse_next_person（默认 mode=see，不写入 passed）；仅当用户明确说不合适/没感觉/不喜欢 → mode=pass。
-已挂起首次确认：${opts.pendingMatchConfirm ?? "无"}；已挂起重筛确认：${opts.pendingRematchConfirm ?? "无"}；当前有队列：${opts.hasQueue ? "是" : "否"}`
-    : `First-match confirm: when prefs are enough and no queue yet, use confirmLine; affirmMatch=false until the user verbally confirms (ok / start matching), then affirmMatch=true (server ranks) — never mention buttons.
-Rematch confirm: when criteria change or a new batch is needed, call request_rematch then rematchConfirmLine; affirmRematch=false until verbal confirm, then affirmRematch=true (re-rank, keep passedIds).
-Soft prefs (traits, pace, interests in understanding) count the same as hard filters: if they clearly changed and the user wants a new screen → request_rematch + rematchConfirmLine, not update_filters or browse_next_person alone.
-If unsure browse vs rematch: ask in reply only — no tools, no confirm cards.
-Browse same batch: browse_next_person with mode=see by default (no passedIds); mode=pass only when user clearly rejects (not a fit / no spark / don't like).
-Pending first confirm: ${opts.pendingMatchConfirm ?? "none"}; pending rematch: ${opts.pendingRematchConfirm ?? "none"}; has queue: ${opts.hasQueue ? "yes" : "no"}`;
+    ? `搜索由你决定（像调用工具）：本轮用户有找人/认识新朋友的意图时，设 affirmMatch=true，系统会立刻排序出人——不要 confirmLine，不要等用户再说「好的」。
+- 信息不齐也能搜：未提及维度用资料冷启动 soft；空字段不参与得分即可。
+- affirmMatch=true：本轮要搜（含「随便推一个」「帮我找」「先看看」等，即使几乎没说偏好）。
+- affirmMatch=false：仅闲聊/打招呼、或只在澄清偏好、本轮不要出人。
+- 重筛：条件/软偏好明显变了或用户要换一批 → 调 request_rematch，affirmRematch=true（或 rematchConfirmLine 非空）；不要再等一轮口头确认。
+- 不确定「同批下一位」还是「重筛」：只在 reply 问一句，不调工具。
+- 同批浏览：右侧「看下一个人」记入 passed；聊天明确不合适 → browse_next_person mode=pass；只想看下一位 → mode=see。
+当前有队列：${opts.hasQueue ? "是" : "否"}`
+    : `You decide when to search (tool-like): if this turn the user wants to meet someone, set affirmMatch=true — server ranks immediately. No confirmLine, no waiting for "ok".
+- Sparse prefs are fine: unstated dims use profile cold-start soft; empty fields simply don't score.
+- affirmMatch=true: search this turn (incl. "show anyone" / "find someone" even with almost no prefs).
+- affirmMatch=false: chatting/greeting/clarifying only — do not introduce someone this turn.
+- Rematch: criteria changed or new batch → request_rematch with affirmRematch=true (or non-empty rematchConfirmLine); no second confirm.
+- Unsure browse vs rematch: ask in reply only — no tools.
+- Same-batch browse: UI next records passed; clear reject → browse_next_person mode=pass; casual next → mode=see.
+Has queue: ${opts.hasQueue ? "yes" : "no"}`;
 
-  const activityLaneRule =
-    (input.handoffCount ?? 0) >= 2
-      ? ""
-      : isZh
-        ? `目的随时可能切换（最高优先级之一）：
-你当前在「认识新朋友」流程，但用户**随时**可能改去「找人一起做事 / 看有没有现成活动」。每一轮都要留意活动类信号，不要默认继续推人或收交友偏好。
+  const activityLaneRule = isZh
+    ? `本会话只做「认识新朋友」。不要设置 handoffTo，也不要尝试切到一起做事。
+若用户明确想找活动搭子 / 一起做事 / 查活动池：handoffTo 必须为 null；在 reply 里礼貌说明请回首页开一个「一起做事」的新对话；suggestions 可给「回首页开新对话」类第一人称短句。
+若用户只是把爱好当交友偏好（认识喜欢跑步的人）→ 留在本会话，记入软偏好。`
+    : `This session is meet-someone only. Never set handoffTo or switch to do-something.
+If they clearly want activity buddies / browse wishes: handoffTo must stay null; politely tell them to start a new “do something together” chat from home; suggestions may include a first-person “start a new chat” phrase.
+If the activity is only a people preference (meet someone who likes running) → stay here and treat it as a soft preference.`;
 
-三种不同目的——不要混为一谈：
-A) **一起去做**：找搭子、约时间地点一起逛公园/跑步/看展等 → 用户明确选 A 后 handoffTo="sidebyside"（reply 与 transitionReply 留空 ""）。
-B) **认识爱做这事的人**：把活动当交友偏好，想认识喜欢逛公园的人 → handoffTo=null，活动记入软偏好，按认识新朋友继续。
-C) **查有没有现成活动**：问「有什么…活动」「有没有一起…的活动」「附近有什么活动」→ 不是介绍具体某个人，而是想找可参加的活动/搭子心愿 → 先澄清是否走 A（查活动/找搭子）；用户明确要查活动或找搭子 → handoffTo="sidebyside"。
-
-常见信号（出现任一类都要警惕，可能正在切换目的）：
-- C：有什么活动、有没有活动、有什么一起逛公园的活动
-- A：一起、搭子、约、周末一起、找人一起逛公园、在北京找能一起…的人
-- B：认识喜欢…的人、想找爱逛公园的女生、把…当偏好
-
-**一旦 A / B / C 分不清，或用户话里同时像多条路**：
-- handoffTo 必须为 null
-- affirmMatch=false；不要 confirmLine；不要介绍右侧的人、不要换下一个、不要追问性别年龄
-- 在 reply 里用一句自然的话问清楚（可顺带承认右侧已有人但先确认用户现在想要什么）
-- suggestions 给 3 条第一人称短句，分别对应 A / B / C（措辞随上下文变化，勿照抄固定例句）
-- 不要提 Side by Side、转接、换模块等产品名
-
-**已澄清之后**：
-- 明确选 A 或要查活动 → handoffTo="sidebyside"
-- 明确选 B → handoffTo=null，继续收集偏好或匹配
-- 用户说「还是认识人吧」「继续看人」→ 留在 matchmaker
-
-${input.currentPersonId || opts.hasQueue ? "注意：右侧已有人或已有队列——用户若突然提活动/搭子，优先按上文澄清目的，不要继续介绍或推下一位。" : ""}`
-        : `Intent can switch anytime (high priority):
-You are in "meet someone new", but the user may switch to "do something together / browse activities" at any turn. Watch for activity signals every turn; do not default to pushing people or dating prefs.
-
-Three distinct goals — do not conflate:
-A) **Do together**: find a buddy, schedule time/place (park walk, run, exhibition…) → after user clearly picks A, handoffTo="sidebyside" (reply="" and transitionReply="").
-B) **Meet someone who likes it**: activity as a dating/friendship preference → handoffTo=null, soft preference, stay in matchmaker.
-C) **Browse existing activities**: "any park walk activities?", "what activities are there" → not introducing a person; wants joinable activities/wishes → clarify toward A; if they want activities/buddies → handoffTo="sidebyside".
-
-Watch for signals:
-- C: any activities, what activities exist
-- A: together, buddy, weekend, find someone to walk with me
-- B: meet someone who likes…, preference for park walks
-
-**If A/B/C unclear or mixed**:
-- handoffTo must be null
-- affirmMatch=false; no confirmLine; do not introduce anyone on the right or ask gender/age
-- Ask naturally in reply (acknowledge someone may be on the right but confirm what they want now)
-- suggestions = 3 first-person phrases for A, B, C
-- No product/lane names
-
-**After clarify**: clear A or activities → handoffTo="sidebyside"; clear B → stay matchmaker; "keep meeting people" → stay matchmaker.
-
-${input.currentPersonId || opts.hasQueue ? "Note: someone is already on the right or queue exists — if they mention activities/buddies, clarify lane first; do not keep introducing." : ""}`;
-
-  const clarifyRule = isZh
-    ? `追问上限：尚未展示任何人前，最多追问 ${MAX_CLARIFY_TURNS} 轮（当前已 ${opts.clarifyTurns} 轮）。${
-        opts.clarifyCapReached
-          ? "已达上限：不得再问偏好细节；必须用 confirmLine 复述目前已知，问用户还有没有其他要求，affirmMatch=false。"
-          : opts.clarifyTurns >= MAX_CLARIFY_TURNS - 1
-            ? "还剩最后一轮追问机会；下一轮必须走 confirmLine。"
-            : "每轮 1-2 个自然问题即可，可组合相关项（如年龄+城市），不要像填表逐项追问，也不要连环盘问。"
-      }`
-    : `Clarify cap: before showing anyone, at most ${MAX_CLARIFY_TURNS} follow-up rounds (now ${opts.clarifyTurns}).${
-        opts.clarifyCapReached
-          ? "Cap reached: no more preference questions; use confirmLine to recap and ask if anything else, affirmMatch=false."
-          : opts.clarifyTurns >= MAX_CLARIFY_TURNS - 1
-            ? "Last clarify round next; after that you must use confirmLine."
-            : "1-2 natural questions per turn; combine related items (e.g. age + city). No form wizard or rapid-fire."
-      }`;
+  const deliverRule = isZh
+    ? `「提供信息」和「搜索」拆开：用户不提供偏好也能搜（affirmMatch=true 即可）。不要为凑齐字段追问。confirmLine 必须始终为 null。`
+    : `Split "providing prefs" from "search": users can search with almost no prefs (affirmMatch=true). Never chase fields to complete a checklist. confirmLine must always be null.`;
 
   return [
     isZh
-      ? `你在 Maitri 帮用户认识新朋友。像真人聊天，2-5 句，温暖具体。不要提 AI。以用户为主导：先回应当下说的话，不要每句都催着补充偏好。
-用户也可能随时改去「找人一起做事 / 看有什么活动」——见下方「目的随时可能切换」规则；有活动类信号时，优先澄清目的，不要惯性继续推人。
-追问方式：先听用户自己的想法（开放），再对照已收集信息看缺什么；缺了才自然补问。缺口列表只是参考，不要规定每轮固定问哪几项、也不要按「第一批/第二批」剧本推进。硬条件通常比软偏好更影响筛选，但措辞与组合由你决定。用户说「都行/都可以」时，结合你刚问的是什么来理解；具体哪些硬条件保留/清除由抽取层判断。用户资料已在下方，不必重复盘问其基本情况。
-重要：在用户还没给出具体偏好（至少一项硬条件或软偏好）之前，不要 affirmMatch。仅说想认识人、打招呼，都不够。
-信息已够时：首次用 confirmLine，或用户说「随便推/开始找」时 affirmMatch=true。用户已口头确认（好/好的/开始找）时也必须 affirmMatch=true，不要只说「找到合适我会介绍」——系统会立刻展示第一位或说明暂无匹配。
-用户要在同批里换人：调 browse_next_person 或等前端按钮；你自然接话即可。系统排序后会在右侧展示具体人选（introducePersonId 由服务端决定，你不要编造 id）；介绍时请在 reply 里自然说明为什么是 TA，可依据右侧「为什么是 TA」同源证据（用户说过的话、共同收藏、对方的 values 回答），不要空泛说「找到合适再介绍」。
+      ? `你在 Maitri 帮用户认识新朋友。像真人聊天，2-5 句，温暖具体。不要提 AI。
+本会话只负责认识新朋友；若用户明确要找活动搭子，提示回首页开新对话。
+核心：本轮若用户有搜索/找人意图 → affirmMatch=true，系统出人，你介绍 TA；没有搜索意图就只聊天或轻问一句，不要自动出人。
+信息不齐也能搜；未提及维度由资料冷启动。用户资料在下方。
+换人：browse_next_person 或右侧按钮。introducePersonId 由服务端决定，不要编造 id；介绍时说明为什么是 TA。
 ${recallEmpty ? "注意：硬过滤后无候选人——建议放宽年龄、性别、城市或学历。" : ""}
 ${selfVoiceRule(true)}`
-      : `You help people meet someone new on Maitri. Warm, concise, human. User-led: answer what they said; don't interrogate every turn.
-They may switch anytime to "do something together / browse activities" — see lane-switch rules below; when activity signals appear, clarify intent first; do not keep pushing people by inertia.
-Clarify style: listen first (open), then follow up only on real gaps. Gap lists are hints — never a fixed per-turn script or "batch 1 / batch 2" checklist. Hard filters often matter more for screening, but wording is yours. Profile is below; don't re-interview basics.
-Until they give a real preference (at least one hard or soft dimension), do not set affirmMatch. Greeting alone is not enough.
-When prefs are enough: first match uses confirmLine, or affirmMatch=true if they say "surprise me / start matching". After user confirms (ok / yes / start), affirmMatch=true — do not only say "I'll introduce when I find someone"; the system shows the first match or explains if none. Rematch uses rematchConfirmLine + affirmRematch. Server ranks candidates — never output person ids.
-Browse within batch: browse_next_person or client buttons; reply naturally.
+      : `You help people meet someone new on Maitri. Warm, concise, human.
+Meet-someone only; if they want activity buddies, send them to a new home chat.
+Core: if this turn has search/meet intent → affirmMatch=true and the server shows someone; otherwise just chat — never auto-introduce without intent.
+Sparse prefs are fine; cold-start fills gaps. Profile below.
+Browse: browse_next_person or UI. Server picks introducePersonId — never invent ids; explain why this person.
 ${recallEmpty ? "Note: zero candidates after hard filters — suggest relaxing age, gender, city, or education." : ""}
 ${selfVoiceRule(false)}`,
     input.handoffSummary
@@ -555,21 +468,18 @@ ${selfVoiceRule(false)}`,
     currentLine,
     confirmRule,
     activityLaneRule,
-    clarifyRule,
+    deliverRule,
+    awaitingHint,
     capabilityIntro,
     actionHint(input),
     isZh
       ? `只输出 JSON（reply 与 suggestions 放最前）：
 {"reply":"...","suggestions":["短句1","短句2"],"confirmLine":null,"affirmMatch":false,"rematchConfirmLine":null,"affirmRematch":false,"passCurrentPerson":false,"handoffTo":null,"handoffSummary":"","transitionReply":""}`
       : `JSON only (put reply and suggestions first):
-{"reply":"...","suggestions":["..."],"confirmLine":null,"affirmMatch":false,"rematchConfirmLine":null,"affirmRematch":false,"passCurrentPerson":false,"handoffTo":null|"sidebyside","handoffSummary":"","transitionReply":""}`,
-    opts.pendingMatchConfirm || opts.pendingRematchConfirm
-      ? isZh
-        ? "reply 用简体中文。用户在确认是否开始匹配：suggestions 给 2-4 条第一人称短句，随当前偏好生成（确认开找 / 补充要求等），勿用固定模板。"
-        : "User confirming match prefs: 2-4 contextual first-person suggestions — no fixed templates."
-      : isZh
-        ? "reply 用简体中文。suggestions 必须给 2-4 条非空短句（第一人称、用户可直接当回复），根据当前对话自行生成，勿照抄固定话术；不要写成你的提问。"
-        : "Write reply and suggestions in English only. suggestions = 2-4 contextual first-person phrases (no fixed templates; not your questions).",
+{"reply":"...","suggestions":["..."],"confirmLine":null,"affirmMatch":false,"rematchConfirmLine":null,"affirmRematch":false,"passCurrentPerson":false,"handoffTo":null,"handoffSummary":"","transitionReply":""}`,
+    isZh
+      ? "reply 用简体中文。suggestions 必须给 2-4 条非空短句（第一人称、用户可直接当回复），根据当前对话自行生成；不要写成你的提问。"
+      : "Write reply and suggestions in English only. suggestions = 2-4 contextual first-person phrases (not your questions).",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -599,8 +509,11 @@ function fallbackOutput(input: MatchmakerTurnInput, reason: "no_key" | "error"):
     pendingMatchConfirm: null,
     pendingRematchConfirm: null,
     rankedQueue: input.rankedQueue ?? [],
+    queueReasons: input.queueReasons ?? {},
+    chatHardFilters: input.chatHardFilters ?? EMPTY_HARD_FILTERS,
     queueCursor: input.queueCursor ?? 0,
     queueFingerprint: input.queueFingerprint ?? null,
+    pendingUserAsk: null,
   };
 }
 
@@ -630,7 +543,19 @@ function userContent(input: MatchmakerTurnInput): string {
   if (input.action === "confirm_rematch") {
     return zh(input.lang) ? "[用户口头确认按新条件重新匹配]" : "[User verbally confirmed rematch with new criteria]";
   }
-  return input.userMessage?.trim() ?? "";
+  if (input.action === "resolve_user_ask") {
+    const res = input.userAskResolution;
+    if (res) return formatUserAskResolutionForLlm(res, input.lang);
+    return zh(input.lang)
+      ? "[ask_user_info 结果] status=cancelled value=\"\""
+      : "[ask_user_info result] status=cancelled value=\"\"";
+  }
+  const base = input.userMessage?.trim() ?? "";
+  if (input.userAskResolution) {
+    const note = formatUserAskResolutionForLlm(input.userAskResolution, input.lang);
+    return base ? `${note}\n\n${base}` : note;
+  }
+  return base;
 }
 
 /** Shared recall params for rank, facets, and empty-pool replies — keep in sync. */
@@ -642,10 +567,11 @@ function matchmakerRecallOpts(
   return {
     pool: toolState.pool,
     understanding: extracted.understanding,
-    hardFilters: extracted.hardFilters,
+    hardFilters: applyMatchmakerColdStart(input.profile, extracted.hardFilters),
     blockedIds: input.blockedPersonIds,
     shownIds: input.shownIds,
     passedIds: toolState.passedIds,
+    seekerProfile: input.profile,
   };
 }
 
@@ -713,29 +639,11 @@ async function polishMatchmakerReply(
   extracted: { understanding: UserUnderstanding; hardFilters: MatchHardFilters },
   toolState: MatchmakerToolState,
   content: string,
-  opts: { clarifyCapReached: boolean; userAffirmedMatch: boolean; userAffirmedRematch: boolean },
+  opts: { userAffirmedMatch: boolean; userAffirmedRematch: boolean },
 ): Promise<MatchmakerTurnOutput> {
   if (result.handoffTo) return result;
 
   const recallOpts = matchmakerRecallOpts(toolState, input, extracted);
-
-  if (
-    opts.clarifyCapReached &&
-    !opts.userAffirmedMatch &&
-    !result.introducePersonId &&
-    (input.rankedQueue?.length ?? 0) === 0
-  ) {
-    const recap = buildClarifyCapConfirmLine(
-      input,
-      extracted.understanding,
-      extracted.hardFilters,
-    );
-    const reply = await runMatchmakerClarifyCapReply({
-      lang: input.lang,
-      recapFacts: recap,
-    });
-    return { ...result, reply };
-  }
 
   if (result.introducePersonId) {
     const person = findPersonInPool(toolState.pool, result.introducePersonId);
@@ -745,16 +653,13 @@ async function polishMatchmakerReply(
         person,
         profile: input.profile,
         understanding: extracted.understanding,
+        cachedReason: result.queueReasons?.[result.introducePersonId],
       });
       return { ...result, recallEmpty: false, reply };
     }
   }
 
-  if (
-    result.recallEmpty &&
-    (opts.userAffirmedMatch || opts.userAffirmedRematch) &&
-    !result.introducePersonId
-  ) {
+  if (result.recallEmpty && !result.introducePersonId) {
     const facts = buildEmptyRecallFacts(input.lang, recallOpts);
     const reply = await runMatchmakerEmptyReply({ lang: input.lang, facts });
     return { ...result, reply };
@@ -793,6 +698,8 @@ async function handleQueueBrowseAction(
       reply,
       introducePersonId: null,
       rankedQueue: input.rankedQueue ?? [],
+      queueReasons: input.queueReasons ?? {},
+      chatHardFilters: input.chatHardFilters ?? EMPTY_HARD_FILTERS,
       queueCursor: advanced.queueCursor,
       passedIds: advanced.passedIds,
       shownIds: advanced.shownIds,
@@ -806,6 +713,8 @@ async function handleQueueBrowseAction(
     ...result,
     introducePersonId,
     rankedQueue: input.rankedQueue ?? [],
+    queueReasons: input.queueReasons ?? {},
+    chatHardFilters: input.chatHardFilters ?? EMPTY_HARD_FILTERS,
     queueCursor: advanced.queueCursor,
     passedIds: advanced.passedIds,
     shownIds: advanced.shownIds,
@@ -820,6 +729,7 @@ async function handleQueueBrowseAction(
         person,
         profile: input.profile,
         understanding: extracted.understanding,
+        cachedReason: (input.queueReasons ?? {})[introducePersonId],
       });
       next = { ...next, reply };
     }
@@ -835,13 +745,18 @@ async function applyMatchmakerRanking(
   content: string,
   chatParsed: LlmChatJson,
   toolState: MatchmakerToolState,
+  chatHardFilters: MatchHardFilters,
 ): Promise<MatchmakerTurnOutput> {
+  if (toolState.pendingUserAsk) {
+    return { ...result, pendingUserAsk: toolState.pendingUserAsk };
+  }
   if (isLightMatchmakerAction(input.action)) {
     return handleQueueBrowseAction(input, result, extracted, toolState);
   }
 
   const fp = matchPrefsFingerprint(extracted.understanding, extracted.hardFilters);
   let rankedQueue = input.rankedQueue ?? [];
+  let queueReasons = input.queueReasons ?? {};
   let queueCursor = input.queueCursor ?? 0;
   let queueFingerprint = input.queueFingerprint;
 
@@ -849,45 +764,37 @@ async function applyMatchmakerRanking(
     Boolean(input.pendingRematchConfirm) || Boolean(result.pendingRematchConfirm);
   if (queueFingerprint && queueFingerprint !== fp && !keepQueueDuringRematch) {
     rankedQueue = [];
+    queueReasons = {};
     queueCursor = 0;
     queueFingerprint = null;
   }
 
-  const ready = prefsReady({ ...input, ...extracted });
-  const skipConfirm = shouldSkipMatchConfirm(input);
-  const clarifyCapReached = isClarifyCapReached(input);
-  const cappedOrConfirming =
-    clarifyCapReached ||
-    Boolean(input.pendingMatchConfirm) ||
-    Boolean(result.pendingMatchConfirm);
   const userAffirmedMatch =
     isMatchAffirmation(content, input.action) || Boolean(chatParsed.affirmMatch);
   const userAffirmedRematch =
     isRematchAffirmation(content, input.action) || Boolean(chatParsed.affirmRematch);
+  const wantsRematchNow =
+    userAffirmedRematch ||
+    toolState.requestRematch ||
+    Boolean(chatParsed.rematchConfirmLine?.trim());
 
   const recallOpts = matchmakerRecallOpts(toolState, input, extracted);
 
+  // Search only when the chat model (or explicit rematch/browse action) asks — not prefsReady.
   const shouldRankRematch =
-    ready &&
     !result.handoffTo &&
-    userAffirmedRematch &&
+    wantsRematchNow &&
     (rankedQueue.length > 0 ||
       Boolean(input.pendingRematchConfirm) ||
       Boolean(result.pendingRematchConfirm) ||
-      toolState.requestRematch);
-
-  const bypassConfirmGate =
-    userAffirmedMatch ||
-    (skipConfirm &&
-      !input.currentPersonId &&
-      (!isStillClarifyingBeforeIntro(input) || wantsImmediateMatch(input)));
+      toolState.requestRematch ||
+      Boolean(chatParsed.rematchConfirmLine?.trim()));
 
   const shouldRankInitial =
-    (ready || cappedOrConfirming || userAffirmedMatch) &&
     !result.handoffTo &&
     rankedQueue.length === 0 &&
     !shouldRankRematch &&
-    bypassConfirmGate;
+    userAffirmedMatch;
 
   if (!shouldRankRematch && !shouldRankInitial) {
     if (
@@ -902,17 +809,23 @@ async function applyMatchmakerRanking(
         ...result,
         introducePersonId,
         rankedQueue,
+        queueReasons,
+        chatHardFilters,
         queueCursor: idx,
         queueFingerprint,
         recallEmpty: false,
         pendingMatchConfirm: null,
+        pendingRematchConfirm: null,
       };
     }
     return {
       ...result,
       rankedQueue,
+      queueReasons,
+      chatHardFilters,
       queueCursor,
       queueFingerprint,
+      pendingMatchConfirm: null,
     };
   }
 
@@ -922,15 +835,27 @@ async function applyMatchmakerRanking(
     lang: input.lang,
     understanding: recallOpts.understanding,
     hardFilters: recallOpts.hardFilters,
+    chatUnderstanding: extracted.understanding,
+    chatHardFilters,
     blockedIds: recallOpts.blockedIds,
     shownIds: recallOpts.shownIds,
     passedIds: recallOpts.passedIds,
     pool: recallOpts.pool,
+    profile: input.profile,
   });
 
   rankedQueue = rank.rankedIds;
+  queueReasons = rank.reasons;
   if (rankedQueue.length === 0 && preview.filteredCount > 0) {
     rankedQueue = preview.candidates.map((c) => c.id);
+    queueReasons = ensureQueueReasons(
+      rankedQueue,
+      {},
+      recallOpts.pool,
+      extracted.understanding,
+      input.lang,
+      input.profile,
+    );
   }
   queueCursor = 0;
   queueFingerprint = fp;
@@ -941,11 +866,14 @@ async function applyMatchmakerRanking(
     ...result,
     introducePersonId,
     rankedQueue,
+    queueReasons,
+    chatHardFilters,
     queueCursor,
     queueFingerprint,
     recallEmpty,
     rematchRefresh: shouldRankRematch,
-    pendingMatchConfirm: userAffirmedMatch ? null : result.pendingMatchConfirm,
+    pendingMatchConfirm: null,
+    pendingRematchConfirm: null,
   };
 
   if (introducePersonId && !result.handoffTo) {
@@ -1001,6 +929,8 @@ async function runMatchmakerTools(
 ): Promise<MatchmakerToolState> {
   const state = createMatchmakerToolState({
     ...input,
+    // Tools edit chat-only filters; cold-start is applied later for recall/rank.
+    hardFilters: input.chatHardFilters ?? input.hardFilters,
     pool,
     rankedQueueLength: input.rankedQueue?.length ?? 0,
   });
@@ -1013,7 +943,8 @@ async function runMatchmakerTools(
       { role: "user", content },
     ],
     tools: MATCHMAKER_TOOLS,
-    execute: (name, args) => executeMatchmakerTool(state, name, args),
+    execute: (name, args, meta) => executeMatchmakerTool(state, name, args, meta),
+    shouldPauseAfter: (name) => name === ASK_USER_INFO_TOOL_NAME,
     maxRounds: 4,
   });
   if (called.length) {
@@ -1033,8 +964,6 @@ async function* runMatchmakerChatStream(
     pendingRematchConfirm: string | null;
     readyToMatch: boolean;
     hasQueue: boolean;
-    clarifyTurns: number;
-    clarifyCapReached: boolean;
   },
 ): AsyncGenerator<{ type: "delta"; text: string } | { type: "done"; value: LlmChatJson | null }> {
   const system = buildChatSystem(input, candidateIds, recallEmpty, pool, chatOpts);
@@ -1075,75 +1004,16 @@ function assembleMatchmakerOutput(
 
   let introducePersonId: string | null = null;
 
-  let handoffTo: "sidebyside" | null =
-    chatParsed.handoffTo === "sidebyside" && (input.handoffCount ?? 0) < 2 ? "sidebyside" : null;
+  // Agents are isolated: never hand off to Side mid-conversation.
+  const handoffTo: "sidebyside" | null = null;
 
-  const ready = prefsReady({
-    ...input,
-    understanding: extracted.understanding,
-    hardFilters: extracted.hardFilters,
-  });
-  let pendingMatchConfirm = input.pendingMatchConfirm;
-  let pendingRematchConfirm = input.pendingRematchConfirm;
-  const hadPendingMatchConfirm = Boolean(input.pendingMatchConfirm);
-  const hadPendingRematchConfirm = Boolean(input.pendingRematchConfirm);
-  const hasQueue = (input.rankedQueue?.length ?? 0) > 0;
-  const userAffirmedMatch =
-    isMatchAffirmation(content, input.action) || Boolean(chatParsed.affirmMatch);
-  const userAffirmedRematch =
-    isRematchAffirmation(content, input.action) || Boolean(chatParsed.affirmRematch);
-
-  if (chatParsed.rematchConfirmLine?.trim()) {
-    pendingRematchConfirm = chatParsed.rematchConfirmLine.trim();
-    pendingMatchConfirm = null;
-  } else if (
-    chatParsed.confirmLine?.trim() &&
-    !hasQueue &&
-    !toolState.requestRematch &&
-    !userAffirmedMatch
-  ) {
-    pendingMatchConfirm = chatParsed.confirmLine.trim();
-    pendingRematchConfirm = null;
-  }
-
-  if (
-    pendingMatchConfirm &&
-    !userAffirmedMatch &&
-    hadPendingMatchConfirm &&
-    input.action === "message" &&
-    content.trim()
-  ) {
-    pendingMatchConfirm = null;
-  }
-  if (
-    pendingRematchConfirm &&
-    !userAffirmedRematch &&
-    hadPendingRematchConfirm &&
-    input.action === "message" &&
-    content.trim()
-  ) {
-    pendingRematchConfirm = null;
-  }
-
-  if (userAffirmedMatch) {
-    pendingMatchConfirm = null;
-  }
-  if (userAffirmedRematch) {
-    pendingRematchConfirm = null;
-  }
+  // Deliver-now: never park a first-match confirm card.
+  const pendingMatchConfirm = null;
+  const pendingRematchConfirm = null;
+  const pendingUserAsk = toolState.pendingUserAsk;
 
   let reply = (chatParsed.reply ?? "").trim();
   let suggestions = (chatParsed.suggestions ?? []).map((s) => s.trim()).filter(Boolean).slice(0, 4);
-  const clarifyCapReached = isClarifyCapReached(input);
-
-  if (clarifyCapReached && !hasQueue && !handoffTo && !pendingRematchConfirm && !userAffirmedMatch) {
-    const forced = buildClarifyCapConfirmLine(
-      input,
-      extracted.understanding,
-      extracted.hardFilters,
-    );
-    pendingMatchConfirm = chatParsed.confirmLine?.trim() || forced;
-  }
 
   if (!reply && !handoffTo) {
     return {
@@ -1151,13 +1021,14 @@ function assembleMatchmakerOutput(
       understanding: extracted.understanding,
       hardFilters: extracted.hardFilters,
       passCurrentPerson: toolState.passCurrentPerson,
+      pendingUserAsk,
     };
   }
 
   return {
     reply: handoffTo ? "" : reply,
     introducePersonId,
-    passCurrentPerson: handoffTo
+    passCurrentPerson: handoffTo || pendingUserAsk
       ? false
       : Boolean(chatParsed.passCurrentPerson) || toolState.passCurrentPerson,
     understanding: extracted.understanding,
@@ -1170,9 +1041,12 @@ function assembleMatchmakerOutput(
     pendingMatchConfirm,
     pendingRematchConfirm,
     rankedQueue: input.rankedQueue ?? [],
+    queueReasons: input.queueReasons ?? {},
+    chatHardFilters: input.chatHardFilters ?? EMPTY_HARD_FILTERS,
     queueCursor: input.queueCursor ?? 0,
     queueFingerprint: input.queueFingerprint ?? null,
-    queueAdvance: toolState.queueAdvance ?? undefined,
+    queueAdvance: pendingUserAsk ? undefined : toolState.queueAdvance ?? undefined,
+    pendingUserAsk,
   };
 }
 
@@ -1220,7 +1094,7 @@ export async function* runMatchmakerTurnStream(
     historyLen: input.history.length,
   });
 
-  const pool = await getMatchablePeople();
+  const pool = await getMatchablePeopleForSeeker(input.profile);
   const toolState = await runMatchmakerTools(input, content, pool);
 
   if (isLightMatchmakerAction(input.action)) {
@@ -1228,6 +1102,9 @@ export async function* runMatchmakerTurnStream(
       understanding: input.understanding,
       hardFilters: toolState.filtersTouched ? toolState.hardFilters : input.hardFilters,
     };
+    const chatHardFilters = toolState.filtersTouched
+      ? toolState.hardFilters
+      : (input.chatHardFilters ?? EMPTY_HARD_FILTERS);
     const base: MatchmakerTurnOutput = {
       reply: "",
       introducePersonId: null,
@@ -1242,6 +1119,8 @@ export async function* runMatchmakerTurnStream(
       pendingMatchConfirm: null,
       pendingRematchConfirm: null,
       rankedQueue: input.rankedQueue ?? [],
+      queueReasons: input.queueReasons ?? {},
+      chatHardFilters,
       queueCursor: input.queueCursor ?? 0,
       queueFingerprint: input.queueFingerprint,
     };
@@ -1252,6 +1131,7 @@ export async function* runMatchmakerTurnStream(
       content,
       { reply: "" },
       toolState,
+      chatHardFilters,
     );
     if (result.reply) {
       yield { type: "ready", reply: result.reply, suggestions: result.suggestions };
@@ -1267,57 +1147,9 @@ export async function* runMatchmakerTurnStream(
     currentPersonId: toolState.passCurrentPerson ? null : input.currentPersonId,
   };
 
-  const preRecall = recallCandidates({
-    understanding: workingInput.understanding,
-    hardFilters: workingInput.hardFilters,
-    blockedIds: input.blockedPersonIds,
-    shownIds: workingInput.shownIds,
-    passedIds: toolState.passedIds,
-    pool: toolState.pool,
-  });
-
-  const candidateIds =
-    toolState.lastSearchIds.length > 0
-      ? toolState.lastSearchIds
-      : preRecall.candidates.map((c) => c.id);
-
-  const clarifyTurns = countClarifyAssistantTurns(workingInput);
-  const chatOpts = {
-    pendingMatchConfirm: input.pendingMatchConfirm,
-    pendingRematchConfirm: input.pendingRematchConfirm ?? null,
-    readyToMatch: prefsReady({
-      ...workingInput,
-      hardFilters: toolState.hardFilters,
-    }),
-    hasQueue: (input.rankedQueue?.length ?? 0) > 0,
-    clarifyTurns,
-    clarifyCapReached: clarifyTurns >= MAX_CLARIFY_TURNS,
-  };
-
-  let chatParsed: LlmChatJson | null = null;
-  for await (const ev of runMatchmakerChatStream(
-    workingInput,
-    candidateIds,
-    preRecall.emptyAfterHardFilter,
-    content,
-    toolState.pool,
-    chatOpts,
-  )) {
-    if (ev.type === "delta") yield { type: "delta", text: ev.text };
-    else if (ev.type === "done") chatParsed = ev.value;
-  }
-
-  const chatReply = (chatParsed?.reply ?? "").trim();
-  const chatSuggestions = (chatParsed?.suggestions ?? [])
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 4);
-  if (chatReply) {
-    yield { type: "ready", reply: chatReply, suggestions: chatSuggestions };
-  }
-
-  // Extract after chat — skip on affirm so「好的」不会冲掉已有条件
-  const extracted = shouldSkipExtract(input, content)
+  // Extract before chat so we know if this turn will introduce someone.
+  const skipExtract = shouldSkipExtract(input, content);
+  const extracted = skipExtract
     ? {
         understanding: input.understanding,
         hardFilters: toolState.filtersTouched ? toolState.hardFilters : input.hardFilters,
@@ -1327,18 +1159,114 @@ export async function* runMatchmakerTurnStream(
         history: input.history,
         userMessage: content,
         prevUnderstanding: input.understanding,
-        prevHardFilters: toolState.filtersTouched ? toolState.hardFilters : input.hardFilters,
+        prevHardFilters: toolState.filtersTouched
+          ? toolState.hardFilters
+          : (input.chatHardFilters ?? input.hardFilters),
       });
 
-  // Tools that touched filters win for hard constraints this turn.
-  let hardFilters = toolState.filtersTouched ? toolState.hardFilters : extracted.hardFilters;
+  // Chat/tool filters only — cold-start is applied next and must not pollute block [2].
+  const chatHardFilters = toolState.filtersTouched
+    ? { ...toolState.hardFilters }
+    : skipExtract
+      ? { ...(input.chatHardFilters ?? EMPTY_HARD_FILTERS) }
+      : { ...extracted.hardFilters };
+
+  let hardFilters = applyMatchmakerColdStart(input.profile, chatHardFilters);
   hardFilters = ensureMatchableHardFilters(hardFilters, toolState.pool, {
     understanding: extracted.understanding,
     blockedIds: input.blockedPersonIds,
     shownIds: input.shownIds,
     passedIds: toolState.passedIds,
+    seekerProfile: input.profile,
   });
   extracted.hardFilters = hardFilters;
+
+  const extractedInput: MatchmakerTurnInput = {
+    ...workingInput,
+    understanding: extracted.understanding,
+    hardFilters,
+    chatHardFilters,
+  };
+
+  const ready = prefsReady(extractedInput);
+  const hasQueue = (input.rankedQueue?.length ?? 0) > 0;
+  const rematchNow =
+    toolState.requestRematch ||
+    isRematchAffirmation(content, input.action) ||
+    Boolean(input.pendingRematchConfirm);
+  /** Hold chat only when we already know this action will rematch/confirm-search — AI decides affirmMatch in normal chat. */
+  const holdChatStream =
+    input.action === "confirm_match" ||
+    (rematchNow && (hasQueue || toolState.requestRematch || Boolean(input.pendingRematchConfirm)));
+
+  const preRecall = recallCandidates({
+    understanding: extracted.understanding,
+    hardFilters,
+    blockedIds: input.blockedPersonIds,
+    shownIds: workingInput.shownIds,
+    passedIds: toolState.passedIds,
+    pool: toolState.pool,
+    seekerProfile: input.profile,
+  });
+
+  const candidateIds =
+    toolState.lastSearchIds.length > 0
+      ? toolState.lastSearchIds
+      : preRecall.candidates.map((c) => c.id);
+
+  const chatOpts = {
+    pendingMatchConfirm: null as string | null,
+    pendingRematchConfirm: null as string | null,
+    readyToMatch: ready,
+    hasQueue,
+    awaitingUserAsk: toolState.pendingUserAsk,
+  };
+
+  let chatParsed: LlmChatJson | null = null;
+
+  if (holdChatStream && !toolState.pendingUserAsk) {
+    // Skip chat LLM naming people before rank — polish writes the real intro after.
+    chatParsed = {
+      reply: "",
+      suggestions: [],
+      confirmLine: null,
+      affirmMatch: !rematchNow,
+      rematchConfirmLine: null,
+      affirmRematch: rematchNow,
+      passCurrentPerson: false,
+      handoffTo: null,
+      handoffSummary: "",
+      transitionReply: "",
+    };
+  } else {
+    for await (const ev of runMatchmakerChatStream(
+      extractedInput,
+      candidateIds,
+      preRecall.emptyAfterHardFilter,
+      content,
+      toolState.pool,
+      chatOpts,
+    )) {
+      if (ev.type === "delta") yield { type: "delta", text: ev.text };
+      else if (ev.type === "done") chatParsed = ev.value;
+    }
+
+    const chatReply = (chatParsed?.reply ?? "").trim();
+    const chatSuggestions = (chatParsed?.suggestions ?? [])
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 4);
+    const willSearchThisTurn =
+      !toolState.pendingUserAsk &&
+      (Boolean(chatParsed?.affirmMatch) ||
+        Boolean(chatParsed?.affirmRematch) ||
+        Boolean(chatParsed?.rematchConfirmLine?.trim()) ||
+        rematchNow);
+    // Defer ready until polished intro when this turn will introduce someone.
+    if (chatReply && !willSearchThisTurn) {
+      yield { type: "ready", reply: chatReply, suggestions: chatSuggestions };
+    }
+  }
 
   if (!chatParsed) {
     const cfg = await import("./config.server").then((m) => m.getServerConfig());
@@ -1355,36 +1283,36 @@ export async function* runMatchmakerTurnStream(
     return;
   }
 
-  yield {
-    type: "done",
-    result: await polishMatchmakerReply(
-      workingInput,
-      await applyMatchmakerRanking(
-        workingInput,
-        assembleMatchmakerOutput(
-          workingInput,
-          content,
-          { understanding: extracted.understanding, hardFilters },
-          chatParsed,
-          toolState,
-        ),
-        { understanding: extracted.understanding, hardFilters },
+  const polished = await polishMatchmakerReply(
+    extractedInput,
+    await applyMatchmakerRanking(
+      extractedInput,
+      assembleMatchmakerOutput(
+        extractedInput,
         content,
+        { understanding: extracted.understanding, hardFilters },
         chatParsed,
         toolState,
       ),
       { understanding: extracted.understanding, hardFilters },
-      toolState,
       content,
-      {
-        clarifyCapReached: isClarifyCapReached(workingInput),
-        userAffirmedMatch:
-          isMatchAffirmation(content, workingInput.action) || Boolean(chatParsed?.affirmMatch),
-        userAffirmedRematch:
-          isRematchAffirmation(content, workingInput.action) || Boolean(chatParsed?.affirmRematch),
-      },
+      chatParsed,
+      toolState,
+      chatHardFilters,
     ),
-  };
+    { understanding: extracted.understanding, hardFilters },
+    toolState,
+    content,
+    {
+      userAffirmedMatch:
+        isMatchAffirmation(content, extractedInput.action) || Boolean(chatParsed?.affirmMatch),
+      userAffirmedRematch:
+        isRematchAffirmation(content, extractedInput.action) || Boolean(chatParsed?.affirmRematch),
+    },
+  );
+
+  // holdChatStream: no ready/delta — client keeps thinking until done (reply + person together).
+  yield { type: "done", result: polished };
 }
 
 export async function runMatchmakerTurn(input: MatchmakerTurnInput): Promise<MatchmakerTurnOutput> {

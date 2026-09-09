@@ -26,27 +26,59 @@ export function buddyFiltersActive(f: BuddyHardFilters): boolean {
   );
 }
 
-export function ownerPassesBuddyHardFilters(
+export function ownerPassesBuddyGenderFilters(
   owner: OwnerSnapshot,
   f: BuddyHardFilters,
 ): boolean {
-  if (!buddyFiltersActive(f)) return true;
-
   if (f.genders.length > 0) {
     if (!owner.gender || !f.genders.includes(owner.gender)) return false;
   }
   if (f.excludeGenders.length > 0 && owner.gender && f.excludeGenders.includes(owner.gender)) {
     return false;
   }
+  return true;
+}
 
+export function ownerPassesBuddyAgeFilters(
+  owner: OwnerSnapshot,
+  f: BuddyHardFilters,
+): boolean {
   if (f.ageMin != null) {
     if (owner.age == null || owner.age < f.ageMin) return false;
   }
   if (f.ageMax != null) {
     if (owner.age == null || owner.age > f.ageMax) return false;
   }
-
   return true;
+}
+
+export function ownerPassesBuddyHardFilters(
+  owner: OwnerSnapshot,
+  f: BuddyHardFilters,
+): boolean {
+  if (!buddyFiltersActive(f)) return true;
+  return ownerPassesBuddyGenderFilters(owner, f) && ownerPassesBuddyAgeFilters(owner, f);
+}
+
+/** Hard-drop when gender/age constraints are non-flex. Flex dims score soft instead. */
+export function ownerFailsBuddyHardConstraints(
+  owner: OwnerSnapshot,
+  f: BuddyHardFilters,
+  strengths: {
+    buddyGenderStrength?: import("./field-constraint").ConstraintStrength | null;
+    buddyAgeStrength?: import("./field-constraint").ConstraintStrength | null;
+  },
+): boolean {
+  if (!buddyFiltersActive(f)) return false;
+  const genderActive = f.genders.length > 0 || f.excludeGenders.length > 0;
+  const ageActive = f.ageMin != null || f.ageMax != null;
+  if (genderActive && strengths.buddyGenderStrength !== "flex") {
+    if (!ownerPassesBuddyGenderFilters(owner, f)) return true;
+  }
+  if (ageActive && strengths.buddyAgeStrength !== "flex") {
+    if (!ownerPassesBuddyAgeFilters(owner, f)) return true;
+  }
+  return false;
 }
 
 export function normalizeBuddyHardFilters(

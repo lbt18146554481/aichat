@@ -64,25 +64,41 @@ export async function runMatchmakerIntroReply(opts: {
   person: Person;
   profile: Profile;
   understanding: UserUnderstanding;
+  /** Rank-time reason for this person (preferred evidence). */
+  cachedReason?: string;
 }): Promise<string> {
   const isZh = zh(opts.lang);
   const loc = localized(opts.person, opts.lang);
   const reasons = buildReasons(opts.person, opts.profile, opts.understanding, opts.lang);
-  const evidence = formatReasonsForPrompt(reasons, opts.person, opts.lang);
-  const fallback = buildIntroduceReply(
-    opts.person,
-    opts.profile,
-    opts.understanding,
-    opts.lang,
-  );
+  const structured = formatReasonsForPrompt(reasons, opts.person, opts.lang);
+  const cached = opts.cachedReason?.trim() ?? "";
+  const evidence = cached
+    ? isZh
+      ? `排序理由：${cached}${reasons.length ? `\n补充依据：\n${structured}` : ""}`
+      : `Rank reason: ${cached}${reasons.length ? `\nExtra evidence:\n${structured}` : ""}`
+    : structured;
+  const fallback = cached
+    ? isZh
+      ? `先介绍 ${loc.name}（${opts.person.age}岁，${loc.city}）。${cached}更多在右边。`
+      : `Meet ${loc.name} (${opts.person.age}, ${loc.city}). ${cached} More on the right.`
+    : buildIntroduceReply(
+        opts.person,
+        opts.profile,
+        opts.understanding,
+        opts.lang,
+      );
 
   const system = isZh
     ? `你是 Maitri，刚为用户选好一位要认识的人。写 2-4 句简体中文介绍 TA，并自然说明「为什么是 TA」。
-只能使用下方【匹配依据】里的事实，不要编造共同点。没有依据时诚实说还在试探匹配，请用户看右边或补充偏好。
+只能使用下方【匹配依据】里的事实，不要编造共同点。
+写「为什么合适」时：只点出对方身上的具体点，不要复述用户已知的需求（不要说「你想要开朗，TA 也开朗」）。
+没有依据时诚实说还在试探匹配，请用户看右边或补充偏好。
 不要提 AI。${selfVoiceRule(true)}
 只输出 JSON：{"reply":"..."}`
     : `You are Maitri introducing someone the user may want to meet. Write 2-4 warm sentences and explain why they might fit.
-Use ONLY facts from [Match evidence] — do not invent overlaps. If evidence is thin, say so and point to the right pane.
+Use ONLY facts from [Match evidence] — do not invent overlaps.
+When explaining fit, state what the person is like — do NOT restate what the user already asked for.
+If evidence is thin, say so and point to the right pane.
 ${selfVoiceRule(false)}
 JSON only: {"reply":"..."}`;
 

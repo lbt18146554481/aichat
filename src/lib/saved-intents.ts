@@ -1,8 +1,13 @@
 import { getIntentById } from "./intents";
+import { getPersonById } from "./people";
 import { isBlocked } from "./blocklist";
 import { listSavedIntentsFn, toggleSavedIntentFn } from "./api/data.functions";
 
 export interface SavedRecord {
+  /**
+   * Side-by-side bookmark key.
+   * Legacy: wish intent id. People-match Side: person id (same column / API).
+   */
   intentId: string;
   sessionId: string;
   savedAt: number;
@@ -13,6 +18,13 @@ const listeners = new Set<() => void>();
 
 function emit() {
   listeners.forEach((fn) => fn());
+}
+
+function isSavedRecordVisible(id: string): boolean {
+  const intent = getIntentById(id);
+  if (intent) return !isBlocked(intent.ownerId);
+  const person = getPersonById(id);
+  return Boolean(person) && !isBlocked(id);
 }
 
 export async function hydrateSavedIntents() {
@@ -32,10 +44,7 @@ export async function hydrateSavedIntents() {
 
 export function listSaved(): SavedRecord[] {
   return cache
-    .filter((r) => {
-      const it = getIntentById(r.intentId);
-      return !!it && !isBlocked(it.ownerId);
-    })
+    .filter((r) => isSavedRecordVisible(r.intentId))
     .sort((a, b) => b.savedAt - a.savedAt);
 }
 

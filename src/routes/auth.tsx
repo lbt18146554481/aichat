@@ -97,7 +97,8 @@ function AuthPage() {
       setVerifiedCode(code);
       setStep("credentials");
     } catch (e) {
-      setErr(authErrorMessage(t, asAuthError(e).code));
+      const err = asAuthError(e);
+      setErr(authErrorMessage(t, err.code, err.message));
     } finally {
       setPending(null);
     }
@@ -166,7 +167,7 @@ function AuthPage() {
       if (err.code === "account_not_found") {
         setNotFound(true);
       } else {
-        setErr(authErrorMessage(t, err.code));
+        setErr(authErrorMessage(t, err.code, err.message));
       }
     } finally {
       setPending(null);

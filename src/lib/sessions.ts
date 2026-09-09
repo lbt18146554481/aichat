@@ -74,7 +74,8 @@ function persist(row: Session) {
 
 export function deriveDoSomethingStatus(state: SideState): SessionStatus {
   if (state.stage === "chat") return "chatting";
-  if (state.matchIntentId) return "matched";
+  if (state.currentPersonId || state.matchIntentId) return "matched";
+  if (state.stage === "hanging" || state.hangingInvite) return "waiting";
   if (state.stage === "published" || state.myIntentId) return "waiting";
   if (state.wishLane === "browse" && state.browseSearched) return "waiting";
   if ((state.messages?.length ?? 0) > 0) return "waiting";

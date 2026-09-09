@@ -13,11 +13,9 @@ import {
   applyTurnResult,
   appendUserMessage,
   beginAssistantStream,
-  canRetreatQueue,
   focusPerson,
   load,
   patchLastAssistant,
-  retreatQueueSilent,
   save,
   sessionNeedsBootStart,
   suggestChips,
@@ -26,11 +24,6 @@ import {
 import { requestMatchmakerTurn } from "@/lib/matchmaker-client";
 import { listBlocked } from "@/lib/blocklist";
 import type { MatchmakerTurnAction } from "@/lib/matchmaker-llm.server";
-import type { HandoffContext } from "@/lib/handoff";
-import {
-  graftFromMatchmaker,
-  openSideBySideFromHandoff,
-} from "@/lib/session-handoff";
 import { clearActiveThreadId } from "@/lib/active-thread";
 import { useSessions } from "@/data/hooks";
 import { refreshMilestoneThreadTitle } from "@/lib/thread-title-milestone";
@@ -38,6 +31,14 @@ import {
   buildMatchmakerTitleContext,
   matchmakerTitleMilestoneReady,
 } from "@/lib/thread-title";
+import {
+  attachPendingUserAskToLastAssistant,
+  clearPendingUserAskOnMessages,
+  isUserInfoAskId,
+  resolutionFromCardValue,
+  skippedUserAskResolution,
+  toAgentAsk,
+} from "@/lib/ask-user-info";
 
 export const Route = createFileRoute("/matchmaker")({
   validateSearch: (raw: Record<string, unknown>) => ({
@@ -141,34 +142,6 @@ function MatchmakerPage() {
     [lang, sessionId],
   );
 
-  const navigateHandoffToSide = useCallback(
-    (opts: {
-      userMessage: string;
-      summary: string;
-      transitionReply: string;
-      understanding: MatchmakerState["understanding"];
-      graftedExtraUser?: string;
-    }) => {
-      if (!sessionId) return;
-      const cur = stateRef.current;
-      const handoff: HandoffContext = {
-        from: "matchmaker",
-        parentSessionId: sessionId,
-        seed: opts.userMessage,
-        summary: opts.summary || opts.userMessage,
-        understanding: opts.understanding,
-        sideBySideHints: { activity: opts.summary || opts.userMessage },
-        graftedMessages: graftFromMatchmaker(cur, opts.graftedExtraUser),
-        handoffCount: (cur.handoffCount ?? 0) + 1,
-        transitionReply: opts.transitionReply?.trim() || "",
-      };
-      save({ ...cur, suspended: true }, sessionId);
-      const next = openSideBySideFromHandoff(handoff, sessionId);
-      void navigate({ to: "/side-by-side", search: { session: next.id, chatWith: "" } });
-    },
-    [lang, navigate, sessionId],
-  );
-
   const withRematchConfirmAsk = (next: MatchmakerState): MatchmakerState => {
     // Rematch consent is handled in chat — user confirms with natural language (好的/重新找吧).
     return next;
@@ -180,12 +153,25 @@ function MatchmakerPage() {
     return next;
   };
 
+  const withUserInfoAsk = (next: MatchmakerState): MatchmakerState => {
+    const pending = next.pendingUserAsk;
+    if (!pending) return next;
+    return attachPendingUserAskToLastAssistant(
+      next,
+      toAgentAsk(pending, {
+        confirmLabel: t("ask.continue"),
+        cancelLabel: t("ask.cancel"),
+      }),
+    );
+  };
+
   const runTurn = useCallback(
     async (opts: {
       action: MatchmakerTurnAction;
       userMessage?: string;
       userTextForState?: string | null;
       seed?: string;
+      userAskResolution?: import("@/lib/ask-user-info").UserAskResolution | null;
     }) => {
       const userText = opts.userTextForState ?? opts.userMessage ?? null;
       const userAlreadyShown = Boolean(userText?.trim());
@@ -205,6 +191,7 @@ function MatchmakerPage() {
           userMessage: opts.userMessage,
           seed: opts.seed,
           state: staged,
+          userAskResolution: opts.userAskResolution,
           onDelta: (text) => {
             flushSync(() => {
               if (!streaming) {
@@ -230,16 +217,7 @@ function MatchmakerPage() {
           },
         });
 
-        if (output.handoffTo === "sidebyside" && opts.userMessage) {
-          navigateHandoffToSide({
-            userMessage: opts.userMessage,
-            summary: output.handoffSummary || opts.userMessage,
-            transitionReply: output.transitionReply?.trim() || "",
-            understanding: output.understanding,
-            graftedExtraUser: opts.userMessage,
-          });
-          return;
-        }
+        // Sub-agents are isolated — never auto-switch to Side mid-conversation.
 
         setState((s) => {
           let applied = streaming
@@ -253,7 +231,7 @@ function MatchmakerPage() {
           if (output.queueAdvance) {
             applied = advanceQueueSilent(applied, output.queueAdvance, listBlocked());
           }
-          return withRematchConfirmAsk(withMatchConfirmAsk(applied));
+          return withUserInfoAsk(withRematchConfirmAsk(withMatchConfirmAsk(applied)));
         });
       } catch (e) {
         console.error("[matchmaker]", e);
@@ -262,7 +240,7 @@ function MatchmakerPage() {
         tryMilestoneTitle(stateRef.current);
       }
     },
-    [lang, navigateHandoffToSide, tryMilestoneTitle, t],
+    [lang, tryMilestoneTitle, t],
   );
 
   useEffect(() => {
@@ -282,7 +260,24 @@ function MatchmakerPage() {
   async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed || thinking) return;
-    await runTurn({ action: "message", userMessage: trimmed, userTextForState: trimmed });
+    const pending = stateRef.current.pendingUserAsk;
+    let skipped: import("@/lib/ask-user-info").UserAskResolution | undefined;
+    if (pending) {
+      skipped = skippedUserAskResolution(pending);
+      const cleared = clearPendingUserAskOnMessages(
+        stateRef.current,
+        pending.id,
+        t("ask.resolved_skipped"),
+      );
+      stateRef.current = cleared;
+      setState(cleared);
+    }
+    await runTurn({
+      action: "message",
+      userMessage: trimmed,
+      userTextForState: trimmed,
+      userAskResolution: skipped,
+    });
   }
 
   function handleReset() {
@@ -305,14 +300,25 @@ function MatchmakerPage() {
     setState((s) => advanceQueueSilent(s, "see", listBlocked()));
   }
 
-  function handleSeePrev() {
-    if (thinking) return;
-    setState((s) => retreatQueueSilent(s, listBlocked()));
-  }
-
-  const canGoPrev = canRetreatQueue(state, listBlocked());
-
   function handleAskResolve(askId: string, value: string | null) {
+    if (isUserInfoAskId(askId)) {
+      const pending = stateRef.current.pendingUserAsk;
+      if (!pending || pending.id !== askId) return;
+      const resolution = resolutionFromCardValue(pending, value);
+      const label =
+        resolution.status === "confirmed" && resolution.value
+          ? resolution.value
+          : t("ask.resolved_cancelled");
+      const cleared = clearPendingUserAskOnMessages(stateRef.current, askId, label);
+      stateRef.current = cleared;
+      setState(cleared);
+      void runTurn({
+        action: "resolve_user_ask",
+        userTextForState: null,
+        userAskResolution: resolution,
+      });
+      return;
+    }
     if (askId.startsWith("rematch-")) {
       setState((s) => ({
         ...s,
@@ -402,10 +408,8 @@ function MatchmakerPage() {
           <IntroCanvas
             state={state}
             sessionId={sessionId}
-            canGoPrev={canGoPrev}
-            onRejectPerson={handlePassAndNext}
+            onPassAndNext={handlePassAndNext}
             onSeeNextPerson={handleSeeNext}
-            onSeePrevPerson={handleSeePrev}
           />
         ) : null
       }

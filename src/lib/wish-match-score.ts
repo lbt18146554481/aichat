@@ -12,7 +12,8 @@ import type { Intent, LevelTier, WhenTier } from "./intents";
 import { levelCompatible, sameCity, slotToWhen, whenCompatible } from "./intents";
 import {
   buddyFiltersActive,
-  ownerPassesBuddyHardFilters,
+  ownerPassesBuddyAgeFilters,
+  ownerPassesBuddyGenderFilters,
   type BuddyHardFilters,
 } from "./buddy-filters";
 import { resolveOwnerSnapshot } from "./owner-snapshot";
@@ -29,6 +30,9 @@ import type { BuddyMatchQuery } from "./wish-match-profile";
 import { personalityProfileScore, softBuddyDemographicScore } from "./buddy-match";
 import { activityCoreMatchScore } from "./activity-core";
 import { extraPrefMatchScore } from "./wish-extra-pref";
+import { cultureAffinityScoreFromProfilePerson } from "./culture-affinity";
+import { getPersonById } from "./people-client";
+import type { Profile } from "./profile-shape";
 
 /** Relative weights for the final score (tunable). */
 export const WISH_SCORE_WEIGHTS = {
@@ -109,12 +113,18 @@ export function enumSoftMatchScore(
     s += sameCity(mine, other) ? 4 : -2;
   }
 
-  // Buddy demographics (gender / age)
+  // Buddy demographics (gender / age) — flex dims soft-score; hard dims already filtered
   if (buddyQ) {
     s += softBuddyDemographicScore(other, buddyQ);
   }
-  if (buddyFiltersActive(buddy) && mine.buddyGenderStrength === "flex") {
-    s += ownerPassesBuddyHardFilters(resolveOwnerSnapshot(other), buddy) ? 4 : -2;
+  if (buddyFiltersActive(buddy)) {
+    const owner = resolveOwnerSnapshot(other);
+    if (mine.buddyGenderStrength === "flex" && (buddy.genders.length || buddy.excludeGenders.length)) {
+      s += ownerPassesBuddyGenderFilters(owner, buddy) ? 4 : -2;
+    }
+    if (mine.buddyAgeStrength === "flex" && (buddy.ageMin != null || buddy.ageMax != null)) {
+      s += ownerPassesBuddyAgeFilters(owner, buddy) ? 4 : -2;
+    }
   }
 
   return s;
@@ -159,12 +169,17 @@ export function scoreWishCandidate(
     shownIds?: string[];
     passedIds?: string[];
     weights?: Partial<typeof WISH_SCORE_WEIGHTS>;
+    seekerProfile?: Profile | null;
   },
 ): WishScoreBreakdown {
   const w = { ...WISH_SCORE_WEIGHTS, ...opts.weights };
   const buddyQ = opts.buddyMatchQuery ?? null;
   const enumSoft = enumSoftMatchScore(mine, other, opts.buddyHardFilters, buddyQ);
-  const vector = vectorMatchScore(mine, other, u, buddyQ);
+  let vector = vectorMatchScore(mine, other, u, buddyQ);
+  const person = getPersonById(other.ownerId);
+  if (person && opts.seekerProfile) {
+    vector += cultureAffinityScoreFromProfilePerson(opts.seekerProfile, person);
+  }
   const aux = auxMatchScore(other, opts);
   const total = w.enumSoft * enumSoft + w.vector * vector + w.aux * aux;
   return { enumSoft, vector, aux, total };

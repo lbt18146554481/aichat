@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { MessageCircle, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, MessageCircle, Plus } from "lucide-react";
 import { LangSwitcher } from "./lang-switcher";
 import { HistoryTrigger } from "./history-trigger";
 import { SavedTrigger } from "./saved-trigger";
@@ -9,6 +9,7 @@ import { useConnections, hasUnseenIn } from "@/data/hooks";
 import { hasUnseenFor, type Connection } from "@/lib/connections";
 import { avatarUrl, getPersonById, localized } from "@/lib/people";
 import { normalizeLang } from "@/lib/lang";
+import { clearActiveThreadId } from "@/lib/active-thread";
 
 interface Props {
   agentNameKey: string;
@@ -29,6 +30,16 @@ function pickAlert(items: Connection[]): Connection | null {
   );
 }
 
+/** Leave agent workspace for a fresh home — don't auto-resume the active thread. */
+function leaveToHome() {
+  clearActiveThreadId();
+  try {
+    window.sessionStorage.setItem("kindred:home:focus", "1");
+  } catch {
+    /* noop */
+  }
+}
+
 export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Props) {
   const { t, i18n } = useTranslation();
   const lang = normalizeLang(i18n.resolvedLanguage);
@@ -42,26 +53,33 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
     <header className="w-full border-b border-border bg-background/90 backdrop-blur sticky top-0 z-30 pt-safe">
       <div className="max-w-7xl mx-auto px-3 sm:px-5 h-14 flex items-center justify-between gap-2 sm:gap-3">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-            <span className="w-6 h-6 shrink-0 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">
-              K
+          <Link
+            to="/"
+            onClick={(e) => {
+              // Prefer route onReset (clears thread + navigates). Plain Link alone
+              // would land on home and immediately resume the Side/Matchmaker session.
+              if (onReset) {
+                e.preventDefault();
+                onReset();
+                return;
+              }
+              leaveToHome();
+            }}
+            className="inline-flex items-center gap-1 min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 -ml-2 sm:ml-0 px-2 sm:px-0 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={t("nav.home")}
+          >
+            <ArrowLeft className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+            <span className="font-mono uppercase tracking-wide hidden sm:inline">Maitri</span>
+          </Link>
+          <span className="text-muted-foreground/40 hidden sm:inline">/</span>
+          <div className="flex flex-col leading-tight min-w-0">
+            <span className="text-[13.5px] font-semibold tracking-tight text-foreground truncate">
+              {t(agentNameKey)}
             </span>
-            <div className="flex flex-col leading-tight min-w-0">
-              <span className="text-[13.5px] font-semibold tracking-tight text-foreground truncate">
-                Maitri
-              </span>
-              <span className="text-[10px] text-muted-foreground truncate sm:hidden">
-                {t(agentNameKey)}
-              </span>
-              <span className="text-[10px] font-mono tracking-wide text-muted-foreground uppercase truncate hidden sm:inline">
-                {t(agentSubtitleKey)}
-              </span>
-            </div>
+            <span className="text-[10px] font-mono tracking-wide text-muted-foreground uppercase truncate hidden sm:inline">
+              {t(agentSubtitleKey)}
+            </span>
           </div>
-          <span className="text-muted-foreground/30 hidden sm:inline">·</span>
-          <span className="text-[13px] text-muted-foreground truncate hidden sm:inline">
-            {t(agentNameKey)}
-          </span>
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2">
@@ -103,14 +121,6 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
               )}
             </Link>
           )}
-          <Link
-            to="/wishes"
-            aria-label={t("tabs.wishes")}
-            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            <Sparkles className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-            <span className="hidden sm:inline">{t("tabs.wishes")}</span>
-          </Link>
           <SavedTrigger variant="compact" />
           <HistoryTrigger variant="compact" />
 

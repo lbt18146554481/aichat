@@ -16,6 +16,12 @@ import { findPersonInPool } from "./people-store.server";
 import { buildPoolFacets } from "./pool-facets.server";
 import { localized } from "./people";
 import type { Person, PersonGender } from "./types";
+import {
+  ASK_USER_INFO_TOOL,
+  ASK_USER_INFO_TOOL_NAME,
+  parseAskUserInfoArgs,
+  type PendingUserAsk,
+} from "./ask-user-info";
 
 export type MatchmakerToolState = {
   lang: MatchmakerLang;
@@ -37,6 +43,8 @@ export type MatchmakerToolState = {
   queueAdvance: "pass" | "see" | null;
   /** User wants new screening under updated prefs — rank only after rematch confirm. */
   requestRematch: boolean;
+  /** Human-in-the-loop card from ask_user_info. */
+  pendingUserAsk: PendingUserAsk | null;
 };
 
 export function createMatchmakerToolState(input: {
@@ -55,7 +63,7 @@ export function createMatchmakerToolState(input: {
     pool: input.pool,
     hardFilters: { ...input.hardFilters },
     understanding: input.understanding,
-    blockedIds: [...input.blockedPersonIds, ...input.passedIds],
+    blockedIds: [...input.blockedPersonIds],
     shownIds: [...input.shownIds],
     passedIds: [...input.passedIds],
     currentPersonId: input.currentPersonId,
@@ -66,6 +74,7 @@ export function createMatchmakerToolState(input: {
     lastSearchIds: [],
     queueAdvance: null,
     requestRematch: false,
+    pendingUserAsk: null,
   };
 }
 
@@ -434,14 +443,32 @@ export const MATCHMAKER_TOOLS: ToolDefinition[] = [
       },
     },
   },
+  ASK_USER_INFO_TOOL,
 ];
 
 export function executeMatchmakerTool(
   state: MatchmakerToolState,
   name: string,
   args: Record<string, unknown>,
+  meta?: { toolCallId?: string },
 ): unknown {
   switch (name) {
+    case ASK_USER_INFO_TOOL_NAME: {
+      const ask = parseAskUserInfoArgs(args, meta?.toolCallId ?? ASK_USER_INFO_TOOL_NAME);
+      if (!ask) {
+        return {
+          error: "invalid_args",
+          tip: "fieldKey, prompt, and kind required; select needs options",
+        };
+      }
+      state.pendingUserAsk = ask;
+      return {
+        status: "awaiting_user",
+        askId: ask.id,
+        fieldKey: ask.fieldKey,
+        tip: "UI will show an inline card; answer arrives next turn (or empty if skipped).",
+      };
+    }
     case "pool_facets":
       return buildPoolFacets(state.pool, {
         lang: state.lang,
@@ -555,7 +582,6 @@ export function executeMatchmakerTool(
         return { error: "no_person", tip: "No current person to pass" };
       }
       if (!state.passedIds.includes(id)) state.passedIds.push(id);
-      state.blockedIds = [...new Set([...state.blockedIds, id])];
       state.passCurrentPerson = true;
       if (state.currentPersonId === id) state.currentPersonId = null;
 
@@ -599,6 +625,7 @@ export function matchmakerToolSystem(state: MatchmakerToolState): string {
 - 仅改硬条件、不立刻重筛 → update_filters
 - 问为什么没有/某人为何不合适 → explain_mismatch
 - 无队列时的跳过 → pass_person
+- 必须用卡片让用户填一条结构化信息（聊天问不够）→ ask_user_info（调用后本轮暂停；用户确认/取消/忽略后下一轮才有结果）
 不需要工具时不要调用。不要输出最终聊天 JSON。
 当前硬条件：性别 ${genderLine}；年龄 ${state.hardFilters.ageMin ?? "?"}–${state.hardFilters.ageMax ?? "?"}；地点 ${loc || "无"}；当前介绍 ${state.currentPersonId ?? "无"}；${queueLine}。
 池中共有 ${state.pool.length} 人（含各国城市）。中国别名：中国=China=cn。`
@@ -610,6 +637,7 @@ export function matchmakerToolSystem(state: MatchmakerToolState): string {
 - filter edit without rematch → update_filters
 - why empty / mismatch → explain_mismatch
 - skip without queue → pass_person
+- must collect one structured field via inline card (chat question not enough) → ask_user_info (pauses this turn; result arrives next turn after confirm/cancel/skip)
 If no tool needed, call none. Do not output final chat JSON yet.
 Current filters: gender ${genderLine}; age ${state.hardFilters.ageMin ?? "?"}–${state.hardFilters.ageMax ?? "?"}; location ${loc || "none"}; current ${state.currentPersonId ?? "none"}; ${queueLine}.
 Pool size ${state.pool.length}. China aliases: 中国=China=cn.`;

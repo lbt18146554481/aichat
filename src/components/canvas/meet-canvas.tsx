@@ -5,22 +5,22 @@ import {
   ArrowUp,
   MessageCircle,
   ChevronRight,
-  ChevronLeft,
   Bookmark,
   BookmarkCheck,
+  SkipForward,
+  Sparkles,
 } from "lucide-react";
 import type { AppLang } from "@/lib/lang";
 import { pickLocaleText, normalizeLang } from "@/lib/lang";
 import type { SideState, ChatMsg, LevelTier, WhenTier } from "@/lib/agents/side-by-side";
-import { currentView } from "@/lib/agents/side-by-side";
+import { currentView, sessionWishIds } from "@/lib/agents/side-by-side";
 import { getIntentById, type Intent } from "@/lib/intents";
 import type { ActivityKind } from "@/lib/types";
 import { avatarUrl, getPersonById } from "@/lib/people";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { PublicProfileSheet } from "@/components/public-profile-sheet";
 import { CanvasSwapShell } from "@/components/canvas/canvas-swap-shell";
-import { formatWishContentLines, defaultMatchReason } from "@/lib/wish-display";
-import { resolvePlaceOnline } from "@/lib/wish-place";
+import { formatWishContentLines } from "@/lib/wish-display";
 import { WishQuoteCard, WishQuoteChatBubble } from "@/components/wish-quote-card";
 
 import { useIsSaved } from "@/components/saved-trigger";
@@ -72,7 +72,7 @@ const KIND_EMOJI: Record<ActivityKind, string> = {
 
 export function MeetCanvas(props: Props) {
   const view = currentView(props.state);
-  const swapToken = `${view}:${props.state.myIntentId ?? ""}:${props.state.matchIntentId ?? ""}:${props.state.canvasSwapKey ?? 0}`;
+  const swapToken = `${view}:${props.state.currentPersonId ?? ""}:${props.state.myIntentId ?? ""}:${props.state.matchIntentId ?? ""}:${props.state.canvasSwapKey ?? 0}`;
 
   if (view === "chat") {
     return (
@@ -100,11 +100,22 @@ export function MeetCanvas(props: Props) {
     );
   }
 
+  if (view === "hanging") {
+    return (
+      <div className="relative h-full">
+        <CanvasSwapShell swapToken={swapToken} className="h-full">
+          <HangingInviteView {...props} />
+        </CanvasSwapShell>
+      </div>
+    );
+  }
+
   if (view === "match") {
+    const personId =
+      props.state.currentPersonId ??
+      (props.state.matchIntentId ? getIntentById(props.state.matchIntentId)?.ownerId : null);
+    const other = props.state.matchIntentId ? getIntentById(props.state.matchIntentId) : null;
     const mine = resolveMineIntent(props.state);
-    const other = props.state.matchIntentId
-      ? getIntentById(props.state.matchIntentId)
-      : null;
     return (
       <div className="relative h-full">
         <CanvasSwapShell
@@ -112,7 +123,9 @@ export function MeetCanvas(props: Props) {
           queueCursor={props.state.queueCursor}
           className="h-full"
         >
-          {mine && other ? (
+          {personId ? (
+            <MatchView {...props} />
+          ) : other ? (
             <MatchView {...props} />
           ) : mine ? (
             <PublishedWishView state={props.state} />
@@ -160,26 +173,68 @@ function PublishView({
 function PublishedWishView({ state }: { state: SideState }) {
   const { t, i18n } = useTranslation();
   const lang = normalizeLang(i18n.resolvedLanguage);
-  const mine = resolveMineIntent(state);
-  if (!mine) return null;
+  const ids = sessionWishIds(state);
+  const newestFirst = [...ids].reverse();
+  const draftOnly = newestFirst.length === 0 ? resolveMineIntent(state) : null;
+  if (newestFirst.length === 0 && !draftOnly) return null;
 
   const profile = loadProfile();
-  const wishLines = formatWishContentLines(mine, lang);
+  const cards: Array<{ id: string; intent: Intent; active: boolean }> = newestFirst.length
+    ? newestFirst
+        .map((id) => {
+          const intent =
+            getIntentById(id) ??
+            (id === state.myIntentId ? resolveMineIntent(state) : null);
+          if (!intent) return null;
+          return { id, intent, active: id === state.myIntentId };
+        })
+        .filter((x): x is { id: string; intent: Intent; active: boolean } => Boolean(x))
+    : draftOnly
+      ? [{ id: "draft", intent: draftOnly, active: true }]
+      : [];
+
+  if (cards.length === 0) return null;
 
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
-      <div className="mx-auto max-w-lg space-y-4">
+      <div className="mx-auto max-w-lg space-y-5">
         <WishPublisherHeader profile={profile} lang={lang} />
 
-        <section className="rounded-xl border border-border bg-card px-4 py-3.5">
+        {cards.length > 1 ? (
           <div className="text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
-            {t("intent.wish_content_label")}
+            {t("intent.session_wishes_label", { count: cards.length })}
           </div>
-          <WishContentBlock lines={wishLines} kind={mine.kind} t={t} />
-        </section>
+        ) : null}
+
+        {cards.map(({ id, intent, active }) => {
+          const wishLines = formatWishContentLines(intent, lang);
+          return (
+            <section
+              key={id}
+              className={[
+                "rounded-xl border bg-card px-4 py-3.5 space-y-2",
+                active && cards.length > 1 ? "border-foreground/30" : "border-border",
+              ].join(" ")}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
+                  {t("intent.wish_content_label")}
+                </div>
+                {active && cards.length > 1 ? (
+                  <span className="text-[10px] font-mono text-muted-foreground">
+                    {t("intent.session_wish_active")}
+                  </span>
+                ) : null}
+              </div>
+              <WishContentBlock lines={wishLines} kind={intent.kind} t={t} />
+            </section>
+          );
+        })}
 
         <p className="text-center text-[12px] text-muted-foreground leading-relaxed px-2">
-          {t("intent.published_card_hint")}
+          {cards.length > 1
+            ? t("intent.session_wishes_hint")
+            : t("intent.published_card_hint")}
         </p>
       </div>
     </div>
@@ -188,12 +243,29 @@ function PublishedWishView({ state }: { state: SideState }) {
 
 // ---- Match — their wish first, alignment, slim publisher row ------------
 
+/** Mirror server `draftSearchable` / `resolveRecallMine` so the canvas can
+ *  render browse matches when the draft has activity text but no kind enum. */
+function draftIsSearchable(
+  draft: SideState["wishDraft"],
+): boolean {
+  if (!draft) return false;
+  return (
+    draft.kind != null ||
+    Boolean(draft.activityCore?.trim()) ||
+    (draft.rawText?.trim().length ?? 0) >= 2
+  );
+}
+
 function resolveMineIntent(state: SideState): Intent | null {
   if (state.myIntentId) {
     const found = getIntentById(state.myIntentId);
     if (found) return found;
   }
-  if (state.wishDraft?.kind || state.myIntentId) {
+  if (
+    draftIsSearchable(state.wishDraft) ||
+    state.myIntentId ||
+    (state.wishLane === "browse" && Boolean(state.matchIntentId))
+  ) {
     return draftAsIntent(state.wishDraft ?? emptyWishDraft(), {
       profile: loadProfile(),
       hardFilters: state.hardFilters ?? EMPTY_WISH_HARD_FILTERS,
@@ -202,171 +274,223 @@ function resolveMineIntent(state: SideState): Intent | null {
   return null;
 }
 
-function MatchView({ state, onStartChat, onSkip, onSave, onSeeNext, onSeePrev, canGoPrev }: Props) {
+function MatchView({ state, onStartChat, onSkip, onSave, onSeeNext }: Props) {
   const { t, i18n } = useTranslation();
   const lang = normalizeLang(i18n.resolvedLanguage);
-  const mine = resolveMineIntent(state);
+  const personId =
+    state.currentPersonId ??
+    (state.matchIntentId ? getIntentById(state.matchIntentId)?.ownerId : null) ??
+    null;
   const other = state.matchIntentId ? getIntentById(state.matchIntentId) : null;
+  const person = personId ? getPersonById(personId) : null;
   const [openProfile, setOpenProfile] = useState(false);
-  const [compareOpen, setCompareOpen] = useState(false);
-  const isSaved = useIsSaved(other?.id);
+  const wishSaved = useIsSaved(personId ?? other?.id);
+  const isSaved = personId
+    ? (state.savedPersonIds ?? []).includes(personId) || wishSaved
+    : wishSaved;
 
-  if (!mine || !other) return null;
+  if (!person && !other) return null;
 
-  const queueLen = state.rankedQueue?.length ?? 0;
-  const queuePos = queueLen > 0 ? (state.queueCursor ?? 0) + 1 : 0;
-  const hasQueue = queueLen > 0;
-  const otherName = lang === "zh-CN" ? other.ownerName_zh : other.ownerName;
-  const otherCity = lang === "zh-CN" ? other.ownerCity_zh : other.ownerCity;
-  const isBrowse = state.wishLane === "browse" && !state.myIntentId;
-  const compareSectionLabel = isBrowse
-    ? t("intent.browse_criteria_label")
-    : t("intent.published_label");
+  const otherName = person
+    ? lang === "zh-CN"
+      ? person.name_zh || person.name
+      : person.name
+    : lang === "zh-CN"
+      ? other!.ownerName_zh
+      : other!.ownerName;
+  const otherCity = person
+    ? lang === "zh-CN"
+      ? person.city_zh || person.city
+      : person.city
+    : lang === "zh-CN"
+      ? other!.ownerCity_zh
+      : other!.ownerCity;
+  const otherOccupation = person
+    ? lang === "zh-CN"
+      ? person.occupation_zh
+      : person.occupation
+    : "";
+  const identityMetaParts = [otherCity, otherOccupation].filter((s) => s && s.trim().length > 0);
+  const avatarId = person?.id ?? other!.ownerId;
 
-  const quality = state.matchQuality ?? "exact";
-  const wishLines = formatWishContentLines(other, lang);
-  const matchReason =
-    state.matchReason?.trim() ||
-    defaultMatchReason(lang, {
-      crossCity: state.crossCityMatch,
-      quality,
-      placeOnline: resolvePlaceOnline(other),
-    });
+  const whyTags =
+    (state.whyTags?.length ?? 0) > 0
+      ? state.whyTags!
+      : other
+        ? [
+            `${KIND_EMOJI[other.kind]} ${t(`activity.kind.${other.kind}`)}`,
+            sharedWhenLabel(other, other, t),
+            sharedLevelLabel(other, other, t),
+          ]
+        : [];
+
+  const onNext = onSeeNext ?? onSkip;
 
   return (
     <div className="h-full overflow-y-auto px-6 py-10">
-      <div className="mx-auto max-w-lg space-y-4">
-        {/* 1. Publisher */}
+      <div className="mx-auto max-w-lg">
         <button
           type="button"
           onClick={() => setOpenProfile(true)}
           aria-label={t("intent.open_profile", { name: otherName })}
-          className="w-full flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 text-left hover:bg-muted/40 hover:border-foreground/25 transition-colors"
+          className="w-full flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left hover:bg-muted/40 hover:border-foreground/25 transition-colors"
         >
           <img
-            src={avatarUrl(other.ownerId)}
+            src={avatarUrl(avatarId)}
             alt=""
-            className="w-11 h-11 rounded-full border border-border shrink-0"
+            className="w-12 h-12 rounded-full border border-border shrink-0"
           />
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
-              {t("intent.publisher_label")}
-            </div>
             <div className="text-[15px] font-medium text-foreground truncate">{otherName}</div>
-            {otherCity?.trim() ? (
-              <div className="text-[12px] text-muted-foreground truncate">{otherCity}</div>
+            {identityMetaParts.length > 0 ? (
+              <div className="text-[12px] text-muted-foreground truncate">
+                {identityMetaParts.join(" · ")}
+              </div>
             ) : null}
           </div>
-          <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />
+          <div className="shrink-0 flex flex-col items-end gap-0.5 text-muted-foreground">
+            <span className="text-[9.5px] font-mono uppercase tracking-[0.14em]">
+              {t("intent.more_hint")}
+            </span>
+            <ChevronRight className="w-4 h-4" />
+          </div>
         </button>
 
-        {/* 2. Wish content */}
-        <section className="rounded-xl border border-border bg-card px-4 py-3.5">
-          <div className="text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
-            {t("intent.wish_content_label")}
-          </div>
-          <WishContentBlock lines={wishLines} kind={other.kind} t={t} />
-        </section>
+        <WhyPersonBox summary={state.personSummary} otherOwnerId={avatarId} lang={lang} />
 
-        {/* 3. Match reason (prose) */}
-        <section className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-4 py-3.5">
-          <div className="text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
-            {t("intent.match_reason_label")}
-          </div>
-          <p className="mt-2 text-[13.5px] text-foreground leading-relaxed">{matchReason}</p>
-        </section>
-
-        {/* Compare mine (optional) */}
-        <button
-          type="button"
-          onClick={() => setCompareOpen((v) => !v)}
-          className="w-full text-left text-[12px] font-mono text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {compareOpen ? t("intent.compare_mine_hide") : t("intent.compare_mine_show")}
-        </button>
-        {compareOpen && (
-          <div>
-            <div className="text-[10px] uppercase tracking-[0.18em] font-mono text-muted-foreground">
-              {compareSectionLabel}
+        {whyTags.length > 0 ? (
+          <div className="mt-3 rounded-xl border border-border bg-card px-4 py-3">
+            <div className="text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
+              {t("intent.aligned_label")}
             </div>
-            <div className="mt-2">
-              <IntentCard intent={mine} side="me" lang={lang} />
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {whyTags.map((tag) => (
+                <Tag key={tag}>{tag}</Tag>
+              ))}
             </div>
           </div>
-        )}
+        ) : null}
 
-        {/* Actions — matchmaker-style row */}
-        <div className="border-t border-border pt-5">
-          <div className="flex flex-nowrap items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mt-4 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onStartChat}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 min-h-11 px-4 rounded-md bg-primary text-primary-foreground text-[13.5px] font-medium hover:opacity-90 transition-opacity"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            {t("intent.start_chat")}
+          </button>
+          {onSave ? (
             <button
               type="button"
-              onClick={onStartChat}
-              className="shrink-0 inline-flex items-center justify-center gap-1.5 min-h-10 px-4 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity"
+              onClick={onSave}
+              aria-pressed={isSaved}
+              title={isSaved ? t("intent.unsave") : t("intent.save_hint")}
+              className={[
+                "inline-flex items-center gap-1.5 min-h-11 px-3 rounded-md border text-[13px] transition-colors",
+                isSaved
+                  ? "bg-primary text-primary-foreground border-foreground hover:opacity-90"
+                  : "border-border text-foreground/85 hover:bg-secondary",
+              ].join(" ")}
             >
-              <MessageCircle className="w-3.5 h-3.5" />
-              {t("intent.start_chat")}
+              {isSaved ? (
+                <BookmarkCheck className="w-3.5 h-3.5" />
+              ) : (
+                <Bookmark className="w-3.5 h-3.5" />
+              )}
+              {isSaved ? t("intent.saved") : t("intent.save")}
             </button>
-            {onSave && (
-              <button
-                type="button"
-                onClick={onSave}
-                aria-pressed={isSaved}
-                className={[
-                  "shrink-0 inline-flex items-center justify-center gap-1.5 min-h-10 px-4 rounded-md border text-[13px] font-medium transition-colors",
-                  isSaved
-                    ? "border-foreground/70 bg-secondary text-foreground"
-                    : "border-border text-foreground/85 hover:bg-secondary",
-                ].join(" ")}
-              >
-                {isSaved ? (
-                  <BookmarkCheck className="w-3.5 h-3.5" />
-                ) : (
-                  <Bookmark className="w-3.5 h-3.5" />
-                )}
-                {isSaved ? t("intent.saved") : t("intent.save")}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onSkip}
-              className="shrink-0 inline-flex items-center justify-center min-h-10 px-3 rounded-md border border-red-500/45 text-[13px] font-medium text-red-600 hover:text-red-700 hover:bg-red-500/10 transition-colors"
-            >
-              {t("intent.not_interested")}
-            </button>
-            <button
-              type="button"
-              onClick={onSeePrev}
-              disabled={!canGoPrev}
-              className="shrink-0 inline-flex items-center justify-center gap-1 min-h-10 px-3 rounded-md border border-border text-[13px] text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-              {t("intent.browse_prev")}
-            </button>
-            <button
-              type="button"
-              onClick={hasQueue ? onSeeNext : onSkip}
-              disabled={hasQueue ? !onSeeNext : false}
-              className="shrink-0 inline-flex items-center justify-center gap-1 min-h-10 px-3 rounded-md border border-border text-[13px] text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
-            >
-              {t("intent.browse_next")}
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          {hasQueue && (
-            <p className="mt-2 text-center text-[11px] font-mono text-muted-foreground tabular-nums">
-              {t("intent.queue_position", { current: queuePos, total: queueLen })}
-            </p>
-          )}
+          ) : null}
+          <button
+            type="button"
+            onClick={onNext}
+            className="inline-flex items-center gap-1.5 min-h-11 px-3 rounded-md border border-border text-[13px] text-foreground/85 hover:bg-secondary transition-colors"
+          >
+            <SkipForward className="w-3.5 h-3.5" />
+            {t("intent.next_match")}
+          </button>
         </div>
       </div>
 
       <PublicProfileSheet
-        person={getPersonById(other.ownerId) ?? null}
+        person={person ?? null}
         open={openProfile}
         onOpenChange={setOpenProfile}
       />
     </div>
   );
+}
+
+function HangingInviteView({ state, onRevoke }: Props) {
+  const { t } = useTranslation();
+  const invite = state.hangingInvite;
+  if (!invite) return null;
+
+  return (
+    <div className="h-full overflow-y-auto px-6 py-10">
+      <div className="mx-auto max-w-lg">
+        <div className="text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground mb-3">
+          {t("intent.hanging_label")}
+        </div>
+        <div className="rounded-xl border border-border bg-card px-4 py-4 space-y-3">
+          <p className="text-[14.5px] text-foreground leading-relaxed">{invite.summary}</p>
+          <p className="text-[12px] text-muted-foreground leading-relaxed">
+            {t("intent.hanging_hint")}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRevoke}
+          className="mt-4 w-full min-h-11 rounded-md border border-border text-[13.5px] text-foreground hover:bg-muted/50 transition-colors"
+        >
+          {t("intent.hanging_revoke")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function WhyPersonBox({
+  summary,
+  otherOwnerId,
+  lang,
+}: {
+  summary?: string;
+  otherOwnerId: string;
+  lang: AppLang;
+}) {
+  const { t } = useTranslation();
+  const person = getPersonById(otherOwnerId);
+  const line =
+    summary?.trim() ||
+    (person?.whyPersonLine
+      ? lang === "zh-CN"
+        ? person.whyPersonLine.zh
+        : person.whyPersonLine.en
+      : null);
+  if (!line) return null;
+
+  return (
+    <div className="mt-5 rounded-xl border border-border bg-secondary/40 px-4 py-3">
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
+        <Sparkles className="w-3 h-3" />
+        {t("why.agent_read")}
+      </div>
+      <p className="mt-1.5 text-[13.5px] text-foreground/90 leading-relaxed">{line}</p>
+    </div>
+  );
+}
+
+function sharedWhenLabel(a: Intent, b: Intent, t: TFunction): string {
+  if (a.day === b.day && a.window === b.window) {
+    return `${t(`activity.day.${a.day}`)} ${t(`activity.window.${a.window}`)}`;
+  }
+  return `${t(`activity.day.${b.day}`)} ${t(`activity.window.${b.window}`)}`;
+}
+
+function sharedLevelLabel(a: Intent, b: Intent, t: TFunction): string {
+  if (a.level === b.level) return t(`activity.level.${a.level}`);
+  return t("intent.level_similar");
 }
 
 function WishContentBlock({
@@ -541,6 +665,9 @@ function ChatView({ state, onSendChat, onBackToCandidate, onDraftConsumed }: Pro
   const scrollRef = useRef<HTMLDivElement>(null);
   const mine = resolveMineIntent(state);
   const other = state.matchIntentId ? getIntentById(state.matchIntentId) : null;
+  const personId =
+    state.currentPersonId ?? (other ? other.ownerId : null);
+  const person = personId ? getPersonById(personId) : null;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -566,10 +693,10 @@ function ChatView({ state, onSendChat, onBackToCandidate, onDraftConsumed }: Pro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.pendingDraft]);
 
-  if (!other) return null;
+  if (!person && !other) return null;
 
   const showComposerQuote =
-    Boolean(state.composerWishQuoteId && attachWishQuote && state.composerWishQuoteId === other.id);
+    Boolean(other && state.composerWishQuoteId && attachWishQuote && state.composerWishQuoteId === other.id);
 
   function submit() {
     const v = text.trim();
@@ -579,9 +706,22 @@ function ChatView({ state, onSendChat, onBackToCandidate, onDraftConsumed }: Pro
     setAttachWishQuote(false);
   }
 
-  const otherName = lang === "zh-CN" ? other.ownerName_zh : other.ownerName;
-  const otherCity = lang === "zh-CN" ? other.ownerCity_zh : other.ownerCity;
-  const bannerKind = mine?.kind ?? other.kind;
+  const otherName = person
+    ? lang === "zh-CN"
+      ? person.name_zh || person.name
+      : person.name
+    : lang === "zh-CN"
+      ? other!.ownerName_zh
+      : other!.ownerName;
+  const otherCity = person
+    ? lang === "zh-CN"
+      ? person.city_zh || person.city
+      : person.city
+    : lang === "zh-CN"
+      ? other!.ownerCity_zh
+      : other!.ownerCity;
+  const avatarId = person?.id ?? other!.ownerId;
+  const bannerKind = mine?.kind ?? other?.kind;
 
   return (
     <div className="h-full flex flex-col">
@@ -602,7 +742,7 @@ function ChatView({ state, onSendChat, onBackToCandidate, onDraftConsumed }: Pro
         >
           <div className="flex items-center gap-3">
             <img
-              src={avatarUrl(other.ownerId)}
+              src={avatarUrl(avatarId)}
               alt=""
               className="w-8 h-8 rounded-full border border-border"
             />
@@ -612,26 +752,29 @@ function ChatView({ state, onSendChat, onBackToCandidate, onDraftConsumed }: Pro
                 {otherCity ? ` · ${otherCity}` : ""}
               </div>
               <div className="text-[11px] text-muted-foreground truncate">
-                {mine
+                {mine && bannerKind
                   ? t("intent.aligned_slim", {
                       kind: t(`activity.kind.${bannerKind}`),
                       day: t(`activity.day.${mine.day}`),
                       window: t(`activity.window.${mine.window}`),
                     })
-                  : t(`activity.kind.${other.kind}`)}
+                  : state.wishDraft?.activityCore?.trim() ||
+                    (other ? t(`activity.kind.${other.kind}`) : t("intent.start_chat"))}
               </div>
             </div>
-            <span className="text-[10px] font-mono text-muted-foreground shrink-0">
-              {expanded ? t("intent.hide_alignment") : t("intent.show_alignment")}
-            </span>
+            {other ? (
+              <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                {expanded ? t("intent.hide_alignment") : t("intent.show_alignment")}
+              </span>
+            ) : null}
           </div>
-          {expanded && mine && (
+          {expanded && mine && other && (
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 pointer-events-none">
               <IntentCard intent={mine} side="me" lang={lang} />
               <IntentCard intent={other} side="them" lang={lang} />
             </div>
           )}
-          {expanded && !mine && (
+          {expanded && !mine && other && (
             <div className="mt-3 pointer-events-none">
               <IntentCard intent={other} side="them" lang={lang} />
             </div>
@@ -656,14 +799,14 @@ function ChatView({ state, onSendChat, onBackToCandidate, onDraftConsumed }: Pro
 
       <div className="border-t border-border bg-background px-4 py-3">
         <div className="max-w-md mx-auto space-y-2">
-          {showComposerQuote && (
+          {showComposerQuote && other ? (
             <WishQuoteCard
               intent={other}
               lang={lang}
               compact
               onRemove={() => setAttachWishQuote(false)}
             />
-          )}
+          ) : null}
           <div className="relative">
             <textarea
               ref={textareaRef}

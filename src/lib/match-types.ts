@@ -53,6 +53,8 @@ export interface RecallOpts {
   limit?: number;
   /** Server/tests: candidate pool from DB or explicit fixture. */
   pool?: Person[];
+  /** Seeker profile for culture affinity (favorites / moments). */
+  seekerProfile?: import("./profile-shape").Profile | null;
 }
 
 export interface RecalledCandidate {

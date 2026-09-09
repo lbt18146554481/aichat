@@ -4,7 +4,6 @@ import type { SideBySideHints } from "./handoff";
 import {
   getIntentById,
   publishMyIntent,
-  revokeMyIntent,
   type Intent,
   type MatchQuality,
 } from "./intents";
@@ -39,8 +38,16 @@ import {
   emptyWishDraft,
 } from "./wish-types";
 import { ownerSnapshotFromProfile } from "./owner-snapshot";
+import {
+  formatUserAskResolutionForLlm,
+  parseAskUserInfoArgs,
+  ACTIVITY_PLACE_FIELD_KEY,
+  type PendingUserAsk,
+  type UserAskResolution,
+} from "./ask-user-info";
 import { formatDateRangeLine, formatNowContext, intentDateRange, resolveDraftDates } from "./wish-date";
-import { assessWishClarifyProgress, isBrowseClarifyComplete, wishClarifyPromptSection, buildBrowseConfirmRecap } from "./wish-clarify";
+import { assessWishClarifyProgress, isBrowseClarifyComplete, wishClarifyPromptSection } from "./wish-clarify";
+import { applySideBuddyColdStart, applySidePlaceColdStart } from "./cold-start-prefs";
 import {
   assessWishPublishClarifyProgress,
   buildPublishConfirmRecap,
@@ -55,7 +62,6 @@ import {
   cityLabelsFromPlace,
   citiesFromPlaceFields,
   isPlaceAny,
-  isPlaceClarifyComplete,
   legacyFlagsFromSpec,
   normalizePlaceSpec,
   resolvePlaceRaw,
@@ -69,6 +75,7 @@ import {
   inferWishLaneFromText,
   isOfferMatchAffirmation,
   isOfferMatchDecline,
+  isNonWishDraftSeed,
   isVagueExploreWishSeed,
   isWishLaneSelectionMessage,
   wishLaneChoicePromptSection,
@@ -76,22 +83,22 @@ import {
   wishLaneSwitchPromptSection,
 } from "./wish-lane";
 import { draftAsIntent } from "./wish-draft-intent";
-import {
-  explicitActivityBuddySignal,
-  explicitMeetSomeoneSignal,
-  userChoseMeetSomeoneAfterDisambig,
-} from "./meet-someone-detect";
-import {
-  runSideMatchFollowUp,
-  sideMatchAckFallback,
-} from "./side-match-followup-llm.server";
+import { runSideMatchIntroReply } from "./side-match-followup-llm.server";
+import { executeSidePeopleMatch } from "./side-people-match.server";
+import { EMPTY_HARD_FILTERS } from "./match-types";
+import { applyMatchmakerColdStart } from "./cold-start-prefs";
+import { sidePlaceHardFilters } from "./side-people-recall";
 import {
   createSideToolState,
   executeSideTool,
   type SideToolState,
 } from "./side-tools.server";
 
-const LAZY_SIDE_TOOL_NAMES = new Set(["search_wishes", "preview_wish_matches"]);
+const LAZY_SIDE_TOOL_NAMES = new Set([
+  "search_wishes",
+  "preview_wish_matches",
+  "show_my_wishes",
+]);
 
 export type SideTurnAction =
   | "start"
@@ -101,7 +108,9 @@ export type SideTurnAction =
   | "confirm_match"
   | "skip_match"
   | "see_next"
-  | "rematch";
+  | "rematch"
+  | "rematch_hang"
+  | "resolve_user_ask";
 
 export interface SideTurnInput {
   lang: SideLang;
@@ -122,7 +131,10 @@ export interface SideTurnInput {
   wishLane: WishLane;
   browseSearched: boolean;
   myIntentId: string | null;
+  /** Session wish ids (for show_my_wishes); oldest → newest. */
+  myIntentIds?: string[];
   matchIntentId: string | null;
+  currentPersonId?: string | null;
   triedIntentIds: string[];
   triedOwnerIds: string[];
   rankedQueue?: string[];
@@ -130,12 +142,22 @@ export interface SideTurnInput {
   queueFingerprint?: string | null;
   passedIntentIds?: string[];
   shownIntentIds?: string[];
+  passedIds?: string[];
+  shownIds?: string[];
+  hangingInvite?: {
+    summary: string;
+    createdAt: number;
+    nextRematchAt: number;
+  } | null;
+  matchHardFilters?: import("./match-types").MatchHardFilters;
   profile: Profile;
   handoffCount?: number;
   handoffSummary?: string;
   handoffHints?: SideBySideHints;
   /** Set by sideBySideTurnFn so publish persists to DB on the server. */
   userId?: string;
+  /** Result of a previous ask_user_info card. */
+  userAskResolution?: UserAskResolution | null;
 }
 
 export interface SideTurnOutput {
@@ -152,11 +174,14 @@ export interface SideTurnOutput {
   browseSearched: boolean;
   myIntentId: string | null;
   matchIntentId: string | null;
+  currentPersonId?: string | null;
+  personSummary?: string;
+  whyTags?: string[];
   matchQuality?: MatchQuality;
   matchReason?: string;
   crossCityMatch: boolean;
   nearMissIds: string[];
-  stage: "prompt" | "published";
+  stage: "prompt" | "published" | "hanging" | "introducing";
   suggestions: string[];
   handoffTo: "matchmaker" | null;
   handoffSummary: string;
@@ -164,37 +189,194 @@ export interface SideTurnOutput {
   recallEmpty: boolean;
   filtersRelaxed?: boolean;
   relaxHints?: string[];
-  /** Second assistant message after server-side matching (two-beat flow). */
-  followUpReply?: string;
   rankedQueue?: string[];
+  queueReasons?: Record<string, string>;
   queueCursor?: number;
   queueFingerprint?: string | null;
   passedIntentIds?: string[];
   shownIntentIds?: string[];
+  passedIds?: string[];
+  shownIds?: string[];
+  hangingInvite?: {
+    summary: string;
+    createdAt: number;
+    nextRematchAt: number;
+  } | null;
+  matchHardFilters?: import("./match-types").MatchHardFilters;
   /** When publish fails place validation — client re-opens the form with this hint. */
   publishPlaceError?: string;
   /** User verbally acked an open publish form — do not append another assistant bubble. */
   suppressAssistantReply?: boolean;
+  /**
+   * Set only when the show_my_wishes tool ran this turn.
+   * Not an LLM structured field — client sets canvasFocus from this flag.
+   */
+  showMyWishes?: boolean;
+  /** Inline ask_user_info card waiting for the user. */
+  pendingUserAsk?: PendingUserAsk | null;
 }
 
-/** Partial match state pushed to the client before the follow-up LLM beat. */
+/** Partial match state pushed so the canvas can open while the intro streams. */
 export type SideMatchPreview = Pick<
   SideTurnOutput,
   | "browseSearched"
   | "matchIntentId"
+  | "currentPersonId"
+  | "personSummary"
+  | "whyTags"
   | "matchQuality"
   | "matchReason"
   | "crossCityMatch"
   | "nearMissIds"
   | "recallEmpty"
   | "rankedQueue"
+  | "queueReasons"
   | "queueCursor"
   | "queueFingerprint"
   | "passedIntentIds"
   | "shownIntentIds"
+  | "passedIds"
+  | "shownIds"
+  | "hangingInvite"
   | "wishLane"
   | "pendingBrowseConfirm"
 >;
+
+async function runSidePeopleMatchTurn(opts: {
+  input: SideTurnInput;
+  draft: WishDraft;
+  understanding: UserUnderstanding;
+  hardFilters: WishHardFilters;
+  buddyHardFilters: BuddyHardFilters;
+  myIntentId: string | null;
+  content: string;
+  suggestions?: string[];
+  onDelta?: (text: string) => void;
+  hooks?: {
+    onChatDone?: (opts: { reply: string; suggestions: string[] }) => void;
+    onMatchReady?: (preview: SideMatchPreview) => void;
+  };
+}): Promise<SideTurnOutput> {
+  const { input, draft, understanding, hardFilters, buddyHardFilters, myIntentId, content } = opts;
+  const suggestions = opts.suggestions ?? [];
+  let matchHard =
+    input.matchHardFilters ?? applyMatchmakerColdStart(input.profile, { ...EMPTY_HARD_FILTERS });
+  matchHard = sidePlaceHardFilters(draft, input.profile, matchHard);
+
+  const peopleAction =
+    input.action === "rematch_hang"
+      ? "rematch_hang"
+      : input.action === "see_next"
+        ? "see_next"
+        : input.action === "skip_match"
+          ? "skip"
+          : "search";
+
+  const people = await executeSidePeopleMatch({
+    lang: input.lang,
+    profile: input.profile,
+    understanding,
+    wishDraft: draft,
+    hardFilters: matchHard,
+    history: [
+      ...input.history,
+      ...(content.trim() ? [{ role: "user" as const, content }] : []),
+    ],
+    blockedIds: [...(input.triedOwnerIds ?? []), ...(input.passedIds ?? [])],
+    shownIds: input.shownIds ?? input.shownIntentIds ?? [],
+    passedIds: input.passedIds ?? input.passedIntentIds ?? [],
+    rankedQueue: input.rankedQueue ?? [],
+    queueCursor: input.queueCursor ?? 0,
+    action: peopleAction,
+    onDelta: opts.onDelta,
+  });
+
+  if (people.currentPersonId) {
+    opts.hooks?.onMatchReady?.({
+      browseSearched: true,
+      matchIntentId: null,
+      currentPersonId: people.currentPersonId,
+      personSummary: people.personSummary,
+      whyTags: people.whyTags,
+      crossCityMatch: false,
+      nearMissIds: [],
+      recallEmpty: false,
+      rankedQueue: people.rankedQueue,
+      queueReasons: people.queueReasons,
+      queueCursor: people.queueCursor,
+      queueFingerprint: null,
+      passedIntentIds: people.passedIds,
+      shownIntentIds: people.shownIds,
+      passedIds: people.passedIds,
+      shownIds: people.shownIds,
+      hangingInvite: null,
+      wishLane: "browse",
+      pendingBrowseConfirm: null,
+    });
+    opts.hooks?.onChatDone?.({ reply: people.reply, suggestions });
+  } else if (people.hangingInvite) {
+    opts.hooks?.onMatchReady?.({
+      browseSearched: true,
+      matchIntentId: null,
+      currentPersonId: null,
+      personSummary: "",
+      whyTags: [],
+      crossCityMatch: false,
+      nearMissIds: [],
+      recallEmpty: true,
+      rankedQueue: [],
+      queueReasons: {},
+      queueCursor: 0,
+      queueFingerprint: null,
+      passedIntentIds: people.passedIds,
+      shownIntentIds: people.shownIds,
+      passedIds: people.passedIds,
+      shownIds: people.shownIds,
+      hangingInvite: people.hangingInvite,
+      wishLane: "browse",
+      pendingBrowseConfirm: null,
+    });
+    opts.hooks?.onChatDone?.({ reply: people.reply, suggestions });
+  }
+
+  return {
+    reply: people.reply,
+    understanding,
+    hardFilters,
+    buddyHardFilters,
+    wishDraft: draft,
+    pendingConfirm: null,
+    pendingBrowseConfirm: null,
+    pendingMatchConfirm: null,
+    pendingOfferMatch: false,
+    wishLane: "browse",
+    browseSearched: true,
+    myIntentId,
+    matchIntentId: null,
+    currentPersonId: people.currentPersonId,
+    personSummary: people.personSummary,
+    whyTags: people.whyTags,
+    crossCityMatch: false,
+    nearMissIds: [],
+    stage: people.stage === "hanging" ? "hanging" : people.currentPersonId ? "introducing" : "prompt",
+    suggestions,
+    handoffTo: null,
+    handoffSummary: "",
+    transitionReply: "",
+    recallEmpty: people.recallEmpty,
+    rankedQueue: people.rankedQueue,
+    queueReasons: people.queueReasons,
+    queueCursor: people.queueCursor,
+    queueFingerprint: null,
+    passedIds: people.passedIds,
+    shownIds: people.shownIds,
+    passedIntentIds: people.passedIds,
+    shownIntentIds: people.shownIds,
+    hangingInvite: people.hangingInvite,
+    matchHardFilters: matchHard,
+    pendingUserAsk: null,
+  };
+}
 
 interface LlmSideChatJson {
   needsTools?: boolean;
@@ -208,6 +390,8 @@ interface LlmSideChatJson {
   handoffSummary?: string;
   transitionReply?: string;
   suggestions?: string[];
+  /** Same payload as ask_user_info tool — Side chat JSON surface. */
+  askUserInfo?: Record<string, unknown> | null;
 }
 
 function zh(lang: SideLang): boolean {
@@ -263,7 +447,36 @@ function userContent(input: SideTurnInput): string {
   if (input.action === "rematch") {
     return zh(input.lang) ? "[心愿条件已更新，重新匹配]" : "[Wish updated, rematch]";
   }
-  return input.userMessage?.trim() ?? "";
+  if (input.action === "rematch_hang") {
+    return zh(input.lang)
+      ? "[挂起的邀约到期，重新找愿意一起做这件事的人]"
+      : "[Hanging invite rematch — look again for someone for this activity]";
+  }
+  if (input.action === "resolve_user_ask") {
+    const res = input.userAskResolution;
+    if (res) {
+      const note = formatUserAskResolutionForLlm(res, input.lang);
+      if (
+        res.fieldKey === ACTIVITY_PLACE_FIELD_KEY &&
+        res.status === "confirmed" &&
+        res.value?.trim()
+      ) {
+        return zh(input.lang)
+          ? `${note}\n地点已齐。若用户正在浏览/搜活动，本轮 affirmMatch=true 立刻搜；askUserInfo=null。`
+          : `${note}\nPlace is set. If browsing/searching activities, affirmMatch=true this turn; askUserInfo=null.`;
+      }
+      return note;
+    }
+    return zh(input.lang)
+      ? "[ask_user_info 结果] status=cancelled value=\"\""
+      : "[ask_user_info result] status=cancelled value=\"\"";
+  }
+  const base = input.userMessage?.trim() ?? "";
+  if (input.userAskResolution) {
+    const note = formatUserAskResolutionForLlm(input.userAskResolution, input.lang);
+    return base ? `${note}\n\n${base}` : note;
+  }
+  return base;
 }
 
 function isLightSideQueueAction(action: SideTurnAction): boolean {
@@ -443,7 +656,6 @@ function publishPlaceErrorMessage(lang: SideLang): string {
 }
 
 async function publishDraft(input: SideTurnInput, draft: WishDraft): Promise<Intent> {
-  if (input.myIntentId) revokeMyIntent(input.myIntentId);
   const placeRaw = resolvePlaceRaw(draft.placeRaw, draft.city, input.profile.city);
   const cityLabels = draft.placeOnline || draft.placeMode === "online"
     ? { city: "", city_zh: "" }
@@ -457,6 +669,8 @@ async function publishDraft(input: SideTurnInput, draft: WishDraft): Promise<Int
   const desc = wishDescriptionsFromDraft(draft);
   const intent = publishMyIntent({
     kind: draft.kind ?? "other",
+    activityCore: draft.activityCore,
+    activityStrength: draft.activityStrength,
     when: draft.whenAny ? undefined : draft.when,
     level: draft.levelAny ? undefined : draft.level,
     rawText: desc.activityDescRaw || input.userMessage || "",
@@ -464,6 +678,11 @@ async function publishDraft(input: SideTurnInput, draft: WishDraft): Promise<Int
     city_zh: cityLabels.city_zh,
     strictWhen: draft.strictWhen,
     strictLevel: draft.strictLevel,
+    whenStrength: draft.whenStrength,
+    levelStrength: draft.levelStrength,
+    placeStrength: draft.placeStrength,
+    buddyGenderStrength: draft.buddyGenderStrength,
+    buddyAgeStrength: draft.buddyAgeStrength,
     allowCrossCity: draft.allowCrossCity ?? input.hardFilters.allowCrossCity,
     ownerSnapshot: ownerSnapshotFromProfile(input.profile),
     placeRaw,
@@ -500,18 +719,59 @@ function browseClarifyComplete(input: SideTurnInput, draft: WishDraft, hardFilte
   });
 }
 
-function shouldUseMatchTwoPhase(input: SideTurnInput, _wishLane: WishLane, _browseReady: boolean): boolean {
+/** Fill empty place/buddy dims from profile as flex soft priors. */
+function applySideColdStartPrefs(
+  profile: Profile,
+  draft: WishDraft,
+  buddy: BuddyHardFilters,
+): { draft: WishDraft; buddyHardFilters: BuddyHardFilters } {
+  let nextDraft = applySidePlaceColdStart(profile, draft);
+  const cs = applySideBuddyColdStart(profile, buddy);
+  if (cs.buddyGenderStrength && !nextDraft.buddyGenderStrength) {
+    nextDraft = { ...nextDraft, buddyGenderStrength: cs.buddyGenderStrength };
+  }
+  if (cs.buddyAgeStrength && !nextDraft.buddyAgeStrength) {
+    nextDraft = { ...nextDraft, buddyAgeStrength: cs.buddyAgeStrength };
+  }
+  return { draft: nextDraft, buddyHardFilters: cs.buddy };
+}
+
+/** Like Matchmaker holdChatStream — skip chat LLM when this action already means search/browse queue. */
+function shouldHoldChatForMatch(input: SideTurnInput): boolean {
   const light: SideTurnAction[] = ["skip_match", "see_next", "rematch"];
   const offerAffirm = input.pendingOfferMatch && isOfferMatchAffirmation(input.userMessage ?? "");
   return (
     input.action === "confirm_browse" ||
+    input.action === "confirm_match" ||
     light.includes(input.action) ||
     (offerAffirm && Boolean(input.myIntentId || draftSearchable(input.wishDraft)))
   );
 }
 
+function emptySideChatJson(partial?: Partial<LlmSideChatJson>): LlmSideChatJson {
+  return {
+    needsTools: false,
+    toolNames: [],
+    reply: "",
+    confirmLine: null,
+    askUserInfo: null,
+    suggestions: [],
+    affirmPublish: false,
+    affirmMatch: true,
+    pickMatchIntentId: null,
+    handoffTo: null,
+    handoffSummary: "",
+    transitionReply: "",
+    ...partial,
+  };
+}
+
 function draftSearchable(draft: WishDraft): boolean {
-  return draft.kind != null || (draft.rawText?.trim().length ?? 0) >= 2;
+  return (
+    draft.kind != null ||
+    Boolean(draft.activityCore?.trim()) ||
+    (draft.rawText?.trim().length ?? 0) >= 2
+  );
 }
 
 function resolveRecallMine(
@@ -519,11 +779,13 @@ function resolveRecallMine(
   draft: WishDraft,
   myIntentId: string | null,
   hardFilters: WishHardFilters,
+  /** When AI asks to search, allow empty draft (cold-start soft only). */
+  allowEmptyForSearch = false,
 ): Intent | null {
   if (myIntentId) {
     return getIntentById(myIntentId);
   }
-  if (draftSearchable(draft)) {
+  if (draftSearchable(draft) || allowEmptyForSearch) {
     return draftAsIntent(draft, { profile: input.profile, hardFilters });
   }
   return null;
@@ -542,7 +804,6 @@ function buildChatSystem(
     pendingMatchConfirm: string | null;
     pendingOfferMatch: boolean;
     readyToPublish: boolean;
-    matchAckOnly?: boolean;
     /** When false, omit candidate roster from the prompt (clarify turns). */
     showCandidates?: boolean;
     afterToolResults?: boolean;
@@ -557,15 +818,11 @@ function buildChatSystem(
   const showCandidates = opts.showCandidates ?? candidateIds.length > 0;
   const roster = !showCandidates
     ? ""
-    : opts.matchAckOnly
-      ? isZh
-        ? "（匹配进行中：本回合不要引用任何候选人）"
-        : "(Matching in progress — do not reference candidates this turn)"
-      : candidateIds.length > 0
-        ? rosterFromIntentIds(candidateIds, input.lang, blocked)
-        : isZh
-          ? "（当前没有合适候选人）"
-          : "(No candidates in pool)";
+    : candidateIds.length > 0
+      ? rosterFromIntentIds(candidateIds, input.lang, blocked)
+      : isZh
+        ? "（当前没有合适候选人）"
+        : "(No candidates in pool)";
 
   const draftDates = formatDateRangeLine(
     intentDateRange({
@@ -602,74 +859,34 @@ Pending form prefill: ${opts.pendingConfirm ?? "none"}`
   const browseConfirmRule =
     opts.wishLane === "browse"
       ? isZh
-        ? `看心愿规则：收集完搜索条件后，用 confirmLine 复述条件并问是否按此在池子里找（不是发布，禁止说「心愿记下/发布」）。
-用户确认开搜时：必须把 affirmMatch 设为 true（服务端只认这个标志与 confirm_browse，不会解析「好的」等口头词）。未确认时 affirmMatch=false。不要用按钮文案。
-已挂起浏览确认：${opts.pendingBrowseConfirm ?? "无"}`
-        : `Browse rule: after criteria collected, confirmLine recap search filters (not publish; never say wish saved/published).
-When the user confirms search: set affirmMatch=true (server trusts only this flag / confirm_browse — it does not parse "yes"/"ok" itself). Otherwise affirmMatch=false. No button copy.
-Pending browse confirm: ${opts.pendingBrowseConfirm ?? "none"}`
+        ? `看心愿 / 搜搭子：搜索由你决定。本轮用户有搜池子/找搭子意图 → affirmMatch=true（或 needsTools + search_wishes），系统立刻搜。
+「提供信息」和「搜索」拆开：几乎没说活动也能搜，未提及维度用资料冷启动 soft，空字段不参与得分。
+不要 confirmLine，不要等「好的」。不是发布，禁止说「心愿记下/发布」。
+affirmMatch=false：仅闲聊、选模式、或澄清偏好且本轮不要搜。`
+        : `Browse / search: you decide when to search. Search intent this turn → affirmMatch=true (or search_wishes).
+Split providing info from search: almost empty draft is OK; cold-start soft fills gaps; empty fields simply don't score.
+No confirmLine wait. Not publish; never say wish saved.
+affirmMatch=false only when chatting / lane-only / clarifying with no search this turn.`
       : "";
 
   const offerMatchRule =
     opts.pendingOfferMatch
       ? isZh
-        ? `心愿刚发布：reply 末尾自然轻问一句「要不要顺便帮你找找搭子？」——不要 confirmLine。用户同意找搭子时 affirmMatch=true；否则 false。不要提按钮。`
-        : `Wish just published: end reply with a light "Want me to find a buddy too?" — no confirmLine; set affirmMatch=true only when they agree to search. No buttons.`
+        ? `心愿刚发布：若用户已表示要找搭子，本轮 affirmMatch=true 立刻搜；否则可轻问一句要不要找，不要 confirmLine。信息不齐也能搜。`
+        : `Wish just published: if they already want a buddy, affirmMatch=true and search now; else one light offer — no confirmLine. Sparse prefs OK.`
       : opts.published && opts.wishLane === "publish" && !opts.pendingOfferMatch
         ? isZh
-          ? `已发布：不要自动开始匹配；除非用户明确说要找搭子（此时 affirmMatch=true）。`
-          : `Published: do not auto-match unless user asks to find a buddy (then affirmMatch=true).`
+          ? `已发布：用户明确要找搭子时 affirmMatch=true 立刻搜；不要在没有意图时自动搜。`
+          : `Published: affirmMatch=true when they ask for a buddy; don't auto-search without intent.`
         : "";
 
-  const personLaneRule =
-    (input.handoffCount ?? 0) >= 2
-      ? ""
-      : isZh
-        ? `目的随时可能切换（最高优先级之一）：
-你当前在「找一起做的事 / 活动搭子」流程，但用户**随时**可能改去「找喜欢某类事的人」。核心区分是**找活动**还是**找人**——不要都当成「找人」：
-- **找活动**（留在这里）：约跑步、找跑步搭子、周末一起跑、看心愿池里有没有跑步活动——**活动本身是目的**，性别/水平等是搭子条件。
-- **找人**（handoff）：想认识喜欢跑步的人、找对象、介绍某个人——**人是目的**，跑步只是偏好/话题。
-
-三种不同目的——不要混为一谈：
-A) **找喜欢这类事的人**：认识爱跑步的女生、想被介绍某个爱跑步的人、交友/看人 → 用户明确选 A 后 handoffTo="matchmaker"（reply 与 transitionReply 留空 ""）。
-B) **找一起做的事 / 活动搭子**：约跑步、找搭子、周末一起跑、搭子最好女生（仍在描述这次活动）→ handoffTo=null，用工具更新心愿草稿，不要 handoff。
-C) **对右侧这位搭子候选有别的想法**：想深聊、想认识 TA 这个人（而不只是约这次活动）→ 先澄清是继续约活动（B），还是改去找喜欢的人（A）。
-
-常见信号：
-- A：认识喜欢…的人、想认识爱跑步的人、介绍人、找对象、还是看人吧
-- B：一起跑步、找搭子、约跑步、这周末跑、搭子最好女生、水平差不多
-- 模糊：「想找女生一起跑步」——可能 B（找跑步这件事），也可能 A（找喜欢跑步的女生）
-
-**一旦 A / B / C 分不清**：
-- handoffTo 必须为 null
-- affirmPublish=false；不要 pickMatchIntentId；不要发布心愿；不要换下一个搭子
-- 在 reply 里用一句自然的话问清楚，例如：
-  「你是想找一起跑步这件事（约跑步、找跑步搭子），还是想找喜欢跑步的人（以认识这类人为目的）？」
-- suggestions 给 3 条第一人称短句，分别对应 A / B / C 三种目的（措辞随上下文变化，勿照抄固定例句）
-- 禁止用「搭子 vs 认识新朋友」这种都在「找人」层面的问法；必须点明**活动 vs 喜欢这类事的人**
-- 不要提 Matchmaker、转接、换模块等产品名
-
-**已澄清之后**：
-- 明确选 A → handoffTo="matchmaker"，reply 与 transitionReply 留空 ""，不要继续问时间地点或搜心愿池
-- 明确选 B → handoffTo=null，继续澄清/发布心愿或匹配搭子
-- 用户已说「认识喜欢…的人 / 想通过 X 认识新朋友」等 → 视为 A，立即 handoffTo="matchmaker"，禁止继续 Side by Side 流程
-
-${input.matchIntentId ? "注意：右侧已有一位搭子候选人——用户若突然提认识喜欢…的人/介绍/找对象，优先按上文澄清目的，不要继续介绍搭子或 pick 下一位。" : ""}`
-        : `Intent can switch anytime (high priority):
-You are in "find an activity / activity buddy", but the user may switch to "find people who like something" at any turn. Core axis: **activity** vs **people who like it** — not both as "finding people":
-- **Activity** (stay): schedule a run, find a running buddy, browse running wishes — the **activity is the goal**; gender/level are buddy filters.
-- **People** (handoff): meet someone who likes running, be introduced to a person — **the person is the goal**; running is just a preference.
-
-Three goals — do not conflate:
-A) **People who like it**: meet someone who loves running, dating, be introduced → after clear A, handoffTo="matchmaker" (reply="" and transitionReply="").
-B) **Do the activity together**: run together, find a buddy, buddy should be female, this weekend → handoffTo=null, update wish draft.
-C) **Something else about the person on the right**: know them as a person vs just this activity → clarify B vs A first.
-
-If unclear: handoffTo=null; ask e.g. "Do you want to find a run together (buddy for the activity), or meet people who like running?" — NOT "buddy vs meet someone new" (both sound like finding people).
-Suggestions e.g. "Find someone to run with" / "Meet people who like running" / "Chat about the person on the right".
-After clarify: A → handoffTo="matchmaker"; B → stay side-by-side.
-
-${input.matchIntentId ? "Note: a buddy candidate is on the right — if they mention meeting people who like X, clarify lane first." : ""}`;
+  const personLaneRule = isZh
+    ? `本会话只做「一起做事 / 活动搭子」。不要设置 handoffTo，也不要尝试切到认识新朋友。
+若用户明确想认识喜欢某类事的人 / 找对象 / 看人：handoffTo 必须为 null；在 reply 里礼貌说明请回首页开一个「想认识人」的新对话；suggestions 可给「回首页开新对话」类第一人称短句。
+若用户仍在描述这次活动的搭子条件（性别、水平等）→ 留在本会话继续。`
+    : `This session is do-something / activity-buddy only. Never set handoffTo or switch to meet-someone.
+If they clearly want to meet people who like X / dating / browse people: handoffTo must stay null; politely tell them to start a new “meet someone” chat from home; suggestions may include a first-person “start a new chat” phrase.
+If they are still describing buddy filters for this activity → stay here.`;
 
   const firstReply = isAgentFirstReply(input.history);
   const capabilityIntro = firstReply ? agentCapabilityIntroRule("sidebyside", isZh) : "";
@@ -703,26 +920,29 @@ ${input.matchIntentId ? "Note: a buddy candidate is on the right — if they men
       ? ""
       : opts.wishLane === "publish"
         ? isZh
-          ? `澄清节奏（publish）：先听用户自己的心愿；对照缺口自然补问（不要固定每轮问什么）。活动、时间、地点（或不限）、搭子/补充都齐且本回合不再追问时 → **必须** confirmLine 非空（开表单）+ reply 引导看右侧；还在追问时 confirmLine 必须为 null。needsTools=false。`
-          : `Publish clarify: listen first; follow up only on real gaps (no fixed per-turn script). When activity/time/place/buddy are complete and you stop asking → confirmLine MUST be non-empty (opens form) + reply nudges right pane; while still asking, confirmLine=null. needsTools=false.`
+          ? `澄清节奏（publish）：用户主导，不要追问字段清单。有活动核即可 confirmLine 开表单；缺维可空。needsTools=false。`
+          : `Publish clarify: user-led, don't chase field checklists. confirmLine when activity is clear enough; missing dims can stay empty. needsTools=false.`
         : isZh
-          ? `澄清节奏（browse）：先听用户自己的想法；缺什么再自然补问（不要固定每轮追问清单）。条件齐且不再追问时用 confirmLine 复述搜索条件；还在追问时 confirmLine 必须为 null。needsTools=false。`
-          : `Browse clarify: listen first; follow up only on gaps (no fixed question script). When criteria complete, confirmLine recaps search filters; while asking, confirmLine=null. needsTools=false.`;
+          ? `澄清节奏（browse）：用户主导。本轮要搜就 affirmMatch=true（或 search_wishes），立刻交付；不要 confirmLine 等待确认。缺维冷启动 soft。`
+          : `Browse clarify: user-led. If this turn is a search, affirmMatch=true (or search_wishes) and deliver now — no confirmLine wait. Missing dims cold-start soft.`;
 
-  const lazyToolsRule =
-    opts.matchAckOnly || opts.afterToolResults
-      ? ""
-      : isZh
-        ? `Lazy tools（needsTools 放 JSON 最前）：
+  const lazyToolsRule = opts.afterToolResults
+    ? ""
+    : isZh
+      ? `Lazy tools（needsTools 放 JSON 最前）：
 - 默认 needsTools=false，正常写 reply。
-- 仅当用户明确要求「先看看池子里有没有/有多少人/帮我搜一下」且条件已足够具体时，needsTools=true，toolNames 取 ["preview_wish_matches"] 或 ["search_wishes"]；此时 reply 必须为 ""。
-- 禁止在澄清未齐、未 confirmLine、用户未口头同意开搜时 needsTools=true。
-- 系统会在工具跑完后另起一轮生成最终 reply（第一轮 reply 不会进历史）。`
-        : `Lazy tools (needsTools first in JSON):
+- 本轮需求是搜池子/找搭子：优先 affirmMatch=true 让系统搜；或 needsTools=true + toolNames=["search_wishes"] / ["preview_wish_matches"]（reply 必须为 ""）。
+- 用户要看本会话已发心愿：needsTools=true，toolNames=["show_my_wishes"]；reply 必须为 ""。
+- 不要用 confirmLine 做「等确认再搜」；browse 的 confirmLine 应始终为 null（publish 开表单除外）。
+- 系统会在工具跑完后另起一轮生成最终 reply（第一轮 reply 不会进历史）。
+- 若本轮会搜池子：reply 可简短，系统会在搜完后用一条介绍替换为最终回复（像 Matchmaker 一拍）。`
+      : `Lazy tools (needsTools first in JSON):
 - Default needsTools=false with a normal reply.
-- needsTools=true only when the user explicitly asks to preview/search the pool and filters are specific enough; toolNames=["preview_wish_matches"] or ["search_wishes"]; reply must be "".
-- Never needsTools while still clarifying or before verbal search consent.
-- The server runs tools then a second reply turn; the first reply is discarded.`;
+- This turn is a pool search: prefer affirmMatch=true for server search; or needsTools=true with toolNames=["search_wishes"] / ["preview_wish_matches"] (reply must be "").
+- Show session wishes: needsTools=true, toolNames=["show_my_wishes"]; reply "".
+- Never use confirmLine to wait before searching; browse confirmLine must stay null (publish form excepted).
+- The server runs tools then a second reply turn; the first reply is discarded.
+- If this turn searches the pool: keep reply short — server replaces with one intro after recall (Matchmaker-style single beat).`;
 
   const afterToolsRule = opts.afterToolResults
     ? isZh
@@ -730,43 +950,32 @@ ${input.matchIntentId ? "Note: a buddy candidate is on the right — if they men
       : "Tools finished: write the final reply from [tool results]. needsTools must be false. Cite counts/empty honestly; no invented ids."
     : "";
 
-  const matchAckRule = opts.matchAckOnly
-    ? isZh
-      ? `匹配两拍模式（本回合仅第一拍）：
-- reply 只 1-3 句：明确告诉用户「条件/心愿记下了，我现在去池子里找」（禁止说找到/没找到/具体人选）
-- 禁止介绍任何具体搭子、禁止匹配理由、禁止预告结果
-- pickMatchIntentId 必须为 null；affirmMatch 可为 true
-- 匹配结果由系统下一拍自动发第二条消息，本回合勿写结果`
-      : `Two-beat matching (beat 1 only):
-- reply 1-3 sentences: clearly say filters/wish saved and you're checking the pool now (never found/not found/names)
-- do NOT introduce anyone or give match reasons
-- pickMatchIntentId must be null; affirmMatch may be true
-- results go in a second message next beat — do not preview them`
-    : "";
-
   return [
     formatNowContext(input.lang),
     isZh
       ? `你在 Maitri 帮用户找一起做事的搭子。温暖、具体，2-5 句。用自然语言，不要像系统播报。
-用户也可能随时改去「找喜欢某类事的人」——见下方「目的随时可能切换」规则；有模糊信号时，优先澄清「找活动 vs 找喜欢的人」，不要惯性继续推搭子或发布心愿。
+本会话只负责一起做事；若用户明确要找人/看人，提示回首页开新对话。
 未选定 lane 时：只问发布还是浏览，不要澄清字段。
-browse lane：先开放听用户想找什么活动心愿 → 对照缺口自然补问（不要固定按活动→时间→地点→搭子每轮剧本）→ confirmLine 复述 → 用户确认且 affirmMatch=true 后系统才搜；澄清未齐时禁止说「我去搜/稍等/在现有的人里找」。
-publish lane：先开放听用户心愿 → 缺什么再补问 → confirmLine 仅预填表单 → 用户亲手点发布；禁止口头确认就发布；发布后轻问是否找搭子（用户同意时 affirmMatch=true）。
+browse：本轮有搜池子意图 → affirmMatch=true（或 search_wishes）立刻搜；信息不齐也可搜（冷启动 soft）；禁止 confirmLine 等待。
+publish：有活动核即可 confirmLine 开表单 → 用户点发布；禁止口头发布；发布后用户要找搭子则 affirmMatch=true 立刻搜。
+必填信息 / 弹卡：见下方【必填信息】专块，不要另起一套追问清单。
 已发布：${opts.published ? `id=${input.myIntentId}` : "否"}
 ${crossCityUsed ? "跨城候选——reply 里说明。" : "优先同城。"}
 ${recallEmpty ? "无候选人——pickMatchIntentId=null，明确说暂时没有。" : "有候选人。"}
-${(input.handoffCount ?? 0) >= 2 ? "不要再 handoffTo。" : "若用户已明确要找「喜欢某类事的人」（而非找活动/搭子），handoffTo=\"matchmaker\"；不确定时先澄清活动 vs 人，见下方规则。"}
+handoffTo 必须始终为 null。
 ${selfVoiceRule(true)}`
       : `You help people find someone to do activities with on Maitri. Warm, concise, human — not a system announcer.
-They may switch anytime to "meet someone new" — see lane-switch rules below; when meet-someone signals appear, clarify first; do not keep pushing buddies or publishing by inertia.
-Before lane chosen: only ask publish vs browse.
-Browse lane: listen open for wish + requirements → follow up only on real gaps (no fixed activity→time→place→buddy script) → confirmLine → pool search only when affirmMatch=true; while clarifying NEVER say you're searching / wait / looking through people.
-Publish lane: listen open → fill gaps → confirmLine prefill form only → user taps Publish; never publish from chat text; after publish lightly offer buddy search (affirmMatch=true when they agree).
+Do-something only; if they want to meet people, send them to a new home chat.
+Before lane: only ask publish vs browse.
+Browse: search intent this turn → affirmMatch=true (or search_wishes); sparse prefs OK with cold-start soft; no confirmLine wait.
+Publish: confirmLine opens form when activity is clear → user taps Publish; after publish, affirmMatch=true when they want a buddy.
+Required fields / askUserInfo: see the 【Required info】 block below — do not invent extra checklists.
 Published: ${opts.published ? `id=${input.myIntentId}` : "no"}
 ${crossCityUsed ? "Cross-city — say so in reply." : "Same-city first."}
 ${recallEmpty ? "No candidates — pickMatchIntentId=null; say none yet." : "Candidates available."}
-${(input.handoffCount ?? 0) >= 2 ? "No more handoffTo." : "handoffTo=\"matchmaker\" only when they clearly want meet-someone-new; if unsure, clarify first (see rules below)."}
+handoffTo must always be null.
 ${selfVoiceRule(false)}`,
+    requiredInfoPromptSection(input.lang),
     startHint,
     capabilityIntro,
     input.preferredTrait?.trim()
@@ -785,7 +994,6 @@ ${selfVoiceRule(false)}`,
         : `Activity hint: ${input.handoffHints.activity}`
       : "",
     profileSummaryForPrompt(input.profile, input.lang),
-    matchAckRule,
     lazyToolsRule,
     afterToolsRule,
     laneRule,
@@ -794,8 +1002,7 @@ ${selfVoiceRule(false)}`,
       : "",
     opts.clarifyProgress &&
       (opts.wishLane === "browse" || opts.wishLane === "publish") &&
-      !opts.published &&
-      !opts.matchAckOnly
+      !opts.published
       ? wishClarifyPromptSection(
           opts.clarifyProgress,
           input.lang,
@@ -826,11 +1033,13 @@ ${selfVoiceRule(false)}`,
       : "",
     isZh
       ? `JSON（needsTools 放最前；confirmLine 紧跟其后；needsTools=true 时 reply 为 ""）：
-澄清中：{"needsTools":false,"toolNames":[],"confirmLine":null,"reply":"...","suggestions":["短句1"],"affirmPublish":false,"affirmMatch":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
-publish 开表单（同一轮）：{"needsTools":false,"toolNames":[],"confirmLine":"这周末北京香山徒步，搭子最好是男生","reply":"信息齐了，请检查右侧表单并点发布。","suggestions":[],"affirmPublish":false,"affirmMatch":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}`
+澄清中：{"needsTools":false,"toolNames":[],"confirmLine":null,"askUserInfo":null,"reply":"...","suggestions":["短句1"],"affirmPublish":false,"affirmMatch":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
+browse 缺地点弹卡：{"needsTools":false,"toolNames":[],"confirmLine":null,"askUserInfo":{"fieldKey":"activity_place","prompt":"活动想在哪个城市或区域？也可写线上/地点不限","kind":"text","placeholder":"例如：上海"},"reply":"找活动还差一个地点。","suggestions":[],"affirmPublish":false,"affirmMatch":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
+publish 开表单（同一轮）：{"needsTools":false,"toolNames":[],"confirmLine":"这周末北京香山徒步，搭子最好是男生","askUserInfo":null,"reply":"信息齐了，请检查右侧表单并点发布。","suggestions":[],"affirmPublish":false,"affirmMatch":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}`
       : `JSON (needsTools first; confirmLine right after; reply="" when needsTools=true):
-While clarifying: {"needsTools":false,"toolNames":[],"confirmLine":null,"reply":"...","suggestions":["..."],"affirmPublish":false,...}
-Publish — open form (same turn): {"needsTools":false,"toolNames":[],"confirmLine":"Weekend hike at Xiangshan, prefer male buddy","reply":"Looks good — check the form on the right and tap Publish.","suggestions":[],"affirmPublish":false,...}`,
+While clarifying: {"needsTools":false,"toolNames":[],"confirmLine":null,"askUserInfo":null,"reply":"...","suggestions":["..."],"affirmPublish":false,...}
+Browse missing place card: {"needsTools":false,"toolNames":[],"confirmLine":null,"askUserInfo":{"fieldKey":"activity_place","prompt":"Where should the activity be? City/area, or online/anywhere","kind":"text"},"reply":"I still need a place before searching.","suggestions":[],"affirmMatch":false,...}
+Publish — open form (same turn): {"needsTools":false,"toolNames":[],"confirmLine":"Weekend hike at Xiangshan, prefer male buddy","askUserInfo":null,"reply":"Looks good — check the form on the right and tap Publish.","suggestions":[],"affirmPublish":false,...}`,
     opts.pendingBrowseConfirm
       ? isZh
         ? "用户在确认是否按条件开始浏览池子：suggestions 给 2-4 条第一人称短句（确认开搜 / 再改条件等），随上下文生成，勿用固定模板。"
@@ -927,6 +1136,7 @@ function fallback(input: SideTurnInput, reason: "no_key" | "error"): SideTurnOut
     handoffSummary: "",
     transitionReply: "",
     recallEmpty: false,
+    pendingUserAsk: null,
   };
 }
 
@@ -960,41 +1170,65 @@ function pickMatchId(
 function shouldPreRecall(
   input: SideTurnInput,
   draft: WishDraft,
-  useMatchTwoPhase: boolean,
+  holdChatForMatch: boolean,
 ): boolean {
-  if (useMatchTwoPhase) return true;
+  if (holdChatForMatch) return true;
   if (input.myIntentId && input.action === "confirm_match") return true;
   if (["skip_match", "see_next", "rematch", "confirm_browse"].includes(input.action)) return true;
   return draftSearchable(draft) && Boolean(input.myIntentId);
 }
 
 function shouldRunSideExtract(
-  input: SideTurnInput,
-  chatParsed: LlmSideChatJson | null,
+  _input: SideTurnInput,
+  _chatParsed: LlmSideChatJson | null,
   action: SideTurnAction,
-  opts: {
-    useMatchTwoPhase: boolean;
+  _opts: {
+    holdChatForMatch: boolean;
     userAffirmedSearch: boolean;
     wishLane: WishLane;
     content: string;
   },
 ): boolean {
+  // Default: every turn with user content, like Matchmaker.
+  // Skip only light queue / publish-button actions (no new prefs to merge).
   const light: SideTurnAction[] = ["skip_match", "see_next", "rematch"];
   if (light.includes(action)) return false;
   if (action === "confirm_publish") return false;
-  if (chatParsed?.confirmLine?.trim()) return true;
-  if (opts.useMatchTwoPhase && opts.userAffirmedSearch) return true;
-  if (action === "confirm_browse" || action === "confirm_match") return true;
-  if (
-    opts.wishLane === "publish" &&
-    !input.myIntentId &&
-    action === "message" &&
-    !isWishLaneSelectionMessage(opts.content) &&
-    opts.content.trim()
-  ) {
-    return true;
+  return true;
+}
+
+/** Dedicated block: when required fields are missing, ask via card — never search. */
+function requiredInfoPromptSection(lang: SideLang): string {
+  if (lang === "zh-CN") {
+    return `【必填信息】单独规则块——先对场景，再决定搜还是弹卡。
+
+一、什么场景必须有什么信息
+- browse 搜活动/找搭子：必须有活动地点。城市/区域算有；用户明确「线上」或「地点不限/anywhere」也算有；资料城市可当作已有（冷启动）。时间/搭子不齐也能搜。
+- publish 开表单：有活动核即可；地点可在右侧表单补。
+- 其它场景：无额外硬必填（不要为凑字段追问）。
+
+二、本轮想搜但必填缺失时（必须弹卡，禁止搜）
+1. reply 先说清楚缺什么（只提真正缺的那一项，例如「还差活动地点」）
+2. 设 askUserInfo（等同调用 ask_user_info 工具）：fieldKey=activity_place（或对应缺失项），prompt 问该项，kind=text 或 select
+3. affirmMatch 必须为 false；needsTools=false；confirmLine=null
+4. 用户确认/取消/忽略卡片后下一轮再决定；取消或忽略 → 该项视为空
+
+三、必填已齐且本轮有搜意图 → affirmMatch=true，askUserInfo=null。`;
   }
-  return false;
+  return `[Required info] Dedicated rules — match the scenario, then search or show a card.
+
+1) What each scenario requires
+- Browse search: activity place required. City/area counts; explicit “online”/“anywhere” counts; profile city may count (cold-start). When/buddy may be sparse.
+- Publish form: activity core is enough; place can be filled on the form.
+- Otherwise: no extra hard requirements (don’t chase fields).
+
+2) Want to search this turn but a required field is missing (must use card; do not search)
+1. In reply, state what is missing (only that field)
+2. Set askUserInfo (same as ask_user_info tool): fieldKey=activity_place (or the missing key), clear prompt, kind=text|select
+3. affirmMatch must be false; needsTools=false; confirmLine=null
+4. After confirm/cancel/skip, decide next turn; cancel/skip = empty for that field
+
+3) Required fields present + search intent → affirmMatch=true, askUserInfo=null.`;
 }
 
 async function ensureDraftForTools(
@@ -1046,6 +1280,7 @@ async function runLazySideTools(
     wishDraft: draft,
     pendingConfirm: input.pendingConfirm,
     myIntentId: input.myIntentId,
+    myIntentIds: input.myIntentIds,
     matchIntentId: input.matchIntentId,
     triedIntentIds: input.triedIntentIds,
     triedOwnerIds: input.triedOwnerIds,
@@ -1077,7 +1312,6 @@ async function runSideChat(
     pendingMatchConfirm: string | null;
     pendingOfferMatch: boolean;
     readyToPublish: boolean;
-    matchAckOnly?: boolean;
     showCandidates?: boolean;
     afterToolResults?: boolean;
     toolResultsBlock?: string;
@@ -1089,7 +1323,7 @@ async function runSideChat(
   const system = buildChatSystem(
     input,
     candidateIds,
-    chatOpts.matchAckOnly ? false : recallEmpty,
+    recallEmpty,
     crossCityUsed,
     chatOpts,
   );
@@ -1139,23 +1373,11 @@ async function runSideChatWithLazyTools(
     wishDraft: draft,
     pendingConfirm: input.pendingConfirm,
     myIntentId: input.myIntentId,
+    myIntentIds: input.myIntentIds,
     matchIntentId: input.matchIntentId,
     triedIntentIds: input.triedIntentIds,
     triedOwnerIds: input.triedOwnerIds,
   });
-
-  if (chatOpts.matchAckOnly) {
-    const parsed = await runSideChat(
-      input,
-      candidateIds,
-      recallEmpty,
-      crossCityUsed,
-      content,
-      chatOpts,
-      onDelta,
-    );
-    return { parsed, toolState };
-  }
 
   const plan = await runSideChat(
     input,
@@ -1217,12 +1439,8 @@ export async function runSideTurn(
   hooks?: {
     /** Chat finished — UI can stop waiting before extract/publish/match. */
     onChatDone?: (opts: { reply: string; suggestions: string[] }) => void;
-    /** Recall running — UI may show matching state before beat 2. */
-    onMatching?: () => void;
-    /** Recall finished — UI can open the result canvas before follow-up text. */
+    /** Recall finished — UI can open the result canvas while intro streams. */
     onMatchReady?: (preview: SideMatchPreview) => void;
-    onFollowUpDelta?: (text: string) => void;
-    onFollowUpReady?: (opts: { reply: string; suggestions: string[] }) => void;
   },
 ): Promise<SideTurnOutput> {
   const content = userContent(input);
@@ -1232,6 +1450,28 @@ export async function runSideTurn(
     published: Boolean(input.myIntentId),
     historyLen: input.history.length,
   });
+
+  const earlyPeopleActions: SideTurnAction[] = [
+    "rematch_hang",
+    "see_next",
+    "skip_match",
+    "rematch",
+    "confirm_match",
+  ];
+  if (earlyPeopleActions.includes(input.action)) {
+    return runSidePeopleMatchTurn({
+      input,
+      draft: input.wishDraft,
+      understanding: input.understanding,
+      hardFilters: input.hardFilters,
+      buddyHardFilters: input.buddyHardFilters,
+      myIntentId: input.myIntentId,
+      content,
+      onDelta,
+      hooks,
+    });
+  }
+
   const lightActions: SideTurnAction[] = ["skip_match", "see_next", "rematch"];
   let wishLane: WishLane = input.wishLane ?? "unset";
   let browseSearched = input.browseSearched ?? false;
@@ -1313,14 +1553,30 @@ export async function runSideTurn(
     };
   }
 
-  let draft =
-    input.wishDraft.rawText
-      ? input.wishDraft
-      : isWishLaneSelectionMessage(content)
-        ? input.wishDraft
-        : input.action === "message" && input.userMessage?.trim()
-          ? { ...input.wishDraft, rawText: input.userMessage.trim() }
-          : input.wishDraft;
+  let draft = { ...input.wishDraft };
+  // Card answer for activity place → seed draft before extract / cold-start.
+  if (
+    input.userAskResolution?.fieldKey === ACTIVITY_PLACE_FIELD_KEY &&
+    input.userAskResolution.status === "confirmed" &&
+    input.userAskResolution.value?.trim()
+  ) {
+    const placeAnswer = input.userAskResolution.value.trim();
+    draft = {
+      ...draft,
+      placeRaw: placeAnswer,
+      rawText: draft.rawText?.trim()
+        ? draft.rawText
+        : placeAnswer,
+    };
+  }
+  // Scrub greeting / lane-chip pollution left in old sessions — draft is extract/tool owned.
+  if (
+    isNonWishDraftSeed(draft.rawText) &&
+    !draft.kind &&
+    !draft.activityCore?.trim()
+  ) {
+    draft = { ...draft, rawText: "" };
+  }
   if (
     isWishLaneSelectionMessage(content) &&
     wishLane !== "unset" &&
@@ -1330,6 +1586,11 @@ export async function runSideTurn(
   }
   let hardFilters = input.hardFilters;
   let buddyHardFilters = input.buddyHardFilters;
+  {
+    const cold = applySideColdStartPrefs(input.profile, draft, buddyHardFilters);
+    draft = cold.draft;
+    buddyHardFilters = cold.buddyHardFilters;
+  }
   let understanding = input.understanding;
   let readyToPublish = false;
   let pendingConfirm = input.pendingConfirm;
@@ -1342,12 +1603,13 @@ export async function runSideTurn(
     wishDraft: draft,
     pendingConfirm,
     myIntentId: input.myIntentId,
+    myIntentIds: input.myIntentIds,
     matchIntentId: input.matchIntentId,
     triedIntentIds: input.triedIntentIds,
     triedOwnerIds: input.triedOwnerIds,
   });
 
-  if (input.action === "confirm_publish" && !input.myIntentId) {
+  if (input.action === "confirm_publish") {
     const placeRaw = resolvePlaceRaw(draft.placeRaw, draft.city, input.profile.city);
     const extracted = await runPlaceExtract({
       lang: input.lang,
@@ -1375,11 +1637,11 @@ export async function runSideTurn(
         pendingOfferMatch: false,
         wishLane: wishLane === "unset" ? "publish" : wishLane,
         browseSearched,
-        myIntentId: null,
+        myIntentId: input.myIntentId,
         matchIntentId: input.matchIntentId,
         crossCityMatch: false,
         nearMissIds: [],
-        stage: "prompt",
+        stage: input.myIntentId ? "published" : "prompt",
         suggestions: [],
         handoffTo: null,
         handoffSummary: "",
@@ -1415,7 +1677,7 @@ export async function runSideTurn(
   let myIntentId = input.myIntentId;
   let publishedThisTurn = false;
 
-  if (input.action === "confirm_publish" && !myIntentId) {
+  if (input.action === "confirm_publish") {
     const effectiveKind = draft.kind ?? input.wishDraft.kind;
     if (!effectiveKind) {
       return {
@@ -1432,11 +1694,11 @@ export async function runSideTurn(
         pendingOfferMatch: false,
         wishLane: wishLane === "unset" ? "publish" : wishLane,
         browseSearched,
-        myIntentId: null,
+        myIntentId: input.myIntentId,
         matchIntentId: input.matchIntentId,
         crossCityMatch: false,
         nearMissIds: [],
-        stage: "prompt",
+        stage: input.myIntentId ? "published" : "prompt",
         suggestions: [],
         handoffTo: null,
         handoffSummary: "",
@@ -1477,11 +1739,11 @@ export async function runSideTurn(
         pendingOfferMatch: false,
         wishLane: wishLane === "unset" ? "publish" : wishLane,
         browseSearched,
-        myIntentId: null,
+        myIntentId: input.myIntentId,
         matchIntentId: input.matchIntentId,
         crossCityMatch: false,
         nearMissIds: [],
-        stage: "prompt",
+        stage: input.myIntentId ? "published" : "prompt",
         suggestions: [],
         handoffTo: null,
         handoffSummary: "",
@@ -1515,19 +1777,13 @@ export async function runSideTurn(
     }
   }
 
-  const browseReadyPre = browseClarifyComplete(
-    { ...input, wishLane, wishDraft: draft },
-    draft,
-    hardFilters,
-    buddyHardFilters,
-    understanding,
-  );
-
-  const useMatchTwoPhase = shouldUseMatchTwoPhase(
-    { ...input, wishLane, pendingOfferMatch, wishDraft: draft, pendingBrowseConfirm },
+  const holdChatForMatch = shouldHoldChatForMatch({
+    ...input,
     wishLane,
-    browseReadyPre,
-  );
+    pendingOfferMatch,
+    wishDraft: draft,
+    pendingBrowseConfirm,
+  });
 
   let extracted: Awaited<ReturnType<typeof runSideExtract>> | null = null;
   let chatParsed: LlmSideChatJson | null = null;
@@ -1546,7 +1802,7 @@ export async function runSideTurn(
     myIntentId,
   };
 
-  const preRecallNeeded = shouldPreRecall(input, draft, useMatchTwoPhase);
+  const preRecallNeeded = shouldPreRecall(input, draft, holdChatForMatch);
   const preMine =
     preRecallNeeded
       ? resolveRecallMine(workingInput, draft, workingInput.myIntentId, hardFilters) ??
@@ -1564,6 +1820,7 @@ export async function runSideTurn(
           shownIds: input.triedIntentIds,
           passedIds: input.triedIntentIds,
           browseStrict: wishLane === "browse",
+          seekerProfile: input.profile,
         },
         input.lang,
       )
@@ -1588,12 +1845,11 @@ export async function runSideTurn(
   const chatOpts = {
     published: Boolean(myIntentId),
     wishLane,
-    pendingConfirm: useMatchTwoPhase ? null : pendingConfirm,
+    pendingConfirm: holdChatForMatch ? null : pendingConfirm,
     pendingBrowseConfirm: input.pendingBrowseConfirm ?? pendingBrowseConfirm,
     pendingMatchConfirm,
     pendingOfferMatch,
     readyToPublish: false,
-    matchAckOnly: useMatchTwoPhase,
     showCandidates: preRecallNeeded,
     laneJustPicked,
     clarifyProgress,
@@ -1601,32 +1857,53 @@ export async function runSideTurn(
 
   const candidateIds = preRecall?.candidates.map((c) => c.id) ?? [];
 
-  const chatResult = await runSideChatWithLazyTools(
-    workingInput,
-    candidateIds,
-    useMatchTwoPhase
-      ? false
-      : (preRecall?.candidates.length ?? 0) === 0
-        ? true
-        : candidateIds.length === 0,
-    preRecall?.crossCityUsed ?? false,
-    content,
-    chatOpts,
-    draft,
-    hardFilters,
-    buddyHardFilters,
-    understanding,
-    onDelta,
-  );
-  chatParsed = chatResult.parsed;
-  toolState = chatResult.toolState;
+  if (holdChatForMatch) {
+    // Matchmaker-style: no chat stream before rank — intro is the only reply.
+    chatParsed = emptySideChatJson({
+      affirmMatch: input.action !== "see_next" && input.action !== "skip_match",
+    });
+    toolState = createSideToolState({
+      lang: input.lang,
+      hardFilters,
+      buddyHardFilters,
+      understanding,
+      wishDraft: draft,
+      pendingConfirm,
+      myIntentId: input.myIntentId,
+      myIntentIds: input.myIntentIds,
+      matchIntentId: input.matchIntentId,
+      triedIntentIds: input.triedIntentIds,
+      triedOwnerIds: input.triedOwnerIds,
+    });
+  } else {
+    const chatResult = await runSideChatWithLazyTools(
+      workingInput,
+      candidateIds,
+      (preRecall?.candidates.length ?? 0) === 0 ? true : candidateIds.length === 0,
+      preRecall?.crossCityUsed ?? false,
+      content,
+      chatOpts,
+      draft,
+      hardFilters,
+      buddyHardFilters,
+      understanding,
+      onDelta,
+    );
+    chatParsed = chatResult.parsed;
+    toolState = chatResult.toolState;
+  }
 
   const chatReply = (chatParsed?.reply ?? "").trim();
   const chatSuggestions = (chatParsed?.suggestions ?? [])
     .map((s) => s.trim())
     .filter(Boolean)
     .slice(0, 4);
-  if (chatReply) {
+  const deferChatReady =
+    Boolean(chatParsed?.affirmMatch) ||
+    holdChatForMatch ||
+    input.action === "confirm_browse" ||
+    input.action === "confirm_match";
+  if (chatReply && !deferChatReady) {
     hooks?.onChatDone?.({ reply: chatReply, suggestions: chatSuggestions });
   }
 
@@ -1636,7 +1913,7 @@ export async function runSideTurn(
     Boolean(chatParsed?.affirmMatch);
 
   const runExtract = shouldRunSideExtract(input, chatParsed, input.action, {
-    useMatchTwoPhase,
+    holdChatForMatch,
     userAffirmedSearch: userAffirmedSearchPre,
     wishLane,
     content,
@@ -1666,6 +1943,9 @@ export async function runSideTurn(
       );
       draft = enriched.draft;
       hardFilters = enriched.hardFilters;
+      const cold = applySideColdStartPrefs(input.profile, draft, buddyHardFilters);
+      draft = cold.draft;
+      buddyHardFilters = cold.buddyHardFilters;
     }
   }
 
@@ -1687,52 +1967,17 @@ export async function runSideTurn(
     };
   }
 
-  const userMsgEarly = (input.userMessage ?? content).trim();
-  const earlyHandoff =
-    (input.handoffCount ?? 0) < 2 &&
-    !explicitActivityBuddySignal(userMsgEarly) &&
-    (chatParsed.handoffTo === "matchmaker" ||
-      userChoseMeetSomeoneAfterDisambig(userMsgEarly, input.history) ||
-      explicitMeetSomeoneSignal(userMsgEarly));
-  if (earlyHandoff) {
-    const summary = (chatParsed.handoffSummary ?? userMsgEarly).trim() || userMsgEarly;
-    const transition = (chatParsed.transitionReply ?? "").trim();
-    const handoffReply =
-      transition ||
-      (zh(input.lang)
-        ? "好，那我们聊聊你想认识什么样的人——"
-        : "Sure — tell me what kind of person you're hoping to meet.");
-    return {
-      reply: handoffReply,
-      understanding,
-      hardFilters,
-      buddyHardFilters,
-      wishDraft: draft,
-      pendingConfirm: null,
-      pendingBrowseConfirm: null,
-      pendingMatchConfirm: null,
-      pendingOfferMatch: false,
-      wishLane,
-      browseSearched,
-      myIntentId,
-      matchIntentId: null,
-      crossCityMatch: false,
-      nearMissIds: [],
-      stage: myIntentId ? "published" : "prompt",
-      suggestions: [],
-      handoffTo: "matchmaker",
-      handoffSummary: summary,
-      transitionReply: handoffReply,
-      recallEmpty: false,
-    };
-  }
-
   let matchIntentId = input.matchIntentId;
   let matchQuality: MatchQuality | undefined;
   let crossCityMatch = false;
   let nearMissIds: string[] = [];
   let recallEmpty = false;
   let matchReason: string | undefined;
+
+  // New wish becomes active — clear prior match until user asks again.
+  if (publishedThisTurn) {
+    matchIntentId = null;
+  }
 
   const browseReady = browseClarifyComplete(
     { ...input, wishLane, wishDraft: draft },
@@ -1742,17 +1987,58 @@ export async function runSideTurn(
     understanding,
   );
 
+  const pendingUserAsk =
+    (chatParsed?.askUserInfo && typeof chatParsed.askUserInfo === "object"
+      ? parseAskUserInfoArgs(chatParsed.askUserInfo as Record<string, unknown>)
+      : null) ?? toolState.pendingUserAsk;
+
+  const placeJustConfirmed =
+    input.action === "resolve_user_ask" &&
+    input.userAskResolution?.fieldKey === ACTIVITY_PLACE_FIELD_KEY &&
+    input.userAskResolution.status === "confirmed" &&
+    Boolean(input.userAskResolution.value?.trim());
+
+  const llmWantsSearch =
+    !pendingUserAsk &&
+    (Boolean(chatParsed?.affirmMatch) ||
+      Boolean(toolState.lastSearchIds.length > 0) ||
+      placeJustConfirmed);
+
+  // ---- People matching after chat affirms search ---------------------------
+  const wantsPeopleSearch =
+    !pendingUserAsk &&
+    (Boolean(chatParsed?.affirmMatch) ||
+      Boolean(toolState.lastSearchIds.length > 0) ||
+      placeJustConfirmed);
+
+  if (wantsPeopleSearch) {
+    return runSidePeopleMatchTurn({
+      input,
+      draft,
+      understanding,
+      hardFilters,
+      buddyHardFilters,
+      myIntentId,
+      content,
+      suggestions: chatSuggestions,
+      onDelta,
+      hooks,
+    });
+  }
+
   const userAffirmedBrowse =
-    input.action === "confirm_browse" ||
-    (wishLane === "browse" && Boolean(chatParsed?.affirmMatch));
+    !pendingUserAsk &&
+    (input.action === "confirm_browse" ||
+      (wishLane === "browse" && llmWantsSearch) ||
+      (wishLane === "browse" && placeJustConfirmed));
   const userAffirmedMatch =
+    !pendingUserAsk &&
     wishLane !== "browse" &&
     Boolean(myIntentId) &&
-    (input.action === "confirm_match" || Boolean(chatParsed?.affirmMatch));
+    (input.action === "confirm_match" || Boolean(chatParsed?.affirmMatch) || llmWantsSearch);
 
-  /** Affirm said yes, but place extract may still block search. */
+  /** Affirm said yes — place gaps use cold-start soft; required-info cards come from LLM askUserInfo. */
   let browseSearchReady = userAffirmedBrowse;
-  let placeGateReply: string | null = null;
 
   if (userAffirmedBrowse && wishLane === "browse" && !input.matchIntentId) {
     const placeCue = [draft.placeRaw, draft.city_zh, draft.city, draft.rawText, content]
@@ -1773,15 +2059,9 @@ export async function runSideTurn(
     const synced = enrichDraftLocation(draft, hardFilters, "", content);
     draft = synced.draft;
     hardFilters = synced.hardFilters;
-    if (!isPlaceClarifyComplete(draft)) {
-      browseSearchReady = false;
-      pendingBrowseConfirm =
-        pendingBrowseConfirm?.trim() ||
-        buildBrowseConfirmRecap(input.lang, draft, hardFilters);
-      placeGateReply = zh(input.lang)
-        ? "还差点地点信息：想在哪个城市，或者说地点不限 / 线上？说清楚后我再帮你在池子里找。"
-        : "I still need a place: which city, or say anywhere / online — then I'll search the pool.";
-    }
+    const cold = applySideColdStartPrefs(input.profile, draft, buddyHardFilters);
+    draft = cold.draft;
+    buddyHardFilters = cold.buddyHardFilters;
   }
 
   if (
@@ -1813,14 +2093,9 @@ export async function runSideTurn(
       pendingConfirm = resolved;
     }
   }
-  if (
-    wishLane === "browse" &&
-    chatParsed?.confirmLine?.trim() &&
-    !input.matchIntentId &&
-    input.action !== "confirm_browse" &&
-    input.action !== "confirm_publish"
-  ) {
-    pendingBrowseConfirm = chatParsed.confirmLine.trim();
+  // Browse: never park pendingBrowseConfirm — search signals fire immediately above.
+  if (wishLane === "browse") {
+    pendingBrowseConfirm = null;
   }
 
   const browseProgress = assessWishClarifyProgress({
@@ -1834,26 +2109,14 @@ export async function runSideTurn(
       ...(content.trim() ? [{ role: "user" as const, content }] : []),
     ],
   });
-
-  // All done or cap: force a browse confirm card even if the LLM forgot confirmLine.
-  if (
-    wishLane === "browse" &&
-    !userAffirmedBrowse &&
-    !input.matchIntentId &&
-    input.action !== "confirm_browse" &&
-    (browseProgress.allDone || browseProgress.capReached)
-  ) {
-    pendingBrowseConfirm =
-      pendingBrowseConfirm?.trim() ||
-      chatParsed?.confirmLine?.trim() ||
-      buildBrowseConfirmRecap(input.lang, draft, hardFilters);
-  }
+  void browseProgress;
 
   const recallMine = resolveRecallMine(
     { ...input, wishDraft: draft, hardFilters },
     draft,
     myIntentId,
     hardFilters,
+    /* allowEmptyForSearch */ llmWantsSearch || input.action === "confirm_browse",
   );
 
   if (recallMine && isLightSideQueueAction(input.action)) {
@@ -1893,7 +2156,8 @@ export async function runSideTurn(
 
   const shouldPick =
     Boolean(recallMine) &&
-    (userWantsMatch || Boolean(input.matchIntentId));
+    !publishedThisTurn &&
+    (userWantsMatch || Boolean(matchIntentId));
 
   log.info("side", "match-gate", {
     wishLane,
@@ -1922,6 +2186,14 @@ export async function runSideTurn(
   let queueFingerprint = input.queueFingerprint ?? null;
   let passedIntentIds = input.passedIntentIds ?? [];
   let shownIntentIds = input.shownIntentIds ?? input.triedIntentIds ?? [];
+
+  if (publishedThisTurn) {
+    rankedQueue = [];
+    queueCursor = 0;
+    queueFingerprint = null;
+    passedIntentIds = [];
+    shownIntentIds = [];
+  }
 
   const browseStrict = wishLane === "browse";
   const queueFp = recallMine
@@ -1953,6 +2225,7 @@ export async function runSideTurn(
           shownIds: shownIntentIds,
           passedIds: passedIntentIds,
           browseStrict,
+          seekerProfile: input.profile,
         },
         input.lang,
       )
@@ -2071,9 +2344,7 @@ export async function runSideTurn(
 
   let reply = (chatParsed.reply ?? "").trim();
   let suppressAssistantReply = false;
-  if (placeGateReply) {
-    reply = placeGateReply;
-  } else if (
+  if (
     input.pendingConfirm &&
     !myIntentId &&
     isPublishFormAcknowledgement(input.userMessage ?? content)
@@ -2086,21 +2357,11 @@ export async function runSideTurn(
     return fallback(input, cfg.deepseekApiKey ? "error" : "no_key");
   }
 
-  if (
-    wishLane === "browse" &&
-    !browseSearchReady &&
-    !input.matchIntentId &&
-    (browseProgress.allDone || browseProgress.capReached) &&
-    !pendingBrowseConfirm?.trim()
-  ) {
-    pendingBrowseConfirm = buildBrowseConfirmRecap(input.lang, draft, hardFilters);
-  }
+  // Browse deliver-now: never force a pendingBrowseConfirm wait card.
+  pendingBrowseConfirm = wishLane === "browse" ? null : pendingBrowseConfirm;
 
-  let handoffTo: "matchmaker" | null =
-    chatParsed?.handoffTo === "matchmaker" && (input.handoffCount ?? 0) < 2 ? "matchmaker" : null;
-  if (handoffTo) matchIntentId = null;
+  let handoffTo: "matchmaker" | null = null;
 
-  let followUpReply: string | undefined;
   const freshMatchSearch =
     userWantsMatch &&
     shouldPick &&
@@ -2108,13 +2369,8 @@ export async function runSideTurn(
     !handoffTo &&
     !isLightSideQueueAction(input.action) &&
     (shouldRebuildQueue || !input.matchIntentId || input.action === "rematch");
-  const ranMatchTwoPhase = freshMatchSearch;
 
-  if (ranMatchTwoPhase) {
-    const rawWish =
-      draft.rawText?.trim() || recallMine!.rawText?.trim() || recallMine!.rawText_zh?.trim() || "";
-    reply = sideMatchAckFallback(input.lang, rawWish, wishLane);
-    hooks?.onMatching?.();
+  if (freshMatchSearch) {
     hooks?.onMatchReady?.({
       browseSearched,
       matchIntentId,
@@ -2131,7 +2387,8 @@ export async function runSideTurn(
       wishLane,
       pendingBrowseConfirm,
     });
-    followUpReply = await runSideMatchFollowUp({
+    // Single beat: stream intro as the only assistant reply (Matchmaker polish).
+    reply = await runSideMatchIntroReply({
       lang: input.lang,
       wishLane,
       mine: recallMine!,
@@ -2141,9 +2398,9 @@ export async function runSideTurn(
       matchQuality,
       crossCityMatch,
       relaxHints,
-      onDelta: hooks?.onFollowUpDelta,
+      onDelta,
     });
-    hooks?.onFollowUpReady?.({ reply: followUpReply, suggestions: [] });
+    hooks?.onChatDone?.({ reply, suggestions: [] });
   } else if (recallEmpty && recallMine && !handoffTo) {
     matchIntentId = null;
     const mentionsEmpty = replyMentionsEmptyPool(reply, input.lang);
@@ -2157,7 +2414,12 @@ export async function runSideTurn(
     }
   }
 
-  if (!ranMatchTwoPhase && crossCityMatch && matchIntentId && !handoffTo) {
+  // Deferred chat ready (affirmMatch) but this turn did not polish an intro — commit chat now.
+  if (deferChatReady && !freshMatchSearch && chatReply) {
+    hooks?.onChatDone?.({ reply: chatReply, suggestions: chatSuggestions });
+  }
+
+  if (!freshMatchSearch && crossCityMatch && matchIntentId && !handoffTo) {
     if (!replyMentionsCrossCity(reply, input.lang)) {
       const extra = zh(input.lang)
         ? "同城暂时没有，这位来自其他城市。"
@@ -2168,6 +2430,12 @@ export async function runSideTurn(
 
   if (pendingConfirm?.trim() && wishLane === "unset") {
     wishLane = "publish";
+  }
+
+  if (pendingUserAsk) {
+    pendingConfirm = null;
+    pendingBrowseConfirm = null;
+    pendingMatchConfirm = null;
   }
 
   return {
@@ -2196,23 +2464,21 @@ export async function runSideTurn(
     recallEmpty,
     filtersRelaxed,
     relaxHints,
-    followUpReply,
     rankedQueue,
     queueCursor,
     queueFingerprint,
     passedIntentIds,
     shownIntentIds,
     suppressAssistantReply: suppressAssistantReply || undefined,
+    showMyWishes: toolState.showMyWishes || undefined,
+    pendingUserAsk,
   };
 }
 
 export type SideStreamEvent =
   | { type: "delta"; text: string }
   | { type: "ready"; reply: string; suggestions: string[] }
-  | { type: "matching" }
   | { type: "matchReady"; preview: SideMatchPreview }
-  | { type: "followUpDelta"; text: string }
-  | { type: "followUpReady"; reply: string; suggestions: string[] }
   | { type: "done"; result: SideTurnOutput };
 
 export function sideTurnReadable(input: SideTurnInput): ReadableStream<SideStreamEvent> {
@@ -2228,17 +2494,8 @@ export function sideTurnReadable(input: SideTurnInput): ReadableStream<SideStrea
             onChatDone: ({ reply, suggestions }) => {
               controller.enqueue({ type: "ready", reply, suggestions });
             },
-            onMatching: () => {
-              controller.enqueue({ type: "matching" });
-            },
             onMatchReady: (preview) => {
               controller.enqueue({ type: "matchReady", preview });
-            },
-            onFollowUpDelta: (text) => {
-              controller.enqueue({ type: "followUpDelta", text });
-            },
-            onFollowUpReady: ({ reply, suggestions }) => {
-              controller.enqueue({ type: "followUpReady", reply, suggestions });
             },
           },
         );

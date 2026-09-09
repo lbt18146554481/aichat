@@ -1,10 +1,9 @@
 // SavedTrigger — global header entry for "Saved for later".
 //
 // Two sections in one drawer:
-//   · People — parked from Introduce someone (Matchmaker). Reopening jumps
-//     back to that person's matchmaker session and focuses their card so
-//     the user can Say hello.
-//   · Wishes — saved candidates from Side by Side.
+//   · People — parked from Matchmaker (saved-people).
+//   · Wishes — parked from Side by Side (saved-wishes / saved-intents).
+//     Keys may be legacy wish intent ids or people-match person ids.
 // Hidden entirely when both lists are empty.
 
 import { useEffect, useState } from "react";
@@ -215,32 +214,47 @@ export function SavedTrigger({
               <ul className="space-y-3">
                 {saved.map((rec) => {
                   const intent = getIntentById(rec.intentId) as Intent | null;
-                  if (!intent) return null;
-                  const person = getPersonById(intent.ownerId);
-                  const name = pickLocaleText(lang, intent.ownerName, intent.ownerName_zh);
-                  const city = pickLocaleText(lang, intent.ownerCity, intent.ownerCity_zh);
+                  const person = intent
+                    ? getPersonById(intent.ownerId)
+                    : getPersonById(rec.intentId);
+                  if (!intent && !person) return null;
+
+                  const name = intent
+                    ? pickLocaleText(lang, intent.ownerName, intent.ownerName_zh)
+                    : person
+                      ? localized(person, lang).name
+                      : "";
+                  const city = intent
+                    ? pickLocaleText(lang, intent.ownerCity, intent.ownerCity_zh)
+                    : person
+                      ? localized(person, lang).city
+                      : "";
                   const occ = person
                     ? pickLocaleText(lang, person.occupation, person.occupation_zh)
                     : "";
                   const meta = [city, occ].filter((s) => s && s.trim()).join(" · ");
-                  const raw = pickLocaleText(lang, intent.rawText, intent.rawText_zh);
+                  const raw = intent
+                    ? pickLocaleText(lang, intent.rawText, intent.rawText_zh)
+                    : "";
                   const session = getSession(rec.sessionId);
                   const wishSummary = session?.seed ?? "";
+                  const avatarId = intent?.ownerId ?? person!.id;
+                  const age = person?.age;
 
                   return (
                     <li key={rec.intentId} className="rounded-lg border border-border bg-card p-4">
                       <div className="flex items-center gap-3">
                         <img
-                          src={avatarUrl(intent.ownerId)}
+                          src={avatarUrl(avatarId)}
                           alt=""
                           className="w-10 h-10 rounded-full border border-border"
                         />
                         <div className="min-w-0 flex-1">
                           <div className="text-[14px] font-medium text-foreground truncate">
                             {name}
-                            {person?.age ? (
+                            {age ? (
                               <span className="text-muted-foreground font-normal">
-                                , {person.age}
+                                , {age}
                               </span>
                             ) : null}
                           </div>
@@ -251,9 +265,11 @@ export function SavedTrigger({
                           )}
                         </div>
                       </div>
-                      <p className="mt-2 text-[12.5px] text-foreground/85 leading-relaxed line-clamp-3">
-                        "{raw}"
-                      </p>
+                      {raw ? (
+                        <p className="mt-2 text-[12.5px] text-foreground/85 leading-relaxed line-clamp-3">
+                          "{raw}"
+                        </p>
+                      ) : null}
                       {wishSummary && (
                         <p className="mt-1.5 text-[11px] text-muted-foreground truncate">
                           {t("saved.from_wish")}: {wishSummary}

@@ -50,15 +50,25 @@ export function isVagueExploreWishSeed(text: string): boolean {
   );
 }
 
+/** Greetings / lane chips / vague explore — must not become wishDraft.rawText. */
+export function isNonWishDraftSeed(text: string): boolean {
+  const t = text.trim();
+  if (!t) return true;
+  if (isWishLaneSelectionMessage(t)) return true;
+  if (isVagueExploreWishSeed(t)) return true;
+  if (/^(你好|您好|嗨|哈喽|在吗|hello|hi|hey)([啊呀呵吗嘛！!。.～~\s]*)$/i.test(t)) return true;
+  return false;
+}
+
 export function wishLanePickedPromptSection(lane: WishLane, lang: SideLang): string {
   if (lang === "zh-CN") {
     return lane === "publish"
-      ? `用户刚选了「发布心愿」。自然确认即可，用开放问题请他们说想做什么、有什么要求（时间地点、搭子期待可一起说）——措辞随上下文，勿用固定模板；confirmLine=null。`
-      : `用户刚选了「先看看别人的心愿」。自然确认即可，问想在池子里找什么样的活动——措辞随上下文，勿用固定模板；confirmLine=null。`;
+      ? `用户刚选了「发布心愿」。自然确认即可，用开放问题请他们说想做什么、有什么要求（时间地点、搭子期待可一起说）——措辞随上下文，勿用固定模板；confirmLine=null。若用户这轮其实就要搜搭子再设 affirmMatch；只是选模式则 affirmMatch=false。`
+      : `用户刚选了「先看看别人的心愿」。自然确认；若只是选模式，问想找什么样的活动，affirmMatch=false。若用户这轮明确就要搜（随便看看/帮我找），affirmMatch=true——信息不齐也能搜，冷启动 soft。`;
   }
   return lane === "publish"
-    ? `User just chose publish. Acknowledge naturally; one open question for activity + requirements — contextual wording, no templates; confirmLine=null.`
-    : `User just chose browse. Acknowledge naturally; ask what kind of activity they want in the pool — contextual wording, no templates; confirmLine=null.`;
+    ? `User just chose publish. Acknowledge; one open question for activity + requirements — no templates; confirmLine=null. affirmMatch only if they also want a search this turn.`
+    : `User just chose browse. If lane-only, ask what activity they want (affirmMatch=false). If they clearly want to search now, affirmMatch=true — sparse draft + cold-start soft is fine.`;
 }
 
 export function inferWishLaneFromText(text: string): WishLane | null {

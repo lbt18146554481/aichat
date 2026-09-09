@@ -7,6 +7,7 @@ import {
   isOfferMatchDecline,
   isVagueExploreWishSeed,
   isWishLaneSelectionMessage,
+  isNonWishDraftSeed,
 } from "@/lib/wish-lane";
 
 describe("wish-lane", () => {
@@ -52,6 +53,13 @@ describe("wish-lane", () => {
     expect(isVagueExploreWishSeed("我想探索一些有趣的活动")).toBe(true);
     expect(isVagueExploreWishSeed("周末一起徒步")).toBe(false);
     expect(isVagueExploreWishSeed("想约人周末徒步")).toBe(false);
+  });
+
+  it("does not treat greetings or lane chips as wish draft seeds", () => {
+    expect(isNonWishDraftSeed("你好")).toBe(true);
+    expect(isNonWishDraftSeed("你好呀")).toBe(true);
+    expect(isNonWishDraftSeed("我想先看看别人的心愿")).toBe(true);
+    expect(isNonWishDraftSeed("周末一起徒步")).toBe(false);
   });
 
   it("does not infer browse from vague explore handoff seeds", () => {

@@ -13,6 +13,7 @@
 
 import type { ActivityKind, Weekday } from "../types";
 import { loadProfile } from "../profile";
+import { getPersonById } from "../people";
 import {
   findNearMisses,
   getIntentById,
@@ -245,28 +246,57 @@ export interface ChatMsg {
   wishIntentId?: string;
 }
 
-export type Stage = "prompt" | "published" | "chat";
+export type Stage = "prompt" | "published" | "hanging" | "introducing" | "chat";
+
+/** Persisted invite while waiting for a buddy (no people hard-match yet). */
+export interface SideHangingInvite {
+  /** LLM one-line summary for the right-pane card (not raw user text). */
+  summary: string;
+  createdAt: number;
+  /** Next automatic rematch timestamp. */
+  nextRematchAt: number;
+}
 
 export interface SideState {
   stage: Stage;
-  /** browse = search pool; publish = post wish; unset = not chosen yet. */
+  /** @deprecated browse/publish lanes removed — kept for old session revive. */
   wishLane?: WishLane;
-  /** Browse lane completed at least one recall (left-side nomatch chips when empty). */
+  /** @deprecated */
   browseSearched?: boolean;
-  /** After publish, agent lightly offered to find a buddy — waiting for yes/no. */
+  /** @deprecated */
   pendingOfferMatch?: boolean;
+  /** @deprecated wish pool removed */
   myIntentId: string | null;
+  /** @deprecated */
+  myIntentIds: string[];
+  /**
+   * Right-pane focus forced by the `show_my_wishes` tool only.
+   * Cleared when match / publish form / chat takes over.
+   */
+  canvasFocus?: "wishes" | null;
+  /** Current matched person (people pool). */
+  currentPersonId: string | null;
+  /** AI summary of the current person (right pane). */
+  personSummary?: string;
+  /** Short why-tags for the current match. */
+  whyTags?: string[];
+  /** @deprecated use currentPersonId */
   matchIntentId: string | null;
   /** How closely the current match lines up with the wish. Undefined when
    *  no candidate is on screen. Drives the "CLOSE MATCH" label + reason. */
   matchQuality?: MatchQuality;
   nearMissIds: string[];
+  /** @deprecated prefer triedOwnerIds / passedIds */
   triedIntentIds: string[];
-  /** People already skipped for this wish. See-next must change the person, not just the slot. */
+  /** People already skipped for this invite. */
   triedOwnerIds: string[];
+  passedIds?: string[];
+  shownIds?: string[];
   /** Candidates the user parked as "look again later". Session-scoped;
    *  cleared when the wish is revoked, edited, or chat starts. */
   savedIntentIds: string[];
+  /** Saved person ids (buddy bookmarks). */
+  savedPersonIds?: string[];
   truncated: boolean;
   messages: SideMsg[];
   chatMessages: ChatMsg[];
@@ -295,42 +325,60 @@ export interface SideState {
     /** Detect was unsure — confirm before switching. */
     clarify?: boolean;
   };
-  /** LLM-extracted wish draft before publish. */
+  /** Activity invite draft (not published to a wish pool). */
   wishDraft?: WishDraft;
+  /** @deprecated wish hard filters */
   hardFilters?: WishHardFilters;
   buddyHardFilters?: import("../wish-types").BuddyHardFilters;
+  /** People-match hard filters (place hard, etc.). */
+  matchHardFilters?: import("../match-types").MatchHardFilters;
   understanding?: UserUnderstanding;
-  /** One-sentence confirm line waiting for user yes (publish). */
+  /** @deprecated publish confirm */
   pendingConfirm?: string | null;
-  /** One-sentence confirm before browse search (browse lane). */
+  /** @deprecated */
   pendingBrowseConfirm?: string | null;
-  /** One-sentence confirm before first buddy match. */
+  /** @deprecated */
   pendingMatchConfirm?: string | null;
   matchReason?: string;
   crossCityMatch?: boolean;
-  /** LLM-ranked wish ids for current search / match batch. */
+  /** LLM-ranked person ids for current search batch. */
   rankedQueue?: string[];
+  queueReasons?: Record<string, string>;
   queueCursor?: number;
   queueFingerprint?: string | null;
+  /** @deprecated */
   passedIntentIds?: string[];
+  /** @deprecated */
   shownIntentIds?: string[];
   canvasSwapKey?: number;
   /** LLM reply suggestions for the left composer. */
   suggestions?: string[];
-  /** Place validation error from the last publish attempt — shown on the canvas form. */
+  /** @deprecated */
   publishPlaceError?: string | null;
-  /** User submitted publish; waiting for server — keep right pane on published wish card. */
+  /** @deprecated */
   publishPending?: boolean;
+  /** ask_user_info card waiting for confirm/cancel (or skip on next message). */
+  pendingUserAsk?: import("../ask-user-info").PendingUserAsk | null;
+  /** No hard-match yet — invite hangs; rematch on nextRematchAt. */
+  hangingInvite?: SideHangingInvite | null;
 }
 
 export const EMPTY: SideState = {
   stage: "prompt",
   myIntentId: null,
+  myIntentIds: [],
+  canvasFocus: null,
+  currentPersonId: null,
+  personSummary: "",
+  whyTags: [],
   matchIntentId: null,
   nearMissIds: [],
   triedIntentIds: [],
   triedOwnerIds: [],
+  passedIds: [],
+  shownIds: [],
   savedIntentIds: [],
+  savedPersonIds: [],
   truncated: false,
   messages: [],
   chatMessages: [],
@@ -338,6 +386,7 @@ export const EMPTY: SideState = {
   wishDraft: emptyWishDraft(),
   hardFilters: { ...EMPTY_WISH_HARD_FILTERS },
   buddyHardFilters: { ...EMPTY_BUDDY_HARD_FILTERS },
+  matchHardFilters: undefined,
   understanding: emptyUnderstanding(),
   pendingConfirm: null,
   pendingBrowseConfirm: null,
@@ -346,6 +395,8 @@ export const EMPTY: SideState = {
   browseSearched: false,
   pendingOfferMatch: false,
   rankedQueue: [],
+  queueReasons: {},
+  hangingInvite: null,
   queueCursor: 0,
   queueFingerprint: null,
   passedIntentIds: [],
@@ -354,13 +405,52 @@ export const EMPTY: SideState = {
   publishPending: false,
 };
 
-export type ViewKey = "empty" | "match" | "nomatch" | "chat" | "publish" | "mine";
+/** Normalize persisted Side session state (legacy single-wish → myIntentIds). */
+export function normalizeSideState(raw: Partial<SideState> | null | undefined): SideState {
+  const base = { ...EMPTY, ...(raw ?? {}) };
+  const myIntentIds =
+    base.myIntentIds?.length
+      ? base.myIntentIds
+      : base.myIntentId
+        ? [base.myIntentId]
+        : [];
+  const currentPersonId =
+    base.currentPersonId ??
+    // Legacy: matchIntentId sometimes stored person id in broken migrations — prefer explicit.
+    null;
+  return {
+    ...base,
+    myIntentIds,
+    canvasFocus: base.canvasFocus ?? null,
+    myIntentId: base.myIntentId ?? (myIntentIds.length ? myIntentIds[myIntentIds.length - 1]! : null),
+    currentPersonId,
+    passedIds: base.passedIds ?? base.passedIntentIds ?? [],
+    shownIds: base.shownIds ?? base.shownIntentIds ?? [],
+    hangingInvite: base.hangingInvite ?? null,
+    whyTags: base.whyTags ?? [],
+    personSummary: base.personSummary ?? "",
+    queueReasons: base.queueReasons ?? {},
+  };
+}
+
+export type ViewKey = "empty" | "match" | "nomatch" | "chat" | "publish" | "mine" | "hanging";
+
+/** Wish ids published in this session (falls back to legacy single myIntentId). */
+export function sessionWishIds(s: SideState): string[] {
+  if (s.myIntentIds?.length) return s.myIntentIds;
+  return s.myIntentId ? [s.myIntentId] : [];
+}
 
 export function currentView(s: SideState): ViewKey {
   if (s.stage === "chat") return "chat";
+  if (s.currentPersonId) return "match";
+  if (s.stage === "hanging" || s.hangingInvite) return "hanging";
+  // Legacy wish UI paths
+  if (s.canvasFocus === "wishes" && sessionWishIds(s).length > 0) return "mine";
   if (s.matchIntentId) return "match";
-  if (s.pendingConfirm && !s.myIntentId && s.wishLane !== "browse") return "publish";
-  if ((s.myIntentId || s.publishPending) && !s.matchIntentId) return "mine";
+  if (s.pendingConfirm && s.wishLane !== "browse") return "publish";
+  if ((sessionWishIds(s).length > 0 || s.publishPending) && !s.matchIntentId && !s.currentPersonId)
+    return "mine";
   if (s.wishLane === "browse" && s.browseSearched) return "nomatch";
   return "empty";
 }
@@ -369,10 +459,27 @@ export function uid(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function draftIsSearchable(draft: SideState["wishDraft"]): boolean {
+  if (!draft) return false;
+  return (
+    draft.kind != null ||
+    Boolean(draft.activityCore?.trim()) ||
+    (draft.rawText?.trim().length ?? 0) >= 2
+  );
+}
+
 export function resolveMineForQueue(state: SideState): Intent | null {
-  if (state.myIntentId) return getIntentById(state.myIntentId);
-  if (state.wishDraft?.kind) {
-    return draftAsIntent(state.wishDraft, {
+  if (state.myIntentId) {
+    const found = getIntentById(state.myIntentId);
+    if (found) return found;
+  }
+  // Align with server resolveRecallMine — sparse browse drafts still rank/queue.
+  if (
+    draftIsSearchable(state.wishDraft) ||
+    state.myIntentId ||
+    (state.wishLane === "browse" && Boolean(state.matchIntentId))
+  ) {
+    return draftAsIntent(state.wishDraft ?? emptyWishDraft(), {
       profile: loadProfile(),
       hardFilters: state.hardFilters ?? EMPTY_WISH_HARD_FILTERS,
     });
@@ -381,10 +488,25 @@ export function resolveMineForQueue(state: SideState): Intent | null {
 }
 
 export function healSideWishQueue(state: SideState): SideState {
-  if (state.matchIntentId || (state.rankedQueue?.length ?? 0) === 0) return state;
+  if (state.currentPersonId || state.matchIntentId || (state.rankedQueue?.length ?? 0) === 0) {
+    return state;
+  }
   const queue = state.rankedQueue!;
   const cursor = Math.min(state.queueCursor ?? 0, queue.length - 1);
   const id = queue[cursor] ?? queue[0]!;
+  // People queue — ids are person ids, not wish intents.
+  if (!getIntentById(id)) {
+    const shown = state.shownIds ?? state.shownIntentIds ?? [];
+    return {
+      ...state,
+      currentPersonId: id,
+      stage: state.stage === "hanging" ? "introducing" : state.stage === "prompt" ? "introducing" : state.stage,
+      queueCursor: cursor,
+      shownIds: shown.includes(id) ? shown : [...shown, id],
+      shownIntentIds: shown.includes(id) ? (state.shownIntentIds ?? shown) : [...(state.shownIntentIds ?? shown), id],
+      hangingInvite: null,
+    };
+  }
   const mine = resolveMineForQueue(state);
   const meta = mine ? matchMetaForIntent(mine, id) : null;
   const shown = state.shownIntentIds ?? [];
@@ -511,8 +633,6 @@ export function submitPrompt(
   text: string,
   opts?: { cityOverride?: string },
 ): SideState {
-  // Revoke any prior wish — one active wish at a time keeps the demo legible.
-  if (state.myIntentId) revokeMyIntent(state.myIntentId);
   const parsed = parseIntent(text);
   // City precedence: explicit override passed in (from a one-shot Agent ask,
   // never persisted to Profile) > city mentioned inline in the text >
@@ -529,11 +649,26 @@ export function submitPrompt(
     city: cityEn,
     city_zh: cityZh,
   });
+  const prevIds = sessionWishIds(state);
+  const myIntentIds = prevIds.includes(mine.id) ? prevIds : [...prevIds, mine.id];
   const base: SideState = {
-    ...EMPTY,
+    ...state,
+    stage: "published",
     truncated: !!parsed.truncated,
-    messages: state.messages,
     myIntentId: mine.id,
+    myIntentIds,
+    canvasFocus: null,
+    matchIntentId: null,
+    matchQuality: undefined,
+    rankedQueue: [],
+    queueCursor: 0,
+    queueFingerprint: null,
+    passedIntentIds: [],
+    shownIntentIds: [],
+    triedIntentIds: [],
+    triedOwnerIds: [],
+    pendingConfirm: null,
+    publishPending: false,
   };
   return rematchAfterUpdate(base, mine.id);
 }
@@ -594,22 +729,42 @@ export function skipMatch(state: SideState): SideState {
 }
 
 /** Toggle: bookmark the currently shown match, or un-bookmark it if already saved.
- *  Writes to the GLOBAL saved-intents store so it survives session changes,
- *  chat, and page navigation. Session-scoped mirror kept for legacy readers.
+ *  Side saves go to GLOBAL saved-wishes (saved-intents). Matchmaker uses saved-people.
+ *  Session-scoped mirror kept for StrictMode-safe toggle UI.
  *  Does NOT advance to the next candidate — Save and See next are independent. */
 export function saveCurrent(state: SideState, sessionId?: string | null): SideState {
-  if (!state.myIntentId || !state.matchIntentId) return state;
+  if (state.currentPersonId) {
+    const id = state.currentPersonId;
+    const sid = sessionId || id;
+    const currentSaved = state.savedPersonIds ?? [];
+    // Truth for the toggle is in-memory state, not the global store.
+    const already = currentSaved.includes(id);
+    if (already) {
+      removeSavedGlobal(id);
+      return {
+        ...state,
+        savedPersonIds: currentSaved.filter((x) => x !== id),
+        savedIntentIds: (state.savedIntentIds ?? []).filter((x) => x !== id),
+      };
+    }
+    saveIntentGlobal(id, sid);
+    return {
+      ...state,
+      savedPersonIds: [...currentSaved, id],
+      savedIntentIds: (state.savedIntentIds ?? []).includes(id)
+        ? (state.savedIntentIds ?? [])
+        : [...(state.savedIntentIds ?? []), id],
+    };
+  }
+  if (!state.matchIntentId) return state;
   const id = state.matchIntentId;
   const currentSaved = state.savedIntentIds ?? [];
-  // Truth for the toggle is in-memory state, not the global store.
-  // React StrictMode double-invokes state updaters in dev; deriving from
-  // localStorage would flip the save on the second run and cancel it out.
   const already = currentSaved.includes(id);
   if (already) {
-    removeSavedGlobal(id); // idempotent
+    removeSavedGlobal(id);
     return { ...state, savedIntentIds: currentSaved.filter((x) => x !== id) };
   }
-  saveIntentGlobal(id, sessionId || state.myIntentId || id); // idempotent
+  saveIntentGlobal(id, sessionId || state.myIntentId || id);
   return { ...state, savedIntentIds: [...currentSaved, id] };
 }
 
@@ -637,11 +792,21 @@ export function unsave(state: SideState, intentId: string): SideState {
   return next;
 }
 
-/** Start chatting with a specific saved candidate. */
+/** Start chatting with a specific saved candidate (intent id or person id). */
 export function chatWithSaved(state: SideState, intentId: string, draft?: string, lang?: string): SideState {
   const target = getIntentById(intentId);
-  if (!target) return state;
-  const armed: SideState = { ...state, stage: "published", matchIntentId: intentId };
+  if (target) {
+    const armed: SideState = { ...state, stage: "published", matchIntentId: intentId };
+    return startChat(armed, draft, lang);
+  }
+  // People-match Side: saved-wishes stores person id in the intentId field.
+  if (!getPersonById(intentId)) return state;
+  const armed: SideState = {
+    ...state,
+    currentPersonId: intentId,
+    matchIntentId: null,
+    stage: "introducing",
+  };
   return startChat(armed, draft, lang);
 }
 
@@ -667,15 +832,19 @@ export function tryNearMiss(state: SideState, intentId: string): SideState {
 }
 
 export function startChat(state: SideState, draft?: string, _lang?: string): SideState {
-  if (!state.matchIntentId) return state;
+  if (!state.currentPersonId && !state.matchIntentId) return state;
   if (state.stage === "chat") return state;
-  removeSavedGlobal(state.matchIntentId);
-  const remainingSaved = (state.savedIntentIds ?? []).filter((x) => x !== state.matchIntentId);
+  if (state.matchIntentId) {
+    removeSavedGlobal(state.matchIntentId);
+  }
+  const remainingSaved = state.matchIntentId
+    ? (state.savedIntentIds ?? []).filter((x) => x !== state.matchIntentId)
+    : (state.savedIntentIds ?? []);
   return {
     ...state,
     stage: "chat",
     chatMessages: [],
-    composerWishQuoteId: state.matchIntentId,
+    composerWishQuoteId: state.matchIntentId ?? null,
     savedIntentIds: remainingSaved,
     ...(draft ? { pendingDraft: draft } : {}),
   };
@@ -744,10 +913,62 @@ export function switchToPublishLane(state: SideState): SideState {
 }
 
 export function revokeAndReset(state: SideState, sessionId?: string | null): SideState {
-  if (state.myIntentId) revokeMyIntent(state.myIntentId);
+  for (const id of sessionWishIds(state)) {
+    revokeMyIntent(id);
+  }
   // Withdrawing the wish clears anything the user saved under it.
   if (sessionId) removeSavedForSessionGlobal(sessionId);
   return { ...EMPTY, messages: state.messages };
+}
+
+/** Clear hanging invite without wiping chat history. */
+export function revokeHangingInvite(state: SideState): SideState {
+  return {
+    ...state,
+    hangingInvite: null,
+    stage: state.currentPersonId ? "introducing" : "prompt",
+    browseSearched: false,
+    rankedQueue: [],
+    queueCursor: 0,
+    currentPersonId: null,
+    personSummary: "",
+    whyTags: [],
+  };
+}
+
+/** Revoke one session wish; keep the rest. Active id falls back to newest remaining. */
+export function revokeOneWish(
+  state: SideState,
+  intentId: string,
+  sessionId?: string | null,
+): SideState {
+  revokeMyIntent(intentId);
+  const myIntentIds = sessionWishIds(state).filter((id) => id !== intentId);
+  if (myIntentIds.length === 0) {
+    if (sessionId) removeSavedForSessionGlobal(sessionId);
+    return { ...EMPTY, messages: state.messages };
+  }
+  const myIntentId =
+    state.myIntentId && myIntentIds.includes(state.myIntentId)
+      ? state.myIntentId
+      : myIntentIds[myIntentIds.length - 1]!;
+  return {
+    ...state,
+    myIntentId,
+    myIntentIds,
+    canvasFocus: state.canvasFocus === "wishes" ? "wishes" : null,
+    matchIntentId: null,
+    matchQuality: undefined,
+    rankedQueue: [],
+    queueCursor: 0,
+    queueFingerprint: null,
+    passedIntentIds: [],
+    shownIntentIds: [],
+    triedIntentIds: [],
+    triedOwnerIds: [],
+    pendingConfirm: null,
+    pendingOfferMatch: false,
+  };
 }
 
 /** Set a draft the right-side TA composer should pre-fill with. */
@@ -792,6 +1013,25 @@ export function patchWish(
 
 /** Record skip without rule-based rematch — caller runs LLM rematch. */
 export function prepareSkipMatch(state: SideState): SideState {
+  if (state.currentPersonId) {
+    const id = state.currentPersonId;
+    const passed = (state.passedIds ?? []).includes(id)
+      ? (state.passedIds ?? [])
+      : [...(state.passedIds ?? []), id];
+    const triedOwners = (state.triedOwnerIds ?? []).includes(id)
+      ? (state.triedOwnerIds ?? [])
+      : [...(state.triedOwnerIds ?? []), id];
+    return {
+      ...state,
+      currentPersonId: null,
+      personSummary: "",
+      whyTags: [],
+      passedIds: passed,
+      triedOwnerIds: triedOwners,
+      matchIntentId: null,
+      matchQuality: undefined,
+    };
+  }
   if (!state.matchIntentId) return state;
   const other = getIntentById(state.matchIntentId);
   const tried = (state.triedIntentIds ?? []).includes(state.matchIntentId)
@@ -823,12 +1063,37 @@ export function applyMatchPreview(
     matchReason: preview.matchReason,
     nearMissIds: preview.nearMissIds,
     rankedQueue: preview.rankedQueue ?? state.rankedQueue ?? [],
+    queueReasons: preview.queueReasons ?? state.queueReasons ?? {},
     queueCursor: preview.queueCursor ?? state.queueCursor ?? 0,
     queueFingerprint: preview.queueFingerprint ?? state.queueFingerprint ?? null,
     passedIntentIds: preview.passedIntentIds ?? state.passedIntentIds ?? [],
     shownIntentIds: preview.shownIntentIds ?? state.shownIntentIds ?? state.triedIntentIds ?? [],
+    passedIds: preview.passedIds ?? preview.passedIntentIds ?? state.passedIds ?? [],
+    shownIds: preview.shownIds ?? preview.shownIntentIds ?? state.shownIds ?? [],
   };
-  if (preview.matchIntentId) {
+  if (preview.currentPersonId) {
+    next = {
+      ...next,
+      currentPersonId: preview.currentPersonId,
+      personSummary: preview.personSummary ?? next.personSummary,
+      whyTags: preview.whyTags ?? next.whyTags,
+      hangingInvite: null,
+      stage: "introducing",
+      matchIntentId: null,
+      canvasSwapKey: (state.canvasSwapKey ?? 0) + 1,
+    };
+  } else if (preview.hangingInvite) {
+    next = {
+      ...next,
+      currentPersonId: null,
+      personSummary: "",
+      whyTags: [],
+      hangingInvite: preview.hangingInvite,
+      stage: "hanging",
+      matchIntentId: null,
+      canvasSwapKey: (state.canvasSwapKey ?? 0) + 1,
+    };
+  } else if (preview.matchIntentId) {
     next = {
       ...next,
       matchIntentId: preview.matchIntentId,
@@ -836,7 +1101,7 @@ export function applyMatchPreview(
       canvasSwapKey: (state.canvasSwapKey ?? 0) + 1,
     };
   } else if (preview.recallEmpty && preview.browseSearched) {
-    next = { ...next, matchIntentId: null, matchQuality: undefined };
+    next = { ...next, matchIntentId: null, matchQuality: undefined, currentPersonId: null };
   }
   return next;
 }
@@ -848,9 +1113,7 @@ export function applyTurnResult(
   opts?: {
     skipUser?: boolean;
     skipAssistant?: boolean;
-    skipAssistant?: boolean;
     replaceLastAssistant?: boolean;
-    twoPhaseStreamed?: boolean;
   },
 ): SideState {
   let next: SideState = {
@@ -869,16 +1132,21 @@ export function applyTurnResult(
     matchReason: output.matchReason,
     nearMissIds: output.nearMissIds,
     rankedQueue: output.rankedQueue ?? state.rankedQueue ?? [],
+    queueReasons: output.queueReasons ?? state.queueReasons ?? {},
     queueCursor: output.queueCursor ?? state.queueCursor ?? 0,
     queueFingerprint: output.queueFingerprint ?? state.queueFingerprint ?? null,
     passedIntentIds: output.passedIntentIds ?? state.passedIntentIds ?? [],
     shownIntentIds: output.shownIntentIds ?? state.shownIntentIds ?? state.triedIntentIds ?? [],
+    passedIds: output.passedIds ?? output.passedIntentIds ?? state.passedIds ?? [],
+    shownIds: output.shownIds ?? output.shownIntentIds ?? state.shownIds ?? [],
+    matchHardFilters: output.matchHardFilters ?? state.matchHardFilters,
     suggestions: output.suggestions?.length
       ? output.suggestions.slice(0, 4)
-      : (output.followUpReply || opts?.replaceLastAssistant) && (state.suggestions?.length ?? 0) > 0
+      : opts?.replaceLastAssistant && (state.suggestions?.length ?? 0) > 0
         ? state.suggestions!.slice(0, 4)
         : [],
     publishPlaceError: output.publishPlaceError ?? null,
+    pendingUserAsk: output.pendingUserAsk ?? null,
   };
 
   if (userText?.trim() && !opts?.skipUser) {
@@ -889,10 +1157,15 @@ export function applyTurnResult(
   }
 
   if (output.myIntentId) {
+    const prevIds = sessionWishIds(state);
+    const myIntentIds = prevIds.includes(output.myIntentId)
+      ? prevIds
+      : [...prevIds, output.myIntentId];
     next = {
       ...next,
       stage: "published",
       myIntentId: output.myIntentId,
+      myIntentIds,
       truncated: state.truncated,
     };
   }
@@ -900,8 +1173,54 @@ export function applyTurnResult(
   if (output.stage === "published") {
     next = { ...next, stage: "published" };
   }
+  if (output.stage === "hanging") {
+    next = { ...next, stage: "hanging" };
+  }
+  if (output.stage === "introducing") {
+    next = { ...next, stage: "introducing" };
+  }
 
-  if (output.matchIntentId) {
+  // Tool-only pane control (show_my_wishes) — never driven by LLM JSON fields.
+  if (output.showMyWishes) {
+    next = { ...next, canvasFocus: "wishes" };
+  } else if (
+    output.currentPersonId ||
+    output.hangingInvite ||
+    output.matchIntentId ||
+    next.stage === "chat" ||
+    (output.pendingConfirm && next.wishLane !== "browse")
+  ) {
+    next = { ...next, canvasFocus: null };
+  }
+
+  if (output.currentPersonId) {
+    next = {
+      ...next,
+      currentPersonId: output.currentPersonId,
+      personSummary: output.personSummary ?? "",
+      whyTags: output.whyTags ?? [],
+      hangingInvite: null,
+      stage: "introducing",
+      matchIntentId: null,
+      matchQuality: undefined,
+      triedOwnerIds: output.passedIds
+        ? Array.from(new Set([...(next.triedOwnerIds ?? []), ...output.passedIds]))
+        : next.triedOwnerIds,
+      canvasSwapKey: (state.canvasSwapKey ?? 0) + 1,
+    };
+  } else if (output.hangingInvite) {
+    next = {
+      ...next,
+      currentPersonId: null,
+      personSummary: "",
+      whyTags: [],
+      hangingInvite: output.hangingInvite,
+      stage: "hanging",
+      matchIntentId: null,
+      matchQuality: undefined,
+      canvasSwapKey: (state.canvasSwapKey ?? 0) + 1,
+    };
+  } else if (output.matchIntentId) {
     next = {
       ...next,
       matchIntentId: output.matchIntentId,
@@ -914,72 +1233,7 @@ export function applyTurnResult(
     next = { ...next, matchIntentId: null, matchQuality: undefined };
   }
 
-  if (output.followUpReply) {
-    const msgs = [...next.messages];
-    if (opts?.twoPhaseStreamed && opts?.skipAssistant) {
-      const assistantIdxs = msgs
-        .map((m, i) => (m.role === "assistant" ? i : -1))
-        .filter((i) => i >= 0);
-      if (assistantIdxs.length >= 2) {
-        const last = assistantIdxs[assistantIdxs.length - 1]!;
-        const prev = assistantIdxs[assistantIdxs.length - 2]!;
-        msgs[last] = { ...msgs[last], text: output.followUpReply };
-        if (output.reply?.trim()) {
-          msgs[prev] = { ...msgs[prev], text: output.reply };
-        }
-      } else if (assistantIdxs.length === 1) {
-        msgs.push({
-          id: uid(),
-          role: "assistant",
-          t: Date.now(),
-          text: output.followUpReply,
-        });
-        if (output.reply?.trim()) {
-          msgs[assistantIdxs[0]!] = { ...msgs[assistantIdxs[0]!], text: output.reply };
-        }
-      }
-      next = { ...next, messages: msgs };
-    } else if (opts?.twoPhaseStreamed) {
-      const assistantIdxs = msgs
-        .map((m, i) => (m.role === "assistant" ? i : -1))
-        .filter((i) => i >= 0);
-      if (assistantIdxs.length >= 2) {
-        const last = assistantIdxs[assistantIdxs.length - 1]!;
-        const prev = assistantIdxs[assistantIdxs.length - 2]!;
-        msgs[last] = { ...msgs[last], text: output.followUpReply };
-        msgs[prev] = { ...msgs[prev], text: output.reply };
-      } else {
-        msgs.push({
-          id: uid(),
-          role: "assistant",
-          t: Date.now(),
-          text: output.followUpReply,
-        });
-      }
-      next = { ...next, messages: msgs };
-    } else if (opts?.replaceLastAssistant) {
-      const last = msgs.length - 1;
-      if (msgs[last]?.role === "assistant") {
-        msgs[last] = { ...msgs[last], text: output.reply };
-      }
-      msgs.push({
-        id: uid(),
-        role: "assistant",
-        t: Date.now(),
-        text: output.followUpReply,
-      });
-      next = { ...next, messages: msgs };
-    } else if (!opts?.skipAssistant) {
-      next = {
-        ...next,
-        messages: [
-          ...next.messages,
-          { id: uid(), role: "assistant", t: Date.now(), text: output.reply },
-          { id: uid(), role: "assistant", t: Date.now(), text: output.followUpReply },
-        ],
-      };
-    }
-  } else if (opts?.replaceLastAssistant) {
+  if (opts?.replaceLastAssistant) {
     const msgs = [...next.messages];
     const last = msgs[msgs.length - 1];
     if (last?.role === "assistant") {
@@ -1075,26 +1329,28 @@ export function load(sessionId?: string | null): SideState {
     const s = getSession(sessionId);
     if (s) {
       const partial = s.state as Partial<SideState>;
-      return healSideWishQueue({
-        ...EMPTY,
-        ...partial,
-        hardFilters: { ...EMPTY_WISH_HARD_FILTERS, ...partial.hardFilters },
-        buddyHardFilters: { ...EMPTY_BUDDY_HARD_FILTERS, ...partial.buddyHardFilters },
-        wishDraft: partial.wishDraft ?? emptyWishDraft(),
-        understanding: mergeUnderstanding(emptyUnderstanding(), partial.understanding),
-        pendingConfirm: partial.pendingConfirm ?? null,
-        pendingBrowseConfirm: partial.pendingBrowseConfirm ?? null,
-        pendingMatchConfirm: partial.pendingMatchConfirm ?? null,
-        pendingOfferMatch: partial.pendingOfferMatch ?? false,
-        publishPending: partial.publishPending ?? false,
-        wishLane: partial.wishLane ?? "unset",
-        browseSearched: partial.browseSearched ?? false,
-        rankedQueue: partial.rankedQueue ?? [],
-        queueCursor: partial.queueCursor ?? 0,
-        queueFingerprint: partial.queueFingerprint ?? null,
-        passedIntentIds: partial.passedIntentIds ?? [],
-        shownIntentIds: partial.shownIntentIds ?? partial.triedIntentIds ?? [],
-      });
+      return healSideWishQueue(
+        normalizeSideState({
+          ...EMPTY,
+          ...partial,
+          hardFilters: { ...EMPTY_WISH_HARD_FILTERS, ...partial.hardFilters },
+          buddyHardFilters: { ...EMPTY_BUDDY_HARD_FILTERS, ...partial.buddyHardFilters },
+          wishDraft: partial.wishDraft ?? emptyWishDraft(),
+          understanding: mergeUnderstanding(emptyUnderstanding(), partial.understanding),
+          pendingConfirm: partial.pendingConfirm ?? null,
+          pendingBrowseConfirm: partial.pendingBrowseConfirm ?? null,
+          pendingMatchConfirm: partial.pendingMatchConfirm ?? null,
+          pendingOfferMatch: partial.pendingOfferMatch ?? false,
+          publishPending: partial.publishPending ?? false,
+          wishLane: partial.wishLane ?? "unset",
+          browseSearched: partial.browseSearched ?? false,
+          rankedQueue: partial.rankedQueue ?? [],
+          queueCursor: partial.queueCursor ?? 0,
+          queueFingerprint: partial.queueFingerprint ?? null,
+          passedIntentIds: partial.passedIntentIds ?? [],
+          shownIntentIds: partial.shownIntentIds ?? partial.triedIntentIds ?? [],
+        }),
+      );
     }
   }
   return EMPTY;

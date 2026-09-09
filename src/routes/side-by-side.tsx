@@ -14,11 +14,18 @@ import { loadProfile } from "@/lib/profile";
 import { normalizeLang, pickLocaleText, pickLocaleList } from "@/lib/lang";
 import { isSaved as isSavedGlobal } from "@/lib/saved-intents";
 import { polishAssistantText, sideBySideSystem } from "@/lib/llm-client";
-import { requestDetectHandoff } from "@/lib/orchestrator-client";
-import { explicitActivityBuddySignal } from "@/lib/meet-someone-detect";
 import { inferWishLaneFromText, isWishLaneSelectionMessage } from "@/lib/wish-lane";
 import { requestSideBySideTurn } from "@/lib/side-by-side-client";
 import type { SideTurnAction, SideTurnOutput } from "@/lib/side-llm.server";
+import {
+  attachPendingUserAskToLastAssistant,
+  clearPendingUserAskOnMessages,
+  isUserInfoAskId,
+  resolutionFromCardValue,
+  skippedUserAskResolution,
+  toAgentAsk,
+  type UserAskResolution,
+} from "@/lib/ask-user-info";
 import {
   beginSideTurnSession,
   endSideTurnSession,
@@ -26,13 +33,7 @@ import {
   publishSideTurnSession,
   subscribeSideTurnSession,
 } from "@/lib/side-turn-session";
-import type { HandoffContext } from "@/lib/handoff";
-import {
-  graftFromSide,
-  openMatchmakerFromHandoff,
-} from "@/lib/session-handoff";
 import { clearActiveThreadId } from "@/lib/active-thread";
-import { MAX_HANDOFF_COUNT } from "@/lib/handoff";
 import {
   EMPTY,
   applyTurnResult,
@@ -44,6 +45,7 @@ import {
   clearPendingDraft,
   currentView,
   load,
+  normalizeSideState,
   patchLastAssistant,
   patchWish,
   prepareSkipMatch,
@@ -53,6 +55,7 @@ import {
   resolveMineForQueue,
   receiveSimulatedReply,
   revokeAndReset,
+  revokeHangingInvite,
   save,
   sendChatMessage,
   sessionNeedsBootStart,
@@ -180,7 +183,7 @@ function SideBySidePage() {
     handoffWishFired.current = false;
     const loaded = load(sessionId);
     const liveTurn = getSideTurnSession(sessionId);
-    const initial = liveTurn?.working ?? loaded;
+    const initial = normalizeSideState(liveTurn?.working ?? loaded);
     stateRef.current = initial;
     setState(initial);
     if (liveTurn) {
@@ -192,8 +195,9 @@ function SideBySidePage() {
   useEffect(() => {
     if (!sessionId) return;
     return subscribeSideTurnSession(sessionId, (next, meta) => {
-      stateRef.current = next;
-      setState(next);
+      const normalized = normalizeSideState(next);
+      stateRef.current = normalized;
+      setState(normalized);
       setThinking(meta.thinking && !meta.streaming);
     });
   }, [sessionId]);
@@ -215,6 +219,18 @@ function SideBySidePage() {
   const withMatchConfirmAsk = (next: SideState): SideState => {
     // Match consent is handled in chat — user confirms with natural language, not inline buttons.
     return next;
+  };
+
+  const withUserInfoAsk = (next: SideState): SideState => {
+    const pending = next.pendingUserAsk;
+    if (!pending) return next;
+    return attachPendingUserAskToLastAssistant(
+      next,
+      toAgentAsk(pending, {
+        confirmLabel: t("ask.continue"),
+        cancelLabel: t("ask.cancel"),
+      }),
+    );
   };
 
   const attachHandoffConfirmAsk = (
@@ -269,6 +285,7 @@ function SideBySidePage() {
     preferredTrait?: string;
     stateOverride?: SideState;
     fromPublishForm?: boolean;
+    userAskResolution?: UserAskResolution | null;
   }): Promise<SideTurnOutput | undefined> => {
     if (!sessionId) return undefined;
     const baseState = opts.stateOverride ?? stateRef.current;
@@ -291,7 +308,6 @@ function SideBySidePage() {
     }
 
     let streaming = false;
-    let followUpStreaming = false;
 
     const commitWorking = (
       next: SideState,
@@ -316,19 +332,6 @@ function SideBySidePage() {
       if (mountedRef.current) setThinking(false);
     };
 
-    const applyFollowUpStreamText = (text: string, suggestions?: string[]) => {
-      if (!followUpStreaming) {
-        followUpStreaming = true;
-        working = beginAssistantStream(working);
-      }
-      working = patchLastAssistant(working, text);
-      if (suggestions?.length) {
-        working = { ...working, suggestions: suggestions.slice(0, 4) };
-      }
-      commitWorking(working, { thinking: false, streaming: true });
-      if (mountedRef.current) setThinking(false);
-    };
-
     const buildFinalState = (
       output: SideTurnOutput,
       handoffAttach?: {
@@ -338,22 +341,16 @@ function SideBySidePage() {
       },
     ): SideState => {
       const base = streaming || skipUserInState ? working : baseState;
-      const streamed = streaming || followUpStreaming;
-      const twoPhase = Boolean(output.followUpReply && streaming);
       let next = applyTurnResult(
         base,
         streaming || skipUserInState ? null : userTextForState ?? opts.userMessage ?? null,
         handoffAttach ? { ...output, handoffTo: null } : output,
-        streamed
+        streaming
           ? {
               skipUser: true,
-              skipAssistant:
-                twoPhase ||
-                Boolean(output.publishPlaceError) ||
-                Boolean(output.suppressAssistantReply),
+              skipAssistant: Boolean(output.publishPlaceError) || Boolean(output.suppressAssistantReply),
               replaceLastAssistant:
-                streaming && !output.followUpReply && !output.suppressAssistantReply,
-              twoPhaseStreamed: twoPhase,
+                streaming && !output.suppressAssistantReply && !output.publishPlaceError,
             }
           : output.publishPlaceError
             ? { skipUser: true, skipAssistant: true }
@@ -397,6 +394,7 @@ function SideBySidePage() {
         next = withBrowseConfirmAsk(next);
         next = withMatchConfirmAsk(next);
       }
+      next = withUserInfoAsk(next);
       next = withMatchChips(next, prevMatch);
       next = withNomatchChips(next);
       return next;
@@ -410,41 +408,22 @@ function SideBySidePage() {
         seed: opts.seed,
         preferredTrait: opts.preferredTrait ?? lastTrait() ?? undefined,
         state: working,
+        userAskResolution: opts.userAskResolution,
         onDelta: (text) => applyStreamText(text),
         onReady: ({ reply, suggestions }) => applyStreamText(reply, suggestions),
-        onMatching: () => {
-          publishSideTurnSession(sessionId, working, { thinking: true, streaming });
-          if (mountedRef.current) flushSync(() => setThinking(true));
-        },
         onMatchReady: (preview) => {
           let next = applyMatchPreview(working, preview);
           next = withNomatchChips(next);
           commitWorking(next, { thinking: false, streaming });
         },
-        onFollowUpDelta: (text) => {
-          if (!followUpStreaming) followUpStreaming = true;
-          applyFollowUpStreamText(text);
-        },
-        onFollowUpReady: ({ reply, suggestions }) => {
-          if (!followUpStreaming) followUpStreaming = true;
-          applyFollowUpStreamText(reply, suggestions);
-        },
       });
-
-      if (output.handoffTo === "matchmaker" && opts.userMessage) {
-        const next = buildFinalState(output, {
-          userMessage: opts.userMessage,
-          summary: output.handoffSummary || opts.userMessage,
-          transitionReply: output.transitionReply || output.reply,
-        });
-        commitWorking(next, { thinking: false, streaming: false });
-        return output;
-      }
 
       const next = buildFinalState(output);
       commitWorking(next, { thinking: false, streaming: false });
 
-      const wishPublished = Boolean(output.myIntentId && !baseState.myIntentId);
+      const wishPublished = Boolean(
+        output.myIntentId && output.myIntentId !== baseState.myIntentId,
+      );
       if (wishPublished) {
         void hydrateMyIntents();
       }
@@ -576,6 +555,16 @@ function SideBySidePage() {
     setState((s) => ({ ...s, nearMissIds: nears.map((n) => n.id) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
+
+  // Rematch hanging invite when due (every 12h). Matched persons stop rematch.
+  useEffect(() => {
+    if (!hydrated || !sessionReady) return;
+    const invite = state.hangingInvite;
+    if (!invite || state.currentPersonId) return;
+    if (Date.now() < invite.nextRematchAt) return;
+    void runTurn({ action: "rematch_hang", userTextForState: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, sessionReady, state.hangingInvite?.nextRematchAt, state.currentPersonId]);
 
   // Consume the homepage-seeded prompt automatically.
   useEffect(() => {
@@ -792,111 +781,58 @@ function SideBySidePage() {
     const trimmed = text.trim();
     if (!trimmed) return;
 
-    // Show the user message immediately — handoff detect is async and must not block UI.
+    const pending = stateRef.current.pendingUserAsk;
+    let skipped: UserAskResolution | undefined;
+    if (pending) {
+      skipped = skippedUserAskResolution(pending);
+      const cleared = clearPendingUserAskOnMessages(
+        stateRef.current,
+        pending.id,
+        t("ask.resolved_skipped"),
+      );
+      stateRef.current = cleared;
+      flushSync(() => setState(cleared));
+    }
+
+    // Show the user message immediately.
     const staged = appendUserMessage(stateRef.current, trimmed);
     stateRef.current = { ...staged, suggestions: [] };
     flushSync(() => setState(stateRef.current));
     setThinking(true);
 
-    // Mid-conversation switch to Matchmaker (async detect).
-    // Skip while lane is unset — user is still picking publish vs browse.
-    const skipHandoff =
-      staged.wishLane === "unset" ||
-      explicitActivityBuddySignal(trimmed) ||
-      isWishLaneSelectionMessage(trimmed);
-
-    void (async () => {
-      const count = staged.handoffCount ?? 0;
-      if (!skipHandoff && count < MAX_HANDOFF_COUNT && sessionId) {
-        try {
-          const det = await requestDetectHandoff({
-            lang: lang === "zh-CN" ? "zh-CN" : "en",
-            currentAgent: "sidebyside",
-            userMessage: trimmed,
-            history: staged.messages
-              .slice(0, -1)
-              .map((m) => ({ role: m.role, content: m.text })),
-            handoffCount: count,
-          });
-          if (det.needsClarify && det.clarifyReply.trim()) {
-            setState((s) => ({
-              ...s,
-              pendingHandoff: {
-                target: "matchmaker",
-                summary: det.summary || trimmed,
-                transitionReply: det.transitionReply,
-                userMessage: trimmed,
-                clarify: true,
-              },
-              messages: [
-                ...s.messages,
-                {
-                  id: uid(),
-                  role: "assistant",
-                  t: Date.now(),
-                  text: det.clarifyReply.trim(),
-                  ask: {
-                    kind: "confirm",
-                    id: "handoff-clarify-" + Date.now(),
-                    confirmLabel: t("intent.handoff_clarify_yes"),
-                    cancelLabel: t("intent.handoff_clarify_no"),
-                  },
-                },
-              ],
-            }));
-            setThinking(false);
-            return;
-          }
-          if (det.handoffTo === "matchmaker") {
-            setState((s) =>
-              attachHandoffConfirmAsk(s, {
-                userMessage: trimmed,
-                summary: det.summary || trimmed,
-                transitionReply: det.transitionReply,
-              }),
-            );
-            setThinking(false);
-            return;
-          }
-        } catch (e) {
-          console.warn("[side-by-side handoff detect]", e);
-        }
-      }
-
-      handleSendContinue(trimmed, { userShown: true });
-    })();
+    // Sub-agents are isolated — no mid-conversation switch to Matchmaker.
+    handleSendContinue(trimmed, { userShown: true, userAskResolution: skipped });
   }
 
-  function performHandoffToMatchmaker(opts: {
+  function performHandoffToMatchmaker(_opts: {
     userMessage: string;
     summary: string;
     transitionReply: string;
     revoke: boolean;
   }) {
-    if (!sessionId) return;
-    const cur = stateRef.current;
-    if (opts.revoke && cur.myIntentId) {
-      revokeAndReset(cur, sessionId);
-    }
-    const handoff: HandoffContext = {
-      from: "sidebyside",
-      parentSessionId: sessionId,
-      seed: opts.userMessage,
-      summary: opts.summary,
-      graftedMessages: graftFromSide(cur, opts.userMessage),
-      handoffCount: (cur.handoffCount ?? 0) + 1,
-      transitionReply:
-        opts.transitionReply || t("intent.transition_to_matchmaker"),
-    };
-    save({ ...cur, suspended: true, pendingHandoff: undefined }, sessionId);
-    const next = openMatchmakerFromHandoff(handoff, sessionId);
-    void navigate({ to: "/matchmaker", search: { session: next.id, focus: "" } });
+    // Disabled: agents are isolated. Resolve any legacy ask by nudging a new chat.
+    setState((s) => ({
+      ...s,
+      pendingHandoff: undefined,
+      messages: [
+        ...s.messages,
+        {
+          id: uid(),
+          role: "assistant",
+          t: Date.now(),
+          text: t("intent.handoff_disabled_new_chat"),
+        },
+      ],
+    }));
   }
 
-  function handleSendContinue(text: string, opts?: { userShown?: boolean }) {
+  function handleSendContinue(text: string, opts?: { userShown?: boolean; userAskResolution?: UserAskResolution }) {
     const cur = stateRef.current;
     // Route by keyword when we're in a match or chat context.
-    if (cur.stage === "published" && cur.matchIntentId) {
+    if (
+      (cur.stage === "published" || cur.stage === "introducing") &&
+      (cur.matchIntentId || cur.currentPersonId)
+    ) {
       const q = classify(text);
       if (q === "new_activity") return startNewActivity(text);
       if (q === "new_type") return askForTrait(text, opts?.userShown);
@@ -923,6 +859,7 @@ function SideBySidePage() {
       action: "message",
       userMessage: text,
       userTextForState: opts?.userShown ? null : text,
+      userAskResolution: opts?.userAskResolution,
       stateOverride: (() => {
         let next = opts?.userShown ? stateRef.current : cur;
         const lane = inferWishLaneFromText(text);
@@ -976,6 +913,24 @@ function SideBySidePage() {
   }
 
   function handleAskResolve(askId: string, value: string | null) {
+    if (isUserInfoAskId(askId)) {
+      const pending = stateRef.current.pendingUserAsk;
+      if (!pending || pending.id !== askId) return;
+      const resolution = resolutionFromCardValue(pending, value);
+      const label =
+        resolution.status === "confirmed" && resolution.value
+          ? resolution.value
+          : t("ask.resolved_cancelled");
+      const cleared = clearPendingUserAskOnMessages(stateRef.current, askId, label);
+      stateRef.current = cleared;
+      flushSync(() => setState(cleared));
+      void runTurn({
+        action: "resolve_user_ask",
+        userTextForState: null,
+        userAskResolution: resolution,
+      });
+      return;
+    }
     if (askId.startsWith("browse-")) {
       setState((s) => ({
         ...s,
@@ -1211,6 +1166,14 @@ function SideBySidePage() {
     });
   }
   function handleRevoke() {
+    if (stateRef.current.hangingInvite && !stateRef.current.currentPersonId) {
+      setState((s) => {
+        const next = revokeHangingInvite(s);
+        stateRef.current = next;
+        return next;
+      });
+      return;
+    }
     askRevokeConfirm();
   }
   function handleTryNearMiss(intentId: string) {
@@ -1234,28 +1197,11 @@ function SideBySidePage() {
     void runTurn({ action: "rematch", userTextForState: null, stateOverride: prepared });
   }
   function handleSkip() {
-    const cur = stateRef.current;
-    const mine = resolveMineForQueue(cur);
-    if ((cur.rankedQueue?.length ?? 0) > 0) {
-      const next = advanceSideQueueSilent(cur, "pass", mine);
-      stateRef.current = next;
-      setState(next);
-      save(next, sessionId);
-      return;
-    }
-    const prepared = prepareSkipMatch(cur);
-    setState(prepared);
-    void runTurn({ action: "skip_match", userTextForState: null, stateOverride: prepared });
+    void runTurn({ action: "skip_match", userTextForState: null });
   }
 
   function handleSeeNext() {
-    const cur = stateRef.current;
-    const mine = resolveMineForQueue(cur);
-    if ((cur.rankedQueue?.length ?? 0) === 0) return;
-    const next = advanceSideQueueSilent(cur, "see", mine);
-    stateRef.current = next;
-    setState(next);
-    save(next, sessionId);
+    void runTurn({ action: "see_next", userTextForState: null });
   }
 
   function handleSeePrev() {
@@ -1283,8 +1229,13 @@ function SideBySidePage() {
     setState(next);
     if (!text.trim()) return;
     setThinking(true);
-    const other = stateRef.current.matchIntentId ? getIntentById(stateRef.current.matchIntentId) : null;
-    const person = other ? getPersonById(other.ownerId) : null;
+    const other = stateRef.current.matchIntentId
+      ? getIntentById(stateRef.current.matchIntentId)
+      : null;
+    const person =
+      (stateRef.current.currentPersonId
+        ? getPersonById(stateRef.current.currentPersonId)
+        : null) ?? (other ? getPersonById(other.ownerId) : null);
     const fallback = t("intent.chat_fallback");
     const chatHistory = (stateRef.current.chatMessages ?? [])
       .filter((m) => m.kind !== "wish_card" && m.text.trim())
@@ -1344,20 +1295,23 @@ function SideBySidePage() {
     view === "match" ||
     view === "chat" ||
     view === "publish" ||
-    view === "mine";
+    view === "mine" ||
+    view === "hanging";
 
   const placeholderKey =
     state.stage === "chat"
       ? "intent.left_placeholder_chat"
-      : state.matchIntentId
+      : state.currentPersonId || state.matchIntentId
         ? "intent.left_placeholder_match"
-        : view === "publish"
-          ? "intent.left_placeholder_publish"
-          : view === "mine"
-            ? "intent.left_placeholder_published"
-            : state.stage === "published"
-              ? "intent.left_placeholder_nomatch"
-              : "chat.placeholder_first";
+        : view === "hanging"
+          ? "intent.left_placeholder_nomatch"
+          : view === "publish"
+            ? "intent.left_placeholder_publish"
+            : view === "mine"
+              ? "intent.left_placeholder_published"
+              : state.stage === "published" || state.stage === "hanging"
+                ? "intent.left_placeholder_nomatch"
+                : "chat.placeholder_first";
 
   return (
     <Workspace

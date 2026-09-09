@@ -60,6 +60,12 @@ export const people = pgTable("people", {
   data: jsonb("data").notNull().$type<Record<string, unknown>>(),
 });
 
+/** Curated high-quality candidates shown before the seeker's vitals profile is complete. */
+export const premiumPeople = pgTable("premium_people", {
+  id: text("id").primaryKey(),
+  data: jsonb("data").notNull().$type<Record<string, unknown>>(),
+});
+
 export const intents = pgTable(
   "intents",
   {

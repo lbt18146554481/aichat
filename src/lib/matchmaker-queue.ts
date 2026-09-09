@@ -2,7 +2,7 @@ import { recallCandidates } from "./match-recall";
 import type { MatchHardFilters } from "./match-types";
 import type { Person } from "./types";
 import type { UserUnderstanding } from "./understanding";
-export const MATCH_QUEUE_LIMIT = 15;
+export const MATCH_QUEUE_LIMIT = 10;
 
 export type QueueAdvanceMode = "pass" | "see";
 

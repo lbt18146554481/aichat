@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ArrowUp, UserSearch, Users } from "lucide-react";
-import type { AgentId } from "@/lib/seed";
+import { setSeed, type AgentId } from "@/lib/seed";
 import { AppChromeHeader } from "@/components/app-chrome-header";
 import { useAuth } from "@/lib/auth";
 import { normalizeLang } from "@/lib/lang";
@@ -26,6 +26,8 @@ import {
   type ReceptionState,
 } from "@/lib/sessions";
 import { useSessions } from "@/data/hooks";
+import { EMPTY as EMPTY_MATCHMAKER } from "@/lib/agents/matchmaker";
+import { EMPTY as EMPTY_SIDE } from "@/lib/agents/side-by-side";
 
 interface ReceptionMsg {
   role: "user" | "assistant";
@@ -35,19 +37,16 @@ interface ReceptionMsg {
 const AGENT_CHIPS: {
   id: AgentId;
   labelKey: string;
-  promptKey: string;
   Icon: typeof UserSearch;
 }[] = [
   {
     id: "matchmaker",
     labelKey: "home.chip.intro",
-    promptKey: "home.chip_prompt_matchmaker",
     Icon: UserSearch,
   },
   {
     id: "sidebyside",
     labelKey: "home.chip.together",
-    promptKey: "home.chip_prompt_sidebyside",
     Icon: Users,
   },
 ];
@@ -64,6 +63,7 @@ export function Home() {
   const persistSkip = useRef(true);
 
   const [text, setText] = useState("");
+  const [selected, setSelected] = useState<AgentId | null>(null);
   const [mounted, setMounted] = useState(false);
   const [threadReady, setThreadReady] = useState(false);
   const [receptionSessionId, setReceptionSessionId] = useState<string | null>(null);
@@ -230,11 +230,37 @@ export function Home() {
     void navigate({ to: "/matchmaker", search: { session: s.id } });
   }
 
-  async function submit(override?: string, opts?: { forcedTarget?: AgentId | null }) {
-    const body = (override ?? text).trim();
+  /** Chip selected: skip reception — open that agent with the user's message (example parity). */
+  function openAgentDirect(target: AgentId, body: string) {
+    setSeed(target, body);
+    setText("");
+    setSuggestions([]);
+    if (target === "sidebyside") {
+      const s = createSession("do_something", seedForNewSession({ userText: body }), {
+        ...EMPTY_SIDE,
+      });
+      setActiveThreadId(s.threadId);
+      void navigate({ to: "/side-by-side", search: { session: s.id, chatWith: "" } });
+      return;
+    }
+    const s = createSession("introduce", seedForNewSession({ userText: body }), {
+      ...EMPTY_MATCHMAKER,
+    });
+    setActiveThreadId(s.threadId);
+    void navigate({ to: "/matchmaker", search: { session: s.id } });
+  }
+
+  async function submit() {
+    const body = text.trim();
     if (!body || thinking) return;
     if (!user) {
       void navigate({ to: "/auth", search: { mode: "signin", redirect: "/" } });
+      return;
+    }
+
+    // Selected chip → message goes straight to that agent (no auto-send on chip click).
+    if (selected) {
+      openAgentDirect(selected, body);
       return;
     }
 
@@ -262,7 +288,7 @@ export function Home() {
         lang,
         userMessage: body,
         history: reception,
-        forcedTarget: opts?.forcedTarget ?? null,
+        forcedTarget: null,
         onDelta: (chunk) => {
           flushSync(() => {
             if (!streaming) {
@@ -419,24 +445,33 @@ export function Home() {
 
         <div className="px-2.5 md:px-3 pb-2.5 md:pb-3 pt-1 flex items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5 pl-1.5">
-            {AGENT_CHIPS.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                disabled={thinking}
-                onClick={() => {
-                  if (thinking) return;
-                  void submit(t(c.promptKey), { forcedTarget: c.id });
-                }}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[12.5px] text-muted-foreground hover:text-foreground hover:border-foreground/20 disabled:opacity-40 transition-colors"
-                suppressHydrationWarning
-              >
-                <c.Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
-                <span suppressHydrationWarning>
-                  {mounted ? t(c.labelKey) : "\u00A0"}
-                </span>
-              </button>
-            ))}
+            {AGENT_CHIPS.map((c) => {
+              const active = selected === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  disabled={thinking}
+                  onClick={() => {
+                    if (thinking) return;
+                    setSelected(active ? null : c.id);
+                  }}
+                  aria-pressed={active}
+                  className={[
+                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors disabled:opacity-40",
+                    active
+                      ? "border-foreground/25 bg-secondary text-foreground"
+                      : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/20",
+                  ].join(" ")}
+                  suppressHydrationWarning
+                >
+                  <c.Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
+                  <span suppressHydrationWarning>
+                    {mounted ? t(c.labelKey) : "\u00A0"}
+                  </span>
+                </button>
+              );
+            })}
           </div>
           <button
             type="button"

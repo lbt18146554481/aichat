@@ -65,6 +65,7 @@ export interface Intent {
   levelStrength?: import("./field-constraint").ConstraintStrength | null;
   placeStrength?: import("./field-constraint").ConstraintStrength | null;
   buddyGenderStrength?: import("./field-constraint").ConstraintStrength | null;
+  buddyAgeStrength?: import("./field-constraint").ConstraintStrength | null;
   /** User opted in to cross-city recall. */
   allowCrossCity?: boolean;
   /** Publisher demographics snapshot at publish time. */
@@ -680,6 +681,7 @@ export function publishMyIntent(input: {
   levelStrength?: import("./field-constraint").ConstraintStrength | null;
   placeStrength?: import("./field-constraint").ConstraintStrength | null;
   buddyGenderStrength?: import("./field-constraint").ConstraintStrength | null;
+  buddyAgeStrength?: import("./field-constraint").ConstraintStrength | null;
   buddyPrefRaw?: string;
   otherReqRaw?: string;
   buddyMatchQuery?: BuddyMatchQuery;
@@ -725,6 +727,7 @@ export function publishMyIntent(input: {
     levelStrength: input.levelStrength ?? null,
     placeStrength: input.placeStrength ?? null,
     buddyGenderStrength: input.buddyGenderStrength ?? null,
+    buddyAgeStrength: input.buddyAgeStrength ?? null,
     allowCrossCity: input.allowCrossCity ?? false,
     ownerSnapshot: input.ownerSnapshot,
     dateStart,

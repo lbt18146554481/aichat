@@ -6,6 +6,7 @@ import { usePerson } from "@/data/hooks";
 import { pickLocaleText, normalizeLang, type AppLang } from "@/lib/lang";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
 import type { MatchmakerState } from "@/lib/agents/matchmaker";
+import { pickBestMoment } from "@/lib/agents/matchmaker";
 import { get, sayHello } from "@/lib/connections";
 import type { Connection } from "@/lib/connection-types";
 import { useConnections, useProfile, useSavedPeople } from "@/data/hooks";
@@ -13,7 +14,6 @@ import { HelloComposer } from "@/components/hello-composer";
 import { isVitalsComplete } from "@/lib/profile";
 import { setFocusPerson } from "@/lib/seed";
 import { buildReasons, type Reason } from "@/lib/match-reasons";
-import type { UserUnderstanding } from "@/lib/understanding";
 import type { Person } from "@/lib/types";
 import {
   isPersonSaved,
@@ -21,21 +21,16 @@ import {
   savePerson,
 } from "@/lib/saved-people";
 import { PublicProfileSheet } from "@/components/public-profile-sheet";
-import { PersonPublicDetail } from "@/components/person-public-detail";
-import { AiPersonaBadge } from "@/components/ai-persona-badge";
 import { CanvasSwapShell } from "@/components/canvas/canvas-swap-shell";
-import { BookmarkPlus, BookmarkCheck, ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
+import { BookmarkPlus, BookmarkCheck, Eye } from "lucide-react";
 
 interface Props {
   state: MatchmakerState;
   sessionId: string;
-  canGoPrev?: boolean;
-  /** Explicit reject — adds to passedIds. */
-  onRejectPerson: () => void;
-  /** Browse next in queue without rejecting. */
+  /** Mark current as passed (score penalty on rematch) and advance. */
+  onPassAndNext: () => void;
+  /** Advance without passing — after hello / connected / faded. */
   onSeeNextPerson: () => void;
-  /** Step back to a previously browsed person. */
-  onSeePrevPerson: () => void;
 }
 
 // Per-person composer draft — survives a jump to /profile and back so the
@@ -98,14 +93,7 @@ function clearResumeHello() {
   }
 }
 
-export function IntroCanvas({
-  state,
-  sessionId,
-  canGoPrev = false,
-  onRejectPerson,
-  onSeeNextPerson,
-  onSeePrevPerson,
-}: Props) {
+export function IntroCanvas({ state, sessionId, onPassAndNext, onSeeNextPerson }: Props) {
   const { t, i18n } = useTranslation();
   const lang = normalizeLang(i18n.resolvedLanguage);
   const navigate = useNavigate();
@@ -122,13 +110,8 @@ export function IntroCanvas({
   const [draftPicked, setDraftPicked] = useState<string | null>(null);
   const [draftReply, setDraftReply] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const [helloSending, setHelloSending] = useState(false);
   const swapToken = `${person?.id ?? ""}:${state.canvasSwapKey ?? 0}`;
-
-  useEffect(() => {
-    setDetailsOpen(false);
-  }, [swapToken]);
 
   const restoredRef = useRef<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -317,6 +300,10 @@ export function IntroCanvas({
 
   const reasons =
     person && myProfile ? buildReasons(person, myProfile, state.understanding, lang) : [];
+  const agentReason = person
+    ? (state.queueReasons?.[person.id] ?? "").trim() || undefined
+    : undefined;
+  const bestMoment = person ? pickBestMoment(person, state.understanding) : null;
 
   function renderMoment(
     m: Person["moments"][number],
@@ -375,251 +362,220 @@ export function IntroCanvas({
           ref={rootRef}
           className="h-full px-6 sm:px-8 pt-8 sm:pt-10 pb-[max(env(safe-area-inset-bottom),1rem)]"
         >
-      <div className="mx-auto max-w-lg">
-        {/* Identity + match reasons */}
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={() => setProfileOpen(true)}
-            aria-label={t("intro.view_profile_of", { name: loc.name })}
-            className="group inline-flex flex-col items-center rounded-lg px-2 py-1 hover:bg-secondary/60 transition-colors"
-          >
-            <img
-              src={avatarUrl(person.id)}
-              alt={loc.name}
-              className="w-20 h-20 rounded-full border border-border bg-secondary"
-            />
-            <div className="mt-3 flex items-center justify-center gap-2 flex-wrap">
-              <h2 className="text-[19px] font-semibold tracking-tight text-foreground">
-                {loc.name}
-              </h2>
-              {isAiSeedPerson(personId) && <AiPersonaBadge />}
-            </div>
-            <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-              {personIdentitySubtitle(person, lang, t)}
-            </p>
-          </button>
+          <div className="mx-auto max-w-md">
+            {/* Header — left-aligned identity opens public profile */}
+            <button
+              type="button"
+              onClick={() => setProfileOpen(true)}
+              aria-label={t("intro.view_profile_of", { name: loc.name })}
+              className="group w-full flex items-start gap-4 text-left rounded-lg -mx-2 px-2 py-1 hover:bg-secondary/60 transition-colors"
+            >
+              <div className="relative shrink-0">
+                <img
+                  src={avatarUrl(person.id)}
+                  alt={loc.name}
+                  className="w-16 h-16 rounded-full border border-border bg-secondary"
+                />
+                <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full border border-border bg-background grid place-items-center opacity-70 group-hover:opacity-100 transition-opacity">
+                  <Eye className="w-3 h-3 text-muted-foreground" strokeWidth={1.75} />
+                </span>
+              </div>
+              <div className="flex-1 min-w-0 pt-1">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <h2 className="text-[19px] font-semibold tracking-tight text-foreground">
+                    {loc.name}
+                  </h2>
+                </div>
+                <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+                  {loc.occupation} · {loc.city}
+                </p>
+              </div>
+            </button>
 
-          {!composing && myProfile && reasons.length > 0 && (
-            <MatchReasonsBelowAvatar lang={lang} reasons={reasons} name={loc.name} />
-          )}
-        </div>
+            {!composing && (myProfile || agentReason) && (
+              <WhyThisPerson
+                person={person}
+                lang={lang}
+                reasons={reasons}
+                agentReason={agentReason}
+              />
+            )}
 
-        {/* One Moment — for hello compose flow only */}
-        {moments.length > 0 && composing && (
-          <div className="mt-5 space-y-4">
-            {composing && (
-              <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
-                {t("moment.compose_hint")}
+            {/* One Moment — skip when why-card already quotes them */}
+            {moments.length > 0 && (composing || (reasons.length === 0 && !agentReason)) && (
+              <div className="mt-5 space-y-4">
+                {composing && (
+                  <div className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
+                    {t("moment.compose_hint")}
+                  </div>
+                )}
+                {composing
+                  ? moments.map((m) => renderMoment(m, { clickable: true, mode: "select" }))
+                  : bestMoment &&
+                    renderMoment(bestMoment, { clickable: true, mode: "quoteAndCompose" })}
               </div>
             )}
-            {composing
-              ? moments.map((m) => renderMoment(m, { clickable: true, mode: "select" }))
-              : null}
-          </div>
-        )}
 
-        <div className="relative mt-8">
-          {!composing && (
-            <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 z-10">
-              <button
-                type="button"
-                onClick={() => setDetailsOpen((v) => !v)}
-                className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-border bg-background text-[12px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors shadow-sm"
-              >
-                {detailsOpen ? (
-                  <>
-                    <ChevronUp className="w-3.5 h-3.5" />
-                    {t("intro.collapse_details")}
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="w-3.5 h-3.5" />
-                    {t("intro.expand_details")}
-                  </>
-                )}
-              </button>
-            </div>
-          )}
+            {/* Primary actions — Say hello / Save / see someone else (pass) */}
+            <div className="mt-7 pt-5 border-t border-border">
+              {!conn && !composing && (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => requestSayHello()}
+                      disabled={helloSending}
+                      className="flex-1 sm:flex-none inline-flex items-center justify-center min-h-11 px-4 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      {t("connection.say_hello")}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!person) return;
+                        if (saved) removeSavedPerson(person.id);
+                        else savePerson(person.id, sessionId);
+                      }}
+                      aria-pressed={saved}
+                      className={[
+                        "inline-flex items-center justify-center gap-1.5 min-h-11 px-4 rounded-md border text-[13px] font-medium transition-colors",
+                        saved
+                          ? "border-foreground/70 bg-secondary text-foreground"
+                          : "border-border text-foreground/85 hover:bg-secondary",
+                      ].join(" ")}
+                    >
+                      {saved ? (
+                        <>
+                          <BookmarkCheck className="w-3.5 h-3.5" strokeWidth={1.75} />
+                          {t("connection.saved")}
+                        </>
+                      ) : (
+                        <>
+                          <BookmarkPlus className="w-3.5 h-3.5" strokeWidth={1.75} />
+                          {t("connection.save")}
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={onPassAndNext}
+                      className="inline-flex items-center justify-center min-h-11 px-3 rounded-md text-[13px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    >
+                      {t("intro.see_someone_else")}
+                    </button>
+                  </div>
+                </div>
+              )}
 
-          <div className="border-t border-border pt-6">
-            {detailsOpen && !composing && (
-              <PersonPublicDetail person={person} lang={lang} />
-            )}
-
-            {/* Primary closed-loop actions */}
-            {!conn && !composing && (
-              <div className={detailsOpen ? "mt-6" : ""}>
-                <div className="flex flex-nowrap items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  <button
-                    onClick={() => requestSayHello()}
-                    disabled={helloSending}
-                    className="shrink-0 inline-flex items-center justify-center min-h-10 px-4 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
-                  >
-                    {t("connection.say_hello")}
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!person) return;
-                      if (saved) removeSavedPerson(person.id);
-                      else savePerson(person.id, sessionId);
+              {!conn && composing && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between -mx-2">
+                    <button
+                      type="button"
+                      onClick={handleCancel}
+                      className="inline-flex items-center min-h-11 px-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {t("intro.back_to_actions")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!person) return;
+                        if (!saved) savePerson(person.id, sessionId);
+                        handleCancel();
+                      }}
+                      className="inline-flex items-center gap-1.5 min-h-11 px-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <BookmarkPlus className="w-3 h-3" strokeWidth={1.75} />
+                      {t("connection.save_and_later")}
+                    </button>
+                  </div>
+                  <HelloComposer
+                    moments={moments}
+                    lang={lang}
+                    initialPicked={draftPicked}
+                    initialReply={draftReply}
+                    onDraftChange={(picked, reply) => {
+                      setDraftPicked(picked);
+                      setDraftReply(reply);
                     }}
-                    aria-pressed={saved}
-                    className={[
-                      "shrink-0 inline-flex items-center justify-center gap-1.5 min-h-10 px-4 rounded-md border text-[13px] font-medium transition-colors",
-                      saved
-                        ? "border-foreground/70 bg-secondary text-foreground"
-                        : "border-border text-foreground/85 hover:bg-secondary",
-                    ].join(" ")}
-                  >
-                    {saved ? (
-                      <>
-                        <BookmarkCheck className="w-3.5 h-3.5" strokeWidth={1.75} />
-                        {t("connection.saved")}
-                      </>
-                    ) : (
-                      <>
-                        <BookmarkPlus className="w-3.5 h-3.5" strokeWidth={1.75} />
-                        {t("connection.save")}
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onRejectPerson}
-                    className="shrink-0 inline-flex items-center justify-center min-h-10 px-3 rounded-md border border-red-500/45 text-[13px] font-medium text-red-600 hover:text-red-700 hover:bg-red-500/10 transition-colors"
-                  >
-                    {t("intro.unfollow")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onSeePrevPerson}
-                    disabled={!canGoPrev}
-                    className="shrink-0 inline-flex items-center justify-center gap-1 min-h-10 px-3 rounded-md border border-border text-[13px] text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                    {t("intro.browse_prev")}
-                  </button>
+                    onSubmit={handleHello}
+                    onCancel={handleCancel}
+                  />
+                </div>
+              )}
+
+              {helloSending && (
+                <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-[12.5px] text-muted-foreground">
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse" />
+                  {t("persona.hello_sending")}
+                </div>
+              )}
+
+              {conn?.status === "sent" && !helloSending && (
+                <div className="space-y-4">
+                  <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-[12.5px] text-muted-foreground">
+                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+                    {t("connection.delivered")}
+                  </div>
+                  {conn.fromMe && (
+                    <YourHelloRecap fromMe={conn.fromMe} person={person} lang={lang} />
+                  )}
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
+                    <button
+                      onClick={onSeeNextPerson}
+                      className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity"
+                    >
+                      {t("intro.next_person_after")}
+                    </button>
+                    <Link
+                      to="/connections"
+                      search={{ open: person.id }}
+                      className="px-3 py-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {t("intro.check_progress")}
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {conn?.status === "connected" && (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Link
+                      to="/connections"
+                      search={{ open: person.id }}
+                      className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity"
+                    >
+                      {t("connection.open_conversation")}
+                    </Link>
+                    <button
+                      onClick={onSeeNextPerson}
+                      className="px-3 py-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {t("intro.while_you_chat")}
+                    </button>
+                  </div>
+                  <span className="block text-[12px] text-muted-foreground">
+                    {isAiSeedPerson(personId)
+                      ? t("persona.connected_note")
+                      : t("connection.connected_note")}
+                  </span>
+                </div>
+              )}
+
+              {conn?.status === "faded" && (
+                <div className="space-y-2">
+                  <p className="text-[12.5px] text-muted-foreground leading-snug">
+                    {t("intro.faded_note")}
+                  </p>
                   <button
                     onClick={onSeeNextPerson}
-                    className="shrink-0 inline-flex items-center justify-center gap-1 min-h-10 px-3 rounded-md border border-border text-[13px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity"
                   >
-                    {t("intro.browse_next")}
-                    <ChevronRight className="w-3.5 h-3.5" />
+                    {t("intro.see_someone_else")}
                   </button>
                 </div>
-              </div>
-            )}
-
-          {!conn && composing && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between -mx-2">
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="inline-flex items-center min-h-11 px-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {t("intro.back_to_actions")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!person) return;
-                    if (!saved) savePerson(person.id, sessionId);
-                    handleCancel();
-                  }}
-                  className="inline-flex items-center gap-1.5 min-h-11 px-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <BookmarkPlus className="w-3 h-3" strokeWidth={1.75} />
-                  {t("connection.save_and_later")}
-                </button>
-              </div>
-              <HelloComposer
-                moments={moments}
-                lang={lang}
-                initialPicked={draftPicked}
-                initialReply={draftReply}
-                onDraftChange={(picked, reply) => {
-                  setDraftPicked(picked);
-                  setDraftReply(reply);
-                }}
-                onSubmit={handleHello}
-                onCancel={handleCancel}
-              />
+              )}
             </div>
-          )}
-
-          {helloSending && (
-            <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-[12.5px] text-muted-foreground">
-              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse" />
-              {t("persona.hello_sending")}
-            </div>
-          )}
-
-          {conn?.status === "sent" && !helloSending && (
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-[12.5px] text-muted-foreground">
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
-                {t("connection.delivered")}
-              </div>
-              {conn.fromMe && <YourHelloRecap fromMe={conn.fromMe} person={person} lang={lang} />}
-              <div className="flex flex-wrap items-center gap-3 pt-1">
-                <button
-                  onClick={onSeeNextPerson}
-                  className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity"
-                >
-                  {t("intro.next_person_after")}
-                </button>
-                <Link
-                  to="/connections"
-                  search={{ open: person.id }}
-                  className="px-3 py-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {t("intro.check_progress")}
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {conn?.status === "connected" && (
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <Link
-                  to="/connections"
-                  search={{ open: person.id }}
-                  className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity"
-                >
-                  {t("connection.open_conversation")}
-                </Link>
-                <button
-                  onClick={onSeeNextPerson}
-                  className="px-3 py-2 rounded-md text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {t("intro.while_you_chat")}
-                </button>
-              </div>
-              <span className="block text-[12px] text-muted-foreground">
-                {isAiSeedPerson(personId) ? t("persona.connected_note") : t("connection.connected_note")}
-              </span>
-            </div>
-          )}
-
-          {conn?.status === "faded" && (
-            <div className="space-y-2">
-              <p className="text-[12.5px] text-muted-foreground leading-snug">
-                {t("intro.faded_note")}
-              </p>
-              <button
-                onClick={onSeeNextPerson}
-                className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity"
-              >
-                {t("intro.see_someone_else")}
-              </button>
-            </div>
-          )}
-        </div>
-        </div>
-        </div>
+          </div>
         </div>
       </CanvasSwapShell>
       <PublicProfileSheet person={person} open={profileOpen} onOpenChange={setProfileOpen} />
@@ -662,29 +618,19 @@ function YourHelloRecap({
   );
 }
 
-// ---- Match reasons (compact, below avatar) ------------------------------
-
-function personIdentitySubtitle(
-  person: Person,
-  lang: AppLang,
-  t: ReturnType<typeof useTranslation>["t"],
-): string {
-  const loc = localized(person, lang);
-  const gender = t(`profile.gender.${person.gender}`);
-  const age = lang === "zh-CN" ? `${person.age}岁` : String(person.age);
-  return [gender, age, loc.city, loc.occupation].join(" · ");
-}
-
-function MatchReasonsBelowAvatar({
+function WhyThisPerson({
+  person,
   lang,
   reasons,
-  name,
+  agentReason,
 }: {
+  person: Person;
   lang: AppLang;
   reasons: Reason[];
-  name: string;
+  agentReason?: string;
 }) {
   const { t } = useTranslation();
+  const name = localized(person, lang).name;
 
   function reasonText(r: Reason): string {
     if (r.kind === "favorite") return t("why.same_favorite", { title: r.title });
@@ -695,26 +641,27 @@ function MatchReasonsBelowAvatar({
   }
 
   const lines: string[] = [];
+  if (agentReason) lines.push(agentReason);
   for (const r of reasons) {
     const text = reasonText(r);
     if (!lines.includes(text)) lines.push(text);
   }
+
   if (lines.length === 0) return null;
 
   return (
-    <div className="mt-4 text-center rounded-xl border border-border bg-secondary/35 px-4 py-3">
+    <section className="mt-5 rounded-xl border border-border bg-secondary/35 px-4 py-3.5">
       <div className="text-[10px] uppercase tracking-[0.16em] font-mono text-muted-foreground">
         {t("why.title", { name })}
       </div>
-      <ul className="mt-2 space-y-1.5">
+      <ul className="mt-2.5 space-y-2">
         {lines.map((line, i) => (
-          <li key={i} className="text-[13px] leading-relaxed text-foreground">
-            {line}
+          <li key={i} className="flex gap-2.5">
+            <span className="mt-[8px] w-1 h-1 rounded-full bg-primary/70 shrink-0" />
+            <p className="text-[13.5px] leading-relaxed text-foreground">{line}</p>
           </li>
         ))}
       </ul>
-    </div>
+    </section>
   );
 }
-
-// ---- Why this person (legacy export kept for tests if any) ----------------

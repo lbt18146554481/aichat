@@ -8,7 +8,6 @@ import {
   matchmakerPrefsReady,
   matchmakerShouldSkipConfirm,
   matchmakerWantsImmediateMatch,
-  MAX_CLARIFY_TURNS,
   type MatchmakerTurnInput,
 } from "@/lib/matchmaker-llm.server";
 import { EMPTY_HARD_FILTERS } from "@/lib/match-types";
@@ -41,6 +40,16 @@ describe("matchmaker match confirm", () => {
       matchmakerPrefsReady(
         baseInput({
           hardFilters: { ...EMPTY_HARD_FILTERS, cities: ["上海"] },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("treats soft prefs as ready (deliver-now)", () => {
+    expect(
+      matchmakerPrefsReady(
+        baseInput({
+          understanding: { positive: ["性格开朗"], negative: [], notes: [] },
         }),
       ),
     ).toBe(true);
@@ -119,13 +128,12 @@ describe("matchmaker match confirm", () => {
     ).toBe(true);
   });
 
-  it("counts clarify assistant turns before first intro", () => {
-    const history = Array.from({ length: MAX_CLARIFY_TURNS }, (_, i) => ({
+  it("never forces clarify-cap confirm (quota removed)", () => {
+    const history = Array.from({ length: 8 }, (_, i) => ({
       role: "assistant" as const,
       content: `追问 ${i + 1}`,
     }));
-    expect(countClarifyAssistantTurns(baseInput({ history }))).toBe(MAX_CLARIFY_TURNS);
-    expect(isClarifyCapReached(baseInput({ history }))).toBe(true);
-    expect(isClarifyCapReached(baseInput({ history, shownIds: ["isa"] }))).toBe(false);
+    expect(countClarifyAssistantTurns(baseInput({ history }))).toBe(8);
+    expect(isClarifyCapReached(baseInput({ history }))).toBe(false);
   });
 });

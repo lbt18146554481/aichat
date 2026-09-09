@@ -164,24 +164,21 @@ describe("recallCandidates", () => {
     expect(flex.filteredCount).toBeGreaterThanOrEqual(hard.filteredCount);
   });
 
-  it("scores structured soft prefs without requiring hard age/gender", () => {
-    const result = recallCandidates({
-      understanding: {
-        positive: [],
-        negative: [],
-        notes: [],
-        traits: ["安静"],
-        interests: ["读书"],
-        occupation: ["设计师"],
-        pace: [],
-      },
+  it("passedIds soft-penalize without hard-excluding", () => {
+    const opts = {
+      understanding: { positive: [], negative: [], notes: [] },
       hardFilters: { ...EMPTY_HARD_FILTERS },
-      blockedIds: [],
-      shownIds: [],
-      passedIds: [],
+      blockedIds: [] as string[],
+      shownIds: [] as string[],
       pool: TEST_PEOPLE_POOL,
-      limit: 5,
-    });
-    expect(result.candidates.length).toBeGreaterThan(0);
+      limit: 50,
+    };
+    const base = recallCandidates({ ...opts, passedIds: [] });
+    const withPass = recallCandidates({ ...opts, passedIds: ["theo"] });
+    expect(withPass.filteredCount).toBe(base.filteredCount);
+    expect(withPass.candidates.some((c) => c.id === "theo")).toBe(true);
+    const baseTheo = base.candidates.find((c) => c.id === "theo")!.score;
+    const passTheo = withPass.candidates.find((c) => c.id === "theo")!.score;
+    expect(passTheo).toBe(baseTheo - 6);
   });
 });

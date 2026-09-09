@@ -29,6 +29,10 @@ function toAuthError(e: unknown): never {
     } catch (inner) {
       if (inner === e) throw e;
     }
+    const msg = e.message || "";
+    if (/ECONNREFUSED|ENOTFOUND|connect ECONN|database|postgres/i.test(msg)) {
+      fail("db_unavailable", msg);
+    }
   }
   fail("server_error", e instanceof Error ? e.message : String(e));
 }

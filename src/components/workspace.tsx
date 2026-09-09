@@ -153,6 +153,8 @@ export function Workspace({
   }
   const activeAsk = activeAskMsgIndex >= 0 ? messages[activeAskMsgIndex].ask : undefined;
   const activeAskId = activeAsk?.id;
+  /** ask_user_info cards stay open while the user may type past them (treated as skipped/empty). */
+  const askLocksComposer = Boolean(activeAskId && !activeAskId.startsWith("user-info-"));
 
   useEffect(() => {
     if (!activeAskId) return;
@@ -222,10 +224,10 @@ export function Workspace({
                   key={q.key}
                   data-testid="agent-suggestion"
                   type="button"
-                  disabled={thinking || composerDisabled || !!activeAsk}
+                  disabled={thinking || composerDisabled || askLocksComposer}
                   onClick={(e) => {
                     e.preventDefault();
-                    if (thinking || composerDisabled || activeAsk) return;
+                    if (thinking || composerDisabled || askLocksComposer) return;
                     setInput(q.label);
                     requestAnimationFrame(() => {
                       const el = inputRef.current;
@@ -247,9 +249,9 @@ export function Workspace({
             value={input}
             onChange={setInput}
             onSend={submit}
-            disabled={thinking || composerDisabled || !!activeAsk}
+            disabled={thinking || composerDisabled || askLocksComposer}
             placeholder={
-              activeAsk ? t("ask.composer_locked") : (placeholderOverride ?? t(placeholderKey))
+              askLocksComposer ? t("ask.composer_locked") : (placeholderOverride ?? t(placeholderKey))
             }
           />
         </div>

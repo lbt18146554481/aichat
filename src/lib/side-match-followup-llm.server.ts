@@ -66,7 +66,7 @@ function useTemplateIntro(
   return crossCityMatch || (matchQuality != null && matchQuality !== "exact");
 }
 
-async function streamFollowup(
+async function streamIntro(
   system: string,
   user: string,
   fallback: string,
@@ -96,8 +96,8 @@ async function streamFollowup(
   return parsed?.reply?.trim() || fallback;
 }
 
-/** Second beat after server recall — introduce match or explain empty pool. */
-export async function runSideMatchFollowUp(opts: {
+/** Single-beat match intro (Matchmaker-style) — one reply after recall. */
+export async function runSideMatchIntroReply(opts: {
   lang: SideLang;
   wishLane?: WishLane;
   mine: Intent;
@@ -115,16 +115,16 @@ export async function runSideMatchFollowUp(opts: {
   if (opts.recallEmpty || !opts.otherId) {
     const fallback = emptyFallback(rawWish, opts.lang, opts.wishLane);
     const system = isZh
-      ? `你是 Maitri Side by Side 的第二拍回复。用户刚才已收到「我去看看」的第一拍；现在匹配已完成，池子里没有人符合硬条件。
-写 2-4 句简体中文：明确说暂时还没有合适的活动心愿/搭子（禁止说「开始找/正在找」）；${isBrowse(opts.wishLane) ? "不要说「心愿已发布/记下」——用户只是在浏览搜索。" : "可复述心愿；"}自然建议放宽时间/活动/城市或改发心愿。事实与【统计】一致。禁止「新朋友」「认识新朋友」。${selfVoiceRule(true)}
+      ? `你是 Maitri Side by Side。本轮已完成池子搜索，没有符合条件的活动心愿/搭子。
+写 2-4 句简体中文：明确说暂时还没有合适的（禁止说「开始找/正在找」）；${isBrowse(opts.wishLane) ? "不要说「心愿已发布/记下」——用户只是在浏览搜索。" : "可复述心愿；"}自然建议放宽时间/活动/城市或改发心愿。事实与【统计】一致。禁止「新朋友」「认识新朋友」。${selfVoiceRule(true)}
 JSON：{"reply":"..."}`
-      : `You are Maitri Side by Side — second beat after matching. Pool is empty.
+      : `You are Maitri Side by Side. Search finished — pool is empty.
 2-4 sentences: clearly no match yet (never say "starting to look"); ${isBrowse(opts.wishLane) ? "do not say wish published/saved — user was only browsing." : "recap wish if helpful;"} suggest loosening filters or posting a wish. Never say "meet someone new". ${selfVoiceRule(false)}
 JSON: {"reply":"..."}`;
     const user = isZh
       ? `【搜索条件/心愿】${rawWish || "（未填）"}\n【模式】${isBrowse(opts.wishLane) ? "浏览池子" : "已发布心愿"}\n【放宽提示】${opts.relaxHints.join(" ") || "无"}`
       : `[Filters/wish] ${rawWish || "(empty)"}\n[Mode] ${isBrowse(opts.wishLane) ? "browse pool" : "published wish"}\n[Relax hints] ${opts.relaxHints.join(" ") || "none"}`;
-    return streamFollowup(system, user, fallback, opts.onDelta);
+    return streamIntro(system, user, fallback, opts.onDelta);
   }
 
   const other = getIntentById(opts.otherId);
@@ -134,6 +134,7 @@ JSON: {"reply":"..."}`;
 
   const fallback = introFallback(other, opts.matchReason, opts.crossCityMatch, opts.lang);
   if (useTemplateIntro(opts.crossCityMatch, opts.matchQuality)) {
+    opts.onDelta?.(fallback);
     return fallback;
   }
 
@@ -142,10 +143,11 @@ JSON: {"reply":"..."}`;
   const city = isZh ? other.city_zh || other.city : other.city || other.ownerCity;
 
   const system = isZh
-    ? `你是 Maitri Side by Side 的第二拍回复。第一拍已说「我去看看」；现在匹配完成，请介绍这位搭子/池子里的活动心愿。
+    ? `你是 Maitri Side by Side。本轮已搜完池子，请用**这一条回复**介绍匹配到的搭子/活动心愿（不要先说「我去找」再另发一条）。
 写 3-5 句简体中文：自然介绍对方想做什么、为什么可能合适（用【匹配理由】，勿编造）；若跨城必须点明。邀请用户看右边卡片。禁止「MATCH FOUND」式播报；禁止「新朋友」「认识新朋友」——用「搭子」「活动心愿」「池子里的人」。${selfVoiceRule(true)}
 JSON：{"reply":"..."}`
-    : `Second beat — introduce the matched buddy / wish from the pool. 3-5 warm sentences: their wish, why it fits (use [Match reason]), cross-city if needed. Invite them to the card on the right. Never say "meet someone new" — say buddy / activity wish / person in the pool. ${selfVoiceRule(false)}
+    : `You are Maitri Side by Side. Search finished — introduce the matched buddy / wish in **this one reply** (do not say "I'll look" then send a second message).
+3-5 warm sentences: their wish, why it fits (use [Match reason]), cross-city if needed. Invite them to the card on the right. Never say "meet someone new" — say buddy / activity wish / person in the pool. ${selfVoiceRule(false)}
 JSON: {"reply":"..."}`;
 
   const user = isZh
@@ -162,30 +164,8 @@ JSON: {"reply":"..."}`;
 [Quality] ${opts.matchQuality ?? "exact"}
 [Cross-city] ${opts.crossCityMatch ? "yes" : "no"}`;
 
-  return streamFollowup(system, user, fallback, opts.onDelta);
+  return streamIntro(system, user, fallback, opts.onDelta);
 }
 
-export function sideMatchAckFallback(
-  lang: SideLang,
-  rawWish: string,
-  wishLane?: WishLane,
-): string {
-  if (zh(lang)) {
-    if (isBrowse(wishLane)) {
-      return rawWish
-        ? `好的，条件记下了：${rawWish}。我去池子里看看有没有合适的活动心愿。`
-        : "好的，条件记下了。我去池子里看看有没有合适的活动心愿。";
-    }
-    return rawWish
-      ? `好的，心愿记下了：${rawWish}。我去池子里看看有没有合适的搭子。`
-      : "好的，心愿记下了。我去池子里看看有没有合适的搭子。";
-  }
-  if (isBrowse(wishLane)) {
-    return rawWish
-      ? `Got it — filters saved: ${rawWish}. Let me check the wish pool.`
-      : "Got it — filters saved. Let me check the wish pool.";
-  }
-  return rawWish
-    ? `Got it — wish saved: ${rawWish}. Let me check the pool for a good buddy.`
-    : "Got it — wish saved. Let me check the pool for a good buddy.";
-}
+/** @deprecated Use runSideMatchIntroReply — kept as alias during rename. */
+export const runSideMatchFollowUp = runSideMatchIntroReply;

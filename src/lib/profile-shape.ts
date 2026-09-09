@@ -77,9 +77,21 @@ export function toggleHidden(p: Profile, key: string): Profile {
   return { ...p, hidden: cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key] };
 }
 
+export function isVitalsComplete(p: Profile | null | undefined): boolean {
+  if (!p) return false;
+  return (
+    p.name.trim().length > 0 &&
+    typeof p.age === "number" &&
+    p.age >= 18 &&
+    p.city.trim().length > 0 &&
+    p.occupation.trim().length > 0 &&
+    p.gender !== ""
+  );
+}
+
 export function isProfileComplete(p: Profile | null | undefined): boolean {
   if (!p) return false;
-  if (!p.name.trim() || !p.city.trim()) return false;
+  if (!isVitalsComplete(p)) return false;
   const moments = (p.moments ?? []).filter((m) => m.answer.trim().length > 0);
   const favorites = (p.favorites ?? []).filter((f) => f.title.trim() && f.why.trim());
   return moments.length >= MIN_MOMENTS && favorites.length >= MIN_FAVORITES;

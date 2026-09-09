@@ -2,7 +2,7 @@ import "dotenv/config";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { eq, inArray } from "drizzle-orm";
-import { inviteCodes, people, intents } from "../src/lib/db/schema";
+import { inviteCodes, people, premiumPeople, intents } from "../src/lib/db/schema";
 
 async function main() {
   const url = process.env.DATABASE_URL;
@@ -35,15 +35,23 @@ async function main() {
 
   const seedPeople = buildSeedPeople();
   for (const person of seedPeople) {
+    const row = { id: person.id, data: person as unknown as Record<string, unknown> };
     await db
       .insert(people)
-      .values({ id: person.id, data: person as unknown as Record<string, unknown> })
+      .values(row)
       .onConflictDoUpdate({
         target: people.id,
-        set: { data: person as unknown as Record<string, unknown> },
+        set: { data: row.data },
+      });
+    await db
+      .insert(premiumPeople)
+      .values(row)
+      .onConflictDoUpdate({
+        target: premiumPeople.id,
+        set: { data: row.data },
       });
   }
-  console.log(`seeded ${seedPeople.length} people`);
+  console.log(`seeded ${seedPeople.length} people (full + premium)`);
   console.log("seed person ids:", SEED_PERSON_IDS.join(", "));
   invalidatePeopleCache();
 

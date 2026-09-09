@@ -49,6 +49,7 @@ export interface WishDraft {
   placeStrength?: import("./field-constraint").ConstraintStrength | null;
   /** Constraint strength for buddy gender allow-list. */
   buddyGenderStrength?: import("./field-constraint").ConstraintStrength | null;
+  buddyAgeStrength?: import("./field-constraint").ConstraintStrength | null;
   /** @deprecated prefer whenStrength === "hard" */
   strictWhen?: boolean;
   /** @deprecated prefer levelStrength === "hard" */

@@ -246,6 +246,10 @@ export interface SideState {
   /** Pending user-supplied wish text stashed while we ask for missing profile
    *  fields (currently: city). Replayed via submitPrompt after resolution. */
   pendingWishText?: string;
+  /** Demo-only flag set from the `?demo=nomatch` URL param: forces the very
+   *  next rematch to land on the no-match view, then clears itself. Never set
+   *  in normal use. */
+  demoNoMatch?: boolean;
 }
 
 export const EMPTY: SideState = {
@@ -279,6 +283,23 @@ export function uid(): string {
 function rematchAfterUpdate(state: SideState, intentId: string): SideState {
   const mine = getIntentById(intentId);
   if (!mine) return state;
+  // Demo flag: suppress this one rematch so the no-match view renders, then
+  // clear itself — every later interaction (refine, near-miss, revisit)
+  // matches normally.
+  if (state.demoNoMatch) {
+    const nears = findNearMisses(mine, {
+      exclude: state.triedIntentIds ?? [],
+      excludeOwnerIds: state.triedOwnerIds ?? [],
+    });
+    return {
+      ...state,
+      stage: "published",
+      matchIntentId: null,
+      matchQuality: undefined,
+      nearMissIds: nears.map((n) => n.id),
+      demoNoMatch: undefined,
+    };
+  }
   const pick = pickNextCandidate(mine, {
     exclude: state.triedIntentIds ?? [],
     excludeOwnerIds: state.triedOwnerIds ?? [],
@@ -337,6 +358,8 @@ export function submitPrompt(
     truncated: !!parsed.truncated,
     messages: state.messages,
     myIntentId: mine.id,
+    // A pending demo flag carries into the publish rematch exactly once.
+    ...(state.demoNoMatch ? { demoNoMatch: true } : {}),
   };
   return rematchAfterUpdate(base, mine.id);
 }
