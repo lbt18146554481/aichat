@@ -29,8 +29,9 @@ git fetch --prune origin "$BRANCH"
 git checkout "$BRANCH"
 git reset --hard "origin/${BRANCH}"
 
-# Prefer wss + Secure cookies when Let's Encrypt cert exists for this host
-if [[ -d "/etc/letsencrypt/live/${PUBLIC_HOST}" ]]; then
+# Prefer wss + Secure cookies when Let's Encrypt cert exists for this host.
+# live/ is often root-only — use sudo test.
+if sudo test -d "/etc/letsencrypt/live/${PUBLIC_HOST}"; then
   if [[ -f .env ]]; then
     grep -qE '^VITE_WS_URL=' .env \
       && sed -i "s|^VITE_WS_URL=.*|VITE_WS_URL=wss://${PUBLIC_HOST}/ws|" .env \
