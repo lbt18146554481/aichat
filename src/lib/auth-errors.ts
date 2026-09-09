@@ -11,7 +11,21 @@ export function authErrorMessage(t: TFunction, code: string): string {
 
 /** Normalize RPC / server-fn failures into AuthError with a stable code. */
 export function asAuthError(e: unknown): AuthError {
-  if (e instanceof AuthError) return e;
+  if (e instanceof AuthError) {
+    // Message may already be JSON from server-fn transport
+    try {
+      const parsed = JSON.parse(e.message) as Record<string, unknown>;
+      if (typeof parsed.code === "string") {
+        return new AuthError(
+          parsed.code,
+          typeof parsed.message === "string" ? parsed.message : parsed.code,
+        );
+      }
+    } catch {
+      /* plain AuthError */
+    }
+    return e;
+  }
 
   if (e && typeof e === "object") {
     const any = e as Record<string, unknown>;

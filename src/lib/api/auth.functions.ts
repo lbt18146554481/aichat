@@ -14,9 +14,23 @@ import { EMPTY_PROFILE } from "../profile-shape";
  */
 export const INVITE_CODES_UNLIMITED_REUSE = true;
 
+/** Server-fn transport often strips custom Error fields — embed code in message JSON. */
+function fail(code: string, message: string): never {
+  throw new Error(JSON.stringify({ code, message }));
+}
+
 function toAuthError(e: unknown): never {
-  if (e instanceof AuthError) throw e;
-  throw new AuthError("server_error", e instanceof Error ? e.message : String(e));
+  if (e instanceof AuthError) fail(e.code, e.message);
+  // Already serialized by fail()
+  if (e instanceof Error) {
+    try {
+      const parsed = JSON.parse(e.message) as { code?: string };
+      if (typeof parsed.code === "string") throw e;
+    } catch (inner) {
+      if (inner === e) throw e;
+    }
+  }
+  fail("server_error", e instanceof Error ? e.message : String(e));
 }
 
 export const meFn = createServerFn({ method: "GET" }).handler(async (): Promise<AuthUser | null> => {
