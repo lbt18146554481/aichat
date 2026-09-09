@@ -20,6 +20,8 @@ import { Route as SessionsRouteImport } from './routes/sessions'
 import { Route as SideBySideRouteImport } from './routes/side-by-side'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WishesRouteImport } from './routes/wishes'
+import { Route as AuthIndexRouteImport } from './routes/auth.index'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as WishesIndexRouteImport } from './routes/wishes.index'
 import { Route as WishesWishIdRouteImport } from './routes/wishes.$wishId'
 
@@ -78,6 +80,16 @@ const WishesRoute = WishesRouteImport.update({
   path: '/wishes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthIndexRoute = AuthIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => AuthRoute,
+} as any)
 const WishesIndexRoute = WishesIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -91,7 +103,7 @@ const WishesWishIdRoute = WishesWishIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/me': typeof MeRoute
@@ -101,12 +113,13 @@ export interface FileRoutesByFullPath {
   '/side-by-side': typeof SideBySideRoute
   '/terms': typeof TermsRoute
   '/wishes': typeof WishesRouteWithChildren
+  '/auth/callback': typeof AuthCallbackRoute
   '/wishes/$wishId': typeof WishesWishIdRoute
+  '/auth/': typeof AuthIndexRoute
   '/wishes/': typeof WishesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
   '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/me': typeof MeRoute
@@ -115,13 +128,15 @@ export interface FileRoutesByTo {
   '/sessions': typeof SessionsRoute
   '/side-by-side': typeof SideBySideRoute
   '/terms': typeof TermsRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/wishes/$wishId': typeof WishesWishIdRoute
+  '/auth': typeof AuthIndexRoute
   '/wishes': typeof WishesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/me': typeof MeRoute
@@ -131,7 +146,9 @@ export interface FileRoutesById {
   '/side-by-side': typeof SideBySideRoute
   '/terms': typeof TermsRoute
   '/wishes': typeof WishesRouteWithChildren
+  '/auth/callback': typeof AuthCallbackRoute
   '/wishes/$wishId': typeof WishesWishIdRoute
+  '/auth/': typeof AuthIndexRoute
   '/wishes/': typeof WishesIndexRoute
 }
 export interface FileRouteTypes {
@@ -148,12 +165,13 @@ export interface FileRouteTypes {
     | '/side-by-side'
     | '/terms'
     | '/wishes'
+    | '/auth/callback'
     | '/wishes/$wishId'
+    | '/auth/'
     | '/wishes/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/auth'
     | '/connections'
     | '/matchmaker'
     | '/me'
@@ -162,7 +180,9 @@ export interface FileRouteTypes {
     | '/sessions'
     | '/side-by-side'
     | '/terms'
+    | '/auth/callback'
     | '/wishes/$wishId'
+    | '/auth'
     | '/wishes'
   id:
     | '__root__'
@@ -177,13 +197,15 @@ export interface FileRouteTypes {
     | '/side-by-side'
     | '/terms'
     | '/wishes'
+    | '/auth/callback'
     | '/wishes/$wishId'
+    | '/auth/'
     | '/wishes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   ConnectionsRoute: typeof ConnectionsRoute
   MatchmakerRoute: typeof MatchmakerRoute
   MeRoute: typeof MeRoute
@@ -274,6 +296,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WishesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/': {
+      id: '/auth/'
+      path: '/'
+      fullPath: '/auth/'
+      preLoaderRoute: typeof AuthIndexRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/wishes/': {
       id: '/wishes/'
       path: '/'
@@ -291,6 +327,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthRouteChildren {
+  AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthIndexRoute: typeof AuthIndexRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthCallbackRoute: AuthCallbackRoute,
+  AuthIndexRoute: AuthIndexRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 interface WishesRouteChildren {
   WishesWishIdRoute: typeof WishesWishIdRoute
   WishesIndexRoute: typeof WishesIndexRoute
@@ -306,7 +354,7 @@ const WishesRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   ConnectionsRoute: ConnectionsRoute,
   MatchmakerRoute: MatchmakerRoute,
   MeRoute: MeRoute,
