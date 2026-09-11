@@ -6,7 +6,7 @@ This document explains how to build, sign, and submit the Maitri iOS app from th
 
 - **Lovable cannot compile iOS for you.** Apple requires signing, Archive, and App Store Connect upload to be performed on a Mac with Xcode and an active Apple Developer account.
 - The web source lives in `src/`; the iOS shell lives in `native/ios`. Everything under `native/` is independent of the web build pipeline and can be copied to another machine or repository.
-- The iOS app embeds the static web bundle (`native/www`) directly, so it works offline and does not simply load a remote URL.
+- **Route A (current):** the iOS app loads the production site (`https://pelegant.info`) via `server.url`. Frontend deploys update the app content without a new App Store build; network is required.
 
 ## One-Time Setup
 
@@ -17,19 +17,33 @@ This document explains how to build, sign, and submit the Maitri iOS app from th
 
 ## Quick Build (Same Repository)
 
+### Current shipping mode: Route A (load production site)
+
+The iOS app opens `https://pelegant.info` inside the Capacitor WebView
+(`capacitor.config.ts` → `server.url`). A tiny placeholder lives in `native/www`
+so `cap sync` still works; you do **not** need `native:build` for this path.
+
 ```bash
 # 1. Install dependencies
-bun install
+bun install   # or: npm install
 
-# 2. Build the static web bundle into native/www
-bun run native:build
+# 2. Sync Capacitor into the Xcode project
+bun run ios:sync   # or: npm run ios:sync
 
-# 3. Sync Capacitor plugins and regenerate the iOS project
-bun run ios:sync
-
-# 4. Open Xcode
-bun run ios:open
+# 3. Open Xcode
+bun run ios:open   # or: npm run ios:open
 ```
+
+Optional local override (debug against a machine on your LAN):
+
+```bash
+CAP_SERVER_URL=http://192.168.x.x:3000 bun run ios:sync
+```
+
+### Legacy Route B (embedded `native/www`) — currently blocked
+
+`bun run native:build` is the SPA embed path. It is separate from Route A and
+is not required for App Store upload while `server.url` points at production.
 
 In Xcode:
 

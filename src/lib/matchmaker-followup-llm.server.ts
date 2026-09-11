@@ -1,11 +1,12 @@
 import { chatCompletionJson } from "./llm.server";
 import { buildReasons, buildIntroduceReply, type Reason } from "./match-reasons";
-import type { MatchHardFilters, MatchmakerLang } from "./match-types";
+import type { MatchmakerLang } from "./match-types";
 import type { Person } from "./types";
 import type { Profile } from "./profile";
 import type { UserUnderstanding } from "./understanding";
 import { localized } from "./people";
 import { selfVoiceRule } from "./agent-voice";
+import { llmReplyLanguageRule } from "./lang";
 
 function zh(lang: MatchmakerLang) {
   return lang === "zh-CN";
@@ -37,29 +38,23 @@ export function formatReasonsForPrompt(
   person: Person,
   lang: MatchmakerLang,
 ): string {
-  if (reasons.length === 0) return zh(lang) ? "（暂无可靠匹配依据）" : "(no traceable match evidence yet)";
+  if (reasons.length === 0) return "（暂无可靠匹配依据）";
   const name = localized(person, lang).name;
-  const isZh = zh(lang);
   return reasons
     .map((r, i) => {
       if (r.kind === "favorite") {
-        return isZh
-          ? `${i + 1}. 共同收藏：《${r.title}》`
-          : `${i + 1}. Shared favorite: “${r.title}”`;
+        return `${i + 1}. 共同收藏：《${r.title}》`;
       }
       if (r.kind === "values") {
-        return isZh
-          ? `${i + 1}. ${name} 的 values 回答（${r.prompt}）：「${r.theirs}」`
-          : `${i + 1}. ${name}'s values answer (${r.prompt}): “${r.theirs}”`;
+        return `${i + 1}. ${name} 的 values 回答（${r.prompt}）：「${r.theirs}」`;
       }
-      return isZh
-        ? `${i + 1}. 用户说过「${r.yours}」↔ ${name} 写过「${r.theirs}」`
-        : `${i + 1}. User said “${r.yours}” ↔ ${name} wrote “${r.theirs}”`;
+      return `${i + 1}. 用户说过「${r.yours}」↔ ${name} 写过「${r.theirs}」`;
     })
     .join("\n");
 }
 
 export async function runMatchmakerIntroReply(opts: {
+  /** User-writing language for the reply (not UI locale). */
   lang: MatchmakerLang;
   person: Person;
   profile: Profile;
@@ -67,40 +62,32 @@ export async function runMatchmakerIntroReply(opts: {
   /** Rank-time reason for this person (preferred evidence). */
   cachedReason?: string;
 }): Promise<string> {
-  const isZh = zh(opts.lang);
-  const loc = localized(opts.person, opts.lang);
-  const reasons = buildReasons(opts.person, opts.profile, opts.understanding, opts.lang);
-  const structured = formatReasonsForPrompt(reasons, opts.person, opts.lang);
+  const replyLang = opts.lang;
+  const loc = localized(opts.person, replyLang);
+  const reasons = buildReasons(opts.person, opts.profile, opts.understanding, replyLang);
+  const structured = formatReasonsForPrompt(reasons, opts.person, replyLang);
   const cached = opts.cachedReason?.trim() ?? "";
   const evidence = cached
-    ? isZh
-      ? `排序理由：${cached}${reasons.length ? `\n补充依据：\n${structured}` : ""}`
-      : `Rank reason: ${cached}${reasons.length ? `\nExtra evidence:\n${structured}` : ""}`
+    ? `排序理由：${cached}${reasons.length ? `\n补充依据：\n${structured}` : ""}`
     : structured;
   const fallback = cached
-    ? isZh
+    ? zh(replyLang)
       ? `先介绍 ${loc.name}（${opts.person.age}岁，${loc.city}）。${cached}更多在右边。`
       : `Meet ${loc.name} (${opts.person.age}, ${loc.city}). ${cached} More on the right.`
     : buildIntroduceReply(
         opts.person,
         opts.profile,
         opts.understanding,
-        opts.lang,
+        replyLang,
       );
 
-  const system = isZh
-    ? `你是 Maitri，刚为用户选好一位要认识的人。写 2-4 句简体中文介绍 TA，并自然说明「为什么是 TA」。
+  const system = `你是 Maitri，刚为用户选好一位要认识的人。写 2-4 句介绍 TA，并自然说明「为什么是 TA」。
 只能使用下方【匹配依据】里的事实，不要编造共同点。
 写「为什么合适」时：只点出对方身上的具体点，不要复述用户已知的需求（不要说「你想要开朗，TA 也开朗」）。
 没有依据时诚实说还在试探匹配，请用户看右边或补充偏好。
 不要提 AI。${selfVoiceRule(true)}
-只输出 JSON：{"reply":"..."}`
-    : `You are Maitri introducing someone the user may want to meet. Write 2-4 warm sentences and explain why they might fit.
-Use ONLY facts from [Match evidence] — do not invent overlaps.
-When explaining fit, state what the person is like — do NOT restate what the user already asked for.
-If evidence is thin, say so and point to the right pane.
-${selfVoiceRule(false)}
-JSON only: {"reply":"..."}`;
+${llmReplyLanguageRule(replyLang)}
+只输出 JSON：{"reply":"..."}`;
 
   const want = [
     ...(opts.understanding.traits ?? []),
@@ -111,16 +98,11 @@ JSON only: {"reply":"..."}`;
     ...opts.understanding.notes,
   ]
     .filter(Boolean)
-    .join(isZh ? "；" : "; ");
+    .join("；");
 
-  const user = isZh
-    ? `【人选】${loc.name}，${opts.person.age}岁，${loc.city}，${loc.occupation}
+  const user = `【人选】${loc.name}，${opts.person.age}岁，${loc.city}，${loc.occupation}
 【用户想找的人（摘要）】${want || "较少"}
 【匹配依据】
-${evidence}`
-    : `[Person] ${loc.name}, ${opts.person.age}, ${loc.city}, ${loc.occupation}
-[What user wants] ${want || "sparse"}
-[Match evidence]
 ${evidence}`;
 
   return runFollowup(system, user, fallback);
@@ -130,20 +112,16 @@ export async function runMatchmakerEmptyReply(opts: {
   lang: MatchmakerLang;
   facts: string;
 }): Promise<string> {
-  const isZh = zh(opts.lang);
+  const replyLang = opts.lang;
   const fallback = opts.facts;
 
-  const system = isZh
-    ? `你是 Maitri。用户已确认开始找，但当前条件下没有可介绍的人。
-用 2-3 句简体中文说明情况，并建议怎么放宽；数字和事实必须与【统计事实】完全一致，不要改人数。
+  const system = `你是 Maitri。用户已确认开始找，但当前条件下没有可介绍的人。
+用 2-3 句说明情况，并建议怎么放宽；数字和事实必须与【统计事实】完全一致，不要改人数。
 ${selfVoiceRule(true)}
-JSON：{"reply":"..."}`
-    : `You are Maitri. User confirmed search but no one fits.
-Explain in 2-3 sentences; counts in [Facts] must be exact.
-${selfVoiceRule(false)}
-JSON: {"reply":"..."}`;
+${llmReplyLanguageRule(replyLang)}
+JSON：{"reply":"..."}`;
 
-  const user = isZh ? `【统计事实】\n${opts.facts}` : `[Facts]\n${opts.facts}`;
+  const user = `【统计事实】\n${opts.facts}`;
   return runFollowup(system, user, fallback);
 }
 
@@ -151,22 +129,17 @@ export async function runMatchmakerQueueExhaustedReply(opts: {
   lang: MatchmakerLang;
   filterSummary: string;
 }): Promise<string> {
-  const isZh = zh(opts.lang);
-  const fallback = isZh
+  const replyLang = opts.lang;
+  const fallback = zh(replyLang)
     ? `按你现在的条件（${opts.filterSummary}），我这边暂时就这些了。要不放宽一下其中一条，我们再找？`
     : `That's everyone for (${opts.filterSummary}). Want to loosen a filter and search again?`;
 
-  const system = isZh
-    ? `你是 Maitri。用户已浏览完当前队列里符合硬条件的人。
+  const system = `你是 Maitri。用户已浏览完当前队列里符合硬条件的人。
 用 1-2 句说明暂时没有更多合适人选，并自然建议放宽哪类条件（年龄/城市/性别/学历）。${selfVoiceRule(true)}
-JSON：{"reply":"..."}`
-    : `You are Maitri. The ranked queue is exhausted for current filters.
-1-2 sentences; suggest loosening a filter. ${selfVoiceRule(false)}
-JSON: {"reply":"..."}`;
+${llmReplyLanguageRule(replyLang)}
+JSON：{"reply":"..."}`;
 
-  const user = isZh
-    ? `【当前硬条件】${opts.filterSummary}`
-    : `[Hard filters] ${opts.filterSummary}`;
+  const user = `【当前硬条件】${opts.filterSummary}`;
 
   return runFollowup(system, user, fallback);
 }

@@ -7,15 +7,13 @@ import {
   signUpFn,
   signOutFn,
   deleteAccountFn,
-  startGoogleOAuthFn,
-  completeGoogleOAuthFn,
 } from "./api/auth.functions";
 import { clearLocalModerationData } from "./blocklist";
 import { AuthError, type AuthUser } from "./auth-types";
 import { asAuthError } from "./auth-errors";
 
 export type { AuthUser };
-export type { AuthProvider } from "./auth-types";
+export type AuthProvider = "email";
 export { AuthError, asAuthError };
 export { authErrorMessage } from "./auth-errors";
 
@@ -69,28 +67,6 @@ export async function signUp(input: SignUpInput): Promise<AuthUser> {
     emit(user);
     await refreshUser();
     return user;
-  } catch (e) {
-    throw asAuthError(e);
-  }
-}
-
-export async function startGoogleOAuth(redirect?: string): Promise<string> {
-  try {
-    const { url } = await startGoogleOAuthFn({ data: { redirect } });
-    return url;
-  } catch (e) {
-    throw asAuthError(e);
-  }
-}
-
-export async function completeGoogleOAuth(input: {
-  code: string;
-  state: string;
-}): Promise<{ redirect: string; user: AuthUser }> {
-  try {
-    const result = await completeGoogleOAuthFn({ data: input });
-    emit(result.user);
-    return result;
   } catch (e) {
     throw asAuthError(e);
   }

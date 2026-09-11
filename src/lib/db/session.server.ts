@@ -58,7 +58,6 @@ export async function getSessionUser(): Promise<AuthUser | null> {
       email: users.email,
       name: users.name,
       avatar: users.avatar,
-      provider: users.provider,
       createdAt: users.createdAt,
     })
     .from(authSessions)
@@ -67,13 +66,12 @@ export async function getSessionUser(): Promise<AuthUser | null> {
     .limit(1);
   const row = rows[0];
   if (!row) return null;
-  const provider = row.provider as AuthUser["provider"];
   return {
     id: row.id,
     email: row.email,
     name: row.name,
     avatar: row.avatar,
-    provider: provider === "google" || provider === "apple" || provider === "wechat" ? provider : "email",
+    provider: "email",
     createdAt: row.createdAt.getTime(),
   };
 }

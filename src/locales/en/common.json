@@ -726,7 +726,6 @@
     "coming_soon": "Soon",
     "or_email": "Or continue with email",
     "google_coming_soon": "Google sign-in is coming soon.",
-    "oauth_working": "Signing you in with Google…",
     "apple_coming_soon": "Apple sign-in is coming soon.",
     "wechat_coming_soon": "WeChat sign-in is coming soon.",
     "switch_to_signup_lead": "New to Maitri?",
@@ -748,11 +747,7 @@
       "invalid_input": "Something in the form looks off — check and try again.",
       "db_unavailable": "Can't reach the server right now. Please try again in a moment.",
       "generic": "Something went wrong. Please try again.",
-      "server_error": "Something went wrong. Please try again.",
-      "oauth_not_configured": "Google sign-in is not configured yet.",
-      "oauth_state_invalid": "Sign-in expired. Please try Google again.",
-      "oauth_failed": "Google sign-in failed. Please try again.",
-      "oauth_denied": "Google sign-in was cancelled."
+      "server_error": "Something went wrong. Please try again."
     },
     "invites": {
       "title": "Invites",

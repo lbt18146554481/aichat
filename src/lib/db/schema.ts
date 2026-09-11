@@ -14,20 +14,12 @@ export const users = pgTable(
   {
     id: text("id").primaryKey(),
     email: text("email").notNull(),
-    /** Null for OAuth-only accounts (e.g. Google). */
-    passwordHash: text("password_hash"),
-    /** email | google | apple | wechat */
-    provider: text("provider").notNull().default("email"),
-    /** Google `sub` claim; unique when present. */
-    googleSub: text("google_sub"),
+    passwordHash: text("password_hash").notNull(),
     name: text("name").notNull().default(""),
     avatar: text("avatar").notNull().default(""),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [
-    uniqueIndex("users_email_idx").on(t.email),
-    uniqueIndex("users_google_sub_idx").on(t.googleSub),
-  ],
+  (t) => [uniqueIndex("users_email_idx").on(t.email)],
 );
 
 export const authSessions = pgTable(

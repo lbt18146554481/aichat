@@ -67,13 +67,12 @@ async function rankPeopleIds(opts: {
   if (opts.ids.length <= 1) {
     return { rankedIds: opts.ids, reasons: {} };
   }
-  const isZh = opts.lang === "zh-CN";
   const roster = opts.ids
     .map((id) => {
       const p = opts.pool.find((x) => x.id === id);
       if (!p) return null;
-      const name = isZh ? p.name_zh || p.name : p.name;
-      const city = isZh ? p.city_zh || p.city : p.city;
+      const name = p.name_zh || p.name;
+      const city = p.city_zh || p.city;
       return `${id} | ${name} | ${city} | ${(p.profileText || "").slice(0, 120)}`;
     })
     .filter(Boolean)
@@ -86,15 +85,11 @@ async function rankPeopleIds(opts: {
     [
       {
         role: "system",
-        content: isZh
-          ? `按「愿意一起做该活动」重排候选人。只使用给出的 id。JSON：{"rankedIds":["id1",...],"reasons":{"id1":"一句短理由"}}`
-          : `Reorder candidates by fit for the activity. Use only given ids. JSON: {"rankedIds":["id1",...],"reasons":{"id1":"short reason"}}`,
+        content: `按「愿意一起做该活动」重排候选人。只使用给出的 id。JSON：{"rankedIds":["id1",...],"reasons":{"id1":"一句短理由"}}`,
       },
       {
         role: "user",
-        content: isZh
-          ? `【活动】${opts.activityQuery}\n【候选人】\n${roster}`
-          : `[Activity] ${opts.activityQuery}\n[Candidates]\n${roster}`,
+        content: `【活动】${opts.activityQuery}\n【候选人】\n${roster}`,
       },
     ],
     { temperature: 0.3, maxTokens: 800 },

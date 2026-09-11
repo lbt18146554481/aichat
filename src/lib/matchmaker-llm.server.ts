@@ -36,6 +36,7 @@ import {
   type PendingUserAsk,
   type UserAskResolution,
 } from "./ask-user-info";
+import { llmReplyLanguageRule, resolveReplyLang, type AppLang } from "./lang";
 
 export type { MatchmakerLang };
 export type MatchmakerTurnAction =
@@ -48,7 +49,10 @@ export type MatchmakerTurnAction =
   | "resolve_user_ask";
 
 export interface MatchmakerTurnInput {
+  /** UI locale (i18n). Cards / canvas display only — not LLM system or reply language. */
   lang: MatchmakerLang;
+  /** User-writing language for LLM replies; resolved server-side if omitted. */
+  replyLang?: AppLang;
   action: MatchmakerTurnAction;
   userMessage?: string;
   history: Array<{ role: "user" | "assistant"; content: string }>;
@@ -115,6 +119,20 @@ interface LlmChatJson {
 
 function zh(lang: MatchmakerLang): boolean {
   return lang === "zh-CN";
+}
+
+/** Reply language from user text; UI `lang` is never the source. */
+function turnReplyLang(input: MatchmakerTurnInput, content?: string): AppLang {
+  if (input.replyLang) return input.replyLang;
+  return resolveReplyLang({
+    userMessage: content ?? input.userMessage,
+    seed: input.seed,
+    history: input.history,
+  });
+}
+
+function withReplyLang(input: MatchmakerTurnInput, content?: string): MatchmakerTurnInput {
+  return { ...input, replyLang: turnReplyLang(input, content) };
 }
 
 function genderLabel(g: PersonGender, lang: MatchmakerLang): string {
@@ -227,29 +245,20 @@ function actionHint(input: MatchmakerTurnInput): string {
   const firstReply = isAgentFirstReply(input.history);
   if (action === "start") {
     if (fromPriorChat) {
-      return zh(input.lang)
-        ? `${firstReply ? "这是接手后第一次回复：先用一句自然介绍你能帮用户认识新朋友（一位一位推荐并说原因），再" : ""}直接回应用户已说的意图。有可搜偏好时系统本轮会出人，你负责介绍；没有偏好时开放邀请一句即可。禁止追问字段、禁止 confirmLine。`
-        : `${firstReply ? "First reply after takeover: one natural sentence on helping them meet someone new (one person at a time with reasons), then " : ""}respond to what they already said. If prefs are searchable the server shows someone this turn — you introduce; if not, one open invite. No field chase, no confirmLine.`;
+      return `${firstReply ? "这是接手后第一次回复：先用一句自然介绍你能帮用户认识新朋友（一位一位推荐并说原因），再" : ""}直接回应用户已说的意图。有可搜偏好时系统本轮会出人，你负责介绍；没有偏好时开放邀请一句即可。禁止追问字段、禁止 confirmLine。`;
     }
-    return zh(input.lang)
-        ? `${firstReply ? "这是接手后第一次回复：先用一句自然介绍你能帮用户认识新朋友（一位一位推荐并说原因），再" : ""}用一句开放问题请用户用自己的话说想找什么样的人。不要字段清单。有偏好后系统立刻出人。自称只用「我」。`
-        : `${firstReply ? "First reply: one natural sentence on meeting someone new (one at a time with reasons), then " : ""}one open invite to describe who they hope to meet. No checklist. Once prefs exist the server introduces immediately. I/me only.`;
+    return `${firstReply ? "这是接手后第一次回复：先用一句自然介绍你能帮用户认识新朋友（一位一位推荐并说原因），再" : ""}用一句开放问题请用户用自己的话说想找什么样的人。不要字段清单。有偏好后系统立刻出人。自称只用「我」。`;
   }
   if (action === "pass_and_next") {
-    return zh(input.lang)
-      ? `用户想换一个人（已在前端浏览队列中处理；本轮只需简短回应，不要介绍具体人选）。`
-      : `User browsed to next in the queue (handled client-side; reply briefly only, no new pick).`;
+    return `用户想换一个人（已在前端浏览队列中处理；本轮只需简短回应，不要介绍具体人选）。`;
   }
   if (action === "see_next") {
-    return zh(input.lang)
-      ? `用户浏览下一位（前端已处理；简短回应即可）。`
-      : `User browsed next (client-side; brief reply only).`;
+    return `用户浏览下一位（前端已处理；简短回应即可）。`;
   }
   if (seed) {
-    return zh(input.lang)
-      ? `用户开场相关：「${seed}」。若只是打招呼、没有找人意图，不要 affirmMatch；可轻轻问问想找什么样的人。若明确要找人/随便推一个，affirmMatch=true（即使没说偏好）。`
-      : `Opening context: "${seed}". If they only greeted with no search intent, do not affirmMatch; you may gently ask who they want to meet. If they clearly want to meet someone / see anyone, affirmMatch=true even with no prefs.`;
+    return `用户开场相关：「${seed}」。若只是打招呼、没有找人意图，不要 affirmMatch；可轻轻问问想找什么样的人。若明确要找人/随便推一个，affirmMatch=true（即使没说偏好）。`;
   }
+  void currentPersonId;
   return "";
 }
 
@@ -355,22 +364,18 @@ function buildChatSystem(
   void opts.pendingMatchConfirm;
   void opts.pendingRematchConfirm;
   void opts.readyToMatch;
-  const isZh = zh(input.lang);
+  const replyLang = turnReplyLang(input);
   const firstReply = isAgentFirstReply(input.history);
-  const capabilityIntro = firstReply ? agentCapabilityIntroRule("matchmaker", isZh) : "";
+  const capabilityIntro = firstReply ? agentCapabilityIntroRule("matchmaker", true) : "";
   const awaitingHint = opts.awaitingUserAsk
-    ? awaitingUserAskChatHint(opts.awaitingUserAsk, input.lang)
+    ? awaitingUserAskChatHint(opts.awaitingUserAsk, "zh-CN")
     : "";
   const current = input.currentPersonId
     ? findPersonInPool(pool, input.currentPersonId)
     : null;
   const currentLine = current
-    ? isZh
-      ? `当前右侧：${current.name_zh}（id=${current.id}）`
-      : `Current on right: ${current.name} (id=${current.id})`
-    : isZh
-      ? "右侧尚未展示任何人。"
-      : "No one on the right yet.";
+    ? `当前右侧：${current.name_zh || current.name}（id=${current.id}）`
+    : "右侧尚未展示任何人。";
 
   const u = input.understanding;
   const softBits = [
@@ -386,22 +391,17 @@ function buildChatSystem(
       : "";
   const mem = [
     u.notes.length ? `notes: ${u.notes.join(" | ")}` : "",
-    wantLine ? (isZh ? `希望对方：${wantLine}` : `wants in others: ${wantLine}`) : "",
-    u.negative.length ? (isZh ? `不要这类：${u.negative.join(", ")}` : `avoids: ${u.negative.join(", ")}`) : "",
+    wantLine ? `希望对方：${wantLine}` : "",
+    u.negative.length ? `不要这类：${u.negative.join(", ")}` : "",
   ]
     .filter(Boolean)
     .join("\n");
 
-  const role = isZh
-    ? `你在 Maitri 帮用户认识新朋友。像真人聊天，2-5 句，温暖具体。
+  const role = `你在 Maitri 帮用户认识新朋友。像真人聊天，2-5 句，温暖具体。
 本会话做「认识新朋友」。若对方想找活动搭子 / 一起做事：handoffTo 保持 null，在 reply 里请回首页开「一起做事」新对话；suggestions 可给「回首页开新对话」。爱好当作交友偏好（认识喜欢跑步的人）时留在本会话，记入软偏好。
-${selfVoiceRule(true)}`
-    : `You help people meet someone new on Maitri. Warm, concise, human, 2-5 sentences.
-This session is meet-someone. If they want activity buddies: keep handoffTo null and point them to a new “do something together” chat from home; suggestions may include starting that chat. Activity-as-people-pref (meet someone who likes running) stays here as soft preference.
-${selfVoiceRule(false)}`;
+${selfVoiceRule(true)}`;
 
-  const decision = isZh
-    ? `【搜索决策】
+  const decision = `【搜索决策】
 本轮有找人/认识新朋友意图（含「随便推一个」「帮我找」「先看看」等，偏好很少也行）→ affirmMatch=true，系统排序出人，你介绍 TA；introducePersonId 由服务端决定。
 闲聊、打招呼、或只想多聊几句还不找人 → affirmMatch=false。
 偏好不齐也能搜：未提及维度用资料冷启动 soft，空字段不参与得分；confirmLine 始终为 null，不必等用户再说「好的」，也不必为凑字段追问。
@@ -409,37 +409,21 @@ ${selfVoiceRule(false)}`;
 主动要换一批 / 条件明显变了 → 同样走重筛（request_rematch + affirmRematch）。
 同批浏览：右侧「看下一个人」记入 passed；聊天里明确不合适 → browse_next_person mode=pass；只想看下一位 → mode=see。拿不准浏览还是重筛时，只在 reply 问一句。
 当前有队列：${opts.hasQueue ? "是" : "否"}
-${recallEmpty ? "硬过滤后暂无候选人时，在 reply 里自然建议放宽年龄、性别、城市或学历。" : ""}`
-    : `[Search decision]
-Meet/search intent this turn (incl. “show anyone” / “find someone”, even with sparse prefs) → affirmMatch=true; server ranks and you introduce; introducePersonId is server-chosen.
-Chat / greet / talk without searching → affirmMatch=false.
-Sparse prefs OK: cold-start soft for unstated dims; empty fields don’t score; confirmLine always null — no waiting for “ok”, no field checklist.
-Someone already on the right and they tighten or change direction (e.g. “quieter”) → rematch this turn: request_rematch with affirmRematch=true (or rematchConfirmLine), or affirmMatch=true if the old queue will clear. Brief ack of the new direction; server writes the new intro — find first, more prefs can wait.
-Explicit new batch / clear criteria change → same rematch path.
-Same-batch: UI next records passed; clear reject → browse_next_person mode=pass; casual next → mode=see. Unsure browse vs rematch → ask in reply only.
-Has queue: ${opts.hasQueue ? "yes" : "no"}
-${recallEmpty ? "If hard filters yield no one, suggest relaxing age, gender, city, or education in reply." : ""}`;
+${recallEmpty ? "硬过滤后暂无候选人时，在 reply 里自然建议放宽年龄、性别、城市或学历。" : ""}`;
 
-  const jsonBlock = isZh
-    ? `【JSON】reply 与 suggestions 放最前：
+  const jsonBlock = `【JSON】reply 与 suggestions 放最前：
 {"reply":"...","suggestions":["短句1","短句2"],"confirmLine":null,"affirmMatch":false,"rematchConfirmLine":null,"affirmRematch":false,"passCurrentPerson":false,"handoffTo":null,"handoffSummary":"","transitionReply":""}
-reply 用简体中文。suggestions：2-4 条第一人称短句（用户可直接发送）。`
-    : `[JSON] Put reply and suggestions first:
-{"reply":"...","suggestions":["..."],"confirmLine":null,"affirmMatch":false,"rematchConfirmLine":null,"affirmRematch":false,"passCurrentPerson":false,"handoffTo":null,"handoffSummary":"","transitionReply":""}
-English reply. suggestions: 2-4 first-person phrases the user might send.`;
+suggestions：2-4 条第一人称短句（用户可直接发送）。
+${llmReplyLanguageRule(replyLang)}`;
 
   return [
     role,
     decision,
-    input.handoffSummary
-      ? isZh
-        ? `接手摘要：${input.handoffSummary}`
-        : `Handoff summary: ${input.handoffSummary}`
-      : "",
-    profileSummaryForPrompt(input.profile, input.lang),
-    isZh ? `硬条件：${filtersLine(input.hardFilters, input.lang)}` : `Hard filters: ${filtersLine(input.hardFilters, input.lang)}`,
-    clarifyFocusLine(input.hardFilters, input.lang, input.understanding),
-    mem ? (isZh ? `软偏好：\n${mem}` : `Soft prefs:\n${mem}`) : "",
+    input.handoffSummary ? `接手摘要：${input.handoffSummary}` : "",
+    profileSummaryForPrompt(input.profile, "zh-CN"),
+    `硬条件：${filtersLine(input.hardFilters, "zh-CN")}`,
+    clarifyFocusLine(input.hardFilters, "zh-CN", input.understanding),
+    mem ? `软偏好：\n${mem}` : "",
     currentLine,
     awaitingHint,
     capabilityIntro,
@@ -451,13 +435,13 @@ English reply. suggestions: 2-4 first-person phrases the user might send.`;
 }
 
 function fallbackOutput(input: MatchmakerTurnInput, reason: "no_key" | "error"): MatchmakerTurnOutput {
-  const isZh = zh(input.lang);
+  const replyLang = turnReplyLang(input);
   const reply =
     reason === "no_key"
-      ? isZh
+      ? replyLang === "zh-CN"
         ? "我这边暂时连不上对话服务，请确认服务器已配置 DEEPSEEK_API_KEY。"
         : "Can't reach the conversation service — check DEEPSEEK_API_KEY."
-      : isZh
+      : replyLang === "zh-CN"
         ? "刚才没连上对话服务，请稍后再试。"
         : "Couldn't reach the conversation service. Please try again.";
   return {
@@ -486,34 +470,26 @@ function userContent(input: MatchmakerTurnInput): string {
   if (input.action === "start") {
     const hasUserHistory = input.history.some((h) => h.role === "user");
     if (hasUserHistory || input.handoffSummary?.trim()) {
-      return zh(input.lang)
-        ? "[继续] 请直接回应用户上面最后一条消息；若是本 agent 第一次回复，先自然介绍你能帮用户认识新朋友，再衔接下文；不要重复空泛打招呼。"
-        : "[continue] Respond to the user's last message; if this is your first reply, briefly introduce meeting someone new first — no empty greeting filler.";
+      return "[继续] 请直接回应用户上面最后一条消息；若是本 agent 第一次回复，先自然介绍你能帮用户认识新朋友，再衔接下文；不要重复空泛打招呼。";
     }
-    return input.seed?.trim()
-      ? input.seed.trim()
-      : zh(input.lang)
-        ? "[对话开始]"
-        : "[conversation start]";
+    return input.seed?.trim() ? input.seed.trim() : "[对话开始]";
   }
   if (input.action === "pass_and_next") {
-    return zh(input.lang) ? "[用户点击：换一个人]" : "[User tapped: show someone else]";
+    return "[用户点击：换一个人]";
   }
   if (input.action === "see_next") {
-    return zh(input.lang) ? "[用户点击：看下一位]" : "[User tapped: see next]";
+    return "[用户点击：看下一位]";
   }
   if (input.action === "confirm_match") {
-    return zh(input.lang) ? "[用户口头确认开始匹配]" : "[User verbally confirmed start matching]";
+    return "[用户口头确认开始匹配]";
   }
   if (input.action === "confirm_rematch") {
-    return zh(input.lang) ? "[用户口头确认按新条件重新匹配]" : "[User verbally confirmed rematch with new criteria]";
+    return "[用户口头确认按新条件重新匹配]";
   }
   if (input.action === "resolve_user_ask") {
     const res = input.userAskResolution;
-    if (res) return formatUserAskResolutionForLlm(res, input.lang);
-    return zh(input.lang)
-      ? "[ask_user_info 结果] status=cancelled value=\"\""
-      : "[ask_user_info result] status=cancelled value=\"\"";
+    if (res) return formatUserAskResolutionForLlm(res, "zh-CN");
+    return "[ask_user_info 结果] status=cancelled value=\"\"";
   }
   const base = input.userMessage?.trim() ?? "";
   if (input.userAskResolution) {
@@ -614,7 +590,7 @@ async function polishMatchmakerReply(
     const person = findPersonInPool(toolState.pool, result.introducePersonId);
     if (person) {
       const reply = await runMatchmakerIntroReply({
-        lang: input.lang,
+        lang: turnReplyLang(input),
         person,
         profile: input.profile,
         understanding: extracted.understanding,
@@ -625,8 +601,8 @@ async function polishMatchmakerReply(
   }
 
   if (result.recallEmpty && !result.introducePersonId) {
-    const facts = buildEmptyRecallFacts(input.lang, recallOpts);
-    const reply = await runMatchmakerEmptyReply({ lang: input.lang, facts });
+    const facts = buildEmptyRecallFacts("zh-CN", recallOpts);
+    const reply = await runMatchmakerEmptyReply({ lang: turnReplyLang(input), facts });
     return { ...result, reply };
   }
 
@@ -653,9 +629,9 @@ async function handleQueueBrowseAction(
   );
 
   if (advanced.exhausted) {
-    const filterSummary = filtersLine(extracted.hardFilters, input.lang);
+    const filterSummary = filtersLine(extracted.hardFilters, "zh-CN");
     const reply = await runMatchmakerQueueExhaustedReply({
-      lang: input.lang,
+      lang: turnReplyLang(input),
       filterSummary,
     });
     return {
@@ -1061,10 +1037,13 @@ export async function* runMatchmakerTurnStream(
   input: MatchmakerTurnInput,
 ): AsyncGenerator<MatchmakerStreamEvent> {
   const content = userContent(input);
+  input = withReplyLang(input, content);
   log.info("matchmaker", "turn stream", {
     action: input.action,
     userPreview: content.slice(0, 80),
     historyLen: input.history.length,
+    replyLang: input.replyLang,
+    uiLang: input.lang,
   });
 
   const pool = await getMatchablePeopleForSeeker(input.profile);
