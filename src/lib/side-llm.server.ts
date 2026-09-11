@@ -11,7 +11,14 @@ import { chatCompletionJsonStream } from "./llm.server";
 import { runSideExtract } from "./side-extract.server";
 import { generateMatchReason } from "./side-match-reason.server";
 import { log } from "./logger.server";
-import { selfVoiceRule, agentCapabilityIntroRule, isAgentFirstReply } from "./agent-voice";
+import {
+  selfVoiceRule,
+  agentCapabilityIntroRule,
+  isAgentFirstReply,
+  composerSuggestionsRule,
+  fallbackComposerSuggestions,
+  normalizeComposerSuggestions,
+} from "./agent-voice";
 import { profileSummaryForPrompt } from "./profile-summary";
 import {
   pickNextFromRecall,
@@ -291,6 +298,15 @@ async function runSidePeopleMatchTurn(opts: {
     onDelta: opts.onDelta,
   });
 
+  const outSuggestions = normalizeComposerSuggestions(
+    people.suggestions?.length ? people.suggestions : suggestions,
+    fallbackComposerSuggestions(
+      people.recallEmpty ? "empty" : "afterIntro",
+      (input.replyLang ?? turnReplyLang(input, content)) as "en" | "zh-CN",
+    ),
+  );
+  // (people match already completed above)
+
   if (people.currentPersonId) {
     opts.hooks?.onMatchReady?.({
       browseSearched: true,
@@ -313,7 +329,7 @@ async function runSidePeopleMatchTurn(opts: {
       wishLane: "browse",
       pendingBrowseConfirm: null,
     });
-    opts.hooks?.onChatDone?.({ reply: people.reply, suggestions });
+    opts.hooks?.onChatDone?.({ reply: people.reply, suggestions: outSuggestions });
   } else if (people.hangingInvite) {
     opts.hooks?.onMatchReady?.({
       browseSearched: true,
@@ -336,7 +352,9 @@ async function runSidePeopleMatchTurn(opts: {
       wishLane: "browse",
       pendingBrowseConfirm: null,
     });
-    opts.hooks?.onChatDone?.({ reply: people.reply, suggestions });
+    opts.hooks?.onChatDone?.({ reply: people.reply, suggestions: outSuggestions });
+  } else {
+    opts.hooks?.onChatDone?.({ reply: people.reply, suggestions: outSuggestions });
   }
 
   return {
@@ -359,7 +377,7 @@ async function runSidePeopleMatchTurn(opts: {
     crossCityMatch: false,
     nearMissIds: [],
     stage: people.stage === "hanging" ? "hanging" : people.currentPersonId ? "introducing" : "prompt",
-    suggestions,
+    suggestions: outSuggestions,
     handoffTo: null,
     handoffSummary: "",
     transitionReply: "",
@@ -907,11 +925,11 @@ ${
     ? "用户在确认是否开始找：suggestions 可给确认开搜/再改条件等第一人称短句。"
     : "";
 
-  const jsonBlock = `【JSON】needsTools、affirmMatch 靠前。affirmMatch=true 或 needsTools=true → reply=""。
-搜人：{"needsTools":false,"affirmMatch":true,"toolNames":[],"confirmLine":null,"askUserInfo":null,"reply":"","suggestions":[],"affirmPublish":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
-缺地点：{"needsTools":false,"affirmMatch":false,"toolNames":[],"confirmLine":null,"askUserInfo":{"fieldKey":"activity_place","prompt":"活动想在哪个城市或区域？也可写线上/地点不限","kind":"text","placeholder":"例如：上海"},"reply":"找搭子还差一个地点，填一下下面的卡片就行。","suggestions":[],"affirmPublish":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
-闲聊：{"needsTools":false,"affirmMatch":false,"toolNames":[],"confirmLine":null,"askUserInfo":null,"reply":"...","suggestions":["短句1"],"affirmPublish":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
-suggestions：2-4 条第一人称短句（用户可直接发送）。
+  const jsonBlock = `【JSON】needsTools、affirmMatch 靠前。affirmMatch=true 或 needsTools=true → reply=""（介绍由系统写），但 suggestions 仍要 2-4 条。
+搜人：{"needsTools":false,"affirmMatch":true,"toolNames":[],"confirmLine":null,"askUserInfo":null,"reply":"","suggestions":["短句1","短句2","短句3"],"affirmPublish":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
+缺地点：{"needsTools":false,"affirmMatch":false,"toolNames":[],"confirmLine":null,"askUserInfo":{"fieldKey":"activity_place","prompt":"活动想在哪个城市或区域？也可写线上/地点不限","kind":"text","placeholder":"例如：上海"},"reply":"找搭子还差一个地点，填一下下面的卡片就行。","suggestions":["地点不限也可以","线上也行","就在我所在的城市"],"affirmPublish":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
+闲聊：{"needsTools":false,"affirmMatch":false,"toolNames":[],"confirmLine":null,"askUserInfo":null,"reply":"...","suggestions":["短句1","短句2"],"affirmPublish":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
+${composerSuggestionsRule()}
 ${llmReplyLanguageRule(replyLang)}`;
 
   return [
@@ -1747,10 +1765,10 @@ export async function runSideTurn(
   }
 
   const chatReply = (chatParsed?.reply ?? "").trim();
-  const chatSuggestions = (chatParsed?.suggestions ?? [])
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 4);
+  const chatSuggestions = normalizeComposerSuggestions(
+    chatParsed?.suggestions,
+    fallbackComposerSuggestions("chat", turnReplyLang(input, content)),
+  );
   const deferChatReady =
     Boolean(chatParsed?.affirmMatch) ||
     holdChatForMatch ||
@@ -2253,7 +2271,13 @@ export async function runSideTurn(
       relaxHints,
       onDelta,
     });
-    hooks?.onChatDone?.({ reply, suggestions: [] });
+    hooks?.onChatDone?.({
+      reply,
+      suggestions: normalizeComposerSuggestions(
+        chatSuggestions,
+        fallbackComposerSuggestions("afterIntro", turnReplyLang(input, content)),
+      ),
+    });
   } else if (recallEmpty && recallMine && !handoffTo) {
     matchIntentId = null;
     const mentionsEmpty = replyMentionsEmptyPool(reply, input.lang);
@@ -2310,7 +2334,10 @@ export async function runSideTurn(
     crossCityMatch,
     nearMissIds,
     stage: myIntentId ? "published" : "prompt",
-    suggestions: (chatParsed?.suggestions ?? []).map((s) => s.trim()).filter(Boolean).slice(0, 4),
+    suggestions: normalizeComposerSuggestions(
+      chatParsed?.suggestions,
+      fallbackComposerSuggestions("chat", turnReplyLang(input, content)),
+    ),
     handoffTo,
     handoffSummary: (chatParsed?.handoffSummary ?? "").trim(),
     transitionReply: (chatParsed?.transitionReply ?? "").trim(),

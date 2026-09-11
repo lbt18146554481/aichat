@@ -12,7 +12,13 @@ import type { Person, PersonGender } from "./types";
 import { runMatchmakerExtract } from "./matchmaker-extract.server";
 import type { MatchmakerLang } from "./match-types";
 import { log } from "./logger.server";
-import { selfVoiceRule, agentCapabilityIntroRule } from "./agent-voice";
+import {
+  agentCapabilityIntroRule,
+  composerSuggestionsRule,
+  fallbackComposerSuggestions,
+  normalizeComposerSuggestions,
+  selfVoiceRule,
+} from "./agent-voice";
 import { formatPlaceList, parsePlaceList } from "./geo";
 import { profileSummaryForPrompt } from "./profile-summary";
 import { MATCH_QUEUE_LIMIT, matchPrefsFingerprint, advanceMatchmakerQueue } from "./matchmaker-queue";
@@ -400,8 +406,9 @@ ${selfVoiceRule(true)}`;
 ${recallEmpty ? "硬过滤暂无人时，在 reply 里自然建议放宽年龄、性别、城市或学历。" : ""}`;
 
   const jsonBlock = `【JSON】reply 与 suggestions 放最前：
-{"reply":"...","suggestions":["短句1","短句2"],"confirmLine":null,"affirmMatch":false,"rematchConfirmLine":null,"affirmRematch":false,"passCurrentPerson":false,"handoffTo":null,"handoffSummary":"","transitionReply":""}
-suggestions：2-4 条第一人称短句（用户可直接发送）。
+{"reply":"...","suggestions":["短句1","短句2","短句3"],"confirmLine":null,"affirmMatch":false,"rematchConfirmLine":null,"affirmRematch":false,"passCurrentPerson":false,"handoffTo":null,"handoffSummary":"","transitionReply":""}
+${composerSuggestionsRule()}
+affirmMatch=true 时 reply 可为 ""（介绍由系统另写），但 suggestions 仍要给 2-4 条（用户看完介绍后的下一句）。
 ${llmReplyLanguageRule(replyLang)}`;
 
   return [
@@ -580,24 +587,49 @@ async function polishMatchmakerReply(
   if (result.introducePersonId) {
     const person = findPersonInPool(toolState.pool, result.introducePersonId);
     if (person) {
-      const reply = await runMatchmakerIntroReply({
+      const intro = await runMatchmakerIntroReply({
         lang: turnReplyLang(input),
         person,
         profile: input.profile,
         understanding: extracted.understanding,
         cachedReason: result.queueReasons?.[result.introducePersonId],
       });
-      return { ...result, recallEmpty: false, reply };
+      return {
+        ...result,
+        recallEmpty: false,
+        reply: intro.reply,
+        suggestions: intro.suggestions.length
+          ? intro.suggestions
+          : normalizeComposerSuggestions(
+              result.suggestions,
+              fallbackComposerSuggestions("afterIntro", turnReplyLang(input)),
+            ),
+      };
     }
   }
 
   if (result.recallEmpty && !result.introducePersonId) {
     const facts = buildEmptyRecallFacts("zh-CN", recallOpts);
-    const reply = await runMatchmakerEmptyReply({ lang: turnReplyLang(input), facts });
-    return { ...result, reply };
+    const empty = await runMatchmakerEmptyReply({ lang: turnReplyLang(input), facts });
+    return {
+      ...result,
+      reply: empty.reply,
+      suggestions: empty.suggestions.length
+        ? empty.suggestions
+        : normalizeComposerSuggestions(
+            result.suggestions,
+            fallbackComposerSuggestions("empty", turnReplyLang(input)),
+          ),
+    };
   }
 
-  return result;
+  return {
+    ...result,
+    suggestions: normalizeComposerSuggestions(
+      result.suggestions,
+      fallbackComposerSuggestions("chat", turnReplyLang(input)),
+    ),
+  };
 }
 
 async function handleQueueBrowseAction(
@@ -621,13 +653,14 @@ async function handleQueueBrowseAction(
 
   if (advanced.exhausted) {
     const filterSummary = filtersLine(extracted.hardFilters, "zh-CN");
-    const reply = await runMatchmakerQueueExhaustedReply({
+    const exhausted = await runMatchmakerQueueExhaustedReply({
       lang: turnReplyLang(input),
       filterSummary,
     });
     return {
       ...result,
-      reply,
+      reply: exhausted.reply,
+      suggestions: exhausted.suggestions,
       introducePersonId: null,
       rankedQueue: input.rankedQueue ?? [],
       queueReasons: input.queueReasons ?? {},
@@ -656,14 +689,14 @@ async function handleQueueBrowseAction(
   if (introducePersonId) {
     const person = findPersonInPool(toolState.pool, introducePersonId);
     if (person) {
-      const reply = await runMatchmakerIntroReply({
-        lang: input.lang,
+      const intro = await runMatchmakerIntroReply({
+        lang: turnReplyLang(input),
         person,
         profile: input.profile,
         understanding: extracted.understanding,
         cachedReason: (input.queueReasons ?? {})[introducePersonId],
       });
-      next = { ...next, reply };
+      next = { ...next, reply: intro.reply, suggestions: intro.suggestions };
     }
   }
 
@@ -956,7 +989,10 @@ function assembleMatchmakerOutput(
   const pendingUserAsk = toolState.pendingUserAsk;
 
   let reply = (chatParsed.reply ?? "").trim();
-  let suggestions = (chatParsed.suggestions ?? []).map((s) => s.trim()).filter(Boolean).slice(0, 4);
+  let suggestions = normalizeComposerSuggestions(
+    chatParsed.suggestions,
+    fallbackComposerSuggestions("chat", turnReplyLang(input)),
+  );
 
   if (!reply && !handoffTo) {
     return {
@@ -1260,7 +1296,7 @@ export async function* runMatchmakerTurnStream(
     },
   );
 
-  // holdChatStream: no ready/delta — client keeps thinking until done (reply + person together).
+  // Always commit reply+suggestions on done; search turns skip early ready to avoid a provisional reply.
   yield { type: "done", result: polished };
 }
 

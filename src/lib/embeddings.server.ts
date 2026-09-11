@@ -1,5 +1,6 @@
 /**
  * Optional embedding API (OpenAI-compatible).
+ * Default provider: DashScope Qwen (`qwen3.7-text-embedding-flash`).
  * When unavailable, match-recall falls back to text-similarity.ts.
  */
 
@@ -14,6 +15,9 @@ import {
 } from "./similarity-mix";
 
 export { EMBED_MIX_WEIGHT, LEXICAL_MIX_WEIGHT, mixEmbeddingLexical };
+
+/** DashScope Qwen flash batch limit is 20 texts per request. */
+const EMBED_BATCH_SIZE = 20;
 
 let client: OpenAI | null = null;
 let clientKey = "";
@@ -63,7 +67,7 @@ export async function embedText(text: string): Promise<number[] | null> {
 
 /**
  * Batch embed; preserves order. Cached texts skip the API.
- * Returns null entries when the whole batch fails or client missing.
+ * Chunks requests to EMBED_BATCH_SIZE (DashScope Qwen flash max 20).
  */
 export async function embedMany(texts: string[]): Promise<Array<number[] | null>> {
   if (texts.length === 0) return [];
@@ -86,17 +90,21 @@ export async function embedMany(texts: string[]): Promise<Array<number[] | null>
   const c = getEmbeddingClient();
   if (!c) return out;
 
+  const model = embeddingModel();
   try {
-    const res = await c.embeddings.create({
-      model: embeddingModel(),
-      input: missing.map((m) => m.text),
-    });
-    for (let j = 0; j < missing.length; j++) {
-      const vec = res.data[j]?.embedding;
-      if (!vec?.length) continue;
-      const { index, text } = missing[j]!;
-      cache.set(text, vec);
-      out[index] = vec;
+    for (let start = 0; start < missing.length; start += EMBED_BATCH_SIZE) {
+      const chunk = missing.slice(start, start + EMBED_BATCH_SIZE);
+      const res = await c.embeddings.create({
+        model,
+        input: chunk.map((m) => m.text),
+      });
+      for (let j = 0; j < chunk.length; j++) {
+        const vec = res.data[j]?.embedding;
+        if (!vec?.length) continue;
+        const { index, text } = chunk[j]!;
+        cache.set(text, vec);
+        out[index] = vec;
+      }
     }
   } catch (err) {
     log.warn("embeddings", "embedMany failed — lexical fallback", { err, n: missing.length });

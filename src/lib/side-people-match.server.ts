@@ -41,6 +41,7 @@ export interface SidePeopleMatchInput {
 
 export interface SidePeopleMatchResult {
   reply: string;
+  suggestions: string[];
   currentPersonId: string | null;
   personSummary: string;
   whyTags: string[];
@@ -164,13 +165,14 @@ export async function executeSidePeopleMatch(
         history: input.history,
       });
       const now = Date.now();
-      const reply = await runSideEmptyPeopleReply({
+      const empty = await runSideEmptyPeopleReply({
         lang: input.lang,
         draft: input.wishDraft,
         hangSummary,
       });
       return {
-        reply,
+        reply: empty.reply,
+        suggestions: empty.suggestions,
         currentPersonId: null,
         personSummary: "",
         whyTags: [],
@@ -221,12 +223,14 @@ export async function executeSidePeopleMatch(
           history: input.history,
         });
         const now = Date.now();
+        const empty = await runSideEmptyPeopleReply({
+          lang: input.lang,
+          draft: input.wishDraft,
+          hangSummary,
+        });
         return {
-          reply: await runSideEmptyPeopleReply({
-            lang: input.lang,
-            draft: input.wishDraft,
-            hangSummary,
-          }),
+          reply: empty.reply,
+          suggestions: empty.suggestions,
           currentPersonId: null,
           personSummary: "",
           whyTags: [],
@@ -266,12 +270,14 @@ export async function executeSidePeopleMatch(
       history: input.history,
     });
     const now = Date.now();
+    const empty = await runSideEmptyPeopleReply({
+      lang: input.lang,
+      draft: input.wishDraft,
+      hangSummary,
+    });
     return {
-      reply: await runSideEmptyPeopleReply({
-        lang: input.lang,
-        draft: input.wishDraft,
-        hangSummary,
-      }),
+      reply: empty.reply,
+      suggestions: empty.suggestions,
       currentPersonId: null,
       personSummary: "",
       whyTags: [],
@@ -298,6 +304,10 @@ export async function executeSidePeopleMatch(
         input.lang === "zh-CN"
           ? "这位候选人暂时无法展示，换一个试试。"
           : "That candidate isn't available — try the next one.",
+      suggestions:
+        input.lang === "zh-CN"
+          ? ["我想看下一个人", "换个方向再找找"]
+          : ["Show me the next person", "Try a different direction"],
       currentPersonId: null,
       personSummary: "",
       whyTags: [],
@@ -322,6 +332,7 @@ export async function executeSidePeopleMatch(
 
   return {
     reply: intro.reply,
+    suggestions: intro.suggestions,
     currentPersonId: personId,
     personSummary: intro.personSummary,
     whyTags: intro.whyTags,

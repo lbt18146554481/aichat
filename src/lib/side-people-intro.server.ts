@@ -5,7 +5,12 @@
 import type { Person } from "./types";
 import type { WishDraft } from "./wish-types";
 import { chatCompletionJson, chatCompletionJsonStream } from "./llm.server";
-import { selfVoiceRule } from "./agent-voice";
+import {
+  composerSuggestionsRule,
+  fallbackComposerSuggestions,
+  normalizeComposerSuggestions,
+  selfVoiceRule,
+} from "./agent-voice";
 import { localized } from "./people";
 import { buildActivityQuery } from "./side-people-recall";
 import { llmReplyLanguageRule } from "./lang";
@@ -20,6 +25,7 @@ interface IntroJson {
   reply?: string;
   personSummary?: string;
   whyTags?: string[];
+  suggestions?: string[];
 }
 
 interface HangJson {
@@ -71,7 +77,7 @@ export async function runSidePersonIntro(opts: {
   draft: WishDraft;
   rankReason?: string;
   onDelta?: (text: string) => void;
-}): Promise<{ reply: string; personSummary: string; whyTags: string[] }> {
+}): Promise<{ reply: string; personSummary: string; whyTags: string[]; suggestions: string[] }> {
   const replyLang = opts.lang;
   const loc = localized(opts.person, replyLang);
   const activity = buildActivityQuery(opts.draft);
@@ -95,8 +101,9 @@ export async function runSidePersonIntro(opts: {
 - personSummary：2-3 句，概括对方资料里已有的身份与兴趣。
 - whyTags：2-4 个短标签（≤12字），写法像对方的特质/习惯，例如「爱徒步」「常跑步」——写「对方为什么合适」，不要写成双方共同点。只选资料里站得住的点；没有把握就少给或 []。
 ${selfVoiceRule(true)}
+${composerSuggestionsRule()}
 ${llmReplyLanguageRule(replyLang)}
-JSON：{"reply":"...","personSummary":"...","whyTags":["..."]}`;
+JSON：{"reply":"...","personSummary":"...","whyTags":["..."],"suggestions":["短句1","短句2","短句3"]}`;
 
   const user = `【用户活动】${activity || "（未写清）"}
 【对方】${loc.name} · ${loc.city} · ${opts.person.occupation_zh || opts.person.occupation}
@@ -111,7 +118,7 @@ JSON：{"reply":"...","personSummary":"...","whyTags":["..."]}`;
         { role: "system", content: system },
         { role: "user", content: user },
       ],
-      { temperature: 0.55, maxTokens: 500 },
+      { temperature: 0.55, maxTokens: 550 },
     )) {
       if (ev.type === "delta") opts.onDelta(ev.text);
       else if (ev.type === "done") value = ev.value;
@@ -122,7 +129,7 @@ JSON：{"reply":"...","personSummary":"...","whyTags":["..."]}`;
         { role: "system", content: system },
         { role: "user", content: user },
       ],
-      { temperature: 0.55, maxTokens: 500 },
+      { temperature: 0.55, maxTokens: 550 },
     );
   }
 
@@ -135,6 +142,10 @@ JSON：{"reply":"...","personSummary":"...","whyTags":["..."]}`;
     reply: value?.reply?.trim() || fallbackReply,
     personSummary: value?.personSummary?.trim() || fallbackSummary,
     whyTags: whyTags.length ? whyTags : fallbackTags,
+    suggestions: normalizeComposerSuggestions(
+      value?.suggestions,
+      fallbackComposerSuggestions("afterIntro", replyLang),
+    ),
   };
 }
 
@@ -142,13 +153,14 @@ export async function runSideEmptyPeopleReply(opts: {
   lang: SideLang;
   draft: WishDraft;
   hangSummary: string;
-}): Promise<string> {
+}): Promise<{ reply: string; suggestions: string[] }> {
   const replyLang = opts.lang;
   const activity = buildActivityQuery(opts.draft);
   const system = `用户暂时没匹配到一起做事的搭子。用 2-3 句说明：按当前邀约暂时没合适的人；邀约会留在右边继续留意；也可撤回后改条件。
+${composerSuggestionsRule()}
 ${llmReplyLanguageRule(replyLang)}
-JSON：{"reply":"..."}`;
-  const parsed = await chatCompletionJson<{ reply?: string }>(
+JSON：{"reply":"...","suggestions":["短句1","短句2"]}`;
+  const parsed = await chatCompletionJson<{ reply?: string; suggestions?: string[] }>(
     [
       { role: "system", content: system },
       {
@@ -156,11 +168,16 @@ JSON：{"reply":"..."}`;
         content: `【活动】${activity || "（较少）"}\n【挂起摘要】${opts.hangSummary || "（无）"}`,
       },
     ],
-    { temperature: 0.5, maxTokens: 200 },
+    { temperature: 0.5, maxTokens: 250 },
   );
-  if (parsed?.reply?.trim()) return parsed.reply.trim();
-  if (zh(replyLang)) {
-    return `按现在的条件（${opts.hangSummary || activity || "你的活动邀约"}），暂时还没有合适的搭子。我先把这条邀约挂在右边——之后会继续帮你留意，对上了会直接显示在这里。也可以撤回后改条件再试。`;
-  }
-  return `No good buddy yet for (${opts.hangSummary || activity || "your invite"}). I'll keep it on the right and keep looking — when someone's a fit they'll show up here. You can also revoke and tweak.`;
+  const fallbackReply = zh(replyLang)
+    ? `按现在的条件（${opts.hangSummary || activity || "你的活动邀约"}），暂时还没有合适的搭子。我先把这条邀约挂在右边——之后会继续帮你留意，对上了会直接显示在这里。也可以撤回后改条件再试。`
+    : `No good buddy yet for (${opts.hangSummary || activity || "your invite"}). I'll keep it on the right and keep looking — when someone's a fit they'll show up here. You can also revoke and tweak.`;
+  return {
+    reply: parsed?.reply?.trim() || fallbackReply,
+    suggestions: normalizeComposerSuggestions(
+      parsed?.suggestions,
+      fallbackComposerSuggestions("empty", replyLang),
+    ),
+  };
 }

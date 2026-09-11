@@ -5,7 +5,12 @@ import type { Person } from "./types";
 import type { Profile } from "./profile";
 import type { UserUnderstanding } from "./understanding";
 import { localized } from "./people";
-import { selfVoiceRule } from "./agent-voice";
+import {
+  composerSuggestionsRule,
+  fallbackComposerSuggestions,
+  normalizeComposerSuggestions,
+  selfVoiceRule,
+} from "./agent-voice";
 import { llmReplyLanguageRule } from "./lang";
 
 function zh(lang: MatchmakerLang) {
@@ -14,22 +19,30 @@ function zh(lang: MatchmakerLang) {
 
 interface FollowupJson {
   reply?: string;
+  suggestions?: string[];
 }
+
+export type MatchmakerFollowup = {
+  reply: string;
+  suggestions: string[];
+};
 
 async function runFollowup(
   system: string,
   user: string,
   fallback: string,
-): Promise<string> {
+  suggestionFallback: string[],
+): Promise<MatchmakerFollowup> {
   const parsed = await chatCompletionJson<FollowupJson>(
     [
       { role: "system", content: system },
       { role: "user", content: user },
     ],
-    { temperature: 0.75, maxTokens: 400 },
+    { temperature: 0.75, maxTokens: 450 },
   );
-  const reply = parsed?.reply?.trim();
-  return reply || fallback;
+  const reply = parsed?.reply?.trim() || fallback;
+  const suggestions = normalizeComposerSuggestions(parsed?.suggestions, suggestionFallback);
+  return { reply, suggestions };
 }
 
 /** Evidence bundle for the intro model — same sources as the right-pane "why" block. */
@@ -61,7 +74,7 @@ export async function runMatchmakerIntroReply(opts: {
   understanding: UserUnderstanding;
   /** Rank-time reason for this person (preferred evidence). */
   cachedReason?: string;
-}): Promise<string> {
+}): Promise<MatchmakerFollowup> {
   const replyLang = opts.lang;
   const loc = localized(opts.person, replyLang);
   const reasons = buildReasons(opts.person, opts.profile, opts.understanding, replyLang);
@@ -86,8 +99,9 @@ export async function runMatchmakerIntroReply(opts: {
 写「为什么合适」时：只点出对方身上的具体点，不要复述用户已知的需求（不要说「你想要开朗，TA 也开朗」）。
 没有依据时诚实说还在试探匹配，请用户看右边或补充偏好。
 不要提 AI。${selfVoiceRule(true)}
+${composerSuggestionsRule()}
 ${llmReplyLanguageRule(replyLang)}
-只输出 JSON：{"reply":"..."}`;
+输出 JSON：{"reply":"...","suggestions":["短句1","短句2","短句3"]}`;
 
   const want = [
     ...(opts.understanding.traits ?? []),
@@ -105,30 +119,41 @@ ${llmReplyLanguageRule(replyLang)}
 【匹配依据】
 ${evidence}`;
 
-  return runFollowup(system, user, fallback);
+  return runFollowup(
+    system,
+    user,
+    fallback,
+    fallbackComposerSuggestions("afterIntro", replyLang),
+  );
 }
 
 export async function runMatchmakerEmptyReply(opts: {
   lang: MatchmakerLang;
   facts: string;
-}): Promise<string> {
+}): Promise<MatchmakerFollowup> {
   const replyLang = opts.lang;
   const fallback = opts.facts;
 
   const system = `你是 Maitri。用户已确认开始找，但当前条件下没有可介绍的人。
 用 2-3 句说明情况，并建议怎么放宽；数字和事实必须与【统计事实】完全一致，不要改人数。
 ${selfVoiceRule(true)}
+${composerSuggestionsRule()}
 ${llmReplyLanguageRule(replyLang)}
-JSON：{"reply":"..."}`;
+JSON：{"reply":"...","suggestions":["短句1","短句2"]}`;
 
   const user = `【统计事实】\n${opts.facts}`;
-  return runFollowup(system, user, fallback);
+  return runFollowup(
+    system,
+    user,
+    fallback,
+    fallbackComposerSuggestions("empty", replyLang),
+  );
 }
 
 export async function runMatchmakerQueueExhaustedReply(opts: {
   lang: MatchmakerLang;
   filterSummary: string;
-}): Promise<string> {
+}): Promise<MatchmakerFollowup> {
   const replyLang = opts.lang;
   const fallback = zh(replyLang)
     ? `按你现在的条件（${opts.filterSummary}），我这边暂时就这些了。要不放宽一下其中一条，我们再找？`
@@ -136,10 +161,16 @@ export async function runMatchmakerQueueExhaustedReply(opts: {
 
   const system = `你是 Maitri。用户已浏览完当前队列里符合硬条件的人。
 用 1-2 句说明暂时没有更多合适人选，并自然建议放宽哪类条件（年龄/城市/性别/学历）。${selfVoiceRule(true)}
+${composerSuggestionsRule()}
 ${llmReplyLanguageRule(replyLang)}
-JSON：{"reply":"..."}`;
+JSON：{"reply":"...","suggestions":["短句1","短句2"]}`;
 
   const user = `【当前硬条件】${opts.filterSummary}`;
 
-  return runFollowup(system, user, fallback);
+  return runFollowup(
+    system,
+    user,
+    fallback,
+    fallbackComposerSuggestions("empty", replyLang),
+  );
 }
