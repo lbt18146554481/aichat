@@ -1,5 +1,5 @@
 import { chatCompletionJson } from "./llm.server";
-import { personCardLine, recallCandidates } from "./match-recall";
+import { personCardLine, recallCandidatesAsync } from "./match-recall";
 import type { MatchHardFilters, MatchmakerLang } from "./match-types";
 import { EMPTY_HARD_FILTERS } from "./match-types";
 import type { Person } from "./types";
@@ -10,7 +10,7 @@ import { log } from "./logger.server";
 import {
   MATCH_QUEUE_LIMIT,
   mergeRankedIds,
-  recallQueueIds,
+  recallQueueIdsAsync,
 } from "./matchmaker-queue";
 import { buildReasons } from "./match-reasons";
 import { localized } from "./people";
@@ -396,12 +396,16 @@ export function ensureQueueReasons(
 export async function runMatchmakerRank(
   input: RankMatchmakerInput,
 ): Promise<RankMatchmakerOutput> {
-  const { ids: recallIds, empty } = recallQueueIds({
+  const { ids: recallIds, empty } = await recallQueueIdsAsync({
     understanding: input.understanding,
     hardFilters: input.hardFilters,
     blockedIds: input.blockedIds,
     shownIds: input.shownIds,
     passedIds: input.passedIds,
+    pool: input.pool,
+    seekerProfile: input.profile,
+    chatUnderstanding: input.chatUnderstanding,
+    chatHardFilters: input.chatHardFilters,
   });
 
   if (recallIds.length === 0) {
@@ -448,7 +452,8 @@ export async function runMatchmakerRank(
     ? `你是 Maitri 的匹配排序器。任务：排序候选人，并为每人写匹配理由。
 
 排序：
-- 同时参考【1. 生效搜索条件】和【2. 用户口头明确需求】；口头明确的需求可加重权。
+- 同时参考【1. 生效搜索条件】和【2. 用户口头明确需求】；【2】权重高于【1】与画像相似。
+- 有【2】时：先把对上口头需求的人排前面；对不上【2】的人排到后面（即使画像很像）。
 - 只能使用下方候选人列表里的 id，覆盖每一位（除非明显不符合硬条件）。
 
 写理由（reason，1–3 句中文）：
@@ -456,8 +461,8 @@ export async function runMatchmakerRank(
 - 只写对方身上的具体点（如「很会社交」「常徒步」），不要复述「你想要开朗」这类用户已知需求。
 - 其次写【用户画像】与对方画像的相似点（共同收藏、相近兴趣/性格、可引的 moment）。
 - 若【2】为空：仍要写理由，只写画像相似点或对方可引的具体事实。
-- 有【2】时：先写需求对点，再写画像相似；对不上需求时可以只写画像相似。
-- 禁止空话：「气质接近」「感觉合适」「值得一看」等；禁止编造列表里没有的事实；不要用 portrait 当空泛理由。
+- 有【2】时：先写需求对点，再写画像相似；对不上需求时仍可写画像相似，但排序上这些人应靠后。
+- 少用空话：「气质接近」「感觉合适」「值得一看」等；不编造列表里没有的事实；不要用 portrait 当空泛理由。
 - 硬条件（性别/年龄/城市）主要用于排序，不必写进理由，除非用户口头明确强调且对方材料能支撑。
 
 输出 JSON：
@@ -466,7 +471,8 @@ export async function runMatchmakerRank(
     : `You rank Maitri matchmaker candidates and write a reason for each.
 
 Ranking:
-- Use both [1. Effective search prefs] and [2. Explicit chat asks]; weight explicit chat asks higher.
+- Use both [1. Effective search prefs] and [2. Explicit chat asks]; weight [2] above [1] and profile similarity.
+- When [2] exists: put people who match those asks first; put people who miss [2] later even if profiles look similar.
 - Use only listed ids; include everyone unless clearly wrong for hard filters.
 
 Reasons (1–3 sentences):
@@ -474,8 +480,8 @@ Reasons (1–3 sentences):
 - State the person's concrete fit only — do NOT restate what the user already asked for.
 - Then cite overlaps between [Seeker profile] and the candidate (shared favorites, similar interests/traits, moments).
 - If [2] is empty: still write a reason from profile overlaps / citeable facts only.
-- When [2] exists: need-fit first, then profile overlap; if no need-fit, profile overlap only is OK.
-- Ban fluff ("vibes", "feels close", "worth a look"); no invented facts; don't use portrait as vague filler.
+- When [2] exists: need-fit first, then profile overlap; if no need-fit, profile overlap is fine for the reason, but those people should rank later.
+- Avoid fluff ("vibes", "feels close", "worth a look"); no invented facts; don't use portrait as vague filler.
 - Hard filters (gender/age/city) are mainly for ranking — usually omit from reasons unless explicitly asked and supported.
 
 JSON only:
@@ -531,7 +537,7 @@ best first.`;
 }
 
 /** @internal for tests */
-export function recallOrderFallback(input: RankMatchmakerInput): string[] {
-  const recall = recallCandidates({ ...input, limit: MATCH_QUEUE_LIMIT });
+export async function recallOrderFallback(input: RankMatchmakerInput): Promise<string[]> {
+  const recall = await recallCandidatesAsync({ ...input, limit: MATCH_QUEUE_LIMIT });
   return recall.candidates.map((c) => c.id);
 }

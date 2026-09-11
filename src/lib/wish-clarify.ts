@@ -351,40 +351,40 @@ export function wishClarifyPromptSection(
   const isZh = lang === "zh-CN";
   const lines = isZh
     ? [
-        "澄清进度（仅参考，勿按字段审问）：",
-        "用户主导；不要追问性别/年龄/城市清单。没说的维可用资料 soft 冷启动——但找人缺地点仍须走主提示【决策】弹卡，不能「缺地点也搜」。",
+        "澄清进度（参考）：",
+        "用户主导；没说的维可用资料 soft。找人缺地点 → 走【决策】弹卡。",
         `轮次 ${progress.roundCount}/${WISH_CLARIFY_MAX_ROUNDS}。`,
         progress.capReached
           ? mode === "browse"
-            ? "⚠ 已达上限：按【决策】搜或弹地点卡；禁止再追问字段。"
-            : "⚠ 已达上限：confirmLine 预填表单，或让用户继续改。"
+            ? "已达上限：按【决策】搜或弹地点卡。"
+            : "已达上限：confirmLine 预填表单，或让用户继续改。"
           : progress.allDone
             ? mode === "browse"
-              ? "条件大致齐：要搜则按【决策】（看地点状态）。"
+              ? "条件大致齐：要搜走【决策】（看地点）。"
               : "信息已齐：confirmLine 开表单；affirmPublish=false。"
             : mode === "browse"
               ? "还可补：先回应用户；要搜走【决策】。"
-              : "还可补：先回应用户；勿强制填齐。",
+              : "还可补：先回应用户。",
         `进度：活动 ${statusLabel(progress.activity, lang)} · 时间 ${statusLabel(progress.time, lang)} · 地点 ${statusLabel(progress.place, lang)} · 搭子 ${statusLabel(progress.buddy, lang)}`,
-        `建议焦点（非剧本）：${focusHint(progress.focus, lang)}`,
+        `建议焦点：${focusHint(progress.focus, lang)}`,
       ]
     : [
-        "Clarify progress (hints only — do not interrogate fields):",
-        "User-led. Missing dims may cold-start soft — but missing place for people search still follows Decision (card), never search without place.",
+        "Clarify progress (hints):",
+        "User-led; missing dims may cold-start soft. Missing place for search → Decision card.",
         `Rounds ${progress.roundCount}/${WISH_CLARIFY_MAX_ROUNDS}.`,
         progress.capReached
           ? mode === "browse"
-            ? "⚠ Cap: follow Decision (search or place card); no more field chase."
-            : "⚠ Cap: confirmLine form or let them edit."
+            ? "Cap: follow Decision (search or place card)."
+            : "Cap: confirmLine form or let them edit."
           : progress.allDone
             ? mode === "browse"
               ? "Roughly ready: search via Decision (check place)."
               : "Complete: confirmLine form; affirmPublish=false."
             : mode === "browse"
               ? "Optional gaps: respond first; search via Decision."
-              : "Optional gaps: respond first; don't force fields.",
+              : "Optional gaps: respond first.",
         `Progress: activity ${statusLabel(progress.activity, lang)} · time ${statusLabel(progress.time, lang)} · place ${statusLabel(progress.place, lang)} · buddy ${statusLabel(progress.buddy, lang)}`,
-        `Suggested focus (not a script): ${focusHint(progress.focus, lang)}`,
+        `Suggested focus: ${focusHint(progress.focus, lang)}`,
       ];
   return lines.join("\n");
 }

@@ -45,13 +45,13 @@ export const TRAIT_DEFS: FacetDef[] = [
     "文静",
     "低调",
   ]),
-  def("warm", "trait", "warm", "温暖", ["kind-hearted", "暖心", "温和"]),
+  def("warm", "trait", "warm", "温暖", ["kind-hearted", "暖心", "温和", "热情", "热情的", "热情开朗"]),
   def("kind", "trait", "kind", "善良", ["caring", "体贴", "温柔", "nice"]),
   def("funny", "trait", "funny", "幽默", ["humorous", "witty", "好笑", "有趣"]),
   def("brave", "trait", "brave", "坦诚", ["honest", "direct", "勇敢", "直率", "真实"]),
   def("ambitious", "trait", "ambitious", "上进", ["driven", "motivated", "有野心", "事业心"]),
   def("curious", "trait", "curious", "好奇", ["open-minded", "爱探索", "求知欲"]),
-  def("playful", "trait", "playful", "活泼", ["energetic", "外向", "开朗"]),
+  def("playful", "trait", "playful", "活泼", ["energetic", "外向", "开朗", "热情", "热情的"]),
 ];
 
 export const INTEREST_DEFS: FacetDef[] = [

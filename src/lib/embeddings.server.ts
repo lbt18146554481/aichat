@@ -1,31 +1,39 @@
 /**
- * Optional embedding API (DeepSeek / OpenAI-compatible).
+ * Optional embedding API (OpenAI-compatible).
  * When unavailable, match-recall falls back to text-similarity.ts.
  */
 
 import OpenAI from "openai";
-import process from "node:process";
 import { getServerConfig } from "./config.server";
 import { log } from "./logger.server";
-import { cosineSimilarity } from "./text-similarity";
+import { cosineSimilarity, semanticSimilarity } from "./text-similarity";
+import {
+  EMBED_MIX_WEIGHT,
+  LEXICAL_MIX_WEIGHT,
+  mixEmbeddingLexical,
+} from "./similarity-mix";
+
+export { EMBED_MIX_WEIGHT, LEXICAL_MIX_WEIGHT, mixEmbeddingLexical };
 
 let client: OpenAI | null = null;
+let clientKey = "";
 const cache = new Map<string, number[]>();
 
 function getEmbeddingClient(): OpenAI | null {
   const cfg = getServerConfig();
-  if (!cfg.deepseekApiKey) return null;
-  if (!client) {
-    client = new OpenAI({
-      apiKey: cfg.deepseekApiKey,
-      baseURL: cfg.deepseekBaseUrl,
-    });
+  const apiKey = cfg.embeddingApiKey;
+  if (!apiKey) return null;
+  const baseURL = cfg.embeddingBaseUrl;
+  const key = `${baseURL}::${apiKey}`;
+  if (!client || clientKey !== key) {
+    client = new OpenAI({ apiKey, baseURL });
+    clientKey = key;
   }
   return client;
 }
 
 function embeddingModel(): string {
-  return process.env.DEEPSEEK_EMBEDDING_MODEL ?? "text-embedding-3-small";
+  return getServerConfig().embeddingModel;
 }
 
 /** Embed text; returns null when API unavailable. */
@@ -53,6 +61,50 @@ export async function embedText(text: string): Promise<number[] | null> {
   }
 }
 
+/**
+ * Batch embed; preserves order. Cached texts skip the API.
+ * Returns null entries when the whole batch fails or client missing.
+ */
+export async function embedMany(texts: string[]): Promise<Array<number[] | null>> {
+  if (texts.length === 0) return [];
+  const out: Array<number[] | null> = texts.map(() => null);
+  const missing: { index: number; text: string }[] = [];
+
+  for (let i = 0; i < texts.length; i++) {
+    const t = texts[i]!.trim();
+    if (!t) continue;
+    const cached = cache.get(t);
+    if (cached) {
+      out[i] = cached;
+    } else {
+      missing.push({ index: i, text: t });
+    }
+  }
+
+  if (missing.length === 0) return out;
+
+  const c = getEmbeddingClient();
+  if (!c) return out;
+
+  try {
+    const res = await c.embeddings.create({
+      model: embeddingModel(),
+      input: missing.map((m) => m.text),
+    });
+    for (let j = 0; j < missing.length; j++) {
+      const vec = res.data[j]?.embedding;
+      if (!vec?.length) continue;
+      const { index, text } = missing[j]!;
+      cache.set(text, vec);
+      out[index] = vec;
+    }
+  } catch (err) {
+    log.warn("embeddings", "embedMany failed — lexical fallback", { err, n: missing.length });
+  }
+
+  return out;
+}
+
 export function vectorCosine(a: number[], b: number[]): number {
   if (a.length === 0 || b.length !== a.length) return 0;
   let dot = 0;
@@ -75,6 +127,23 @@ export async function embeddingSimilarity(
   const [qVec, dVec] = await Promise.all([embedText(query), embedText(document)]);
   if (!qVec || !dVec) return null;
   return vectorCosine(qVec, dVec);
+}
+
+/**
+ * Prefer embedding cosine mixed with lexical; falls back to lexical alone.
+ * Optional precomputed vectors avoid repeat API calls in batch recall.
+ */
+export async function similarityMix(
+  query: string,
+  document: string,
+  precomputed?: { queryVec?: number[] | null; docVec?: number[] | null },
+): Promise<number> {
+  const lexical = semanticSimilarity(query, document);
+  let embed: number | null = null;
+  const qVec = precomputed?.queryVec ?? (await embedText(query));
+  const dVec = precomputed?.docVec ?? (await embedText(document));
+  if (qVec && dVec) embed = vectorCosine(qVec, dVec);
+  return mixEmbeddingLexical(embed, lexical);
 }
 
 /** Map embedding vector to sparse bag for reuse of cosine helper (tests). */

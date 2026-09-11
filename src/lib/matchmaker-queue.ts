@@ -1,7 +1,8 @@
-import { recallCandidates } from "./match-recall";
+import { recallCandidates, recallCandidatesAsync } from "./match-recall";
 import type { MatchHardFilters } from "./match-types";
 import type { Person } from "./types";
 import type { UserUnderstanding } from "./understanding";
+import type { Profile } from "./profile-shape";
 export const MATCH_QUEUE_LIMIT = 10;
 
 export type QueueAdvanceMode = "pass" | "see";
@@ -41,8 +42,29 @@ export function recallQueueIds(opts: {
   shownIds: string[];
   passedIds: string[];
   pool?: Person[];
+  seekerProfile?: Profile | null;
+  chatUnderstanding?: UserUnderstanding;
+  chatHardFilters?: MatchHardFilters;
 }): { ids: string[]; empty: boolean } {
   const recall = recallCandidates({ ...opts, limit: MATCH_QUEUE_LIMIT });
+  return {
+    ids: recall.candidates.map((c) => c.id),
+    empty: recall.emptyAfterHardFilter,
+  };
+}
+
+export async function recallQueueIdsAsync(opts: {
+  understanding: UserUnderstanding;
+  hardFilters: MatchHardFilters;
+  blockedIds: string[];
+  shownIds: string[];
+  passedIds: string[];
+  pool?: Person[];
+  seekerProfile?: Profile | null;
+  chatUnderstanding?: UserUnderstanding;
+  chatHardFilters?: MatchHardFilters;
+}): Promise<{ ids: string[]; empty: boolean }> {
+  const recall = await recallCandidatesAsync({ ...opts, limit: MATCH_QUEUE_LIMIT });
   return {
     ids: recall.candidates.map((c) => c.id),
     empty: recall.emptyAfterHardFilter,

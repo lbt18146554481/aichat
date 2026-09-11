@@ -14,5 +14,9 @@ export function getServerConfig() {
     deepseekApiKey: process.env.DEEPSEEK_API_KEY ?? "",
     deepseekBaseUrl: process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com",
     deepseekModel: process.env.DEEPSEEK_MODEL ?? "deepseek-v4-pro",
+    /** OpenAI-compatible embeddings (independent of DeepSeek chat). */
+    embeddingApiKey: process.env.EMBEDDING_API_KEY || process.env.DEEPSEEK_API_KEY || "",
+    embeddingBaseUrl: process.env.EMBEDDING_BASE_URL || "https://api.openai.com/v1",
+    embeddingModel: process.env.EMBEDDING_MODEL || "text-embedding-3-small",
   };
 }

@@ -10,9 +10,16 @@ import type { WishDraft } from "./wish-types";
 import type { Profile } from "./profile-shape";
 import { buildPreferenceQuery } from "./person-facets";
 import { semanticSimilarity } from "./text-similarity";
-import { softScore, personPassesHardFilters } from "./match-recall";
+import {
+  softScore,
+  softScoreAsync,
+  personPassesHardFilters,
+  personMatchDoc,
+} from "./match-recall";
 import { activityCoreFromKind, kindFromActivityCore } from "./activity-core";
 import { EMPTY_HARD_FILTERS } from "./match-types";
+import { embedMany, vectorCosine } from "./embeddings.server";
+import { mixEmbeddingLexical } from "./similarity-mix";
 
 export const SIDE_RECALL_LIMIT = 10;
 /** Half day in ms — hanging invite rematch interval. */
@@ -28,6 +35,8 @@ export interface SidePeopleRecallOpts {
   pool: Person[];
   seekerProfile?: Profile | null;
   limit?: number;
+  chatUnderstanding?: UserUnderstanding;
+  chatHardFilters?: MatchHardFilters;
 }
 
 export interface SidePeopleCandidate {
@@ -61,7 +70,6 @@ export function buildActivityQuery(draft: WishDraft): string {
   else if (draft.city_zh?.trim() || draft.city?.trim()) {
     parts.push(draft.city_zh?.trim() || draft.city!.trim());
   }
-  // Infer kind label from free text when enum missing
   if (!draft.kind || draft.kind === "other") {
     const inferred = kindFromActivityCore(draft.activityCore || draft.rawText || "");
     const label = activityCoreFromKind(inferred);
@@ -71,15 +79,32 @@ export function buildActivityQuery(draft: WishDraft): string {
 }
 
 /**
- * Activity fit 0..1 — bag similarity vs profileText.
- * Missing query or empty profileText → 0 (no neutral fill).
+ * Activity fit 0..1 — lexical bag similarity vs profileText.
+ * Missing query or empty profileText → 0.
  */
 export function activityFitScore(activityQuery: string, person: Person): number {
   const q = activityQuery.trim();
   if (!q) return 0;
-  const doc = (person.profileText || "").trim();
+  const doc = personMatchDoc(person);
   if (!doc) return 0;
   return semanticSimilarity(q, doc);
+}
+
+export async function activityFitScoreAsync(
+  activityQuery: string,
+  person: Person,
+  precomputed?: { queryVec?: number[] | null; docVec?: number[] | null },
+): Promise<number> {
+  const q = activityQuery.trim();
+  if (!q) return 0;
+  const doc = personMatchDoc(person);
+  if (!doc) return 0;
+  const lexical = semanticSimilarity(q, doc);
+  let embed: number | null = null;
+  if (precomputed?.queryVec && precomputed?.docVec) {
+    embed = vectorCosine(precomputed.queryVec, precomputed.docVec);
+  }
+  return mixEmbeddingLexical(embed, lexical);
 }
 
 function minMaxNorm(values: number[]): number[] {
@@ -116,15 +141,8 @@ export function sidePlaceHardFilters(
   return next;
 }
 
-export function recallSidePeople(opts: SidePeopleRecallOpts): SidePeopleRecallResult {
-  const limit = opts.limit ?? SIDE_RECALL_LIMIT;
-  const blocked = new Set(opts.blockedIds);
-  const shown = new Set(opts.shownIds);
-  const passed = new Set(opts.passedIds);
-  const preferenceQuery = buildPreferenceQuery(opts.understanding);
-  const activityQuery = buildActivityQuery(opts.wishDraft);
-
-  const recallOpts: RecallOpts = {
+function toRecallOpts(opts: SidePeopleRecallOpts, limit: number): RecallOpts {
+  return {
     understanding: opts.understanding,
     hardFilters: opts.hardFilters,
     blockedIds: opts.blockedIds,
@@ -133,7 +151,22 @@ export function recallSidePeople(opts: SidePeopleRecallOpts): SidePeopleRecallRe
     pool: opts.pool,
     seekerProfile: opts.seekerProfile,
     limit,
+    chatUnderstanding: opts.chatUnderstanding ?? opts.understanding,
+    chatHardFilters: opts.chatHardFilters,
   };
+}
+
+/** Sync lexical recall (tests). */
+export function recallSidePeople(opts: SidePeopleRecallOpts): SidePeopleRecallResult {
+  const limit = opts.limit ?? SIDE_RECALL_LIMIT;
+  const blocked = new Set(opts.blockedIds);
+  const shown = new Set(opts.shownIds);
+  const passed = new Set(opts.passedIds);
+  const recallOpts = toRecallOpts(opts, limit);
+  const preferenceQuery = buildPreferenceQuery(
+    recallOpts.chatUnderstanding ?? recallOpts.understanding,
+  );
+  const activityQuery = buildActivityQuery(opts.wishDraft);
 
   const available = opts.pool.filter(
     (p) => !blocked.has(p.id) && !shown.has(p.id) && !passed.has(p.id),
@@ -153,6 +186,86 @@ export function recallSidePeople(opts: SidePeopleRecallOpts): SidePeopleRecallRe
     const activityScore = activityFitScore(activityQuery, p);
     return { id: p.id, personScore, activityScore };
   });
+
+  const pNorm = minMaxNorm(raw.map((r) => r.personScore));
+  const aNorm = minMaxNorm(raw.map((r) => r.activityScore));
+
+  const candidates: SidePeopleCandidate[] = raw
+    .map((r, i) => ({
+      id: r.id,
+      personScore: r.personScore,
+      activityScore: r.activityScore,
+      total: 0.5 * (pNorm[i] ?? 0) + 0.5 * (aNorm[i] ?? 0),
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, limit);
+
+  return {
+    candidates,
+    filteredCount: afterHard.length,
+    emptyAfterHardFilter: false,
+  };
+}
+
+/** Server recall with embeddings. */
+export async function recallSidePeopleAsync(
+  opts: SidePeopleRecallOpts,
+): Promise<SidePeopleRecallResult> {
+  const limit = opts.limit ?? SIDE_RECALL_LIMIT;
+  const blocked = new Set(opts.blockedIds);
+  const shown = new Set(opts.shownIds);
+  const passed = new Set(opts.passedIds);
+  const recallOpts = toRecallOpts(opts, limit);
+  const preferenceQuery = buildPreferenceQuery(
+    recallOpts.chatUnderstanding ?? recallOpts.understanding,
+  );
+  const activityQuery = buildActivityQuery(opts.wishDraft);
+
+  const available = opts.pool.filter(
+    (p) => !blocked.has(p.id) && !shown.has(p.id) && !passed.has(p.id),
+  );
+  const afterHard = available.filter((p) => personPassesHardFilters(p, recallOpts));
+
+  if (afterHard.length === 0) {
+    return {
+      candidates: [],
+      filteredCount: 0,
+      emptyAfterHardFilter: available.length > 0 || opts.pool.length > 0,
+    };
+  }
+
+  const docs = afterHard.map(personMatchDoc);
+  const negTexts = (recallOpts.chatUnderstanding ?? recallOpts.understanding).negative
+    .map((n) => n.trim())
+    .filter(Boolean);
+
+  const toEmbed: string[] = [];
+  if (preferenceQuery.trim()) toEmbed.push(preferenceQuery);
+  if (activityQuery.trim()) toEmbed.push(activityQuery);
+  toEmbed.push(...docs);
+  toEmbed.push(...negTexts);
+
+  const vectors = await embedMany(toEmbed);
+  let offset = 0;
+  const prefVec = preferenceQuery.trim() ? vectors[offset++] ?? null : null;
+  const actVec = activityQuery.trim() ? vectors[offset++] ?? null : null;
+  const docVecs = docs.map(() => vectors[offset++] ?? null);
+  const negVecs = negTexts.map(() => vectors[offset++] ?? null);
+
+  const raw: { id: string; personScore: number; activityScore: number }[] = [];
+  for (let i = 0; i < afterHard.length; i++) {
+    const p = afterHard[i]!;
+    const { score } = await softScoreAsync(p, recallOpts, preferenceQuery, {
+      queryVec: prefVec,
+      docVec: docVecs[i] ?? null,
+      negVecs,
+    });
+    const activityScore = await activityFitScoreAsync(activityQuery, p, {
+      queryVec: actVec,
+      docVec: docVecs[i] ?? null,
+    });
+    raw.push({ id: p.id, personScore: score, activityScore });
+  }
 
   const pNorm = minMaxNorm(raw.map((r) => r.personScore));
   const aNorm = minMaxNorm(raw.map((r) => r.activityScore));

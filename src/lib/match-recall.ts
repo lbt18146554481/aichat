@@ -9,10 +9,32 @@ import {
 } from "./geo";
 import { buildPreferenceQuery, facetLabels } from "./person-facets";
 import { semanticSimilarity } from "./text-similarity";
-import { softPrefLists } from "./understanding";
+import { softPrefLists, softPrefsPresent } from "./understanding";
+import type { UserUnderstanding } from "./understanding";
 import { cultureAffinityScoreFromProfilePerson } from "./culture-affinity";
+import { mixEmbeddingLexical } from "./similarity-mix";
+import { embedMany, vectorCosine } from "./embeddings.server";
 
 const DEFAULT_LIMIT = 10;
+
+/** Soft-score weights — chat (explicit) ≫ cold-start / affinity. */
+export const RECALL_SOFT_WEIGHTS = {
+  chatQuery: 11,
+  chatTraits: 5,
+  chatInterests: 5,
+  chatOccupation: 3.5,
+  chatPace: 2.5,
+  chatNeg: 0.85,
+  chatFlexGender: 4,
+  chatFlexCity: 3,
+  chatFlexAge: 3,
+  chatFlexEdu: 3,
+  /** Cold-start-only flex ≈ 0.4× chat flex */
+  coldFlexScale: 0.4,
+  culture: 1,
+  shown: 1.5,
+  passed: 6,
+} as const;
 
 function personIsActive(p: Person): boolean {
   return (p.status ?? "active") === "active";
@@ -59,24 +81,24 @@ export function personPassesHardFilters(p: Person, opts: RecallOpts): boolean {
   return true;
 }
 
-function ageFlexScore(p: Person, f: MatchHardFilters): number {
+function ageFlexScoreRaw(p: Person, f: MatchHardFilters): number {
   if (f.ageStrength !== "flex") return 0;
   if (f.ageMin == null && f.ageMax == null) return 0;
-  if (ageInRange(p, f)) return 3;
+  if (ageInRange(p, f)) return 1;
   let dist = 0;
   if (f.ageMin != null && p.age < f.ageMin) dist = Math.max(dist, f.ageMin - p.age);
   if (f.ageMax != null && p.age > f.ageMax) dist = Math.max(dist, p.age - f.ageMax);
-  if (dist <= 3) return 1;
-  if (dist <= 7) return -1;
-  return -2;
+  if (dist <= 3) return 0.33;
+  if (dist <= 7) return -0.33;
+  return -0.67;
 }
 
-function educationFlexScore(p: Person, f: MatchHardFilters): number {
+function educationFlexScoreRaw(p: Person, f: MatchHardFilters): number {
   if (f.educationStrength !== "flex") return 0;
   const has =
     f.educationMin != null || f.educationLevels.length > 0 || f.excludeEducationLevels.length > 0;
   if (!has) return 0;
-  return educationMatches(p, f) ? 3 : -1;
+  return educationMatches(p, f) ? 1 : -0.33;
 }
 
 function listSimilarity(query: string[], docParts: string[]): number {
@@ -86,8 +108,30 @@ function listSimilarity(query: string[], docParts: string[]): number {
   return semanticSimilarity(q, d);
 }
 
-function structuredSoftScore(p: Person, opts: RecallOpts): number {
-  const soft = softPrefLists(opts.understanding);
+/** Document text for embedding / lexical person match. */
+export function personMatchDoc(p: Person): string {
+  const traits = [...(p.traits ?? []), ...facetLabels(p.traits ?? [], "zh-CN"), ...facetLabels(p.traits ?? [], "en")];
+  const interests = [
+    ...(p.interests ?? []),
+    ...facetLabels(p.interests ?? [], "zh-CN"),
+    ...facetLabels(p.interests ?? [], "en"),
+  ];
+  return [p.profileText, traits.join(" "), interests.join(" "), p.occupation_zh, p.occupation]
+    .map((s) => (s || "").trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
+function chatSoft(opts: RecallOpts): UserUnderstanding {
+  return opts.chatUnderstanding ?? opts.understanding;
+}
+
+function structuredSoftScoreFrom(
+  p: Person,
+  u: UserUnderstanding,
+  weights: { traits: number; interests: number; occupation: number; pace: number },
+): number {
+  const soft = softPrefLists(u);
   let s = 0;
 
   if (soft.traits.length) {
@@ -95,7 +139,7 @@ function structuredSoftScore(p: Person, opts: RecallOpts): number {
     s +=
       (traitDoc.trim()
         ? listSimilarity(soft.traits, [traitDoc, ...facetLabels(soft.traits, "zh-CN")])
-        : listSimilarity(soft.traits, [p.profileText])) * 4;
+        : listSimilarity(soft.traits, [p.profileText])) * weights.traits;
   }
 
   if (soft.interests.length) {
@@ -106,70 +150,182 @@ function structuredSoftScore(p: Person, opts: RecallOpts): number {
     s +=
       (interestDoc.trim()
         ? listSimilarity(soft.interests, [interestDoc])
-        : listSimilarity(soft.interests, [p.profileText])) * 4;
+        : listSimilarity(soft.interests, [p.profileText])) * weights.interests;
   }
 
   if (soft.occupation.length) {
     const job = `${p.occupation ?? ""} ${p.occupation_zh ?? ""}`.trim();
-    s += listSimilarity(soft.occupation, [job || p.profileText]) * 3;
+    s += listSimilarity(soft.occupation, [job || p.profileText]) * weights.occupation;
   }
 
   if (soft.pace.length) {
     const paceDoc = [p.socialPace ?? "", p.portrait, p.portrait_zh, p.profileText]
       .filter(Boolean)
       .join(" ");
-    s += listSimilarity(soft.pace, [paceDoc]) * 2;
+    s += listSimilarity(soft.pace, [paceDoc]) * weights.pace;
   }
 
   return s;
 }
 
+function flexDimActive(f: MatchHardFilters, dim: "gender" | "city" | "age" | "education"): boolean {
+  if (dim === "gender") return f.genderStrength === "flex" && f.genders.length > 0;
+  if (dim === "city") return f.cityStrength === "flex" && f.cities.length > 0;
+  if (dim === "age")
+    return f.ageStrength === "flex" && (f.ageMin != null || f.ageMax != null);
+  return (
+    f.educationStrength === "flex" &&
+    (f.educationMin != null || f.educationLevels.length > 0 || f.excludeEducationLevels.length > 0)
+  );
+}
+
+function chatOwnsFlex(opts: RecallOpts, dim: "gender" | "city" | "age" | "education"): boolean {
+  const chat = opts.chatHardFilters;
+  if (!chat) return false;
+  return flexDimActive(chat, dim);
+}
+
+function flexScores(p: Person, opts: RecallOpts): number {
+  const w = RECALL_SOFT_WEIGHTS;
+  const effective = opts.hardFilters;
+  const chat = opts.chatHardFilters;
+  let s = 0;
+
+  // Gender
+  if (flexDimActive(effective, "gender")) {
+    const hit = effective.genders.includes(p.gender) ? 1 : -0.25;
+    const scale = chatOwnsFlex(opts, "gender") ? w.chatFlexGender : w.chatFlexGender * w.coldFlexScale;
+    s += hit * scale;
+  }
+  // City
+  if (flexDimActive(effective, "city")) {
+    const personPlace = placeFromCityLabels(p.city, p.city_zh);
+    const include = parsePlaceList(effective.cities);
+    const hit = matchesLocationFilters(personPlace, include, []) ? 1 : -0.33;
+    const scale = chatOwnsFlex(opts, "city") ? w.chatFlexCity : w.chatFlexCity * w.coldFlexScale;
+    s += hit * scale;
+  }
+  // Age
+  if (flexDimActive(effective, "age")) {
+    const raw = ageFlexScoreRaw(p, effective);
+    const scale = chatOwnsFlex(opts, "age") ? w.chatFlexAge : w.chatFlexAge * w.coldFlexScale;
+    s += raw * scale;
+  }
+  // Education
+  if (flexDimActive(effective, "education")) {
+    const raw = educationFlexScoreRaw(p, effective);
+    const scale = chatOwnsFlex(opts, "education") ? w.chatFlexEdu : w.chatFlexEdu * w.coldFlexScale;
+    s += raw * scale;
+  }
+
+  void chat;
+  return s;
+}
+
+/**
+ * Sync soft score (lexical only) — used by tests and sync recallCandidates.
+ * Prefer `softScoreAsync` on server paths when embeddings are available.
+ */
 export function softScore(p: Person, opts: RecallOpts, preferenceQuery: string): number {
+  const w = RECALL_SOFT_WEIGHTS;
+  const chatU = chatSoft(opts);
+  const query = preferenceQuery.trim() || buildPreferenceQuery(chatU);
+
   let vectorScore = 0;
-  if (preferenceQuery.trim()) {
-    vectorScore = semanticSimilarity(preferenceQuery, p.profileText);
-    for (const neg of opts.understanding.negative) {
-      vectorScore -= semanticSimilarity(neg, p.profileText) * 0.85;
+  if (query) {
+    vectorScore = semanticSimilarity(query, personMatchDoc(p));
+    for (const neg of chatU.negative) {
+      vectorScore -= semanticSimilarity(neg, personMatchDoc(p)) * w.chatNeg;
     }
   }
 
-  let s = vectorScore * 8;
-  s += structuredSoftScore(p, opts);
-
-  const f = opts.hardFilters;
-  if (f.genderStrength === "flex" && f.genders.length > 0) {
-    s += f.genders.includes(p.gender) ? 4 : -1;
+  let s = vectorScore * w.chatQuery;
+  if (softPrefsPresent(chatU)) {
+    s += structuredSoftScoreFrom(p, chatU, {
+      traits: w.chatTraits,
+      interests: w.chatInterests,
+      occupation: w.chatOccupation,
+      pace: w.chatPace,
+    });
   }
-  if (f.cityStrength === "flex" && f.cities.length > 0) {
-    const personPlace = placeFromCityLabels(p.city, p.city_zh);
-    const include = parsePlaceList(f.cities);
-    s += matchesLocationFilters(personPlace, include, []) ? 3 : -1;
-  }
-  s += ageFlexScore(p, f);
-  s += educationFlexScore(p, f);
-  s += cultureAffinityScoreFromProfilePerson(opts.seekerProfile, p);
 
-  if (opts.shownIds.includes(p.id)) s -= 1.5;
-  /** Passed = soft demote on rematch (not hard-excluded). */
-  if (opts.passedIds.includes(p.id)) s -= 6;
+  s += flexScores(p, opts);
+  s += cultureAffinityScoreFromProfilePerson(opts.seekerProfile, p) * w.culture;
+
+  if (opts.shownIds.includes(p.id)) s -= w.shown;
+  if (opts.passedIds.includes(p.id)) s -= w.passed;
 
   return s;
 }
 
+export async function softScoreAsync(
+  p: Person,
+  opts: RecallOpts,
+  preferenceQuery: string,
+  precomputed?: {
+    queryVec?: number[] | null;
+    docVec?: number[] | null;
+    negVecs?: Array<number[] | null>;
+  },
+): Promise<{ score: number; vectorScore: number }> {
+  const w = RECALL_SOFT_WEIGHTS;
+  const chatU = chatSoft(opts);
+  const query = preferenceQuery.trim() || buildPreferenceQuery(chatU);
+  const doc = personMatchDoc(p);
+
+  let vectorScore = 0;
+  if (query) {
+    const lexical = semanticSimilarity(query, doc);
+    let embed: number | null = null;
+    if (precomputed?.queryVec && precomputed?.docVec) {
+      embed = vectorCosine(precomputed.queryVec, precomputed.docVec);
+    }
+    vectorScore = mixEmbeddingLexical(embed, lexical);
+
+    for (let i = 0; i < chatU.negative.length; i++) {
+      const neg = chatU.negative[i]!;
+      const negLex = semanticSimilarity(neg, doc);
+      let negEmbed: number | null = null;
+      const nv = precomputed?.negVecs?.[i];
+      if (nv && precomputed?.docVec) negEmbed = vectorCosine(nv, precomputed.docVec);
+      vectorScore -= mixEmbeddingLexical(negEmbed, negLex) * w.chatNeg;
+    }
+  }
+
+  let s = vectorScore * w.chatQuery;
+  if (softPrefsPresent(chatU)) {
+    s += structuredSoftScoreFrom(p, chatU, {
+      traits: w.chatTraits,
+      interests: w.chatInterests,
+      occupation: w.chatOccupation,
+      pace: w.chatPace,
+    });
+  }
+
+  s += flexScores(p, opts);
+  s += cultureAffinityScoreFromProfilePerson(opts.seekerProfile, p) * w.culture;
+
+  if (opts.shownIds.includes(p.id)) s -= w.shown;
+  if (opts.passedIds.includes(p.id)) s -= w.passed;
+
+  return { score: s, vectorScore };
+}
+
+/** Lexical-only recall (tests / probes). */
 export function recallCandidates(opts: RecallOpts): RecallResult {
   const limit = opts.limit ?? DEFAULT_LIMIT;
   const blocked = new Set(opts.blockedIds);
-  const preferenceQuery = buildPreferenceQuery(opts.understanding);
+  const chatU = chatSoft(opts);
+  const preferenceQuery = buildPreferenceQuery(chatU);
   const pool = opts.pool ?? [];
 
   const available = pool.filter((p) => !blocked.has(p.id));
-
   const afterHard = available.filter((p) => personPassesHardFilters(p, opts));
 
   const scored: RecalledCandidate[] = afterHard
     .map((p) => {
       const vectorScore = preferenceQuery.trim()
-        ? semanticSimilarity(preferenceQuery, p.profileText)
+        ? semanticSimilarity(preferenceQuery, personMatchDoc(p))
         : undefined;
       return {
         id: p.id,
@@ -184,6 +340,58 @@ export function recallCandidates(opts: RecallOpts): RecallResult {
     candidates: scored,
     filteredCount: afterHard.length,
     emptyAfterHardFilter: afterHard.length === 0,
+  };
+}
+
+/** Server recall: batch embeddings + chat-priority soft weights. */
+export async function recallCandidatesAsync(opts: RecallOpts): Promise<RecallResult> {
+  const limit = opts.limit ?? DEFAULT_LIMIT;
+  const blocked = new Set(opts.blockedIds);
+  const chatU = chatSoft(opts);
+  const preferenceQuery = buildPreferenceQuery(chatU);
+  const pool = opts.pool ?? [];
+
+  const available = pool.filter((p) => !blocked.has(p.id));
+  const afterHard = available.filter((p) => personPassesHardFilters(p, opts));
+
+  if (afterHard.length === 0) {
+    return { candidates: [], filteredCount: 0, emptyAfterHardFilter: true };
+  }
+
+  const docs = afterHard.map(personMatchDoc);
+  const negTexts = chatU.negative.map((n) => n.trim()).filter(Boolean);
+  const toEmbed: string[] = [];
+  if (preferenceQuery.trim()) toEmbed.push(preferenceQuery);
+  toEmbed.push(...docs);
+  toEmbed.push(...negTexts);
+
+  const vectors = await embedMany(toEmbed);
+  let offset = 0;
+  const queryVec = preferenceQuery.trim() ? vectors[offset++] ?? null : null;
+  const docVecs = docs.map(() => vectors[offset++] ?? null);
+  const negVecs = negTexts.map(() => vectors[offset++] ?? null);
+
+  const scored: RecalledCandidate[] = [];
+  for (let i = 0; i < afterHard.length; i++) {
+    const p = afterHard[i]!;
+    const { score, vectorScore } = await softScoreAsync(p, opts, preferenceQuery, {
+      queryVec,
+      docVec: docVecs[i] ?? null,
+      negVecs,
+    });
+    scored.push({
+      id: p.id,
+      score,
+      vectorScore: preferenceQuery.trim() ? vectorScore : undefined,
+    });
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+
+  return {
+    candidates: scored.slice(0, limit),
+    filteredCount: afterHard.length,
+    emptyAfterHardFilter: false,
   };
 }
 

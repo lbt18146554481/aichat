@@ -418,12 +418,12 @@ function userContent(input: SideTurnInput): string {
     const fromHandoff =
       Boolean(input.handoffSummary?.trim()) || input.history.some((h) => h.role === "user");
     if (fromHandoff && isAgentFirstReply(input.history)) {
-      return "[继续] 第一次回复：介绍找一起做事的搭子，再回应用户已说的内容。";
+      return "[继续] 回应用户已说的内容。";
     }
     if (trait) {
-      return `[对话开始] 用户上次偏好搭子特质：「${trait}」。第一次回复：介绍找搭子，可轻带偏好，请对方说想一起做什么。`;
+      return `[对话开始] 用户上次偏好搭子特质：「${trait}」。可轻带偏好，请对方说想一起做什么。`;
     }
-    return "[对话开始] 第一次回复：介绍找一起做事的搭子，再请对方说想一起做什么。";
+    return "[对话开始] 可以请对方说想一起做什么。";
   }
   if (input.action === "confirm_publish") {
     return "[用户点击了表单「发布」按钮] 心愿已由用户亲手发布；reply 简短确认已挂上；禁止再说「请确认发布」或复述 confirmLine；confirmLine 必须为 null；不要 pickMatchIntentId；可轻问是否顺便找搭子。";
@@ -812,7 +812,6 @@ function buildChatSystem(
   void opts.showCandidates;
   const replyLang = turnReplyLang(input);
   const isPublish = opts.wishLane === "publish";
-  const firstReply = isAgentFirstReply(input.history);
 
   const draftDates = formatDateRangeLine(
     intentDateRange({
@@ -840,48 +839,47 @@ function buildChatSystem(
       !input.wishDraft.placeRaw?.trim() &&
       !input.wishDraft.city?.trim() &&
       !input.wishDraft.city_zh?.trim()
-      ? `地点=已有（来自用户资料城市「${profileCity}」，冷启动可用；禁止再 askUserInfo 要地点）`
-      : `地点=已有（禁止再 askUserInfo 要地点）`
-    : "地点=缺失（本轮要搜才弹 activity_place 卡）";
+      ? `地点=已有（资料城市「${profileCity}」，冷启动）`
+      : `地点=已有`
+    : "地点=缺失";
   const draftLine = `【本轮状态】lane=${opts.wishLane}；已发布=${opts.published ? input.myIntentId : "否"}；${placeStatus}；草稿 kind=${input.wishDraft.kind ?? "?"} when=${input.wishDraft.whenAny ? "any" : input.wishDraft.when ?? "?"} ${draftDates} time=${draftTimes} level=${input.wishDraft.levelAny ? "any" : input.wishDraft.level ?? "?"} text=${input.wishDraft.rawText || "（空）"}`;
 
-  const core = `你在 Maitri 帮用户找一起做事的搭子。温暖、具体，2-5 句；自然语言，不要系统播报。
-产品：用户说想一起做什么 → 介绍愿意一起做的人（一位一位）。禁止提心愿池/发布心愿/看别人的心愿。
+  const core = `你在 Maitri 帮用户找一起做事的搭子。温暖、具体，2-5 句。
+产品：对方说想一起做什么 → 一位一位介绍愿意一起做的人。用语自然，不提心愿池/发布/看别人的心愿。
 ${selfVoiceRule(true)}
-handoffTo 必须始终为 null。若用户明确要认识新朋友/找对象：在 reply 请回首页开「想认识人」新对话；suggestions 可给「回首页开新对话」。
+handoffTo 保持 null。若对方要认识新朋友/找对象：reply 请回首页开「想认识人」新对话；suggestions 可给「回首页开新对话」。
+${agentCapabilityIntroRule("sidebyside", true)}
 
-【决策】（唯一权威；以【本轮状态】的地点=为准，不要自己再猜「有没有地点」）
-1. 闲聊 / 还没说清活动 / 开场 → affirmMatch=false；开放问想一起做什么，不要字段清单。
-2. 本轮要找人 + 地点=缺失 → askUserInfo（fieldKey=activity_place，kind=text）；affirmMatch=false；reply 只短提还差地点并看本条回复下的填写卡。禁止只在 reply 里口头问地点而不填 askUserInfo。
-3. 本轮要找人 + 地点=已有 → affirmMatch=true，reply 必须为 ""；askUserInfo 必须为 null。资料里已有城市也算地点已有（冷启动），禁止再要地点卡。
-地点算「已有」：草稿城市/区域、明确线上或不限、或资料城市。时间/搭子偏好可空。
-affirmPublish 永远 false；找人不要 confirmLine。`;
+【决策】（以【本轮状态】的地点=为准）
+1. 闲聊 / 活动未明 → affirmMatch=false。
+2. 本轮要找人 + 地点=缺失 → askUserInfo（fieldKey=activity_place，kind=text）；affirmMatch=false；reply 短提看本条下的填写卡。
+3. 本轮要找人 + 地点=已有 → affirmMatch=true，reply=""，askUserInfo=null（资料城市也算已有）。
+时间/搭子偏好可空。affirmPublish=false；找人时 confirmLine=null。`;
 
   const opening =
-    firstReply || input.action === "start" || opts.wishLane === "unset"
-      ? `【开场】${firstReply ? "本会话第一次回复须含一句能力介绍（见下），再" : ""}用开放问题请对方说想一起做什么。suggestions：2-4 条第一人称活动例子。不要问发布还是浏览。
-${firstReply ? agentCapabilityIntroRule("sidebyside", true) : ""}`
+    input.action === "start" || opts.wishLane === "unset"
+      ? `【开场】还可给 2-4 条第一人称活动例子作 suggestions。`
       : "";
 
   const laneNote =
     opts.wishLane === "browse"
-      ? "【模式】找人（介绍搭子）。用户补充活动条件=完善邀约，不是换模式。"
+      ? "【模式】找人（介绍搭子）。补充条件=完善邀约。"
       : opts.wishLane === "publish"
-        ? "【模式】说清活动邀约（可开右侧表单）。用户要直接找人时走【决策】找人分支。"
+        ? "【模式】说清活动邀约（可开右侧表单）。直接找人走【决策】。"
         : "";
 
   const lanePicked =
     opts.laneJustPicked && opts.wishLane !== "unset"
-      ? "用户刚表明方向：自然确认；还没说活动则问想一起做什么（affirmMatch=false）。要搜则严格按【决策】。"
+      ? "用户刚表明方向：自然确认；要搜走【决策】。"
       : "";
 
   const publishAppendix = isPublish
-    ? `【发布附录】confirmLine 是开表单的唯一开关（reply 不会开表单）。信息够且本轮不再追问 → confirmLine=一句复述；reply 引导看右侧点发布。affirmPublish 永远 false；未点发布前禁止说已发布。
+    ? `【发布附录】开表单靠 confirmLine（一句复述）；reply 引导看右侧点发布。affirmPublish=false。
 已挂起预填：${opts.pendingConfirm ?? "无"}
 ${
   opts.pendingConfirm
-    ? "表单已在右侧：用户说好的/OK → reply 只提醒点「发布」；confirmLine=null。"
-    : "开表单轮 confirmLine 必填；澄清轮 confirmLine=null。"
+    ? "表单已在右侧：用户说好的/OK → reply 提醒点「发布」；confirmLine=null。"
+    : "开表单轮给 confirmLine；澄清轮 confirmLine=null。"
 }`
     : "";
 
@@ -897,23 +895,23 @@ ${
       : "";
 
   const lazyTools = opts.afterToolResults
-    ? "工具已跑完：按【工具结果】写最终 reply；needsTools=false；勿编造 id。"
-    : `【工具】默认 needsTools=false。几乎只用 affirmMatch / askUserInfo。仅当用户要看本会话已发内容：needsTools=true，toolNames=["show_my_wishes"]，reply=""。`;
+    ? "工具已跑完：按【工具结果】写最终 reply；needsTools=false。"
+    : `【工具】默认 needsTools=false。常用 affirmMatch / askUserInfo。要看本会话已发内容时：needsTools=true，toolNames=["show_my_wishes"]，reply=""。`;
 
   const offerNote =
     opts.pendingOfferMatch || (opts.published && isPublish)
-      ? "用户明确要找搭子时走【决策】；不要无意图自动搜。"
+      ? "明确要找搭子时走【决策】。"
       : "";
 
   const pendingBrowse = opts.pendingBrowseConfirm
-    ? "用户在确认是否开始找：suggestions 给确认开搜/再改条件等第一人称短句。"
+    ? "用户在确认是否开始找：suggestions 可给确认开搜/再改条件等第一人称短句。"
     : "";
 
   const jsonBlock = `【JSON】needsTools、affirmMatch 靠前。affirmMatch=true 或 needsTools=true → reply=""。
 搜人：{"needsTools":false,"affirmMatch":true,"toolNames":[],"confirmLine":null,"askUserInfo":null,"reply":"","suggestions":[],"affirmPublish":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
 缺地点：{"needsTools":false,"affirmMatch":false,"toolNames":[],"confirmLine":null,"askUserInfo":{"fieldKey":"activity_place","prompt":"活动想在哪个城市或区域？也可写线上/地点不限","kind":"text","placeholder":"例如：上海"},"reply":"找搭子还差一个地点，填一下下面的卡片就行。","suggestions":[],"affirmPublish":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
 闲聊：{"needsTools":false,"affirmMatch":false,"toolNames":[],"confirmLine":null,"askUserInfo":null,"reply":"...","suggestions":["短句1"],"affirmPublish":false,"pickMatchIntentId":null,"handoffTo":null,"handoffSummary":"","transitionReply":""}
-suggestions：2-4 条第一人称短句（用户可直接发送），勿写成你的提问。缺地点时 askUserInfo.prompt / reply 也须遵守【输出语言】。
+suggestions：2-4 条第一人称短句（用户可直接发送）。
 ${llmReplyLanguageRule(replyLang)}`;
 
   return [

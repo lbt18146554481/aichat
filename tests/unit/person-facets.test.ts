@@ -19,6 +19,12 @@ describe("person facets", () => {
     expect(resolveFacetId("quiet")?.id).toBe("quiet");
   });
 
+  it("resolves 热情 to warm/playful traits", () => {
+    const id = resolveFacetId("热情")?.id;
+    expect(id === "warm" || id === "playful").toBe(true);
+    expect(resolveFacetId("热情的")?.id).toBeTruthy();
+  });
+
   it("enriches seed people with profileText", () => {
     const isa = TEST_PEOPLE_POOL.find((p) => p.id === "isa");
     expect(isa?.gender).toBe("female");

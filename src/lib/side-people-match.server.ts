@@ -9,7 +9,7 @@ import type { WishDraft } from "./wish-types";
 import type { MatchHardFilters } from "./match-types";
 import { chatCompletionJson } from "./llm.server";
 import {
-  recallSidePeople,
+  recallSidePeopleAsync,
   sidePlaceHardFilters,
   SIDE_HANG_REMATCH_MS,
   buildActivityQuery,
@@ -144,7 +144,7 @@ export async function executeSidePeopleMatch(
   }
 
   if (rebuild && input.action !== "see_next" && input.action !== "skip") {
-    const recall = recallSidePeople({
+    const recall = await recallSidePeopleAsync({
       understanding: input.understanding,
       hardFilters,
       wishDraft: input.wishDraft,
@@ -153,6 +153,8 @@ export async function executeSidePeopleMatch(
       passedIds,
       pool,
       seekerProfile: input.profile,
+      chatUnderstanding: input.understanding,
+      chatHardFilters: input.hardFilters,
     });
 
     if (recall.candidates.length === 0) {
@@ -200,7 +202,7 @@ export async function executeSidePeopleMatch(
     const nextCursor = queueCursor + 1;
     if (nextCursor >= rankedQueue.length) {
       // Past end — rebuild excluding shown/passed
-      const recall = recallSidePeople({
+      const recall = await recallSidePeopleAsync({
         understanding: input.understanding,
         hardFilters,
         wishDraft: input.wishDraft,
@@ -209,6 +211,8 @@ export async function executeSidePeopleMatch(
         passedIds,
         pool,
         seekerProfile: input.profile,
+        chatUnderstanding: input.understanding,
+        chatHardFilters: input.hardFilters,
       });
       if (recall.candidates.length === 0) {
         const hangSummary = await runSideHangInviteSummary({

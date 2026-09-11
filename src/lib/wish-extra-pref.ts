@@ -6,6 +6,7 @@
 import type { Intent } from "./intents";
 import type { UserUnderstanding } from "./understanding";
 import { semanticSimilarity } from "./text-similarity";
+import { mixEmbeddingLexical } from "./similarity-mix";
 
 /** Seeker-side free-text prefs: likes + notes + otherReq (no negatives). */
 export function buildWishExtraPrefQuery(
@@ -40,11 +41,12 @@ export function extraPrefMatchScore(
   const query = buildWishExtraPrefQuery(mine, u);
   const doc = buildWishExtraPrefDoc(other);
   if (query.trim() && doc.trim()) {
-    s += semanticSimilarity(query, doc) * 3;
+    // Dense embed optional later; mix helper keeps lexical-only when embed is null.
+    s += mixEmbeddingLexical(null, semanticSimilarity(query, doc)) * 3;
   }
   if (u.negative?.length && doc.trim()) {
     for (const neg of u.negative) {
-      s -= semanticSimilarity(neg, doc) * 0.85;
+      s -= mixEmbeddingLexical(null, semanticSimilarity(neg, doc)) * 0.85;
     }
   }
   return s;

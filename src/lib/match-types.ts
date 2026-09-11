@@ -55,6 +55,16 @@ export interface RecallOpts {
   pool?: Person[];
   /** Seeker profile for culture affinity (favorites / moments). */
   seekerProfile?: import("./profile-shape").Profile | null;
+  /**
+   * Chat-extracted soft prefs (no cold-start). When set, soft scoring
+   * prioritizes this over `understanding` for preference query / structured soft.
+   */
+  chatUnderstanding?: UserUnderstanding;
+  /**
+   * Chat-extracted hard filters (no cold-start). Flex dims here score higher
+   * than the same dims that only appear on effective `hardFilters`.
+   */
+  chatHardFilters?: MatchHardFilters;
 }
 
 export interface RecalledCandidate {

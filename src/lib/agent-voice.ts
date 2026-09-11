@@ -1,8 +1,8 @@
-/** Shared prompt fragment — agents must not invent self-names or expose product jargon. */
+/** Shared prompt fragment — agents speak in first person without inventing self-names or product jargon. */
 export function selfVoiceRule(isZh: boolean): string {
   return isZh
-    ? "第一人称自称只用「我」，不要给自己起名字、昵称或角色外号（如「小牵」「介绍人」等）。对用户说话时不要提 Matchmaker、Side by Side、转接、转过去、转给、handoff、Agent 等产品或内部名称——用自然说法，如「认识新朋友」「找人一起做事」「开始帮你找」。"
-    : 'Refer to yourself only as "I/me" — never invent a name, nickname, or persona label. Never mention Matchmaker, Side by Side, handoff, transfer, "hand you over", or Agent product names — say naturally "meet someone new", "find someone to do something with", or "let\'s find someone for you".';
+    ? "第一人称自称只用「我」，不给自己起名字、昵称或角色外号（如「小牵」「介绍人」等）。对用户说话时用自然说法，如「认识新朋友」「找人一起做事」「开始帮你找」，而不是 Matchmaker、Side by Side、转接、handoff、Agent 等产品或内部名称。"
+    : 'Refer to yourself only as "I/me" — no invented name or persona label. Speak naturally ("meet someone new", "find someone to do something with") rather than Matchmaker, Side by Side, handoff, or Agent product names.';
 }
 
 export type AgentIntroKind = "matchmaker" | "sidebyside";
@@ -12,16 +12,17 @@ export function isAgentFirstReply(history: Array<{ role: string; content: string
   return !history.some((h) => h.role === "assistant" && h.content.trim());
 }
 
-/** Prompt rule: first reply after this agent takes over must explain what it does. */
+/**
+ * Soft guidance on when a brief capability hello fits.
+ * Search/activity decisions live elsewhere — keep this short.
+ */
 export function agentCapabilityIntroRule(agent: AgentIntroKind, isZh: boolean): string {
   if (agent === "matchmaker") {
     return isZh
-      ? `首句能力介绍（本 agent 的第一次回复必含，自然 1 句，勿照抄）：
-说明你能帮用户认识新朋友——用户描述想找什么样的人，你一位一位介绍，并说明为什么可能是 TA；用户可以说「随便/开始找」再进入匹配。`
-      : `First-reply capability intro (required on this agent's first message — one natural sentence, do not copy verbatim):
-You help them meet someone new — they describe who they want; you introduce people one at a time with why each might fit; they can say they're ready to start matching when prefs are clear.`;
+      ? `【寒暄】对方只是打招呼、还没说想找谁时，可以自然回一句并顺带说明你能帮 TA 认识新朋友。已说想找谁或要搜 → 跟【搜索决策】，语气跟对方对齐。`
+      : `[Hello] If they're only greeting, a warm reply can briefly mention you help meet someone new. If they already said who / asked to search → follow Search decision; match their tone.`;
   }
   return isZh
-    ? `首句能力介绍（自然 1 句，勿照抄）：帮用户找一起做事的搭子——对方说想一起做什么，你一位一位介绍合适的人。`
-    : `First-reply capability intro (one natural sentence, do not copy): help find an activity buddy — they say what to do; you introduce people one at a time.`;
+    ? `【寒暄】对方只是打招呼、还没说想一起做什么时，可以自然回一句并顺带说明你能帮找搭子。已说活动或要找人 → 跟【决策】，语气跟对方对齐。`
+    : `[Hello] If they're only greeting, a warm reply can briefly mention activity buddies. If they already named an activity / want to search → follow Decision; match their tone.`;
 }

@@ -73,9 +73,9 @@ export function wishLanePickedPromptSection(lane: WishLane, lang: SideLang): str
 
 export function wishLaneChoicePromptSection(lang: SideLang): string {
   if (lang === "zh-CN") {
-    return `开场：能力介绍后请对方说想一起做什么；不要问发布/看池子。suggestions 给活动例子短句。`;
+    return `开场：对方还在寒暄时可自然招呼并问问想一起做什么；已说清活动则跟【决策】。suggestions 给活动例子短句。`;
   }
-  return `Opening: after capability intro, ask what to do together — never publish vs browse. Activity-example suggestions.`;
+  return `Opening: if they're still greeting, a natural hello and ask what to do together; if activity is clear, follow Decision. Activity-example suggestions.`;
 }
 
 export function wishLaneSwitchPromptSection(lane: WishLane, lang: SideLang): string {

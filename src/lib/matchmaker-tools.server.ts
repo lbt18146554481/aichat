@@ -1,5 +1,5 @@
 import type { ToolDefinition } from "./llm.server";
-import type { MatchHardFilters, MatchmakerLang } from "./match-types";
+import type { MatchHardFilters, MatchmakerLang, RecallOpts } from "./match-types";
 import { EMPTY_HARD_FILTERS } from "./match-types";
 import type { UserUnderstanding } from "./understanding";
 import {
@@ -11,7 +11,7 @@ import {
   normalizeGenders,
 } from "./match-normalize";
 import { formatPlaceList, parsePlaceList, placeFromCityLabels, placeSatisfies } from "./geo";
-import { recallCandidates, rosterFromIds } from "./match-recall";
+import { recallCandidatesAsync, rosterFromIds } from "./match-recall";
 import { findPersonInPool } from "./people-store.server";
 import { buildPoolFacets } from "./pool-facets.server";
 import { localized } from "./people";
@@ -235,7 +235,7 @@ function explainEmptyPool(state: MatchmakerToolState): {
   };
 }
 
-function recallState(state: MatchmakerToolState, extra?: Partial<Parameters<typeof recallCandidates>[0]>) {
+function recallState(state: MatchmakerToolState, extra?: Partial<RecallOpts>) {
   return {
     understanding: state.understanding,
     hardFilters: state.hardFilters,
@@ -247,7 +247,7 @@ function recallState(state: MatchmakerToolState, extra?: Partial<Parameters<type
   };
 }
 
-function previewWithFilters(
+async function previewWithFilters(
   state: MatchmakerToolState,
   override?: Partial<MatchHardFilters>,
   limit = 5,
@@ -255,7 +255,7 @@ function previewWithFilters(
   const hardFilters = override
     ? patchFilters(state.hardFilters, override as Record<string, unknown>)
     : state.hardFilters;
-  const recall = recallCandidates({
+  const recall = await recallCandidatesAsync({
     ...recallState(state, { hardFilters, limit }),
   });
   const sample = recall.candidates.slice(0, limit).map((c) => {
@@ -446,12 +446,12 @@ export const MATCHMAKER_TOOLS: ToolDefinition[] = [
   ASK_USER_INFO_TOOL,
 ];
 
-export function executeMatchmakerTool(
+export async function executeMatchmakerTool(
   state: MatchmakerToolState,
   name: string,
   args: Record<string, unknown>,
   meta?: { toolCallId?: string },
-): unknown {
+): Promise<unknown> {
   switch (name) {
     case ASK_USER_INFO_TOOL_NAME: {
       const ask = parseAskUserInfoArgs(args, meta?.toolCallId ?? ASK_USER_INFO_TOOL_NAME);
@@ -485,7 +485,7 @@ export function executeMatchmakerTool(
     case "update_filters": {
       state.hardFilters = patchFilters(state.hardFilters, args);
       state.filtersTouched = true;
-      const preview = previewWithFilters(state, undefined, 3);
+      const preview = await previewWithFilters(state, undefined, 3);
       return {
         ok: true,
         hardFilters: state.hardFilters,
@@ -516,7 +516,7 @@ export function executeMatchmakerTool(
     }
     case "search_people": {
       const limit = typeof args.limit === "number" ? Math.min(12, Math.max(1, args.limit)) : 8;
-      const preview = previewWithFilters(state, args, limit);
+      const preview = await previewWithFilters(state, args, limit);
       // Persist trial cities/age only if explicitly updating via update_filters;
       // search may pass trial overrides without mutating — already handled in previewWithFilters.
       state.lastSearchIds = preview.sample.map((s) => s.id);
@@ -566,7 +566,7 @@ export function executeMatchmakerTool(
         state.filtersTouched = true;
       }
       state.requestRematch = true;
-      const preview = previewWithFilters(state, undefined, 5);
+      const preview = await previewWithFilters(state, undefined, 5);
       return {
         ok: true,
         needsUserConfirm: true,
@@ -585,7 +585,7 @@ export function executeMatchmakerTool(
       state.passCurrentPerson = true;
       if (state.currentPersonId === id) state.currentPersonId = null;
 
-      const recall = recallCandidates({
+      const recall = await recallCandidatesAsync({
         ...recallState(state, { limit: 5 }),
       });
       const nextId = recall.candidates[0]?.id ?? null;
