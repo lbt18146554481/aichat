@@ -19,6 +19,10 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Apple Sign In private keys (never commit)
+*.p8
+AuthKey_*.p8
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars

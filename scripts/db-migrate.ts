@@ -25,11 +25,13 @@ async function migrate() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
-    -- Existing DBs created before OAuth: allow passwordless users + Google identity.
+    -- Existing DBs created before OAuth: allow passwordless users + Google/Apple identity.
     ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'email';
     ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_sub TEXT;
     CREATE UNIQUE INDEX IF NOT EXISTS users_google_sub_idx ON users(google_sub);
+    CREATE UNIQUE INDEX IF NOT EXISTS users_apple_sub_idx ON users(apple_sub);
 
     CREATE TABLE IF NOT EXISTS auth_sessions (
       token TEXT PRIMARY KEY,

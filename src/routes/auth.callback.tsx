@@ -5,7 +5,9 @@ import { Loader2 } from "lucide-react";
 import {
   asAuthError,
   authErrorMessage,
+  completeAppleOAuth,
   completeGoogleOAuth,
+  peekOAuthProvider,
   refreshUser,
   type AuthUser,
 } from "@/lib/auth";
@@ -16,16 +18,25 @@ interface Search {
   error?: string;
 }
 
-/** Dedupe Strict Mode double-mount; Google codes are single-use. */
+/** Dedupe Strict Mode double-mount; OAuth codes are single-use. */
 const oauthInflight = new Map<string, Promise<{ redirect: string; user: AuthUser }>>();
 
-function completeGoogleOAuthOnce(code: string, state: string) {
-  const existing = oauthInflight.get(code);
+function completeOAuthOnce(
+  provider: "google" | "apple",
+  code: string,
+  state: string,
+) {
+  const key = `${provider}:${code}`;
+  const existing = oauthInflight.get(key);
   if (existing) return existing;
-  const promise = completeGoogleOAuth({ code, state }).finally(() => {
-    window.setTimeout(() => oauthInflight.delete(code), 5000);
+  const run =
+    provider === "apple"
+      ? completeAppleOAuth({ code, state })
+      : completeGoogleOAuth({ code, state });
+  const promise = run.finally(() => {
+    window.setTimeout(() => oauthInflight.delete(key), 5000);
   });
-  oauthInflight.set(code, promise);
+  oauthInflight.set(key, promise);
   return promise;
 }
 
@@ -79,7 +90,8 @@ function AuthCallbackPage() {
       }
 
       try {
-        const result = await completeGoogleOAuthOnce(search.code, search.state);
+        const provider = (await peekOAuthProvider()) ?? "google";
+        const result = await completeOAuthOnce(provider, search.code, search.state);
         if (cancelled) return;
         await refreshUser();
         if (cancelled) return;
@@ -87,7 +99,7 @@ function AuthCallbackPage() {
       } catch (e) {
         if (cancelled) return;
         const err = asAuthError(e);
-        console.error("[google oauth callback]", err.code, err.message);
+        console.error("[oauth callback]", err.code, err.message);
         setMessage(authErrorMessage(t, err.code, err.message));
         window.setTimeout(() => {
           void navigate({ to: "/auth", search: { mode: "signin" }, replace: true });

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { LangSwitcher } from "@/components/lang-switcher";
-import { asAuthError, authErrorMessage, signIn, signUp, startGoogleOAuth, useAuth } from "@/lib/auth";
+import { asAuthError, authErrorMessage, signIn, signUp, startAppleOAuth, startGoogleOAuth, useAuth } from "@/lib/auth";
 import { validateInvite } from "@/lib/invites";
 
 type Mode = "signin" | "signup";
@@ -126,7 +126,15 @@ function AuthPage() {
       return;
     }
     if (provider === "apple") {
-      toast(t("auth.apple_coming_soon"));
+      setPending("submit");
+      try {
+        const url = await startAppleOAuth(search.redirect);
+        window.location.assign(url);
+      } catch (e) {
+        const err = asAuthError(e);
+        setErr(authErrorMessage(t, err.code, err.message));
+        setPending(null);
+      }
       return;
     }
     toast(t("auth.wechat_coming_soon"));

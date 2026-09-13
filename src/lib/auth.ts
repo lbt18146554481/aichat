@@ -9,6 +9,9 @@ import {
   deleteAccountFn,
   startGoogleOAuthFn,
   completeGoogleOAuthFn,
+  startAppleOAuthFn,
+  completeAppleOAuthFn,
+  peekOAuthProviderFn,
 } from "./api/auth.functions";
 import { clearLocalModerationData } from "./blocklist";
 import { AuthError, type AuthUser } from "./auth-types";
@@ -93,6 +96,37 @@ export async function completeGoogleOAuth(input: {
     return result;
   } catch (e) {
     throw asAuthError(e);
+  }
+}
+
+export async function startAppleOAuth(redirect?: string): Promise<string> {
+  try {
+    const { url } = await startAppleOAuthFn({ data: { redirect } });
+    return url;
+  } catch (e) {
+    throw asAuthError(e);
+  }
+}
+
+export async function completeAppleOAuth(input: {
+  code: string;
+  state: string;
+}): Promise<{ redirect: string; user: AuthUser }> {
+  try {
+    const result = await completeAppleOAuthFn({ data: input });
+    emit(result.user);
+    return result;
+  } catch (e) {
+    throw asAuthError(e);
+  }
+}
+
+export async function peekOAuthProvider(): Promise<"google" | "apple" | null> {
+  try {
+    const { provider } = await peekOAuthProviderFn();
+    return provider;
+  } catch {
+    return null;
   }
 }
 

@@ -15,6 +15,14 @@ import {
   exchangeGoogleCode,
   parseOAuthState,
 } from "../google-oauth.server";
+import {
+  buildAppleAuthorizeUrl,
+  exchangeAppleCode,
+} from "../apple-oauth.server";
+
+/** Tracks which OAuth provider owns the current authorize round-trip. */
+const OAUTH_PROVIDER_COOKIE = "maitri_oauth_provider";
+type OAuthProviderCookie = "google" | "apple";
 
 /**
  * Temporary: invite codes may be reused any number of times.
@@ -115,6 +123,9 @@ export const signInFn = createServerFn({ method: "POST" })
       const row = rows[0];
       if (!row) throw new AuthError("account_not_found", "No account yet. Join with an invite code to create one.");
       if (!row.passwordHash) {
+        if (row.provider === "apple") {
+          throw new AuthError("invalid_credentials", "This account uses Apple sign-in. Continue with Apple instead.");
+        }
         throw new AuthError("invalid_credentials", "This account uses Google sign-in. Continue with Google instead.");
       }
       const ok = await bcrypt.compare(data.password, row.passwordHash);
@@ -246,6 +257,7 @@ export const startGoogleOAuthFn = createServerFn({ method: "POST" })
       const redirectPath = safePostAuthRedirect(data.redirect);
       const { state, nonce } = createOAuthState(redirectPath);
       setCookie(GOOGLE_OAUTH_STATE_COOKIE, nonce, oauthCookieOpts(10 * 60));
+      setCookie(OAUTH_PROVIDER_COOKIE, "google" satisfies OAuthProviderCookie, oauthCookieOpts(10 * 60));
       const url = buildGoogleAuthorizeUrl(state);
       return { url };
     } catch (e) {
@@ -256,6 +268,34 @@ export const startGoogleOAuthFn = createServerFn({ method: "POST" })
       toAuthError(e);
     }
   });
+
+/** Start Sign in with Apple — returns authorize URL; client should navigate there. */
+export const startAppleOAuthFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ redirect: z.string().optional() }))
+  .handler(async ({ data }): Promise<{ url: string }> => {
+    try {
+      const redirectPath = safePostAuthRedirect(data.redirect);
+      const { state, nonce } = createOAuthState(redirectPath);
+      setCookie(GOOGLE_OAUTH_STATE_COOKIE, nonce, oauthCookieOpts(10 * 60));
+      setCookie(OAUTH_PROVIDER_COOKIE, "apple" satisfies OAuthProviderCookie, oauthCookieOpts(10 * 60));
+      const url = buildAppleAuthorizeUrl(state);
+      return { url };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.startsWith("missing_env:") || msg.includes("ENOENT")) {
+        fail("oauth_not_configured", "Apple sign-in is not configured on this server.");
+      }
+      toAuthError(e);
+    }
+  });
+
+export const peekOAuthProviderFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<{ provider: OAuthProviderCookie | null }> => {
+    const raw = getCookie(OAUTH_PROVIDER_COOKIE);
+    if (raw === "google" || raw === "apple") return { provider: raw };
+    return { provider: null };
+  },
+);
 
 /** Finish Google OAuth after /auth/callback receives code+state. */
 export const completeGoogleOAuthFn = createServerFn({ method: "POST" })
@@ -272,6 +312,7 @@ export const completeGoogleOAuthFn = createServerFn({ method: "POST" })
 
       const cookieNonce = getCookie(GOOGLE_OAUTH_STATE_COOKIE);
       deleteCookie(GOOGLE_OAUTH_STATE_COOKIE, { path: "/" });
+      deleteCookie(OAUTH_PROVIDER_COOKIE, { path: "/" });
       if (!cookieNonce || cookieNonce !== parsed.nonce) {
         throw new AuthError("oauth_state_invalid", "Sign-in expired. Please try Google again.");
       }
@@ -353,6 +394,107 @@ export const completeGoogleOAuthFn = createServerFn({ method: "POST" })
           detail
             ? `Google sign-in failed (${detail}).`
             : "Google sign-in failed. Please try again.",
+        );
+      }
+      toAuthError(e);
+    }
+  });
+
+/** Finish Apple OAuth after /auth/callback receives code+state. */
+export const completeAppleOAuthFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      code: z.string().min(1),
+      state: z.string().min(1),
+    }),
+  )
+  .handler(async ({ data }): Promise<{ redirect: string; user: AuthUser }> => {
+    try {
+      const parsed = parseOAuthState(data.state);
+      if (!parsed) throw new AuthError("oauth_state_invalid", "Sign-in expired. Please try Apple again.");
+
+      const cookieNonce = getCookie(GOOGLE_OAUTH_STATE_COOKIE);
+      deleteCookie(GOOGLE_OAUTH_STATE_COOKIE, { path: "/" });
+      deleteCookie(OAUTH_PROVIDER_COOKIE, { path: "/" });
+      if (!cookieNonce || cookieNonce !== parsed.nonce) {
+        throw new AuthError("oauth_state_invalid", "Sign-in expired. Please try Apple again.");
+      }
+
+      const profile = await exchangeAppleCode(data.code);
+      const db = getDb();
+
+      const bySub = await db.select().from(users).where(eq(users.appleSub, profile.sub)).limit(1);
+      let row = bySub[0];
+
+      if (!row) {
+        const byEmail = await db.select().from(users).where(eq(users.email, profile.email)).limit(1);
+        if (byEmail[0]) {
+          await db
+            .update(users)
+            .set({
+              appleSub: profile.sub,
+              provider: "apple",
+              name: byEmail[0].name || profile.name,
+            })
+            .where(eq(users.id, byEmail[0].id));
+          const refreshed = await db.select().from(users).where(eq(users.id, byEmail[0].id)).limit(1);
+          row = refreshed[0]!;
+        } else {
+          const id = newId("u");
+          await db.insert(users).values({
+            id,
+            email: profile.email,
+            passwordHash: null,
+            provider: "apple",
+            appleSub: profile.sub,
+            name: profile.name,
+            avatar: "",
+          });
+          await db.insert(profiles).values({
+            userId: id,
+            data: EMPTY_PROFILE as unknown as Record<string, unknown>,
+          });
+          const created = await db.select().from(users).where(eq(users.id, id)).limit(1);
+          row = created[0]!;
+        }
+      } else {
+        await db
+          .update(users)
+          .set({
+            name: row.name || profile.name,
+            // Only overwrite email when Apple still sends a real address
+            ...(profile.email.includes("@privaterelay.appleid.com") && row.email
+              ? {}
+              : { email: profile.email }),
+            provider: "apple",
+          })
+          .where(eq(users.id, row.id));
+        const refreshed = await db.select().from(users).where(eq(users.id, row.id)).limit(1);
+        row = refreshed[0]!;
+      }
+
+      await createSession(row.id);
+      const user: AuthUser = {
+        id: row.id,
+        email: row.email,
+        name: row.name,
+        avatar: row.avatar,
+        provider: "apple",
+        createdAt: row.createdAt.getTime(),
+      };
+      return { redirect: parsed.redirectPath, user };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[completeAppleOAuth]", msg);
+      if (msg.startsWith("missing_env:") || msg.includes("ENOENT")) {
+        fail("oauth_not_configured", "Apple sign-in is not configured on this server.");
+      }
+      if (msg.startsWith("apple_")) {
+        const detail =
+          process.env.NODE_ENV !== "production" ? msg.replace(/^apple_[^:]+:/, "").slice(0, 180) : "";
+        fail(
+          "oauth_failed",
+          detail ? `Apple sign-in failed (${detail}).` : "Apple sign-in failed. Please try again.",
         );
       }
       toAuthError(e);

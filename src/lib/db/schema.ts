@@ -20,6 +20,8 @@ export const users = pgTable(
     provider: text("provider").notNull().default("email"),
     /** Google `sub` claim; unique when present. */
     googleSub: text("google_sub"),
+    /** Apple `sub` claim; unique when present. */
+    appleSub: text("apple_sub"),
     name: text("name").notNull().default(""),
     avatar: text("avatar").notNull().default(""),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -27,6 +29,7 @@ export const users = pgTable(
   (t) => [
     uniqueIndex("users_email_idx").on(t.email),
     uniqueIndex("users_google_sub_idx").on(t.googleSub),
+    uniqueIndex("users_apple_sub_idx").on(t.appleSub),
   ],
 );
 
