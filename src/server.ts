@@ -23,22 +23,37 @@ async function getServerEntry(): Promise<ServerEntry> {
  * Apple Sign In posts `application/x-www-form-urlencoded` to the return URL
  * (response_mode=form_post). Convert that into a GET so the SPA callback can
  * finish OAuth the same way as Google.
+ *
+ * Accept both `/auth/callback` and `/auth/callback/apple` (common Services ID
+ * Return URL), then land on the shared SPA callback route.
  */
 async function rewriteAppleFormPost(request: Request): Promise<Response | null> {
-  if (request.method !== "POST") return null;
   const url = new URL(request.url);
-  if (url.pathname !== "/auth/callback" && url.pathname !== "/auth/callback/") return null;
-  const contentType = request.headers.get("content-type") || "";
-  if (!contentType.includes("application/x-www-form-urlencoded")) return null;
+  const path = url.pathname.replace(/\/$/, "") || "/";
+  const isAppleReturn = path === "/auth/callback" || path === "/auth/callback/apple";
+  if (!isAppleReturn) return null;
 
-  const body = await request.text();
-  const params = new URLSearchParams(body);
-  const dest = new URL("/auth/callback", url.origin);
-  for (const key of ["code", "state", "error", "error_description", "user"]) {
-    const value = params.get(key);
-    if (value) dest.searchParams.set(key, value);
+  if (request.method === "POST") {
+    const contentType = request.headers.get("content-type") || "";
+    if (!contentType.includes("application/x-www-form-urlencoded")) return null;
+    const body = await request.text();
+    const params = new URLSearchParams(body);
+    const dest = new URL("/auth/callback", url.origin);
+    for (const key of ["code", "state", "error", "error_description", "user"]) {
+      const value = params.get(key);
+      if (value) dest.searchParams.set(key, value);
+    }
+    return Response.redirect(dest.toString(), 303);
   }
-  return Response.redirect(dest.toString(), 303);
+
+  // GET (or other) to /auth/callback/apple → same SPA page with query preserved
+  if (request.method === "GET" && path === "/auth/callback/apple") {
+    const dest = new URL("/auth/callback", url.origin);
+    dest.search = url.search;
+    return Response.redirect(dest.toString(), 302);
+  }
+
+  return null;
 }
 
 // h3 swallows in-handler throws into a normal 500 Response with body

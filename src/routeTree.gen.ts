@@ -24,6 +24,7 @@ import { Route as AuthIndexRouteImport } from './routes/auth.index'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as WishesIndexRouteImport } from './routes/wishes.index'
 import { Route as WishesWishIdRouteImport } from './routes/wishes.$wishId'
+import { Route as AuthCallbackAppleRouteImport } from './routes/auth.callback.apple'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -100,6 +101,11 @@ const WishesWishIdRoute = WishesWishIdRouteImport.update({
   path: '/$wishId',
   getParentRoute: () => WishesRoute,
 } as any)
+const AuthCallbackAppleRoute = AuthCallbackAppleRouteImport.update({
+  id: '/apple',
+  path: '/apple',
+  getParentRoute: () => AuthCallbackRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -113,10 +119,11 @@ export interface FileRoutesByFullPath {
   '/side-by-side': typeof SideBySideRoute
   '/terms': typeof TermsRoute
   '/wishes': typeof WishesRouteWithChildren
-  '/auth/callback': typeof AuthCallbackRoute
+  '/auth/callback': typeof AuthCallbackRouteWithChildren
   '/wishes/$wishId': typeof WishesWishIdRoute
   '/auth/': typeof AuthIndexRoute
   '/wishes/': typeof WishesIndexRoute
+  '/auth/callback/apple': typeof AuthCallbackAppleRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -128,10 +135,11 @@ export interface FileRoutesByTo {
   '/sessions': typeof SessionsRoute
   '/side-by-side': typeof SideBySideRoute
   '/terms': typeof TermsRoute
-  '/auth/callback': typeof AuthCallbackRoute
+  '/auth/callback': typeof AuthCallbackRouteWithChildren
   '/wishes/$wishId': typeof WishesWishIdRoute
   '/auth': typeof AuthIndexRoute
   '/wishes': typeof WishesIndexRoute
+  '/auth/callback/apple': typeof AuthCallbackAppleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -146,10 +154,11 @@ export interface FileRoutesById {
   '/side-by-side': typeof SideBySideRoute
   '/terms': typeof TermsRoute
   '/wishes': typeof WishesRouteWithChildren
-  '/auth/callback': typeof AuthCallbackRoute
+  '/auth/callback': typeof AuthCallbackRouteWithChildren
   '/wishes/$wishId': typeof WishesWishIdRoute
   '/auth/': typeof AuthIndexRoute
   '/wishes/': typeof WishesIndexRoute
+  '/auth/callback/apple': typeof AuthCallbackAppleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/wishes/$wishId'
     | '/auth/'
     | '/wishes/'
+    | '/auth/callback/apple'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
     | '/wishes/$wishId'
     | '/auth'
     | '/wishes'
+    | '/auth/callback/apple'
   id:
     | '__root__'
     | '/'
@@ -201,6 +212,7 @@ export interface FileRouteTypes {
     | '/wishes/$wishId'
     | '/auth/'
     | '/wishes/'
+    | '/auth/callback/apple'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -324,16 +336,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WishesWishIdRouteImport
       parentRoute: typeof WishesRoute
     }
+    '/auth/callback/apple': {
+      id: '/auth/callback/apple'
+      path: '/apple'
+      fullPath: '/auth/callback/apple'
+      preLoaderRoute: typeof AuthCallbackAppleRouteImport
+      parentRoute: typeof AuthCallbackRoute
+    }
   }
 }
 
+interface AuthCallbackRouteChildren {
+  AuthCallbackAppleRoute: typeof AuthCallbackAppleRoute
+}
+
+const AuthCallbackRouteChildren: AuthCallbackRouteChildren = {
+  AuthCallbackAppleRoute: AuthCallbackAppleRoute,
+}
+
+const AuthCallbackRouteWithChildren = AuthCallbackRoute._addFileChildren(
+  AuthCallbackRouteChildren,
+)
+
 interface AuthRouteChildren {
-  AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthCallbackRoute: typeof AuthCallbackRouteWithChildren
   AuthIndexRoute: typeof AuthIndexRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
-  AuthCallbackRoute: AuthCallbackRoute,
+  AuthCallbackRoute: AuthCallbackRouteWithChildren,
   AuthIndexRoute: AuthIndexRoute,
 }
 
@@ -368,13 +399,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
