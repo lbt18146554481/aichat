@@ -111,6 +111,7 @@ export async function startAppleOAuth(redirect?: string): Promise<string> {
 export async function completeAppleOAuth(input: {
   code: string;
   state: string;
+  userJson?: string;
 }): Promise<{ redirect: string; user: AuthUser }> {
   try {
     const result = await completeAppleOAuthFn({ data: input });

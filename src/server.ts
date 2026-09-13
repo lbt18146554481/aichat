@@ -19,6 +19,28 @@ async function getServerEntry(): Promise<ServerEntry> {
   return serverEntryPromise;
 }
 
+/**
+ * Apple Sign In posts `application/x-www-form-urlencoded` to the return URL
+ * (response_mode=form_post). Convert that into a GET so the SPA callback can
+ * finish OAuth the same way as Google.
+ */
+async function rewriteAppleFormPost(request: Request): Promise<Response | null> {
+  if (request.method !== "POST") return null;
+  const url = new URL(request.url);
+  if (url.pathname !== "/auth/callback" && url.pathname !== "/auth/callback/") return null;
+  const contentType = request.headers.get("content-type") || "";
+  if (!contentType.includes("application/x-www-form-urlencoded")) return null;
+
+  const body = await request.text();
+  const params = new URLSearchParams(body);
+  const dest = new URL("/auth/callback", url.origin);
+  for (const key of ["code", "state", "error", "error_description", "user"]) {
+    const value = params.get(key);
+    if (value) dest.searchParams.set(key, value);
+  }
+  return Response.redirect(dest.toString(), 303);
+}
+
 // h3 swallows in-handler throws into a normal 500 Response with body
 // {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
 async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
@@ -41,6 +63,9 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const appleRewrite = await rewriteAppleFormPost(request);
+      if (appleRewrite) return appleRewrite;
+
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);

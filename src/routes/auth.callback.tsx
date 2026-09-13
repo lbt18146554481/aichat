@@ -16,6 +16,7 @@ interface Search {
   code?: string;
   state?: string;
   error?: string;
+  user?: string;
 }
 
 /** Dedupe Strict Mode double-mount; OAuth codes are single-use. */
@@ -25,13 +26,14 @@ function completeOAuthOnce(
   provider: "google" | "apple",
   code: string,
   state: string,
+  userJson?: string,
 ) {
   const key = `${provider}:${code}`;
   const existing = oauthInflight.get(key);
   if (existing) return existing;
   const run =
     provider === "apple"
-      ? completeAppleOAuth({ code, state })
+      ? completeAppleOAuth({ code, state, userJson })
       : completeGoogleOAuth({ code, state });
   const promise = run.finally(() => {
     window.setTimeout(() => oauthInflight.delete(key), 5000);
@@ -45,6 +47,7 @@ export const Route = createFileRoute("/auth/callback")({
     code: typeof raw.code === "string" ? raw.code : undefined,
     state: typeof raw.state === "string" ? raw.state : undefined,
     error: typeof raw.error === "string" ? raw.error : undefined,
+    user: typeof raw.user === "string" ? raw.user : undefined,
   }),
   component: AuthCallbackPage,
   head: () => ({
@@ -91,7 +94,7 @@ function AuthCallbackPage() {
 
       try {
         const provider = (await peekOAuthProvider()) ?? "google";
-        const result = await completeOAuthOnce(provider, search.code, search.state);
+        const result = await completeOAuthOnce(provider, search.code, search.state, search.user);
         if (cancelled) return;
         await refreshUser();
         if (cancelled) return;
@@ -110,7 +113,7 @@ function AuthCallbackPage() {
     return () => {
       cancelled = true;
     };
-  }, [navigate, ready, search.code, search.error, search.state, t]);
+  }, [navigate, ready, search.code, search.error, search.state, search.user, t]);
 
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">

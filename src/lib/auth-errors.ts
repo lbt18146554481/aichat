@@ -41,6 +41,9 @@ function tryParseCodeMessage(raw: string): { code: string; message: string } | n
 
 function inferCodeFromMessage(message: string): string | null {
   const m = message.toLowerCase();
+  if (m === "unauthorized" || m.includes("sign in required")) {
+    return "unauthorized";
+  }
   if (m.includes("econnrefused") || m.includes("connect") || m.includes("database")) {
     return "db_unavailable";
   }

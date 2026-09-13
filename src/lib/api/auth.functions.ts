@@ -406,6 +406,7 @@ export const completeAppleOAuthFn = createServerFn({ method: "POST" })
     z.object({
       code: z.string().min(1),
       state: z.string().min(1),
+      userJson: z.string().optional(),
     }),
   )
   .handler(async ({ data }): Promise<{ redirect: string; user: AuthUser }> => {
@@ -420,7 +421,19 @@ export const completeAppleOAuthFn = createServerFn({ method: "POST" })
         throw new AuthError("oauth_state_invalid", "Sign-in expired. Please try Apple again.");
       }
 
-      const profile = await exchangeAppleCode(data.code);
+      let fullName = "";
+      if (data.userJson) {
+        try {
+          const raw = JSON.parse(data.userJson) as {
+            name?: { firstName?: string; lastName?: string };
+          };
+          fullName = [raw.name?.firstName, raw.name?.lastName].filter(Boolean).join(" ").trim();
+        } catch {
+          /* ignore malformed Apple user payload */
+        }
+      }
+
+      const profile = await exchangeAppleCode(data.code, { fullName });
       const db = getDb();
 
       const bySub = await db.select().from(users).where(eq(users.appleSub, profile.sub)).limit(1);

@@ -48,6 +48,14 @@ export function getAppleOAuthConfig() {
   };
 }
 
+/** Public fields needed to start the authorize redirect (no private key). */
+export function getAppleAuthorizeConfig() {
+  return {
+    clientId: requireEnv("APPLE_CLIENT_ID"),
+    redirectUri: requireEnv("APPLE_REDIRECT_URI"),
+  };
+}
+
 function base64urlJson(value: unknown): string {
   return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
 }
@@ -76,12 +84,13 @@ export function createAppleClientSecret(): string {
 }
 
 export function buildAppleAuthorizeUrl(state: string): string {
-  const { clientId, redirectUri } = getAppleOAuthConfig();
+  const { clientId, redirectUri } = getAppleAuthorizeConfig();
   const url = new URL("https://appleid.apple.com/auth/authorize");
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("response_mode", "query");
+  // Apple requires form_post whenever name/email scopes are requested.
+  url.searchParams.set("response_mode", "form_post");
   url.searchParams.set("scope", "name email");
   url.searchParams.set("state", state);
   return url.toString();
@@ -97,7 +106,10 @@ function decodeJwtPayload(token: string): Record<string, unknown> {
   }
 }
 
-export async function exchangeAppleCode(code: string): Promise<AppleProfile> {
+export async function exchangeAppleCode(
+  code: string,
+  opts?: { fullName?: string },
+): Promise<AppleProfile> {
   const { clientId, redirectUri } = getAppleOAuthConfig();
   const clientSecret = createAppleClientSecret();
   const tokenRes = await fetch("https://appleid.apple.com/auth/token", {
@@ -131,10 +143,11 @@ export async function exchangeAppleCode(code: string): Promise<AppleProfile> {
     claims.email_verified === "true" ||
     Boolean(emailRaw);
 
+  const fromAppleName = opts?.fullName?.trim();
   return {
     sub,
     email,
     emailVerified,
-    name: (emailRaw.split("@")[0] || "member").trim(),
+    name: (fromAppleName || emailRaw.split("@")[0] || "member").trim(),
   };
 }
