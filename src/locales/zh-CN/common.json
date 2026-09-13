@@ -726,6 +726,7 @@
     "coming_soon": "即将上线",
     "or_email": "或使用邮箱继续",
     "google_coming_soon": "Google 登录即将上线。",
+    "oauth_working": "正在用 Google 登录…",
     "apple_coming_soon": "Apple 登录即将上线。",
     "wechat_coming_soon": "微信登录即将上线。",
     "switch_to_signup_lead": "还没有账号?",
@@ -747,7 +748,11 @@
       "invalid_input": "填写有误，请检查后再试。",
       "db_unavailable": "暂时连不上服务器，请稍后再试。",
       "generic": "出了点问题，请稍后再试。",
-      "server_error": "出了点问题，请稍后再试。"
+      "server_error": "出了点问题，请稍后再试。",
+      "oauth_not_configured": "尚未配置 Google 登录。",
+      "oauth_state_invalid": "登录已过期，请重新用 Google 登录。",
+      "oauth_failed": "Google 登录失败，请再试一次。",
+      "oauth_denied": "已取消 Google 登录。"
     },
     "invites": {
       "title": "邀请码",
