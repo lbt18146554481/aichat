@@ -790,7 +790,7 @@ function resolveRecallMine(
   draft: WishDraft,
   myIntentId: string | null,
   hardFilters: WishHardFilters,
-  /** When AI asks to search, allow empty draft (cold-start soft only). */
+  /** When AI asks to search, allow empty draft (place may cold-start hard from profile city). */
   allowEmptyForSearch = false,
 ): Intent | null {
   if (myIntentId) {
@@ -857,7 +857,7 @@ function buildChatSystem(
       !input.wishDraft.placeRaw?.trim() &&
       !input.wishDraft.city?.trim() &&
       !input.wishDraft.city_zh?.trim()
-      ? `地点=已有（资料城市「${profileCity}」，冷启动）`
+      ? `地点=已有（资料城市「${profileCity}」，冷启动硬条件）`
       : `地点=已有`
     : "地点=缺失";
   const draftLine = `【本轮状态】lane=${opts.wishLane}；已发布=${opts.published ? input.myIntentId : "否"}；${placeStatus}；草稿 kind=${input.wishDraft.kind ?? "?"} when=${input.wishDraft.whenAny ? "any" : input.wishDraft.when ?? "?"} ${draftDates} time=${draftTimes} level=${input.wishDraft.levelAny ? "any" : input.wishDraft.level ?? "?"} text=${input.wishDraft.rawText || "（空）"}`;
@@ -1908,7 +1908,7 @@ export async function runSideTurn(
     Boolean(myIntentId) &&
     (input.action === "confirm_match" || Boolean(chatParsed?.affirmMatch) || llmWantsSearch);
 
-  /** Affirm said yes — place gaps use cold-start soft; required-info cards come from LLM askUserInfo. */
+  /** Affirm said yes — place gaps use profile city as hard cold-start; required-info cards come from LLM askUserInfo. */
   let browseSearchReady = userAffirmedBrowse;
 
   if (userAffirmedBrowse && wishLane === "browse" && !input.matchIntentId) {

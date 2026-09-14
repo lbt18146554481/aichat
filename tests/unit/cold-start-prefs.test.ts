@@ -66,11 +66,11 @@ describe("cold-start-prefs", () => {
     expect(buddyAgeStrength).toBe("flex");
   });
 
-  it("side place: fills city flex when draft empty", () => {
+  it("side place: fills city as hard when draft empty", () => {
     const d = applySidePlaceColdStart(profile, emptyWishDraft());
     expect(d.city).toBe("Beijing");
-    expect(d.placeStrength).toBe("flex");
-    expect(d.placeFlex).toBe(true);
+    expect(d.placeStrength).toBe("hard");
+    expect(d.placeFlex).toBe(false);
   });
 
   it("side place: skips when place already set", () => {

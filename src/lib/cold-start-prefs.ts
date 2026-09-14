@@ -1,7 +1,8 @@
 /**
- * Cold-start soft prefs from the seeker's Profile.
+ * Cold-start prefs from the seeker's Profile.
  * Only fills empty dimensions; never overrides user-extracted values.
- * All cold-start strengths are flex (same soft scoring path as user-stated flex).
+ * Matchmaker / Side buddy cold-start strengths are flex.
+ * Side place cold-start is hard (profile city as must-match until user changes it).
  */
 
 import type { Profile } from "./profile-shape";
@@ -112,7 +113,7 @@ export function applySideBuddyColdStart(
   return { buddy: next, buddyGenderStrength, buddyAgeStrength };
 }
 
-/** Side: place/city soft prior from profile when draft has no place yet. */
+/** Side: place/city hard prior from profile when draft has no place yet. */
 export function applySidePlaceColdStart(
   profile: Profile | null | undefined,
   draft: WishDraft,
@@ -138,9 +139,9 @@ export function applySidePlaceColdStart(
     city_zh: city,
     placeMode: flags.placeMode,
     placeOnline: flags.placeOnline,
-    placeFlex: true,
+    placeFlex: false,
     place: flags.place ?? undefined,
-    placeStrength: "flex",
+    placeStrength: "hard",
     placeRaw: draft.placeRaw || city,
   };
 }
