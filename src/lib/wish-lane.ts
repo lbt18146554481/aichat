@@ -13,7 +13,7 @@ const PUBLISH_RE =
   /发布|发一个|挂出|挂上去|发心愿|我想.{0,12}(一起|约)(?!.*搭子)|post my wish|publish/i;
 /** Activity/buddy criteria — not a lane switch away from browse. */
 const BROWSE_CRITERIA_RE =
-  /搭子|跑步|网球|徒步|看展|运动|做饭|攀岩|骑行|游泳|羽毛球|篮球|足球|run|running|hike|climb|tennis|buddy/i;
+  /搭子|跑步|网球|徒步|看展|运动|做饭|攀岩|骑行|游泳|羽毛球|篮球|足球|饮茶|喝茶|行山|粤曲|棋牌|太极|公园|散步|书法|run|running|hike|climb|tennis|buddy/i;
 const SWITCH_BROWSE_RE =
   /还是先看看|想看看别人|不发了|先看看|改.?看|switch to browse|just browse|look first/i;
 const SWITCH_PUBLISH_RE =
@@ -81,7 +81,7 @@ export function wishLaneChoicePromptSection(lang: SideLang): string {
 export function wishLaneSwitchPromptSection(lane: WishLane, lang: SideLang): string {
   if (lang === "zh-CN") {
     return lane === "browse"
-      ? `模式：找人。补充条件=完善邀约。缺地点按【决策】弹卡。`
+      ? `模式：在心愿池里找活动心愿。补充条件=完善想约的事。缺地点按【决策】弹卡。`
       : `模式：说清邀约（可开表单）。直接找人 →【决策】。`;
   }
   return lane === "browse"

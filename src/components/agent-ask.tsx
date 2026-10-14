@@ -13,6 +13,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check } from "lucide-react";
 import type { WishDraft } from "@/lib/wish-types";
+import { present } from "@/lib/lang";
 import { WishPublishForm } from "@/components/wish-publish-form";
 
 interface CommonFields {
@@ -79,13 +80,13 @@ export function AgentAskCard({ ask, disabled, onResolve }: Props) {
   if (ask.kind === "wish_form") {
     return (
       <WishPublishForm
-        prompt={ask.prompt}
+        prompt={present(ask.prompt)}
         draft={ask.draft}
         understandingNotes={ask.understandingNotes}
         profileCity={ask.profileCity}
         placeError={ask.placeError}
-        confirmLabel={ask.confirmLabel}
-        cancelLabel={ask.cancelLabel}
+        confirmLabel={present(ask.confirmLabel)}
+        cancelLabel={present(ask.cancelLabel)}
         disabled={disabled}
         onResolve={onResolve}
       />
@@ -96,7 +97,7 @@ export function AgentAskCard({ ask, disabled, onResolve }: Props) {
       <div className="mt-2 rounded-2xl border border-border bg-card px-3.5 py-3">
         <EphemeralHint />
         {ask.prompt && (
-          <p className="text-[13.5px] text-foreground leading-relaxed mb-2.5">{ask.prompt}</p>
+          <p className="text-[13.5px] text-foreground leading-relaxed mb-2.5">{present(ask.prompt)}</p>
         )}
         <div className="flex flex-wrap gap-1.5">
           {ask.options.map((o) => (
@@ -107,7 +108,7 @@ export function AgentAskCard({ ask, disabled, onResolve }: Props) {
               onClick={() => onResolve(o.value)}
               className="min-h-11 sm:min-h-9 px-3.5 py-1.5 rounded-full border border-border bg-background text-[13px] text-foreground/85 hover:border-primary/50 hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              {o.label}
+              {present(o.label)}
             </button>
           ))}
           <button
@@ -116,7 +117,7 @@ export function AgentAskCard({ ask, disabled, onResolve }: Props) {
             onClick={() => onResolve(null)}
             className="min-h-11 sm:min-h-9 px-3 py-1.5 rounded-full text-[12.5px] text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {ask.cancelLabel ?? t("ask.cancel")}
+            {present(ask.cancelLabel ?? t("ask.cancel"))}
           </button>
         </div>
       </div>
@@ -132,7 +133,7 @@ export function AgentAskCard({ ask, disabled, onResolve }: Props) {
     >
       <EphemeralHint />
       {ask.prompt && (
-        <p className="text-[13.5px] text-foreground leading-relaxed mb-2.5">{ask.prompt}</p>
+        <p className="text-[13.5px] text-foreground leading-relaxed mb-2.5">{present(ask.prompt)}</p>
       )}
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
         <button
@@ -146,7 +147,7 @@ export function AgentAskCard({ ask, disabled, onResolve }: Props) {
               : "bg-primary text-primary-foreground hover:opacity-90",
           ].join(" ")}
         >
-          {ask.confirmLabel}
+          {present(ask.confirmLabel)}
         </button>
         <button
           type="button"
@@ -154,7 +155,7 @@ export function AgentAskCard({ ask, disabled, onResolve }: Props) {
           onClick={() => onResolve(null)}
           className="min-h-11 sm:min-h-9 px-4 rounded-lg text-[13px] text-foreground/80 border border-border hover:border-foreground/30 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {ask.cancelLabel}
+          {present(ask.cancelLabel)}
         </button>
       </div>
     </div>
@@ -184,7 +185,7 @@ function TextAsk({
     <div className="mt-2 rounded-2xl border border-border bg-card px-3.5 py-3">
       <EphemeralHint />
       {ask.prompt && (
-        <p className="text-[13.5px] text-foreground leading-relaxed mb-2.5">{ask.prompt}</p>
+        <p className="text-[13.5px] text-foreground leading-relaxed mb-2.5">{present(ask.prompt)}</p>
       )}
       {ask.multiline ? (
         <textarea
@@ -197,7 +198,7 @@ function TextAsk({
             }
           }}
           rows={3}
-          placeholder={ask.placeholder}
+          placeholder={present(ask.placeholder ?? "")}
           disabled={disabled}
           autoFocus
           className="w-full min-h-24 rounded-lg border border-border bg-background px-3 py-2 text-[14px] leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-primary/50 disabled:opacity-50 resize-y"
@@ -213,7 +214,7 @@ function TextAsk({
               submit();
             }
           }}
-          placeholder={ask.placeholder}
+          placeholder={present(ask.placeholder ?? "")}
           disabled={disabled}
           autoFocus
           className="w-full h-11 rounded-lg border border-border bg-background px-3 text-[14px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-primary/50 disabled:opacity-50"
@@ -227,7 +228,7 @@ function TextAsk({
           onClick={submit}
           className="min-h-11 sm:min-h-9 px-4 rounded-lg text-[13px] font-medium bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
         >
-          {ask.confirmLabel}
+          {present(ask.confirmLabel)}
         </button>
         <button
           type="button"
@@ -235,7 +236,7 @@ function TextAsk({
           onClick={() => onResolve(null)}
           className="min-h-11 sm:min-h-9 px-4 rounded-lg text-[13px] text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {ask.cancelLabel ?? t("ask.cancel")}
+          {present(ask.cancelLabel ?? t("ask.cancel"))}
         </button>
       </div>
     </div>

@@ -96,7 +96,7 @@ export async function runSidePersonIntro(opts: {
     ? `我帮你找到了 ${loc.name}。${fallbackSummary} 详情在右边，感兴趣可以聊聊。`
     : `I found ${loc.name}. ${fallbackSummary} Details on the right — say hi if it feels right.`;
 
-  const system = `你在 Maitri 帮用户找一起做活动的搭子。根据给定字段写 JSON。
+  const system = `你在 nightlong 帮用户找一起做活动的搭子。根据给定字段写 JSON。
 - reply：2-5 句。先讲对方是谁、资料里和这次邀约相关的点，再说明为何适合【用户活动】这场邀约，并请用户看右边卡片。【用户活动】是「想一起做的事」，介绍时以对方为主，用「她/他喜欢…，适合一起…」这类说法。
 - personSummary：2-3 句，概括对方资料里已有的身份与兴趣。
 - whyTags：2-4 个短标签（≤12字），写法像对方的特质/习惯，例如「爱徒步」「常跑步」——写「对方为什么合适」，不要写成双方共同点。只选资料里站得住的点；没有把握就少给或 []。

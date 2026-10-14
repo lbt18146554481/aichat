@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -13,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import i18n, { initI18n, applyPersistedLang } from "../lib/i18n";
+import { syncUiLang } from "@/lib/lang";
 import { Toaster } from "@/components/ui/sonner";
 import { MobileTabBar } from "@/components/mobile/tab-bar";
 import { useNativeBack } from "@/hooks/use-native-back";
@@ -87,17 +89,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content",
       },
       { name: "theme-color", content: "#ffffff" },
-      { title: "Maitri — meet someone kind" },
+      { title: "nightlong" },
       {
         name: "description",
         content:
-          "Maitri is a kind search agent: describe the person you're looking for, and it retrieves matching profiles, narrows down, and surfaces candidates.",
+          "nightlong is a kind search agent: describe the person you're looking for, and it retrieves matching profiles, narrows down, and surfaces candidates.",
       },
-      { property: "og:title", content: "Maitri" },
+      { property: "og:title", content: "nightlong" },
       {
         property: "og:description",
         content:
-          "Meet someone kind. Describe the person you're looking for and Maitri introduces one candidate at a time.",
+          "Meet someone kind. Describe the person you're looking for and nightlong introduces one candidate at a time.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -123,7 +125,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="zh-CN" className="theme-elder">
       <head>
         <HeadContent />
       </head>
@@ -145,7 +147,9 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   const { i18n } = useTranslation();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [lang, setLang] = useState<string>(i18n.resolvedLanguage ?? "en");
+  syncUiLang(i18n.resolvedLanguage ?? lang);
 
   useEffect(() => {
     clearActiveThreadOnReload();
@@ -163,10 +167,15 @@ function RootComponent() {
   }, [i18n]);
 
   useEffect(() => {
-    if (typeof document !== "undefined") {
+    if (typeof document === "undefined") return;
+    const apply = () => {
       document.documentElement.lang = lang;
-    }
-  }, [lang]);
+      document.title = i18n.t("app.name");
+    };
+    apply();
+    const id = window.setTimeout(apply, 0);
+    return () => window.clearTimeout(id);
+  }, [lang, i18n, pathname]);
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -24,12 +24,6 @@ import {
 const OAUTH_PROVIDER_COOKIE = "maitri_oauth_provider";
 type OAuthProviderCookie = "google" | "apple";
 
-/**
- * Temporary: invite codes may be reused any number of times.
- * Flip to false to restore single-use consumption (mark usedBy on signup).
- */
-export const INVITE_CODES_UNLIMITED_REUSE = true;
-
 /** Server-fn transport often strips custom Error fields — embed code in message JSON. */
 function fail(code: string, message: string): never {
   throw new Error(JSON.stringify({ code, message }));
@@ -62,21 +56,13 @@ export const signUpFn = createServerFn({ method: "POST" })
     z.object({
       email: z.string().email(),
       password: z.string().min(6).max(128),
-      inviteCode: z.string().min(1),
       name: z.string().optional(),
     }),
   )
   .handler(async ({ data }): Promise<AuthUser> => {
     try {
       const email = data.email.trim().toLowerCase();
-      const code = data.inviteCode.trim().toUpperCase();
       const db = getDb();
-
-      const invite = await db.select().from(inviteCodes).where(eq(inviteCodes.code, code)).limit(1);
-      if (!invite[0]) throw new AuthError("invite_invalid", "That invite code isn't valid.");
-      if (!INVITE_CODES_UNLIMITED_REUSE && invite[0].usedBy) {
-        throw new AuthError("invite_invalid", "That invite code has already been used.");
-      }
 
       const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
       if (existing[0]) throw new AuthError("email_taken", "An account with this email already exists.");
@@ -86,12 +72,6 @@ export const signUpFn = createServerFn({ method: "POST" })
       const name = (data.name?.trim() || email.split("@")[0]) ?? "member";
 
       await db.insert(users).values({ id, email, passwordHash, provider: "email", name, avatar: "" });
-      if (!INVITE_CODES_UNLIMITED_REUSE) {
-        await db
-          .update(inviteCodes)
-          .set({ usedBy: id, usedAt: new Date() })
-          .where(eq(inviteCodes.code, code));
-      }
       await db.insert(profiles).values({ userId: id, data: EMPTY_PROFILE as unknown as Record<string, unknown> });
 
       await createSession(id);
@@ -121,7 +101,7 @@ export const signInFn = createServerFn({ method: "POST" })
       const db = getDb();
       const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
       const row = rows[0];
-      if (!row) throw new AuthError("account_not_found", "No account yet. Join with an invite code to create one.");
+      if (!row) throw new AuthError("account_not_found", "No account yet. Create one to join.");
       if (!row.passwordHash) {
         if (row.provider === "apple") {
           throw new AuthError("invalid_credentials", "This account uses Apple sign-in. Continue with Apple instead.");
@@ -172,7 +152,6 @@ export const validateInviteFn = createServerFn({ method: "POST" })
         .limit(1);
       const row = rows[0];
       if (!row) return { valid: false };
-      if (INVITE_CODES_UNLIMITED_REUSE) return { valid: true };
       return { valid: !row.usedBy };
     } catch (e) {
       toAuthError(e);

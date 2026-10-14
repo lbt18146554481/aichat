@@ -1,6 +1,8 @@
 import { forwardRef, useEffect } from "react";
 import { ArrowUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { CantoneseListenButton, CantoneseMicButton } from "@/components/cantonese-voice";
+import { present } from "@/lib/lang";
 
 interface Props {
   value: string;
@@ -56,7 +58,11 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer
           className="w-full resize-none bg-transparent outline-none text-[15px] leading-relaxed text-foreground placeholder:text-subtle-foreground disabled:opacity-50"
         />
       </div>
-      <div className="px-2.5 md:px-3 pb-2.5 md:pb-3 pt-1 flex items-center justify-end">
+      <div className="px-2.5 md:px-3 pb-2.5 md:pb-3 pt-1 flex items-center justify-between gap-2">
+        <CantoneseMicButton
+          disabled={disabled}
+          onText={(spoken) => onChange(value ? `${value}${spoken}` : spoken)}
+        />
         <button
           type="button"
           onClick={onSend}
@@ -74,7 +80,7 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer
 export function UserBubble({ text }: { text: string }) {
   return (
     <div className="ml-8 rounded-2xl bg-secondary px-3.5 py-2.5 text-[14px] text-foreground leading-relaxed">
-      {text}
+      {present(text)}
     </div>
   );
 }
@@ -83,7 +89,8 @@ export function AssistantBubble({ text }: { text: string }) {
   if (!text) return null;
   return (
     <div className="mr-8 rounded-2xl border border-border bg-card px-3.5 py-2.5 text-[14px] text-foreground leading-relaxed whitespace-pre-wrap">
-      {text}
+      {present(text)}
+      <CantoneseListenButton text={text} />
     </div>
   );
 }
@@ -131,7 +138,7 @@ export function ChipRow({
           onClick={() => onPick(c.action)}
           className="shrink-0 whitespace-nowrap rounded-full border border-border bg-card px-3 py-1.5 text-[12.5px] text-muted-foreground hover:border-foreground/30 hover:text-foreground disabled:opacity-40 transition-colors"
         >
-          {c.label}
+          {present(c.label)}
         </button>
       ))}
     </div>

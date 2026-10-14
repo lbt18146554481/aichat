@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ConnectionsRouteImport } from './routes/connections'
 import { Route as MatchmakerRouteImport } from './routes/matchmaker'
 import { Route as MeRouteImport } from './routes/me'
+import { Route as PoolRouteImport } from './routes/pool'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SessionsRouteImport } from './routes/sessions'
@@ -49,6 +50,11 @@ const MatchmakerRoute = MatchmakerRouteImport.update({
 const MeRoute = MeRouteImport.update({
   id: '/me',
   path: '/me',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PoolRoute = PoolRouteImport.update({
+  id: '/pool',
+  path: '/pool',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/me': typeof MeRoute
+  '/pool': typeof PoolRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/sessions': typeof SessionsRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/me': typeof MeRoute
+  '/pool': typeof PoolRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/sessions': typeof SessionsRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/connections': typeof ConnectionsRoute
   '/matchmaker': typeof MatchmakerRoute
   '/me': typeof MeRoute
+  '/pool': typeof PoolRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/sessions': typeof SessionsRoute
@@ -168,6 +177,7 @@ export interface FileRouteTypes {
     | '/connections'
     | '/matchmaker'
     | '/me'
+    | '/pool'
     | '/privacy'
     | '/profile'
     | '/sessions'
@@ -185,6 +195,7 @@ export interface FileRouteTypes {
     | '/connections'
     | '/matchmaker'
     | '/me'
+    | '/pool'
     | '/privacy'
     | '/profile'
     | '/sessions'
@@ -202,6 +213,7 @@ export interface FileRouteTypes {
     | '/connections'
     | '/matchmaker'
     | '/me'
+    | '/pool'
     | '/privacy'
     | '/profile'
     | '/sessions'
@@ -221,6 +233,7 @@ export interface RootRouteChildren {
   ConnectionsRoute: typeof ConnectionsRoute
   MatchmakerRoute: typeof MatchmakerRoute
   MeRoute: typeof MeRoute
+  PoolRoute: typeof PoolRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   SessionsRoute: typeof SessionsRoute
@@ -264,6 +277,13 @@ declare module '@tanstack/react-router' {
       path: '/me'
       fullPath: '/me'
       preLoaderRoute: typeof MeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pool': {
+      id: '/pool'
+      path: '/pool'
+      fullPath: '/pool'
+      preLoaderRoute: typeof PoolRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -389,6 +409,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConnectionsRoute: ConnectionsRoute,
   MatchmakerRoute: MatchmakerRoute,
   MeRoute: MeRoute,
+  PoolRoute: PoolRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   SessionsRoute: SessionsRoute,
@@ -399,3 +420,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

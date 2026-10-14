@@ -11,7 +11,8 @@ import {
   normalizeGenders,
 } from "./match-normalize";
 import { formatPlaceList, parsePlaceList, placeFromCityLabels, placeSatisfies } from "./geo";
-import { recallCandidatesAsync, rosterFromIds } from "./match-recall";
+import { rosterFromIds } from "./match-recall";
+import { recallCandidatesAsync } from "./match-recall.server";
 import { findPersonInPool } from "./people-store.server";
 import { buildPoolFacets } from "./pool-facets.server";
 import { localized } from "./people";

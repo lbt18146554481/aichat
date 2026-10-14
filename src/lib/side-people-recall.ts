@@ -18,8 +18,8 @@ import {
 } from "./match-recall";
 import { activityCoreFromKind, kindFromActivityCore } from "./activity-core";
 import { EMPTY_HARD_FILTERS } from "./match-types";
-import { embedMany, vectorCosine } from "./embeddings.server";
-import { mixEmbeddingLexical } from "./similarity-mix";
+import { embedMany } from "./embeddings.server";
+import { mixEmbeddingLexical, vectorCosine } from "./similarity-mix";
 
 export const SIDE_RECALL_LIMIT = 10;
 /** Half day in ms — hanging invite rematch interval. */

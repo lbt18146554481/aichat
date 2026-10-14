@@ -1,6 +1,6 @@
-# Maitri iOS Build Guide
+# nightlong iOS Build Guide
 
-This document explains how to build, sign, and submit the Maitri iOS app from the `native/ios` directory.
+This document explains how to build, sign, and submit the nightlong iOS app from the `native/ios` directory.
 
 ## Important Constraints
 
@@ -115,7 +115,7 @@ You can verify the scheme is registered in `native/ios/App/App/Info.plist` under
 - **Demo Account**: Provide an Apple test account if you use Sign in with Apple.
 - **Invite Code**: Since v1 registration requires an invite code, include a working demo invite code in the review notes so the reviewer can complete signup.
 - **Sign in with Apple**: If you offer Google/Apple/WeChat, Apple is mandatory. The web auth screen already includes Apple, which satisfies this rule.
-- **4.2 Minimum Functionality**: The app must be more than a repackaged web page. Maitri is a full matchmaking/connection app; the native shell adds status bar, safe-area, splash screen, and native back gesture, which Apple generally accepts.
+- **4.2 Minimum Functionality**: The app must be more than a repackaged web page. nightlong is a full matchmaking/connection app; the native shell adds status bar, safe-area, splash screen, and native back gesture, which Apple generally accepts.
 
 ## Common Issues
 

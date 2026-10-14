@@ -72,6 +72,12 @@ export interface WishDraft {
   otherReqRaw?: string;
   /** Structured buddy query — filled at publish or browse extract. */
   buddyMatchQuery?: BuddyMatchQuery;
+  /** Elder group fields — aligned with the publish form and seed wishes. */
+  elderTheme?: string;
+  headcount?: string;
+  pace?: string;
+  cost?: string;
+  whenLabel?: string;
 }
 
 export interface WishHardFilters {

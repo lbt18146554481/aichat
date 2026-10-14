@@ -1,9 +1,31 @@
+import { isZhHant, toTraditional } from "@/lib/zh-hant";
+
+/** Homepage language switch. Display helpers read this so Traditional Chinese
+ *  still applies when a caller only passed the simplified app language. */
+let activeUiLang = "en";
+
+export function syncUiLang(lang: string | null | undefined) {
+  activeUiLang = lang || "en";
+}
+
+/** Simplified Chinese on screen becomes Traditional while 繁 is selected. */
+export function present(text: string): string {
+  if (!text || !isZhHant(activeUiLang)) return text;
+  return toTraditional(text);
+}
+
+/** Chrome copy: English, Simplified, or Traditional from one simplified source. */
+export function uiCopy(lang: string | null | undefined, zh: string, en: string): string {
+  if (!isZh(lang)) return en;
+  return isZhHant(lang) || isZhHant(activeUiLang) ? toTraditional(zh) : zh;
+}
+
 /** UI / LLM language helpers — keep EN and ZH display paths strictly separate. */
 
 export type AppLang = "en" | "zh-CN";
 
 export function isZh(lang: string | null | undefined): boolean {
-  return lang === "zh-CN" || lang === "zh";
+  return lang === "zh-CN" || lang === "zh" || isZhHant(lang);
 }
 
 /** Normalize any i18n language tag to our two app langs. Default: English. */
@@ -77,7 +99,10 @@ export function pickLocaleText(
 ): string {
   const e = (en ?? "").trim();
   const z = (zh ?? "").trim();
-  if (isZh(lang)) return z || e;
+  if (isZh(lang)) {
+    const text = z || e;
+    return isZhHant(lang) || isZhHant(activeUiLang) ? toTraditional(text) : text;
+  }
   return e;
 }
 
@@ -89,6 +114,9 @@ export function pickLocaleList(
 ): string[] {
   const e = en ?? [];
   const z = zh ?? [];
-  if (isZh(lang)) return z.length > 0 ? z : e;
+  if (isZh(lang)) {
+    const list = z.length > 0 ? z : e;
+    return isZhHant(lang) || isZhHant(activeUiLang) ? list.map((item) => toTraditional(item)) : list;
+  }
   return e;
 }

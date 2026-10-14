@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getMomentPromptById, localizedMomentPrompt } from "@/lib/questions";
 import type { Moment } from "@/lib/types";
+import { pickLocaleText } from "@/lib/lang";
 import type { Lang } from "@/lib/i18n";
 
 interface Props {
@@ -59,7 +60,7 @@ export function HelloComposer({
                 </div>
               )}
               <p className="text-[13px] leading-snug text-foreground">
-                {lang === "zh-CN" ? quoted.answer_zh : quoted.answer}
+                {pickLocaleText(lang, quoted.answer, quoted.answer_zh)}
               </p>
             </div>
             <button

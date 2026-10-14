@@ -11,7 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { AppLang } from "@/lib/lang";
-import { pickLocaleText, normalizeLang } from "@/lib/lang";
+import { pickLocaleText, normalizeLang, present } from "@/lib/lang";
 import type { SideState, ChatMsg, LevelTier, WhenTier } from "@/lib/agents/side-by-side";
 import { currentView, sessionWishIds } from "@/lib/agents/side-by-side";
 import { getIntentById, type Intent } from "@/lib/intents";
@@ -291,25 +291,17 @@ function MatchView({ state, onStartChat, onSkip, onSave, onSeeNext }: Props) {
 
   if (!person && !other) return null;
 
-  const otherName = person
-    ? lang === "zh-CN"
-      ? person.name_zh || person.name
-      : person.name
-    : lang === "zh-CN"
-      ? other!.ownerName_zh
-      : other!.ownerName;
-  const otherCity = person
-    ? lang === "zh-CN"
-      ? person.city_zh || person.city
-      : person.city
-    : lang === "zh-CN"
-      ? other!.ownerCity_zh
-      : other!.ownerCity;
-  const otherOccupation = person
-    ? lang === "zh-CN"
-      ? person.occupation_zh
-      : person.occupation
-    : "";
+  const otherName = pickLocaleText(
+    lang,
+    person ? person.name : other!.ownerName,
+    person ? person.name_zh || person.name : other!.ownerName_zh,
+  );
+  const otherCity = pickLocaleText(
+    lang,
+    person ? person.city : other!.ownerCity,
+    person ? person.city_zh || person.city : other!.ownerCity_zh,
+  );
+  const otherOccupation = person ? pickLocaleText(lang, person.occupation, person.occupation_zh) : "";
   const identityMetaParts = [otherCity, otherOccupation].filter((s) => s && s.trim().length > 0);
   const avatarId = person?.id ?? other!.ownerId;
 
@@ -461,13 +453,13 @@ function WhyPersonBox({
 }) {
   const { t } = useTranslation();
   const person = getPersonById(otherOwnerId);
-  const line =
+  const line = present(
     summary?.trim() ||
-    (person?.whyPersonLine
-      ? lang === "zh-CN"
-        ? person.whyPersonLine.zh
-        : person.whyPersonLine.en
-      : null);
+      (person?.whyPersonLine
+        ? pickLocaleText(lang, person.whyPersonLine.en, person.whyPersonLine.zh)
+        : "") ||
+      "",
+  );
   if (!line) return null;
 
   return (
@@ -561,12 +553,12 @@ function IntentCard({
   showOwnerHeader?: boolean;
 }) {
   const { t } = useTranslation();
-  const raw = lang === "zh-CN" ? intent.rawText_zh : intent.rawText;
+  const raw = pickLocaleText(lang, intent.rawText, intent.rawText_zh);
   const label = side === "me" ? t("intent.you_said") : t("intent.they_said");
+  const ownerName = pickLocaleText(lang, intent.ownerName, intent.ownerName_zh);
+  const ownerCity = pickLocaleText(lang, intent.ownerCity, intent.ownerCity_zh);
   const nameOrYou =
-    side === "me"
-      ? t("intent.your_tag")
-      : `${lang === "zh-CN" ? intent.ownerName_zh : intent.ownerName}${(lang === "zh-CN" ? intent.ownerCity_zh : intent.ownerCity) ? " · " + (lang === "zh-CN" ? intent.ownerCity_zh : intent.ownerCity) : ""}`;
+    side === "me" ? t("intent.your_tag") : `${ownerName}${ownerCity ? " · " + ownerCity : ""}`;
   const venueLabel = pickLocaleText(lang, intent.venue, intent.venue_zh);
 
   return (
@@ -706,20 +698,16 @@ function ChatView({ state, onSendChat, onBackToCandidate, onDraftConsumed }: Pro
     setAttachWishQuote(false);
   }
 
-  const otherName = person
-    ? lang === "zh-CN"
-      ? person.name_zh || person.name
-      : person.name
-    : lang === "zh-CN"
-      ? other!.ownerName_zh
-      : other!.ownerName;
-  const otherCity = person
-    ? lang === "zh-CN"
-      ? person.city_zh || person.city
-      : person.city
-    : lang === "zh-CN"
-      ? other!.ownerCity_zh
-      : other!.ownerCity;
+  const otherName = pickLocaleText(
+    lang,
+    person ? person.name : other!.ownerName,
+    person ? person.name_zh || person.name : other!.ownerName_zh,
+  );
+  const otherCity = pickLocaleText(
+    lang,
+    person ? person.city : other!.ownerCity,
+    person ? person.city_zh || person.city : other!.ownerCity_zh,
+  );
   const avatarId = person?.id ?? other!.ownerId;
   const bannerKind = mine?.kind ?? other?.kind;
 

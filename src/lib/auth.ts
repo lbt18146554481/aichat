@@ -62,7 +62,6 @@ export async function signIn(input: SignInInput): Promise<AuthUser> {
 export interface SignUpInput {
   email: string;
   password: string;
-  inviteCode: string;
   name?: string;
 }
 

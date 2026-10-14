@@ -41,7 +41,6 @@ import {
   upsertMoment,
   type Favorite,
   type Gender,
-  type Orientation,
   type Profile,
   type WorkKind,
 } from "@/lib/profile";
@@ -52,7 +51,7 @@ import {
   localizedMomentPrompt,
 } from "@/lib/questions";
 
-const WORK_KINDS: WorkKind[] = ["book", "film", "music", "exhibition", "food", "sport", "other"];
+const WORK_KINDS: WorkKind[] = ["food", "sport", "music", "other"];
 const KIND_ICONS: Record<WorkKind, LucideIcon> = {
   book: BookOpen,
   film: Film,
@@ -62,34 +61,10 @@ const KIND_ICONS: Record<WorkKind, LucideIcon> = {
   sport: Dumbbell,
   other: Sparkles,
 };
-const GENDERS: Gender[] = ["female", "male", "nonbinary", "prefer_not_to_say"];
-const ORIENTATIONS: Orientation[] = [
-  "straight",
-  "gay",
-  "lesbian",
-  "bi",
-  "pan",
-  "asexual",
-  "prefer_not_to_say",
-];
-const MBTI_TYPES = [
-  "INTJ",
-  "INTP",
-  "ENTJ",
-  "ENTP",
-  "INFJ",
-  "INFP",
-  "ENFJ",
-  "ENFP",
-  "ISTJ",
-  "ISFJ",
-  "ESTJ",
-  "ESFJ",
-  "ISTP",
-  "ISFP",
-  "ESTP",
-  "ESFP",
-];
+const GENDERS: Gender[] = ["female", "male", "prefer_not_to_say"];
+const SHOWN_PROMPTS = MOMENT_PROMPTS.filter((p) =>
+  p.id === "ideal-saturday" || p.id === "city-spot" || p.id === "weeknight",
+);
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // 2MB soft cap
 
 interface Props {
@@ -130,7 +105,7 @@ export function ProfileForm({ lang, compact = false, onChange }: Props) {
     setProfile((p) => toggleHidden(p, key));
   }
   function handleAddFavorite() {
-    setProfile((p) => addFavorite(p, { kind: "book", title: "", why: "" }));
+    setProfile((p) => addFavorite(p, { kind: "food", title: "", why: "" }));
   }
   function patchFavorite(i: number, patch: Partial<Favorite>) {
     setProfile((p) => updateFavorite(p, i, patch));
@@ -145,7 +120,7 @@ export function ProfileForm({ lang, compact = false, onChange }: Props) {
   // Always render at least one empty row so the shape is discoverable.
   const favRows =
     profile.favorites.length === 0
-      ? [{ kind: "book" as WorkKind, title: "", why: "" }]
+      ? [{ kind: "food" as WorkKind, title: "", why: "" }]
       : profile.favorites;
   const hasStoredFavs = profile.favorites.length > 0;
 
@@ -181,7 +156,7 @@ export function ProfileForm({ lang, compact = false, onChange }: Props) {
             <input
               type="number"
               min={18}
-              max={99}
+              max={120}
               value={profile.age ?? ""}
               onChange={(e) =>
                 updateField("age", e.target.value === "" ? null : Number(e.target.value))
@@ -224,42 +199,6 @@ export function ProfileForm({ lang, compact = false, onChange }: Props) {
               ))}
             </select>
           </Field>
-          <Field
-            label={`${t("profile.f.orientation")} · ${t("profile.optional")}`}
-            hidden={isHidden(profile, "orientation")}
-            onToggleHide={() => flipHide("orientation")}
-          >
-            <select
-              value={profile.orientation}
-              onChange={(e) => updateField("orientation", e.target.value as Orientation)}
-              className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
-            >
-              <option value="">{t("profile.f.orientation_placeholder")}</option>
-              {ORIENTATIONS.map((o) => (
-                <option key={o} value={o}>
-                  {t(`profile.orientation.${o}`)}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field
-            label={`${t("profile.f.mbti")} · ${t("profile.optional")}`}
-            hidden={isHidden(profile, "mbti")}
-            onToggleHide={() => flipHide("mbti")}
-          >
-            <select
-              value={profile.mbti}
-              onChange={(e) => updateField("mbti", e.target.value)}
-              className="w-full bg-transparent border-b border-border focus:border-foreground outline-none py-1.5 text-[14.5px]"
-            >
-              <option value="">{t("profile.f.mbti_placeholder")}</option>
-              {MBTI_TYPES.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </Field>
         </div>
       </section>
 
@@ -272,7 +211,7 @@ export function ProfileForm({ lang, compact = false, onChange }: Props) {
           badge={`${filledMoments.length} / ${MIN_MOMENTS}`}
         />
         <div className="space-y-3">
-          {MOMENT_PROMPTS.map((p) => {
+          {SHOWN_PROMPTS.map((p) => {
             const current = profile.moments.find((m) => m.promptId === p.id);
             const active = current !== undefined;
             return (
@@ -657,7 +596,6 @@ function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
   // the truth of what others will see.
   const showAvatar = !isHidden(profile, "avatar") && !!profile.avatar;
   const showAge = !isHidden(profile, "age") && profile.age != null;
-  const showMbti = !isHidden(profile, "mbti") && !!profile.mbti;
   const favs = profile.favorites
     .map((f, i) => ({ f, i }))
     .filter(({ f, i }) => f.title.trim() && f.why.trim() && !isHidden(profile, `favorite:${i}`))
@@ -686,11 +624,6 @@ function PreviewCard({ profile, lang }: { profile: Profile; lang: Lang }) {
             {showAge && (
               <span className="text-[12px] font-mono text-muted-foreground tabular-nums">
                 {profile.age}
-              </span>
-            )}
-            {showMbti && (
-              <span className="text-[10.5px] font-mono uppercase tracking-wide text-muted-foreground">
-                {profile.mbti}
               </span>
             )}
           </div>

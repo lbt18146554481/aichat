@@ -73,6 +73,11 @@ interface LlmSideExtractJson {
   buddyHardFilters?: BuddyExtractJson;
   buddyPrefRaw?: string | null;
   otherReqRaw?: string | null;
+  elderTheme?: string | null;
+  headcount?: string | null;
+  pace?: string | null;
+  cost?: string | null;
+  whenLabel?: string | null;
   readyToPublish?: boolean;
   understanding?: { notes?: string[]; likes?: string[]; dislikes?: string[] };
 }
@@ -174,7 +179,12 @@ function buildSystem(lang: SideLang): string {
   return isZh
     ? `你是 Side by Side 心愿抽取器。只提取结构化字段，不生成聊天。
 ${nowLine}
-activityCore: 活动核短词（如「跑步」「网球」「轻松读书」），只写活动本身，不要带时间/地点/人数。未提及 → null
+activityCore: 活动核短词。老年组局优先用：喝茶、散步、唱粤曲、棋牌、逛公园、行山、太极、书法。只写活动本身，不要带时间/地点/人数。未提及 → null
+elderTheme: 与 activityCore 相同的活动主题；对不上就 null
+headcount: 「就我加一位」|「3到5人」|「不限」|null
+pace: 「轻松」|「一般」|null（体力/节奏，不要用运动水平代替）
+cost: 「免费」|「AA」|「各自付费」|null
+whenLabel: 口语时间，如「周六上午」「周三下午」；未提及 → null
 activityStrength: hard|flex|null — 有 activityCore 时填。用户说「必须/只能打网球」→ hard；「最好跑步」→ flex；只说活动未强调 → flex
 kind: tennis|run|climb|cook|exhibition|bookstore|other|null — 仅当能映射到已知枚举时填写；无法映射时用 other，以 activityCore 为准
 when: weekend|weeknight|any|null（未提及 → null；明确不限 → any）
@@ -295,6 +305,11 @@ export async function runSideExtract(input: SideExtractInput): Promise<SideExtra
       (parsed.buddyPrefRaw ?? input.prevDraft.buddyPrefRaw ?? "").trim() || undefined,
     otherReqRaw:
       (parsed.otherReqRaw ?? input.prevDraft.otherReqRaw ?? "").trim() || undefined,
+    elderTheme: (parsed.elderTheme ?? input.prevDraft.elderTheme ?? "").trim() || undefined,
+    headcount: (parsed.headcount ?? input.prevDraft.headcount ?? "").trim() || undefined,
+    pace: (parsed.pace ?? input.prevDraft.pace ?? "").trim() || undefined,
+    cost: (parsed.cost ?? input.prevDraft.cost ?? "").trim() || undefined,
+    whenLabel: (parsed.whenLabel ?? input.prevDraft.whenLabel ?? "").trim() || undefined,
     whenAny: parsed.whenAny ?? ((when === undefined && !parsedDateStart) || when === "any"),
     levelAny: parsed.levelAny ?? level === undefined,
     whenStrength: parseStrength(parsed.whenStrength),

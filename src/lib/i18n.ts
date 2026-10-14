@@ -3,8 +3,9 @@ import { initReactI18next } from "react-i18next";
 
 import en from "../locales/en/common.json";
 import zhCN from "../locales/zh-CN/common.json";
+import zhHant from "../locales/zh-Hant/common.json";
 
-export const SUPPORTED_LANGS = ["en", "zh-CN"] as const;
+export const SUPPORTED_LANGS = ["en", "zh-CN", "zh-Hant"] as const;
 export type Lang = (typeof SUPPORTED_LANGS)[number];
 export const LANG_STORAGE_KEY = "kindred:lang";
 
@@ -18,6 +19,7 @@ export function initI18n() {
     resources: {
       en: { common: en },
       "zh-CN": { common: zhCN },
+      "zh-Hant": { common: zhHant },
     },
     // Always start in English so SSR and the client's initial render agree.
     // The user's saved preference is applied after mount (see applyPersistedLang).

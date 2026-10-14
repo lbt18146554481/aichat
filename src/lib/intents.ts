@@ -10,6 +10,7 @@
 // keywords in the raw text — so "找人一起骑行" matches another "骑行" wish.
 
 import type { Activity, ActivityKind, Weekday } from "./types";
+import { elderDemoIntents } from "./elder-demo-intents";
 import { buildSeedPeople } from "./people-seed.data";
 import { listBlocked } from "./blocklist";
 import type { IntentStatus } from "./intent-index";
@@ -96,6 +97,13 @@ export interface Intent {
   buddyPrefRaw?: string;
   otherReqRaw?: string;
   buddyMatchQuery?: BuddyMatchQuery;
+
+  /** Elder group-activity fields. Matching still uses activityCore / raw text. */
+  elderTheme?: string;
+  headcount?: string;
+  pace?: string;
+  cost?: string;
+  whenLabel?: string;
 
   createdAt: number;
 }
@@ -576,6 +584,9 @@ export function seedPool(): Intent[] {
   for (const extra of EXTRA_SEED_INTENTS) {
     out.push({ ...extra, createdAt: 0 });
   }
+  for (const elder of elderDemoIntents()) {
+    out.push(elder);
+  }
   _cache = out;
   return out;
 }
@@ -685,6 +696,11 @@ export function publishMyIntent(input: {
   buddyPrefRaw?: string;
   otherReqRaw?: string;
   buddyMatchQuery?: BuddyMatchQuery;
+  elderTheme?: string;
+  headcount?: string;
+  pace?: string;
+  cost?: string;
+  whenLabel?: string;
   /** Server publish path — caller persists via upsertIntentIndex. */
   skipRemotePersist?: boolean;
 }): Intent {
@@ -745,6 +761,11 @@ export function publishMyIntent(input: {
     buddyPrefRaw: input.buddyPrefRaw?.trim() || undefined,
     otherReqRaw: input.otherReqRaw?.trim() || undefined,
     buddyMatchQuery: input.buddyMatchQuery,
+    elderTheme: input.elderTheme?.trim() || undefined,
+    headcount: input.headcount?.trim() || undefined,
+    pace: input.pace?.trim() || undefined,
+    cost: input.cost?.trim() || undefined,
+    whenLabel: input.whenLabel?.trim() || undefined,
     createdAt: Date.now(),
   };
   const list = loadMyIntents();

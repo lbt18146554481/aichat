@@ -1,4 +1,4 @@
-"""End-to-end flows for Maitri (Playwright, Chromium).
+"""End-to-end flows for nightlong (Playwright, Chromium).
 
 Covers the paths that keep breaking in review:
   1. invite-gated registration (bad code rejected, good code accepted)

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { MessageCircle } from "lucide-react";
 import { LangSwitcher } from "./lang-switcher";
@@ -15,7 +15,9 @@ import { useAuth } from "@/lib/auth";
  */
 export function AppChromeHeader() {
   const { t } = useTranslation();
+  const brand = "nightlong";
   const { user } = useAuth();
+  const onHome = useLocation().pathname === "/";
   const [mounted, setMounted] = useState(false);
   const { data: connections = [] } = useConnections(true);
   const unseen = hasUnseenIn(connections);
@@ -31,7 +33,7 @@ export function AppChromeHeader() {
           <div className="flex items-center gap-2.5">
             <span className="relative inline-flex">
               <span className="w-6 h-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">
-                K
+                N
               </span>
               {mounted && user && unseen && (
                 <span
@@ -40,10 +42,11 @@ export function AppChromeHeader() {
                 />
               )}
             </span>
-            <span className="text-[14px] font-semibold tracking-tight text-foreground">Maitri</span>
+            <span className="text-[18px] font-semibold tracking-tight text-foreground whitespace-nowrap">{brand}</span>
           </div>
           <div className="flex items-center gap-3">
-            {mounted && user && (
+            {onHome ? <HomeActivityLinks /> : null}
+            {mounted && user && !onHome && (
               <>
                 <Link
                   to="/connections"
@@ -62,8 +65,8 @@ export function AppChromeHeader() {
                 </Link>
               </>
             )}
-            {mounted && user && <SavedTrigger />}
-            {mounted && user && <HistoryTrigger />}
+            {mounted && user && !onHome && <SavedTrigger />}
+            {mounted && user && !onHome && <HistoryTrigger />}
             <LangSwitcher />
             {mounted && <AccountMenu />}
           </div>
@@ -71,20 +74,21 @@ export function AppChromeHeader() {
       </header>
 
       <div className="md:hidden pt-safe shrink-0">
-        <div className="px-5 h-12 flex items-center justify-between">
+        <div className="px-3 min-h-12 py-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="relative inline-flex">
               <span className="w-6 h-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">
-                K
+                N
               </span>
               {mounted && user && unseen && (
                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />
               )}
             </span>
-            <span className="text-[13.5px] font-semibold tracking-tight text-foreground">Maitri</span>
+            <span className="hidden sm:inline text-[18px] font-semibold tracking-tight text-foreground whitespace-nowrap">{brand}</span>
           </div>
-          <div className="flex items-center gap-1">
-            {mounted && user && (
+          <div className="flex items-center gap-1 shrink-0">
+            {onHome ? <HomeActivityLinks compact /> : null}
+            {mounted && user && !onHome && (
               <>
                 <Link
                   to="/connections"
@@ -101,11 +105,29 @@ export function AppChromeHeader() {
                 </Link>
               </>
             )}
-            {mounted && user && <SavedTrigger variant="compact" />}
+            {mounted && user && !onHome && <SavedTrigger variant="compact" />}
             <LangSwitcher />
+            {mounted && <AccountMenu />}
           </div>
         </div>
       </div>
+    </>
+  );
+}
+
+function HomeActivityLinks({ compact = false }: { compact?: boolean }) {
+  const { t } = useTranslation();
+  const className = compact
+    ? "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-border bg-card px-3 py-1 text-[18px] font-medium text-foreground"
+    : "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-border bg-card px-3 py-1.5 text-[18px] font-medium text-foreground hover:bg-secondary";
+  return (
+    <>
+      <Link to="/pool" search={{ view: "signups", id: "", theme: "" }} className={className}>
+        {t("home.mine.signups")}
+      </Link>
+      <Link to="/pool" search={{ view: "saved", id: "", theme: "" }} className={className}>
+        {t("home.mine.saved")}
+      </Link>
     </>
   );
 }

@@ -10,7 +10,7 @@
 
 import { Link, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { Home, Clock, UserCircle } from "lucide-react";
+import { Home, Clock, Sparkles, UserCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 // Routes where the tab bar must NOT render: they own the bottom (composer /
@@ -19,7 +19,7 @@ import { useAuth } from "@/lib/auth";
 const HIDE_ON: readonly string[] = ["/auth"];
 
 interface TabDef {
-  to: "/" | "/sessions" | "/me";
+  to: "/" | "/pool" | "/sessions" | "/me";
   /** Extra pathnames that should light this tab up (detail pages). */
   also?: readonly string[];
   labelKey: string;
@@ -30,6 +30,7 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { to: "/", labelKey: "tabs.home", Icon: Home, exact: true },
+  { to: "/pool", labelKey: "tabs.pool", Icon: Sparkles },
   { to: "/sessions", labelKey: "tabs.history", Icon: Clock },
   { to: "/me", labelKey: "tabs.me", Icon: UserCircle, also: ["/profile"] },
 ];
@@ -53,7 +54,7 @@ export function MobileTabBar() {
       aria-label="Primary"
       className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur pb-safe"
     >
-      <ul className="mx-auto max-w-md grid grid-cols-3">
+      <ul className="mx-auto max-w-md grid grid-cols-4">
         {TABS.map((tab) => {
           const active = tab.exact
             ? path === tab.to

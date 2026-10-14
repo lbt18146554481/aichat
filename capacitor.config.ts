@@ -6,7 +6,7 @@ const serverUrl = process.env.CAP_SERVER_URL?.trim() || "https://pelegant.info";
 
 const config: CapacitorConfig = {
   appId: "app.lovable.maitri",
-  appName: "Maitri",
+  appName: "nightlong",
   // Still required by `cap sync` even when server.url is set.
   webDir: "native/www",
   ios: {

@@ -2,11 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowUp, UserSearch, Users } from "lucide-react";
-import { setSeed, type AgentId } from "@/lib/seed";
+import { ArrowUp, PenLine, Sparkles } from "lucide-react";
 import { AppChromeHeader } from "@/components/app-chrome-header";
 import { useAuth } from "@/lib/auth";
-import { normalizeLang } from "@/lib/lang";
+import { normalizeLang, present } from "@/lib/lang";
 import { requestOrchestratorTurn } from "@/lib/orchestrator-client";
 import type { OrchestratorOutput } from "@/lib/orchestrator-llm.server";
 import type { HandoffContext, GraftedMessage } from "@/lib/handoff";
@@ -26,30 +25,12 @@ import {
   type ReceptionState,
 } from "@/lib/sessions";
 import { useSessions } from "@/data/hooks";
-import { EMPTY as EMPTY_MATCHMAKER } from "@/lib/agents/matchmaker";
-import { EMPTY as EMPTY_SIDE } from "@/lib/agents/side-by-side";
+import { CantoneseListenButton, CantoneseMicButton } from "@/components/cantonese-voice";
 
 interface ReceptionMsg {
   role: "user" | "assistant";
   content: string;
 }
-
-const AGENT_CHIPS: {
-  id: AgentId;
-  labelKey: string;
-  Icon: typeof UserSearch;
-}[] = [
-  {
-    id: "matchmaker",
-    labelKey: "home.chip.intro",
-    Icon: UserSearch,
-  },
-  {
-    id: "sidebyside",
-    labelKey: "home.chip.together",
-    Icon: Users,
-  },
-];
 
 export function Home() {
   const { t, i18n } = useTranslation();
@@ -63,7 +44,6 @@ export function Home() {
   const persistSkip = useRef(true);
 
   const [text, setText] = useState("");
-  const [selected, setSelected] = useState<AgentId | null>(null);
   const [mounted, setMounted] = useState(false);
   const [threadReady, setThreadReady] = useState(false);
   const [receptionSessionId, setReceptionSessionId] = useState<string | null>(null);
@@ -230,37 +210,11 @@ export function Home() {
     void navigate({ to: "/matchmaker", search: { session: s.id } });
   }
 
-  /** Chip selected: skip reception — open that agent with the user's message (example parity). */
-  function openAgentDirect(target: AgentId, body: string) {
-    setSeed(target, body);
-    setText("");
-    setSuggestions([]);
-    if (target === "sidebyside") {
-      const s = createSession("do_something", seedForNewSession({ userText: body }), {
-        ...EMPTY_SIDE,
-      });
-      setActiveThreadId(s.threadId);
-      void navigate({ to: "/side-by-side", search: { session: s.id, chatWith: "" } });
-      return;
-    }
-    const s = createSession("introduce", seedForNewSession({ userText: body }), {
-      ...EMPTY_MATCHMAKER,
-    });
-    setActiveThreadId(s.threadId);
-    void navigate({ to: "/matchmaker", search: { session: s.id } });
-  }
-
   async function submit() {
     const body = text.trim();
     if (!body || thinking) return;
     if (!user) {
       void navigate({ to: "/auth", search: { mode: "signin", redirect: "/" } });
-      return;
-    }
-
-    // Selected chip → message goes straight to that agent (no auto-send on chip click).
-    if (selected) {
-      openAgentDirect(selected, body);
       return;
     }
 
@@ -332,7 +286,7 @@ export function Home() {
 
       if (result.action === "handoff" && result.target) {
         goHandoff({
-          target: result.target,
+          target: "sidebyside",
           seed: body,
           summary: result.summary || body,
           understanding: result.understanding ?? lastUnderstanding,
@@ -445,33 +399,13 @@ export function Home() {
 
         <div className="px-2.5 md:px-3 pb-2.5 md:pb-3 pt-1 flex items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5 pl-1.5">
-            {AGENT_CHIPS.map((c) => {
-              const active = selected === c.id;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  disabled={thinking}
-                  onClick={() => {
-                    if (thinking) return;
-                    setSelected(active ? null : c.id);
-                  }}
-                  aria-pressed={active}
-                  className={[
-                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors disabled:opacity-40",
-                    active
-                      ? "border-foreground/25 bg-secondary text-foreground"
-                      : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/20",
-                  ].join(" ")}
-                  suppressHydrationWarning
-                >
-                  <c.Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
-                  <span suppressHydrationWarning>
-                    {mounted ? t(c.labelKey) : "\u00A0"}
-                  </span>
-                </button>
-              );
-            })}
+            <CantoneseMicButton
+              disabled={thinking}
+              onText={(spoken) => {
+                setText((prev) => (prev ? `${prev}${spoken}` : spoken));
+                requestAnimationFrame(() => autosize(taRef.current));
+              }}
+            />
           </div>
           <button
             type="button"
@@ -493,15 +427,39 @@ export function Home() {
       <AppChromeHeader />
 
       {!inReception ? (
-        <main className="flex-1 min-h-0 flex flex-col px-5 md:px-6">
-          <div className="w-full max-w-3xl md:mx-auto flex-1 min-h-0 flex flex-col justify-center md:justify-start md:pt-[16vh] gap-6 md:gap-8">
+        <main className="flex-1 min-h-0 overflow-y-auto flex flex-col px-5 md:px-6">
+          <div className="w-full max-w-xl mx-auto my-auto flex flex-col items-stretch gap-5 py-6">
             <h1
               key={i18n.language}
-              className="w-full text-center md:text-left text-[28px] sm:text-[36px] md:text-[44px] font-semibold tracking-[-0.02em] leading-[1.15] text-foreground min-h-[1.15em]"
+              className={`w-full text-center text-[30px] sm:text-[40px] font-semibold tracking-[-0.03em] leading-[1.3] text-foreground ${i18n.language === "en" ? "" : "whitespace-nowrap"}`}
             >
               {mounted ? t("home.greeting") : "\u00A0"}
             </h1>
-            <div className="w-full pb-[max(env(safe-area-inset-bottom),12px)] md:pb-8">{composer}</div>
+            <div className="w-full">{composer}</div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => void navigate({ to: "/pool", search: { view: "list", id: "", theme: "" } })}
+                className="rounded-2xl border border-border bg-card px-3 py-4 text-center text-[18px] font-medium inline-flex items-center justify-center gap-2 whitespace-nowrap"
+              >
+                <Sparkles className="w-5 h-5 shrink-0" />
+                {mounted ? t("home.entry.pool") : "\u00A0"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!user) {
+                    void navigate({ to: "/auth", search: { mode: "signin", redirect: "/pool" } });
+                    return;
+                  }
+                  void navigate({ to: "/pool", search: { view: "new", id: "", theme: "" } });
+                }}
+                className="rounded-2xl border border-border bg-card px-3 py-4 text-center text-[18px] font-medium inline-flex items-center justify-center gap-2 whitespace-nowrap"
+              >
+                <PenLine className="w-5 h-5 shrink-0" />
+                {mounted ? t("home.entry.publish") : "\u00A0"}
+              </button>
+            </div>
           </div>
         </main>
       ) : (
@@ -520,7 +478,8 @@ export function Home() {
                       : "mr-8 rounded-2xl border border-border bg-card px-3.5 py-2.5 text-[14px] text-foreground"
                   }
                 >
-                  {m.content}
+                  {present(m.content)}
+                  {m.role === "assistant" ? <CantoneseListenButton text={m.content} /> : null}
                 </div>
               ))}
               {thinking && (

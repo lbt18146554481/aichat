@@ -12,8 +12,7 @@ import { semanticSimilarity } from "./text-similarity";
 import { softPrefLists, softPrefsPresent } from "./understanding";
 import type { UserUnderstanding } from "./understanding";
 import { cultureAffinityScoreFromProfilePerson } from "./culture-affinity";
-import { mixEmbeddingLexical } from "./similarity-mix";
-import { embedMany, vectorCosine } from "./embeddings.server";
+import { mixEmbeddingLexical, vectorCosine } from "./similarity-mix";
 
 const DEFAULT_LIMIT = 10;
 
@@ -340,58 +339,6 @@ export function recallCandidates(opts: RecallOpts): RecallResult {
     candidates: scored,
     filteredCount: afterHard.length,
     emptyAfterHardFilter: afterHard.length === 0,
-  };
-}
-
-/** Server recall: batch embeddings + chat-priority soft weights. */
-export async function recallCandidatesAsync(opts: RecallOpts): Promise<RecallResult> {
-  const limit = opts.limit ?? DEFAULT_LIMIT;
-  const blocked = new Set(opts.blockedIds);
-  const chatU = chatSoft(opts);
-  const preferenceQuery = buildPreferenceQuery(chatU);
-  const pool = opts.pool ?? [];
-
-  const available = pool.filter((p) => !blocked.has(p.id));
-  const afterHard = available.filter((p) => personPassesHardFilters(p, opts));
-
-  if (afterHard.length === 0) {
-    return { candidates: [], filteredCount: 0, emptyAfterHardFilter: true };
-  }
-
-  const docs = afterHard.map(personMatchDoc);
-  const negTexts = chatU.negative.map((n) => n.trim()).filter(Boolean);
-  const toEmbed: string[] = [];
-  if (preferenceQuery.trim()) toEmbed.push(preferenceQuery);
-  toEmbed.push(...docs);
-  toEmbed.push(...negTexts);
-
-  const vectors = await embedMany(toEmbed);
-  let offset = 0;
-  const queryVec = preferenceQuery.trim() ? vectors[offset++] ?? null : null;
-  const docVecs = docs.map(() => vectors[offset++] ?? null);
-  const negVecs = negTexts.map(() => vectors[offset++] ?? null);
-
-  const scored: RecalledCandidate[] = [];
-  for (let i = 0; i < afterHard.length; i++) {
-    const p = afterHard[i]!;
-    const { score, vectorScore } = await softScoreAsync(p, opts, preferenceQuery, {
-      queryVec,
-      docVec: docVecs[i] ?? null,
-      negVecs,
-    });
-    scored.push({
-      id: p.id,
-      score,
-      vectorScore: preferenceQuery.trim() ? vectorScore : undefined,
-    });
-  }
-
-  scored.sort((a, b) => b.score - a.score);
-
-  return {
-    candidates: scored.slice(0, limit),
-    filteredCount: afterHard.length,
-    emptyAfterHardFilter: false,
   };
 }
 

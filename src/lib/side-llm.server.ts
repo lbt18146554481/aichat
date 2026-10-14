@@ -705,6 +705,11 @@ async function publishDraft(input: SideTurnInput, draft: WishDraft): Promise<Int
     buddyPrefRaw: desc.buddyPrefRaw,
     otherReqRaw: desc.otherReqRaw,
     buddyMatchQuery: draft.buddyMatchQuery,
+    elderTheme: draft.elderTheme,
+    headcount: draft.headcount,
+    pace: draft.pace,
+    cost: draft.cost,
+    whenLabel: draft.whenLabel,
     skipRemotePersist: Boolean(input.userId),
     ...dates,
   });
@@ -862,17 +867,17 @@ function buildChatSystem(
     : "地点=缺失";
   const draftLine = `【本轮状态】lane=${opts.wishLane}；已发布=${opts.published ? input.myIntentId : "否"}；${placeStatus}；草稿 kind=${input.wishDraft.kind ?? "?"} when=${input.wishDraft.whenAny ? "any" : input.wishDraft.when ?? "?"} ${draftDates} time=${draftTimes} level=${input.wishDraft.levelAny ? "any" : input.wishDraft.level ?? "?"} text=${input.wishDraft.rawText || "（空）"}`;
 
-  const core = `你在 Maitri 帮用户找一起做事的搭子。温暖、具体，2-5 句。
-产品：对方说想一起做什么 → 一位一位介绍愿意一起做的人。用语自然，不提心愿池/发布/看别人的心愿。
+  const core = `你是老年人组局助手。温暖、口语、句子短，2-4 句。
+产品：对方想约人喝茶、散步、唱粤曲、行山等 → 从心愿池里一位一位介绍别人发布的活动心愿（做什么、何时、何地、谁发起），不要介绍交友候选人。可以说「心愿池」。
 ${selfVoiceRule(true)}
 handoffTo 保持 null。若对方要认识新朋友/找对象：reply 请回首页开「想认识人」新对话；suggestions 可给「回首页开新对话」。
 ${agentCapabilityIntroRule("sidebyside", true)}
 
 【决策】（以【本轮状态】的地点=为准）
 1. 闲聊 / 活动未明 → affirmMatch=false。
-2. 本轮要找人 + 地点=缺失 → askUserInfo（fieldKey=activity_place，kind=text）；affirmMatch=false；reply 短提看本条下的填写卡。
-3. 本轮要找人 + 地点=已有 → affirmMatch=true，reply=""，askUserInfo=null（资料城市也算已有）。
-时间/搭子偏好可空。affirmPublish=false；找人时 confirmLine=null。`;
+2. 本轮要找心愿 + 地点=缺失 → askUserInfo（fieldKey=activity_place，kind=text）；affirmMatch=false；reply 短提看本条下的填写卡。
+3. 本轮要找心愿（如「帮我找人饮茶/行山」）+ 地点=已有 → affirmMatch=true，reply=""，askUserInfo=null（资料城市也算已有）。
+时间、人数、费用可空。affirmPublish=false；找心愿时 confirmLine=null。`;
 
   const opening =
     input.action === "start" || opts.wishLane === "unset"
@@ -1882,7 +1887,9 @@ export async function runSideTurn(
       Boolean(toolState.lastSearchIds.length > 0) ||
       placeJustConfirmed);
 
-  if (wantsPeopleSearch) {
+  // Group-activity demo matches wishes in the pool. People cards stay callable, but off.
+  const matchPeopleCards = false;
+  if (matchPeopleCards && wantsPeopleSearch) {
     return runSidePeopleMatchTurn({
       input,
       draft,
@@ -1895,6 +1902,9 @@ export async function runSideTurn(
       onDelta,
       hooks,
     });
+  }
+  if (wantsPeopleSearch && wishLane !== "publish") {
+    wishLane = "browse";
   }
 
   const userAffirmedBrowse =
@@ -2286,7 +2296,7 @@ export async function runSideTurn(
       reply = explicitEmptyPoolReply(input, draft, recallMine);
     } else if (!mentionsEmpty) {
       reply = zh(input.lang)
-        ? `${reply} 按你现在的条件，暂时还没有合适的人——要不要放宽时间、水平，或换个活动试试？`
+        ? `${reply} 按你现在的条件，心愿池里暂时还没有合适的活动——要不要放宽时间或地点，或换个活动试试？`
         : `${reply} With your current filters I don't have a good match yet — want to loosen when, level, or try another activity?`;
     }
   }

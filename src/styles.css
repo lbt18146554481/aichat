@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "PingFang SC", "Noto Sans SC", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
@@ -108,6 +108,68 @@
   --border: #262626;
   --input: #1f1f1f;
   --ring: rgb(107 155 255 / 0.35);
+}
+
+/* Elder group-activity theme: larger type, higher contrast, warmer surface. */
+html.theme-elder {
+  --background: #fff8ef;
+  --foreground: #1c140c;
+  --surface: #fff1e0;
+  --sidebar: #fff1e0;
+  --card: #fffdf9;
+  --card-foreground: #1c140c;
+  --popover: #fffdf9;
+  --popover-foreground: #1c140c;
+  --primary: #0c6b48;
+  --primary-foreground: #ffffff;
+  --primary-hover: #09553a;
+  --secondary: #ffe8cc;
+  --secondary-foreground: #1c140c;
+  --muted: #ffe8cc;
+  --muted-foreground: #3f3428;
+  --subtle-foreground: #5c5144;
+  --accent: #ffe8cc;
+  --accent-foreground: #1c140c;
+  --border: #c9b59a;
+  --input: #fffdf9;
+  --ring: rgb(12 107 72 / 0.35);
+  font-size: 20px;
+}
+
+html.theme-elder body {
+  line-height: 1.7;
+}
+
+html.theme-elder .text-\[10px\],
+html.theme-elder .text-\[10\.5px\],
+html.theme-elder .text-\[11px\],
+html.theme-elder .text-\[12px\],
+html.theme-elder .text-\[12\.5px\],
+html.theme-elder .text-\[13px\],
+html.theme-elder .text-\[13\.5px\] {
+  font-size: 17px !important;
+  line-height: 1.55;
+}
+
+html.theme-elder .text-\[14px\],
+html.theme-elder .text-\[15px\] {
+  font-size: 19px !important;
+  line-height: 1.6;
+}
+
+html.theme-elder .elder-input {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  padding: 12px 14px;
+  font-size: 20px;
+  line-height: 1.5;
+  outline: none;
+}
+
+html.theme-elder .elder-input:focus {
+  border-color: var(--primary);
 }
 
 @layer base {

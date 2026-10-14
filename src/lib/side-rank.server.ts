@@ -47,10 +47,10 @@ export async function runSideWishRank(input: RankSideWishInput): Promise<RankSid
     .join("\n");
 
   const system = zh(input.lang)
-    ? `你是 Maitri Side by Side 的心愿排序器。根据用户搜索/心愿条件，把池子里的活动心愿从最合适到较弱排序。
+    ? `你是 nightlong Side by Side 的心愿排序器。根据用户搜索/心愿条件，把池子里的活动心愿从最合适到较弱排序。
 只能使用下方列表里的 id，不要编造 id。尽量保留列表中的全部 id（除非明显不符合）。
 输出 JSON：{"rankedIds":["id1","id2",...]}，最贴切排最前。`
-    : `You rank activity wishes in Maitri Side by Side. Order the pool from best fit to weaker fit for the user's search/wish.
+    : `You rank activity wishes in nightlong Side by Side. Order the pool from best fit to weaker fit for the user's search/wish.
 Use only ids from the list below — no invented ids. Include every listed id unless clearly wrong.
 JSON only: {"rankedIds":["id1","id2",...]} best first.`;
 

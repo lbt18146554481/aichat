@@ -5,7 +5,8 @@ import type { MatchHardFilters, RecallOpts } from "./match-types";
 import { EMPTY_HARD_FILTERS } from "./match-types";
 import { applyMatchmakerColdStart, profileHasColdStartSignal } from "./cold-start-prefs";
 import { chatCompletionJsonStream, runToolLoop } from "./llm.server";
-import { recallCandidates, recallCandidatesAsync, ensureMatchableHardFilters } from "./match-recall";
+import { recallCandidates, ensureMatchableHardFilters } from "./match-recall";
+import { recallCandidatesAsync } from "./match-recall.server";
 import { buildPoolFacets } from "./pool-facets.server";
 import { findPersonInPool, getMatchablePeopleForSeeker } from "./people-store.server";
 import type { Person, PersonGender } from "./types";
@@ -391,7 +392,7 @@ function buildChatSystem(
     .filter(Boolean)
     .join("\n");
 
-  const role = `你在 Maitri 帮用户认识新朋友。像真人聊天，2-5 句，温暖具体。
+  const role = `你在 nightlong 帮用户认识新朋友。像真人聊天，2-5 句，温暖具体。
 若对方想找活动搭子 / 一起做事：handoffTo 保持 null，在 reply 请回首页开「一起做事」新对话；suggestions 可给「回首页开新对话」。爱好当作交友偏好时留在本会话。
 ${selfVoiceRule(true)}`;
 

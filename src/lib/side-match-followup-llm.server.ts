@@ -115,10 +115,10 @@ export async function runSideMatchIntroReply(opts: {
   if (opts.recallEmpty || !opts.otherId) {
     const fallback = emptyFallback(rawWish, opts.lang, opts.wishLane);
     const system = isZh
-      ? `你是 Maitri Side by Side。本轮已完成池子搜索，没有符合条件的活动心愿/搭子。
+      ? `你是 nightlong Side by Side。本轮已完成池子搜索，没有符合条件的活动心愿/搭子。
 写 2-4 句简体中文：明确说暂时还没有合适的（禁止说「开始找/正在找」）；${isBrowse(opts.wishLane) ? "不要说「心愿已发布/记下」——用户只是在浏览搜索。" : "可复述心愿；"}自然建议放宽时间/活动/城市或改发心愿。事实与【统计】一致。禁止「新朋友」「认识新朋友」。${selfVoiceRule(true)}
 JSON：{"reply":"..."}`
-      : `You are Maitri Side by Side. Search finished — pool is empty.
+      : `You are nightlong Side by Side. Search finished — pool is empty.
 2-4 sentences: clearly no match yet (never say "starting to look"); ${isBrowse(opts.wishLane) ? "do not say wish published/saved — user was only browsing." : "recap wish if helpful;"} suggest loosening filters or posting a wish. Never say "meet someone new". ${selfVoiceRule(false)}
 JSON: {"reply":"..."}`;
     const user = isZh
@@ -143,10 +143,10 @@ JSON: {"reply":"..."}`;
   const city = isZh ? other.city_zh || other.city : other.city || other.ownerCity;
 
   const system = isZh
-    ? `你是 Maitri Side by Side。本轮已搜完池子，请用**这一条回复**介绍匹配到的搭子/活动心愿（不要先说「我去找」再另发一条）。
-写 3-5 句简体中文：自然介绍对方想做什么、为什么可能合适（用【匹配理由】，勿编造）；若跨城必须点明。邀请用户看右边卡片。禁止「MATCH FOUND」式播报；禁止「新朋友」「认识新朋友」——用「搭子」「活动心愿」「池子里的人」。${selfVoiceRule(true)}
+    ? `你是老年人组局助手。本轮已搜完心愿池，请用**这一条回复**介绍匹配到的一条活动心愿（不要先说「我去找」再另发一条）。
+写 3-5 句简体中文，句子短、好懂：这条心愿做什么、何时何地、谁发起、为什么可能适合（用【匹配理由】，勿编造）。邀请用户看右边的心愿卡。禁止「MATCH FOUND」；禁止「新朋友」「认识新朋友」「对象」。主角是心愿，发起人只是附属。${selfVoiceRule(true)}
 JSON：{"reply":"..."}`
-    : `You are Maitri Side by Side. Search finished — introduce the matched buddy / wish in **this one reply** (do not say "I'll look" then send a second message).
+    : `You are nightlong Side by Side. Search finished — introduce the matched buddy / wish in **this one reply** (do not say "I'll look" then send a second message).
 3-5 warm sentences: their wish, why it fits (use [Match reason]), cross-city if needed. Invite them to the card on the right. Never say "meet someone new" — say buddy / activity wish / person in the pool. ${selfVoiceRule(false)}
 JSON: {"reply":"..."}`;
 

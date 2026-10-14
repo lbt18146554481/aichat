@@ -3,9 +3,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft } from "lucide-react";
 import type { Lang } from "@/lib/i18n";
-import { isProfileComplete, loadProfile, profileProgress } from "@/lib/profile";
+import { loadProfile, profileProgress } from "@/lib/profile";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { ProfileForm } from "@/components/profile-form";
+import { signOut } from "@/lib/auth";
 import { useRequireAuth } from "@/lib/auth-guard";
 
 interface ProfileSearch {
@@ -18,8 +19,8 @@ export const Route = createFileRoute("/profile")({
   component: ProfilePage,
   head: () => ({
     meta: [
-      { title: "Your profile — Maitri" },
-      { name: "description", content: "Edit how you appear to people Maitri introduces you to." },
+      { title: "Your profile — nightlong" },
+      { name: "description", content: "Tell people nearby who you are and what you like doing together." },
     ],
   }),
 });
@@ -34,13 +35,11 @@ function ProfilePage() {
   const [hydrated, setHydrated] = useState(false);
   const [returnTo, setReturnTo] = useState<string | null>(null);
   const [needCity, setNeedCity] = useState(false);
-  const [currentProfile, setCurrentProfile] = useState(() => loadProfile());
 
   const isWelcome = search.welcome === 1 && !returnTo;
 
   useEffect(() => {
     const loaded = loadProfile();
-    setCurrentProfile(loaded);
     setProgress(profileProgress(loaded));
     try {
       setReturnTo(window.sessionStorage.getItem("kindred:profile:return"));
@@ -54,31 +53,10 @@ function ProfilePage() {
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
-  // Once the profile is complete, return the user to whatever they were
-  // doing before landing here — the say-hello flow, a wish canvas, or the
-  // signup welcome return. Full URL (path + query) is stored so we land
-  // back on the exact session, not a bare route.
-  useEffect(() => {
-    if (!isProfileComplete(currentProfile)) return;
-    let back: string | null = null;
-    try {
-      back =
-        window.sessionStorage.getItem("kindred:profile:welcome_return") ||
-        window.sessionStorage.getItem("kindred:profile:return");
-      window.sessionStorage.removeItem("kindred:profile:welcome_return");
-      window.sessionStorage.removeItem("kindred:profile:return");
-      window.sessionStorage.removeItem("kindred:profile:focus");
-    } catch {
-      /* noop */
-    }
-    const dest = back && back.startsWith("/") ? back : "/";
-    // Use a full location change so any `?session=…` query is preserved
-    // and the target route re-parses its search params.
-    window.location.assign(dest);
-  }, [currentProfile]);
+  // Opening the profile from the corner should stay on this page.
+  // A stored return path is only used by the back button.
 
   const handleProfileChange = useCallback((profile: ReturnType<typeof loadProfile>) => {
-    setCurrentProfile(profile);
     setProgress(profileProgress(profile));
   }, []);
 
@@ -108,7 +86,7 @@ function ProfilePage() {
       ? t("hello.gate.back_to_sidebyside")
       : isWelcome
         ? t("profile.skip_for_now")
-        : "Maitri";
+        : t("app.name");
 
   return (
     <div className="min-h-dvh bg-background pt-safe pb-tabbar">
@@ -154,6 +132,16 @@ function ProfilePage() {
         </div>
 
         <ProfileForm lang={lang} onChange={handleProfileChange} />
+
+        <button
+          type="button"
+          onClick={() => {
+            void signOut().then(() => navigate({ to: "/" }));
+          }}
+          className="w-full rounded-xl border border-border py-3 text-[18px] text-foreground mb-8"
+        >
+          {t("auth.sign_out")}
+        </button>
       </main>
     </div>
   );

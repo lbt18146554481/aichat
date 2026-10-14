@@ -48,7 +48,7 @@ export const Route = createFileRoute("/matchmaker")({
   component: MatchmakerPage,
   head: () => ({
     meta: [
-      { title: "认识新朋友 — Maitri" },
+      { title: "nightlong" },
       {
         name: "description",
         content: "描述你想找的人。每次只引荐一个人，并告诉你为什么是 TA。",

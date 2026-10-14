@@ -1,5 +1,6 @@
 import { chatCompletionJson } from "./llm.server";
-import { personCardLine, recallCandidatesAsync } from "./match-recall";
+import { personCardLine } from "./match-recall";
+import { recallCandidatesAsync, recallQueueIdsAsync } from "./match-recall.server";
 import type { MatchHardFilters, MatchmakerLang } from "./match-types";
 import { EMPTY_HARD_FILTERS } from "./match-types";
 import type { Person } from "./types";
@@ -10,7 +11,6 @@ import { log } from "./logger.server";
 import {
   MATCH_QUEUE_LIMIT,
   mergeRankedIds,
-  recallQueueIdsAsync,
 } from "./matchmaker-queue";
 import { buildReasons } from "./match-reasons";
 import { localized } from "./people";
@@ -449,7 +449,7 @@ export async function runMatchmakerRank(
     : `[Seeker profile] (for similarity in reasons)\n${seekerProfileForReason(input.profile, input.lang)}`;
 
   const system = zh(input.lang)
-    ? `你是 Maitri 的匹配排序器。任务：排序候选人，并为每人写匹配理由。
+    ? `你是 nightlong 的匹配排序器。任务：排序候选人，并为每人写匹配理由。
 
 排序：
 - 同时参考【1. 生效搜索条件】和【2. 用户口头明确需求】；【2】权重高于【1】与画像相似。
@@ -468,7 +468,7 @@ export async function runMatchmakerRank(
 输出 JSON：
 {"ranked":[{"id":"id1","reason":"..."},{"id":"id2","reason":"..."},...]}
 最贴切排最前。`
-    : `You rank Maitri matchmaker candidates and write a reason for each.
+    : `You rank nightlong matchmaker candidates and write a reason for each.
 
 Ranking:
 - Use both [1. Effective search prefs] and [2. Explicit chat asks]; weight [2] above [1] and profile similarity.

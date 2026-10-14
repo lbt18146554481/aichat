@@ -6,8 +6,8 @@ export const Route = createFileRoute("/privacy")({
   component: PrivacyPage,
   head: () => ({
     meta: [
-      { title: "Privacy Policy — Maitri" },
-      { name: "description", content: "How Maitri collects, uses, and deletes your data." },
+      { title: "Privacy Policy — nightlong" },
+      { name: "description", content: "How nightlong collects, uses, and deletes your data." },
     ],
   }),
 });
@@ -23,7 +23,7 @@ function PrivacyPage() {
             className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="font-mono uppercase tracking-wide">Maitri</span>
+            <span className="font-mono uppercase tracking-wide">nightlong</span>
           </Link>
         </div>
       </header>
