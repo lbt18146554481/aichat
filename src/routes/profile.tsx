@@ -19,7 +19,7 @@ export const Route = createFileRoute("/profile")({
   component: ProfilePage,
   head: () => ({
     meta: [
-      { title: "Your profile — nightlong" },
+      { title: "Your profile — Compamore" },
       { name: "description", content: "Tell people nearby who you are and what you like doing together." },
     ],
   }),

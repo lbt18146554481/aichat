@@ -51,7 +51,7 @@ export const Route = createFileRoute("/auth/callback")({
   }),
   component: AuthCallbackPage,
   head: () => ({
-    meta: [{ title: "Signing in — nightlong" }],
+    meta: [{ title: "Signing in — Compamore" }],
   }),
 });
 

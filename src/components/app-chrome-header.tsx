@@ -15,7 +15,7 @@ import { useAuth } from "@/lib/auth";
  */
 export function AppChromeHeader() {
   const { t } = useTranslation();
-  const brand = "nightlong";
+  const brand = "Compamore";
   const { user } = useAuth();
   const onHome = useLocation().pathname === "/";
   const [mounted, setMounted] = useState(false);

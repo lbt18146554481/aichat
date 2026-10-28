@@ -69,7 +69,7 @@ export function WorkspaceHeader({ agentNameKey, agentSubtitleKey, onReset }: Pro
             aria-label={t("nav.home")}
           >
             <ArrowLeft className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-            <span className="font-mono uppercase tracking-wide hidden sm:inline">nightlong</span>
+            <span className="font-mono uppercase tracking-wide hidden sm:inline">Compamore</span>
           </Link>
           <span className="text-muted-foreground/40 hidden sm:inline">/</span>
           <div className="flex flex-col leading-tight min-w-0">

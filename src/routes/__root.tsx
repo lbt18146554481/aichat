@@ -89,17 +89,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content",
       },
       { name: "theme-color", content: "#ffffff" },
-      { title: "nightlong" },
+      { title: "Compamore" },
       {
         name: "description",
         content:
-          "nightlong is a kind search agent: describe the person you're looking for, and it retrieves matching profiles, narrows down, and surfaces candidates.",
+          "Compamore is a kind search agent: describe the person you're looking for, and it retrieves matching profiles, narrows down, and surfaces candidates.",
       },
-      { property: "og:title", content: "nightlong" },
+      { property: "og:title", content: "Compamore" },
       {
         property: "og:description",
         content:
-          "Meet someone kind. Describe the person you're looking for and nightlong introduces one candidate at a time.",
+          "Meet someone kind. Describe the person you're looking for and Compamore introduces one candidate at a time.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

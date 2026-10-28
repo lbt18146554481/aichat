@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "nightlong",
+    "name": "Compamore",
     "tagline": "Plan tea, a walk, or a song with someone nearby."
   },
   "home": {
@@ -24,9 +24,9 @@
     },
     "chip_prompt_matchmaker": "I'd like to meet someone new.",
     "chip_prompt_sidebyside": "I'd like to explore some interesting activities.",
-    "reception_title": "nightlong is helping you figure out what you want",
+    "reception_title": "Compamore is helping you figure out what you want",
     "reception_error": "Couldn't reach the conversation service. Please try again.",
-    "reception_clarify": "Hey — I'm nightlong. I can chat with you, and when you're ready, help you meet someone new or find company for something. No rush — start wherever you like.",
+    "reception_clarify": "Hey — I'm Compamore. I can chat with you, and when you're ready, help you meet someone new or find company for something. No rush — start wherever you like.",
     "transition_matchmaker": "Sure — tell me what kind of person you're hoping to meet.",
     "transition_side": "Sure — let's figure out what you'd like to do with someone.",
     "connections": "Connections",
@@ -36,7 +36,7 @@
     "history": "History",
     "gate": {
       "title": "The Agents need to know you first.",
-      "body": "nightlong shows people the words you write — not labels we infer. Take five minutes to set up your profile, then come back.",
+      "body": "Compamore shows people the words you write — not labels we infer. Take five minutes to set up your profile, then come back.",
       "cta": "Set up profile · {{done}}/{{total}}"
     },
     "banner": {
@@ -562,12 +562,12 @@
   },
   "profile": {
     "gate": {
-      "need_city": "nightlong plans activities with people nearby. Add where you usually are to keep going."
+      "need_city": "Compamore plans activities with people nearby. Add where you usually are to keep going."
     },
     "heading_setup": "Your profile",
     "heading_edit": "Your profile",
     "subhead": "Say who you are, where you usually are, and what you like doing with other people. People you meet for an activity will see this.",
-    "welcome_sub": "Welcome to nightlong. Take a minute to introduce yourself, so it's easier to plan something together. You can come back and edit anytime.",
+    "welcome_sub": "Welcome to Compamore. Take a minute to introduce yourself, so it's easier to plan something together. You can come back and edit anytime.",
     "skip_for_now": "Skip for now",
     "progress": "Step {{done}} of {{total}}",
     "section": {
@@ -712,14 +712,14 @@
     "sign_out": "Sign out",
     "your_profile": "Your profile",
     "account_menu": "Account menu",
-    "title_signin": "Sign in to nightlong.",
+    "title_signin": "Sign in to Compamore.",
     "title_signup": "Join.",
     "sub_signin": "Continue with the account you signed up with. New here? Create an account below.",
     "sub_signin_email": "Sign in with the email and password you used to join.",
     "sub_signup": "Create an account with email and password.",
     "sub_signup_email": "Create your account with email and password.",
     "invite_step_title": "You'll need an invite.",
-    "invite_step_sub": "nightlong is invite-only for now. Enter a code to continue.",
+    "invite_step_sub": "Compamore is invite-only for now. Enter a code to continue.",
     "provider_step_title_signup": "Choose how to sign up.",
     "credentials_step_title_signup": "Create your account.",
     "invite_label": "Invite code",
@@ -740,7 +740,7 @@
     "oauth_working": "Signing you in…",
     "apple_coming_soon": "Apple sign-in is coming soon.",
     "wechat_coming_soon": "WeChat sign-in is coming soon.",
-    "switch_to_signup_lead": "New to nightlong?",
+    "switch_to_signup_lead": "New to Compamore?",
     "switch_to_signup_cta": "Create an account",
     "switch_to_signin_lead": "Already have an account?",
     "switch_to_signin_cta": "Sign in",
@@ -845,7 +845,7 @@
     "muted": "Muted. They won't appear in matches or chats.",
     "unmuted": "Unmuted.",
     "title": "Report this person",
-    "body": "This helps us keep nightlong safe. Reports are stored locally until server moderation is enabled.",
+    "body": "This helps us keep Compamore safe. Reports are stored locally until server moderation is enabled.",
     "reason_spam": "Spam or scam",
     "reason_harassment": "Harassment or abuse",
     "reason_inappropriate": "Inappropriate content",
@@ -859,14 +859,14 @@
   "privacy": {
     "title": "Privacy Policy",
     "who_we_are": "Who we are",
-    "who_body": "nightlong is a kind, intentional matchmaking experience. This policy explains what data we collect and how we use it.",
+    "who_body": "Compamore is a kind, intentional matchmaking experience. This policy explains what data we collect and how we use it.",
     "what_collect": "What we collect",
     "collect_identity": "Basic account information (name, email, authentication provider).",
     "collect_profile": "Profile details you choose to share, such as city, age, moments, and favorites.",
     "collect_content": "Messages and content you create within the app.",
     "collect_tech": "Device and usage data needed to keep the app running.",
     "how_use": "How we use it",
-    "use_body": "We use your data only to operate and improve nightlong: matching you with people, showing your profile to others, and keeping conversations safe. We do not sell your data.",
+    "use_body": "We use your data only to operate and improve Compamore: matching you with people, showing your profile to others, and keeping conversations safe. We do not sell your data.",
     "delete": "Deleting your account",
     "delete_body": "You can delete your account at any time from the Me page. Deletion removes your data from our servers.",
     "contact": "Contact us",
@@ -876,7 +876,7 @@
   "terms": {
     "title": "Terms of Service",
     "acceptance": "Acceptance",
-    "acceptance_body": "By using nightlong, you agree to these terms and our Privacy Policy.",
+    "acceptance_body": "By using Compamore, you agree to these terms and our Privacy Policy.",
     "eligibility": "Eligibility",
     "eligibility_body": "You must be at least 18 years old to use this app.",
     "conduct": "Conduct",

@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "nightlong",
+    "name": "Compamore",
     "tagline": "约人一起喝茶、散步、唱粤曲。"
   },
   "home": {
@@ -24,9 +24,9 @@
     },
     "chip_prompt_matchmaker": "我想认识新朋友。",
     "chip_prompt_sidebyside": "我想探索一些有趣的活动。",
-    "reception_title": "nightlong 在帮你理清想做什么",
+    "reception_title": "Compamore 在帮你理清想做什么",
     "reception_error": "刚才没连上对话服务，请稍后再试。",
-    "reception_clarify": "你好呀。我是 nightlong——能陪你慢慢聊，也能在你想的时候帮你认识新朋友，或者找个人一起做点事。不着急，你想从哪儿聊起都行。",
+    "reception_clarify": "你好呀。我是 Compamore——能陪你慢慢聊，也能在你想的时候帮你认识新朋友，或者找个人一起做点事。不着急，你想从哪儿聊起都行。",
     "transition_matchmaker": "好，那我们聊聊你想认识什么样的人——",
     "transition_side": "好，那我们看看你想和谁一起做什么——",
     "connections": "我的联系",
@@ -36,7 +36,7 @@
     "history": "历史",
     "gate": {
       "title": "Agent 需要先认识你。",
-      "body": "nightlong 给别人看的是你亲手写下的字，不是我们替你归纳的标签。花五分钟把资料填完，然后再回来。",
+      "body": "Compamore 给别人看的是你亲手写下的字，不是我们替你归纳的标签。花五分钟把资料填完，然后再回来。",
       "cta": "去填资料 · {{done}}/{{total}}"
     },
     "banner": {
@@ -562,12 +562,12 @@
   },
   "profile": {
     "gate": {
-      "need_city": "nightlong 只约附近的人一起活动。填一下你常在的地方再继续。"
+      "need_city": "Compamore 只约附近的人一起活动。填一下你常在的地方再继续。"
     },
     "heading_setup": "你的资料",
     "heading_edit": "你的资料",
     "subhead": "写清楚你是谁、常在哪一带、平时喜欢约人做什么。一起活动的人会看到这些。",
-    "welcome_sub": "欢迎来到 nightlong。花一分钟介绍一下自己，方便以后约人。随时可以回来改。",
+    "welcome_sub": "欢迎来到 Compamore。花一分钟介绍一下自己，方便以后约人。随时可以回来改。",
     "skip_for_now": "先跳过",
     "progress": "第 {{done}} / {{total}} 步",
     "section": {
@@ -712,14 +712,14 @@
     "sign_out": "退出登录",
     "your_profile": "我的资料",
     "account_menu": "账号菜单",
-    "title_signin": "登录 nightlong。",
+    "title_signin": "登录 Compamore。",
     "title_signup": "加入组局助手。",
     "sub_signin": "使用你注册时的方式继续。新朋友可以直接注册。",
     "sub_signin_email": "使用注册时的邮箱和密码登录。",
     "sub_signup": "用邮箱和密码创建账号。",
     "sub_signup_email": "用邮箱和密码创建你的账号。",
     "invite_step_title": "先输入邀请码。",
-    "invite_step_sub": "nightlong 目前仅限受邀加入。输入邀请码后继续。",
+    "invite_step_sub": "Compamore 目前仅限受邀加入。输入邀请码后继续。",
     "provider_step_title_signup": "选择注册方式。",
     "credentials_step_title_signup": "创建你的账号。",
     "invite_label": "邀请码",
@@ -845,7 +845,7 @@
     "muted": "已屏蔽。对方不会再出现在匹配和聊天中。",
     "unmuted": "已取消屏蔽。",
     "title": "举报这个人",
-    "body": "这帮助我们维护 nightlong 的安全。当前举报信息保存在本地，待服务端审核上线后会同步。",
+    "body": "这帮助我们维护 Compamore 的安全。当前举报信息保存在本地，待服务端审核上线后会同步。",
     "reason_spam": "垃圾或诈骗",
     "reason_harassment": "骚扰或辱骂",
     "reason_inappropriate": "不当内容",
@@ -859,14 +859,14 @@
   "privacy": {
     "title": "隐私政策",
     "who_we_are": "关于我们",
-    "who_body": "nightlong 是一个温柔、有意识的匹配体验。本政策说明我们收集哪些数据以及如何使用。",
+    "who_body": "Compamore 是一个温柔、有意识的匹配体验。本政策说明我们收集哪些数据以及如何使用。",
     "what_collect": "我们收集的信息",
     "collect_identity": "基本账号信息（姓名、邮箱、登录方式）。",
     "collect_profile": "你选择填写的资料，如城市、年龄、瞬间、偏爱作品等。",
     "collect_content": "你在应用中创建的对话和内容。",
     "collect_tech": "设备和运行数据，用于保持应用正常运转。",
     "how_use": "我们如何使用",
-    "use_body": "我们仅使用你的数据来运营和改进 nightlong：匹配合适的人、向他人展示你的资料、维护对话安全。我们不会出售你的数据。",
+    "use_body": "我们仅使用你的数据来运营和改进 Compamore：匹配合适的人、向他人展示你的资料、维护对话安全。我们不会出售你的数据。",
     "delete": "删除账号",
     "delete_body": "你可以随时在「我的」页面删除账号。删除会从我们的服务器永久移除你的数据。",
     "contact": "联系我们",
@@ -876,7 +876,7 @@
   "terms": {
     "title": "服务条款",
     "acceptance": "接受条款",
-    "acceptance_body": "使用 nightlong 即表示你同意本条款及我们的隐私政策。",
+    "acceptance_body": "使用 Compamore 即表示你同意本条款及我们的隐私政策。",
     "eligibility": "使用资格",
     "eligibility_body": "你必须年满 18 岁才能使用。",
     "conduct": "用户行为",

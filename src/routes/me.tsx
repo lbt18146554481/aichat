@@ -22,15 +22,15 @@ export const Route = createFileRoute("/me")({
   component: MePage,
   head: () => ({
     meta: [
-      { title: "You — nightlong" },
+      { title: "You — Compamore" },
       {
         name: "description",
-        content: "Your profile, saved people and account on nightlong.",
+        content: "Your profile, saved people and account on Compamore.",
       },
-      { property: "og:title", content: "You — nightlong" },
+      { property: "og:title", content: "You — Compamore" },
       {
         property: "og:description",
-        content: "Your profile, saved people and account on nightlong.",
+        content: "Your profile, saved people and account on Compamore.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

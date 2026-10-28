@@ -47,7 +47,7 @@ export const Route = createFileRoute("/pool")({
   }),
   component: WishPoolPage,
   head: () => ({
-    meta: [{ title: "nightlong" }],
+    meta: [{ title: "Compamore" }],
   }),
 });
 

@@ -2,7 +2,7 @@ import { uiCopy } from "@/lib/lang";
 
 /** Simplified source → English. Traditional is converted from the simplified source. */
 const EN: Record<string, string> = {
-  组局: "nightlong",
+  组局: "Compamore",
   返回: "Back",
   发心愿: "Post a wish",
   心愿详情: "Wish",

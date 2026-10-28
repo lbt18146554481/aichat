@@ -14,7 +14,7 @@ export const Route = createFileRoute("/wishes/")({
   component: WishesListPage,
   head: () => ({
     meta: [
-      { title: "My wishes — nightlong" },
+      { title: "My wishes — Compamore" },
       { name: "description", content: "Wishes you've published to the pool." },
     ],
   }),
