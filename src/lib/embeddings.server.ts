@@ -12,9 +12,10 @@ import {
   EMBED_MIX_WEIGHT,
   LEXICAL_MIX_WEIGHT,
   mixEmbeddingLexical,
+  vectorCosine,
 } from "./similarity-mix";
 
-export { EMBED_MIX_WEIGHT, LEXICAL_MIX_WEIGHT, mixEmbeddingLexical };
+export { EMBED_MIX_WEIGHT, LEXICAL_MIX_WEIGHT, mixEmbeddingLexical, vectorCosine };
 
 /** DashScope Qwen flash batch limit is 20 texts per request. */
 const EMBED_BATCH_SIZE = 20;
@@ -111,20 +112,6 @@ export async function embedMany(texts: string[]): Promise<Array<number[] | null>
   }
 
   return out;
-}
-
-export function vectorCosine(a: number[], b: number[]): number {
-  if (a.length === 0 || b.length !== a.length) return 0;
-  let dot = 0;
-  let na = 0;
-  let nb = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i]! * b[i]!;
-    na += a[i]! * a[i]!;
-    nb += b[i]! * b[i]!;
-  }
-  if (na === 0 || nb === 0) return 0;
-  return dot / (Math.sqrt(na) * Math.sqrt(nb));
 }
 
 /** Dense similarity when embeddings exist; otherwise null. */

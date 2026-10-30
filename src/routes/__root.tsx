@@ -86,21 +86,29 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content",
       },
-      { name: "theme-color", content: "#ffffff" },
-      { title: "Maitri — meet someone kind" },
+      { name: "theme-color", content: "#2477B8" },
+      { name: "msapplication-TileColor", content: "#2477B8" },
+      { name: "msapplication-config", content: "/browserconfig.xml" },
+      { title: "Compamore" },
       {
         name: "description",
-        content:
-          "Maitri is a kind search agent: describe the person you're looking for, and it retrieves matching profiles, narrows down, and surfaces candidates.",
+        content: "Where kindness meets love. Compamore helps you meet someone kind.",
       },
-      { property: "og:title", content: "Maitri" },
+      { property: "og:title", content: "Compamore" },
       {
         property: "og:description",
-        content:
-          "Meet someone kind. Describe the person you're looking for and Maitri introduces one candidate at a time.",
+        content: "Where kindness meets love. Meet someone kind with Compamore.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { property: "og:image", content: "/compamore-og-image.png" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      {
+        property: "og:image:alt",
+        content: "Compamore — Where kindness meets love.",
+      },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "/compamore-og-image.png" },
       // Release identity, shared with the iOS build (see scripts/version.mjs).
       { name: "x-app-version", content: BUILD_INFO.version },
       { name: "x-app-build", content: String(BUILD_INFO.buildNumber) },
@@ -108,10 +116,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", type: "image/png", href: "/favicon.png" },
+      { rel: "icon", href: "/favicon.ico", sizes: "any" },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "mask-icon", href: "/safari-pinned-tab.svg", color: "#2477B8" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap",
       },
     ],
   }),

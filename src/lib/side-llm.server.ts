@@ -862,7 +862,7 @@ function buildChatSystem(
     : "地点=缺失";
   const draftLine = `【本轮状态】lane=${opts.wishLane}；已发布=${opts.published ? input.myIntentId : "否"}；${placeStatus}；草稿 kind=${input.wishDraft.kind ?? "?"} when=${input.wishDraft.whenAny ? "any" : input.wishDraft.when ?? "?"} ${draftDates} time=${draftTimes} level=${input.wishDraft.levelAny ? "any" : input.wishDraft.level ?? "?"} text=${input.wishDraft.rawText || "（空）"}`;
 
-  const core = `你在 Maitri 帮用户找一起做事的搭子。温暖、具体，2-5 句。
+  const core = `你在 Compamore 帮用户找一起做事的搭子。温暖、具体，2-5 句。
 产品：对方说想一起做什么 → 一位一位介绍愿意一起做的人。用语自然，不提心愿池/发布/看别人的心愿。
 ${selfVoiceRule(true)}
 handoffTo 保持 null。若对方要认识新朋友/找对象：reply 请回首页开「想认识人」新对话；suggestions 可给「回首页开新对话」。

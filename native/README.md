@@ -1,4 +1,4 @@
-# Maitri Native
+# Compamore Native
 
 This folder contains everything that is not shared with the web build:
 

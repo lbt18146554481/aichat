@@ -1,7 +1,7 @@
 /**
  * Realtime WebSocket hub for chat / connection updates.
  *
- * - Clients connect: ws://host:WS_PORT?  (session cookie `maitri_session` on handshake)
+ * - Clients connect: ws://host:WS_PORT?  (session cookie `compamore_session` on handshake)
  * - App server POSTs to http://127.0.0.1:WS_PORT/push with { userId, connection }
  *
  * Run: bun run ws  (or tsx scripts/ws-server.ts)
@@ -13,7 +13,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import postgres from "postgres";
 
 const WS_PORT = Number(process.env.WS_PORT || 3001);
-const SESSION_COOKIE = "maitri_session";
+const SESSION_COOKIE = "compamore_session";
 const DATABASE_URL = process.env.DATABASE_URL;
 
 if (!DATABASE_URL) {

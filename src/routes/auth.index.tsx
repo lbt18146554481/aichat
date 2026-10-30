@@ -24,8 +24,8 @@ export const Route = createFileRoute("/auth/")({
   component: AuthPage,
   head: () => ({
     meta: [
-      { title: "Sign in — Maitri" },
-      { name: "description", content: "Sign in or join Maitri with an invite." },
+      { title: "Sign in — Compamore" },
+      { name: "description", content: "Sign in or join Compamore with an invite." },
     ],
   }),
 });
@@ -202,7 +202,7 @@ function AuthPage() {
             className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="font-mono uppercase tracking-wide">Maitri</span>
+            <span className="font-mono uppercase tracking-wide">Compamore</span>
           </Link>
           <LangSwitcher />
         </div>

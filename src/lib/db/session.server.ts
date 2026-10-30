@@ -5,7 +5,7 @@ import { getDb } from "./client.server";
 import { authSessions, users } from "./schema";
 import type { AuthUser } from "../auth-types";
 
-export const SESSION_COOKIE = "maitri_session";
+export const SESSION_COOKIE = "compamore_session";
 const SESSION_DAYS = 30;
 
 export function newId(prefix = ""): string {

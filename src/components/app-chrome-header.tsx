@@ -30,9 +30,13 @@ export function AppChromeHeader() {
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="relative inline-flex">
-              <span className="w-6 h-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">
-                K
-              </span>
+              <img
+                src="/brand/compamore-symbol-blue.svg"
+                alt=""
+                width={24}
+                height={24}
+                className="w-6 h-6"
+              />
               {mounted && user && unseen && (
                 <span
                   aria-label={t("home.connections")}
@@ -40,7 +44,7 @@ export function AppChromeHeader() {
                 />
               )}
             </span>
-            <span className="text-[14px] font-semibold tracking-tight text-foreground">Maitri</span>
+            <span className="text-[14px] font-semibold tracking-tight text-foreground">Compamore</span>
           </div>
           <div className="flex items-center gap-3">
             {mounted && user && (
@@ -74,14 +78,18 @@ export function AppChromeHeader() {
         <div className="px-5 h-12 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="relative inline-flex">
-              <span className="w-6 h-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-mono text-[11px] font-bold">
-                K
-              </span>
+              <img
+                src="/brand/compamore-symbol-blue.svg"
+                alt=""
+                width={24}
+                height={24}
+                className="w-6 h-6"
+              />
               {mounted && user && unseen && (
                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />
               )}
             </span>
-            <span className="text-[13.5px] font-semibold tracking-tight text-foreground">Maitri</span>
+            <span className="text-[13.5px] font-semibold tracking-tight text-foreground">Compamore</span>
           </div>
           <div className="flex items-center gap-1">
             {mounted && user && (

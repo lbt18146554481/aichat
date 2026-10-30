@@ -4,9 +4,38 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@font-face {
+  font-family: "Manrope";
+  src: url("/fonts/Manrope-400.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Manrope";
+  src: url("/fonts/Manrope-500.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Manrope";
+  src: url("/fonts/Manrope-600.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Manrope";
+  src: url("/fonts/Manrope-700.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme inline {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Manrope", "PingFang SC", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Manrope", "PingFang SC", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -46,68 +75,67 @@
 :root {
   --radius: 0.75rem;
 
-  /* Neutral base — Gemini/ChatGPT feel */
-  --background: #ffffff;
-  --foreground: #0d0d0d;
-  --surface: #f7f7f8;
+  /* Compamore BLUE 02 */
+  --background: #f7fafc;
+  --foreground: #1f2d3d;
+  --surface: #edf3f7;
 
-  --sidebar: #f7f7f8;
+  --sidebar: #edf3f7;
 
   --card: #ffffff;
-  --card-foreground: #0d0d0d;
+  --card-foreground: #1f2d3d;
 
   --popover: #ffffff;
-  --popover-foreground: #0d0d0d;
+  --popover-foreground: #1f2d3d;
 
-  /* Refined blue — icons, links, focus, rare accents only */
-  --primary: #2f6feb;
+  --primary: #2477b8;
   --primary-foreground: #ffffff;
-  --primary-hover: #2a62d1;
+  --primary-hover: #1f6fae;
 
-  --secondary: #f4f4f5;
-  --secondary-foreground: #0d0d0d;
+  --secondary: #d2e9f5;
+  --secondary-foreground: #1f2d3d;
 
-  --muted: #f4f4f5;
-  --muted-foreground: #6b6b70;
-  --subtle-foreground: #9a9aa0;
+  --muted: #edf3f7;
+  --muted-foreground: #4a5b6d;
+  --subtle-foreground: #6b7c8d;
 
-  --accent: #f4f4f5;
-  --accent-foreground: #0d0d0d;
+  --accent: #d2e9f5;
+  --accent-foreground: #1f2d3d;
 
   --success: #16a34a;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
 
-  --border: #e5e5e7;
-  --input: #f4f4f5;
-  --ring: rgb(47 111 235 / 0.28);
+  --border: #c9d8e4;
+  --input: #ffffff;
+  --ring: rgb(36 119 184 / 0.28);
 
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04);
-  --shadow-md: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.1);
+  --shadow-sm: 0 1px 2px rgb(31 45 61 / 0.04);
+  --shadow-md: 0 1px 2px rgb(31 45 61 / 0.04), 0 8px 24px -12px rgb(31 45 61 / 0.12);
 }
 
 .dark {
-  --background: #0d0d0d;
-  --foreground: #f5f5f5;
-  --surface: #1a1a1a;
-  --sidebar: #141414;
-  --card: #141414;
-  --card-foreground: #f5f5f5;
-  --popover: #141414;
-  --popover-foreground: #f5f5f5;
-  --primary: #6b9bff;
-  --primary-foreground: #0d0d0d;
-  --primary-hover: #85adff;
-  --secondary: #1f1f1f;
-  --secondary-foreground: #f5f5f5;
-  --muted: #1f1f1f;
-  --muted-foreground: #a1a1a6;
-  --subtle-foreground: #6b6b70;
-  --accent: #1f1f1f;
-  --accent-foreground: #f5f5f5;
-  --border: #262626;
-  --input: #1f1f1f;
-  --ring: rgb(107 155 255 / 0.35);
+  --background: #142130;
+  --foreground: #f7fafc;
+  --surface: #1a2a3c;
+  --sidebar: #1a2a3c;
+  --card: #1a2a3c;
+  --card-foreground: #f7fafc;
+  --popover: #1a2a3c;
+  --popover-foreground: #f7fafc;
+  --primary: #3d99d4;
+  --primary-foreground: #142130;
+  --primary-hover: #5aabd9;
+  --secondary: #1f2d3d;
+  --secondary-foreground: #f7fafc;
+  --muted: #1f2d3d;
+  --muted-foreground: #a8b8c7;
+  --subtle-foreground: #6b7c8d;
+  --accent: #1f2d3d;
+  --accent-foreground: #f7fafc;
+  --border: #2a3d52;
+  --input: #1f2d3d;
+  --ring: rgb(61 153 212 / 0.35);
 }
 
 @layer base {

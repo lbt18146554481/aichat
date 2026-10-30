@@ -85,7 +85,7 @@ export const Route = createFileRoute("/side-by-side")({
   component: SideBySidePage,
   head: () => ({
     meta: [
-      { title: "一起做事 — Maitri" },
+      { title: "一起做事 — Compamore" },
       { name: "description", content: "在你们都在做的事里相遇。" },
     ],
   }),

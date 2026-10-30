@@ -3,12 +3,12 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: maitri
-      POSTGRES_PASSWORD: maitri
-      POSTGRES_DB: maitri
+      POSTGRES_USER: compamore
+      POSTGRES_PASSWORD: compamore
+      POSTGRES_DB: compamore
     ports:
       - "5433:5432"
     volumes:
-      - maitri_pg:/var/lib/postgresql/data
+      - compamore_pg:/var/lib/postgresql/data
 volumes:
-  maitri_pg:
+  compamore_pg:

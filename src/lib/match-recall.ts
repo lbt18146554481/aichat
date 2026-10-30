@@ -12,8 +12,8 @@ import { semanticSimilarity } from "./text-similarity";
 import { softPrefLists, softPrefsPresent } from "./understanding";
 import type { UserUnderstanding } from "./understanding";
 import { cultureAffinityScoreFromProfilePerson } from "./culture-affinity";
-import { mixEmbeddingLexical } from "./similarity-mix";
-import { embedMany, vectorCosine } from "./embeddings.server";
+import { mixEmbeddingLexical, vectorCosine } from "./similarity-mix";
+// embeddings.server uses node:* — never statically import it into client-reachable modules.
 
 const DEFAULT_LIMIT = 10;
 
@@ -365,6 +365,7 @@ export async function recallCandidatesAsync(opts: RecallOpts): Promise<RecallRes
   toEmbed.push(...docs);
   toEmbed.push(...negTexts);
 
+  const { embedMany } = await import("./embeddings.server");
   const vectors = await embedMany(toEmbed);
   let offset = 0;
   const queryVec = preferenceQuery.trim() ? vectors[offset++] ?? null : null;

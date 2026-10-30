@@ -18,8 +18,8 @@ import {
 } from "./match-recall";
 import { activityCoreFromKind, kindFromActivityCore } from "./activity-core";
 import { EMPTY_HARD_FILTERS } from "./match-types";
-import { embedMany, vectorCosine } from "./embeddings.server";
-import { mixEmbeddingLexical } from "./similarity-mix";
+import { mixEmbeddingLexical, vectorCosine } from "./similarity-mix";
+// embeddings.server uses node:* — load only inside async server recall paths.
 
 export const SIDE_RECALL_LIMIT = 10;
 /** Half day in ms — hanging invite rematch interval. */
@@ -245,6 +245,7 @@ export async function recallSidePeopleAsync(
   toEmbed.push(...docs);
   toEmbed.push(...negTexts);
 
+  const { embedMany } = await import("./embeddings.server");
   const vectors = await embedMany(toEmbed);
   let offset = 0;
   const prefVec = preferenceQuery.trim() ? vectors[offset++] ?? null : null;

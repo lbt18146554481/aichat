@@ -1,6 +1,6 @@
 import { createPrivateKey, sign } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { isAbsolute, join } from "node:path";
 
 /**
  * Sign in with Apple (web / Services ID).
@@ -34,7 +34,7 @@ function loadApplePrivateKeyPem(): string {
   }
   const pathEnv = process.env.APPLE_PRIVATE_KEY_PATH?.trim();
   if (!pathEnv) throw new Error("missing_env:APPLE_PRIVATE_KEY");
-  const abs = resolve(process.cwd(), pathEnv);
+  const abs = isAbsolute(pathEnv) ? pathEnv : join(process.cwd(), pathEnv);
   return readFileSync(abs, "utf8");
 }
 

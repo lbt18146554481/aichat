@@ -1,6 +1,6 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
-const STATE_COOKIE = "maitri_oauth_state";
+const STATE_COOKIE = "compamore_oauth_state";
 
 export { STATE_COOKIE as GOOGLE_OAUTH_STATE_COOKIE };
 

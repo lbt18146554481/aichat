@@ -15,13 +15,11 @@ import {
   exchangeGoogleCode,
   parseOAuthState,
 } from "../google-oauth.server";
-import {
-  buildAppleAuthorizeUrl,
-  exchangeAppleCode,
-} from "../apple-oauth.server";
+// Do NOT statically import apple-oauth.server — it uses node:fs/path/crypto and
+// would break the Vite client bundle. Load it only inside server handlers.
 
 /** Tracks which OAuth provider owns the current authorize round-trip. */
-const OAUTH_PROVIDER_COOKIE = "maitri_oauth_provider";
+const OAUTH_PROVIDER_COOKIE = "compamore_oauth_provider";
 type OAuthProviderCookie = "google" | "apple";
 
 /**
@@ -278,6 +276,7 @@ export const startAppleOAuthFn = createServerFn({ method: "POST" })
       const { state, nonce } = createOAuthState(redirectPath);
       setCookie(GOOGLE_OAUTH_STATE_COOKIE, nonce, oauthCookieOpts(10 * 60));
       setCookie(OAUTH_PROVIDER_COOKIE, "apple" satisfies OAuthProviderCookie, oauthCookieOpts(10 * 60));
+      const { buildAppleAuthorizeUrl } = await import("../apple-oauth.server");
       const url = buildAppleAuthorizeUrl(state);
       return { url };
     } catch (e) {
@@ -433,6 +432,7 @@ export const completeAppleOAuthFn = createServerFn({ method: "POST" })
         }
       }
 
+      const { exchangeAppleCode } = await import("../apple-oauth.server");
       const profile = await exchangeAppleCode(data.code, { fullName });
       const db = getDb();
 

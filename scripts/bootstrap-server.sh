@@ -200,7 +200,7 @@ write_env() {
 
   log "create .env"
   cat >"$env_file" <<EOF
-DATABASE_URL=postgresql://maitri:maitri@127.0.0.1:5433/maitri
+DATABASE_URL=postgresql://compamore:compamore@127.0.0.1:5433/compamore
 SESSION_SECRET=$secret
 DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY
 DEEPSEEK_BASE_URL=https://api.deepseek.com

@@ -344,8 +344,8 @@ export async function generatePersonaReply(opts: {
       : "Reply in natural English, 1-4 sentences, warm and specific.";
   const roleHint =
     opts.lang === "zh"
-      ? `你是资料卡上的 AI 陪聊角色（用户已在界面看到「AI 角色」标注）。以该角色的口吻陪用户聊天、练打招呼；像真人说话，但不要假装是真人在另一端、不要提 Maitri/系统/模型。${opts.isHello ? "这是用户刚发来的第一句招呼，自然接住并愿意继续聊。" : ""}`
-      : `You are an AI companion persona from this profile card (the UI labels you as AI). Chat in this character's voice; warm and human, but do not pretend to be a real person on the other end or mention Maitri/system/models. ${opts.isHello ? "This is the user's opening hello — welcome it and keep the conversation going." : ""}`;
+      ? `你是资料卡上的 AI 陪聊角色（用户已在界面看到「AI 角色」标注）。以该角色的口吻陪用户聊天、练打招呼；像真人说话，但不要假装是真人在另一端、不要提 Compamore/系统/模型。${opts.isHello ? "这是用户刚发来的第一句招呼，自然接住并愿意继续聊。" : ""}`
+      : `You are an AI companion persona from this profile card (the UI labels you as AI). Chat in this character's voice; warm and human, but do not pretend to be a real person on the other end or mention Compamore/system/models. ${opts.isHello ? "This is the user's opening hello — welcome it and keep the conversation going." : ""}`;
   return chatCompletion([
     {
       role: "system",

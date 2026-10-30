@@ -449,7 +449,7 @@ export async function runMatchmakerRank(
     : `[Seeker profile] (for similarity in reasons)\n${seekerProfileForReason(input.profile, input.lang)}`;
 
   const system = zh(input.lang)
-    ? `你是 Maitri 的匹配排序器。任务：排序候选人，并为每人写匹配理由。
+    ? `你是 Compamore 的匹配排序器。任务：排序候选人，并为每人写匹配理由。
 
 排序：
 - 同时参考【1. 生效搜索条件】和【2. 用户口头明确需求】；【2】权重高于【1】与画像相似。
@@ -468,7 +468,7 @@ export async function runMatchmakerRank(
 输出 JSON：
 {"ranked":[{"id":"id1","reason":"..."},{"id":"id2","reason":"..."},...]}
 最贴切排最前。`
-    : `You rank Maitri matchmaker candidates and write a reason for each.
+    : `You rank Compamore matchmaker candidates and write a reason for each.
 
 Ranking:
 - Use both [1. Effective search prefs] and [2. Explicit chat asks]; weight [2] above [1] and profile similarity.
