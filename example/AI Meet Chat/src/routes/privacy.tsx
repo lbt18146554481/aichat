@@ -6,10 +6,10 @@ export const Route = createFileRoute("/privacy")({
   component: PrivacyPage,
   head: () => ({
     meta: [
-      { title: "Privacy Policy — Maitri" },
-      { name: "description", content: "How Maitri collects, uses, and deletes your data." },
-      { property: "og:title", content: "Privacy Policy — Maitri" },
-      { property: "og:description", content: "How Maitri collects, uses, and deletes your data." },
+      { title: "Privacy Policy — Compamore" },
+      { name: "description", content: "How Compamore collects, uses, and deletes your data." },
+      { property: "og:title", content: "Privacy Policy — Compamore" },
+      { property: "og:description", content: "How Compamore collects, uses, and deletes your data." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -28,7 +28,7 @@ function PrivacyPage() {
             className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="font-mono uppercase tracking-wide">Maitri</span>
+            <span className="font-mono uppercase tracking-wide">Compamore</span>
           </Link>
         </div>
       </header>

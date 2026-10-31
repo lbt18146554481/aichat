@@ -489,7 +489,10 @@ export function Home() {
   );
 
   return (
-    <div className="h-dvh bg-background flex flex-col pb-tabbar overflow-hidden" suppressHydrationWarning>
+    <div
+      className={`h-dvh bg-background flex flex-col overflow-hidden ${user ? "pb-tabbar" : "pb-safe"}`}
+      suppressHydrationWarning
+    >
       <AppChromeHeader />
 
       {!inReception ? (
@@ -501,7 +504,10 @@ export function Home() {
             >
               {mounted ? t("home.greeting") : "\u00A0"}
             </h1>
-            <div className="w-full pb-[max(env(safe-area-inset-bottom),12px)] md:pb-8">{composer}</div>
+            {/* Tab bar already includes home-indicator inset when signed in. */}
+            <div className={`w-full md:pb-8 ${user ? "pb-3" : "pb-[max(env(safe-area-inset-bottom),12px)]"}`}>
+              {composer}
+            </div>
           </div>
         </main>
       ) : (
@@ -529,7 +535,11 @@ export function Home() {
             </div>
           </div>
 
-          <div className="shrink-0 border-t border-border/60 bg-background px-5 md:px-6 pt-3 pb-[max(env(safe-area-inset-bottom),12px)]">
+          <div
+            className={`shrink-0 border-t border-border/60 bg-background px-5 md:px-6 pt-3 ${
+              user ? "pb-3" : "pb-[max(env(safe-area-inset-bottom),12px)]"
+            }`}
+          >
             <div className="w-full max-w-3xl mx-auto">{composer}</div>
           </div>
         </main>

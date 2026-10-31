@@ -1,6 +1,6 @@
 // Invite + auth gating rules.
 //
-// These are the rules that decide whether a person can get into Maitri at
+// These are the rules that decide whether a person can get into Compamore at
 // all, so they get tests: single-use codes, invite-gated signup, and the
 // "no account on this device yet" branch that routes a visitor to signup.
 

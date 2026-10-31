@@ -26,7 +26,7 @@ export const Route = createFileRoute("/matchmaker")({
   component: MatchmakerPage,
   head: () => ({
     meta: [
-      { title: "Matchmaker — Maitri" },
+      { title: "Matchmaker — Compamore" },
       {
         name: "description",
         content: "Describe who you're looking for. The Matchmaker introduces one person at a time.",

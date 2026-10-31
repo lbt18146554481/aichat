@@ -1,8 +1,8 @@
 import { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "app.lovable.maitri",
-  appName: "Maitri",
+  appId: "app.lovable.compamore",
+  appName: "Compamore",
   webDir: "native/www",
   ios: {
     path: "native/ios",

@@ -1,6 +1,6 @@
-# maitri-admin 开局文档（粘贴即可开工）
+# compamore-admin 开局文档（粘贴即可开工）
 
-> 用法：Lovable 首页 → New Project → 命名 `maitri-admin` → 把本文件**全文**作为第一条消息发送。
+> 用法：Lovable 首页 → New Project → 命名 `compamore-admin` → 把本文件**全文**作为第一条消息发送。
 > 需要字段级细节时，再补发同目录的 `spec.md`。
 > 本文件是唯一权威开局说明；`bootstrap-prompt.md` 已收敛为指向本文件。
 
@@ -8,7 +8,7 @@
 
 ## 项目定位与硬边界
 
-请搭建一个**后台管理系统**（Maitri Admin Console），用于管理一款社交撮合 Agent 产品的用户、数据统计、邀请码，以及后台自身的账号与权限。
+请搭建一个**后台管理系统**（Compamore Admin Console），用于管理一款社交撮合 Agent 产品的用户、数据统计、邀请码，以及后台自身的账号与权限。
 
 技术栈固定：TanStack Start + Tailwind v4 + shadcn。
 

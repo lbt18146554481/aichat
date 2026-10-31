@@ -1,4 +1,4 @@
-"""Extra end-to-end interaction coverage for Maitri (Playwright, Chromium).
+"""Extra end-to-end interaction coverage for Compamore (Playwright, Chromium).
 
 Adds three groups of assertions on top of tests/e2e/smoke.py:
 

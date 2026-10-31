@@ -23,7 +23,7 @@ export const Route = createFileRoute("/connections")({
   component: ConnectionsPage,
   head: () => ({
     meta: [
-      { title: "Conversations — Maitri" },
+      { title: "Conversations — Compamore" },
       { name: "description", content: "Your ongoing conversations." },
     ],
   }),
@@ -147,7 +147,7 @@ function ConnectionsPage() {
               className="inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="font-mono uppercase tracking-wide">Maitri</span>
+              <span className="font-mono uppercase tracking-wide">Compamore</span>
             </Link>
           )}
           {activeId && (
@@ -155,7 +155,7 @@ function ConnectionsPage() {
               to="/"
               className="hidden lg:inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
             >
-              <span className="font-mono uppercase tracking-wide">Maitri</span>
+              <span className="font-mono uppercase tracking-wide">Compamore</span>
             </Link>
           )}
           <div className="text-[13.5px] font-semibold tracking-tight">{t("connection.title")}</div>

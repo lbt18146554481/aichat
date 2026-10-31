@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Maitri",
+    "name": "Compamore",
     "tagline": "Meet someone kind."
   },
   "home": {
@@ -18,7 +18,7 @@
     "history": "History",
     "gate": {
       "title": "The Agents need to know you first.",
-      "body": "Maitri shows people the words you write — not labels we infer. Take five minutes to set up your profile, then come back.",
+      "body": "Compamore shows people the words you write — not labels we infer. Take five minutes to set up your profile, then come back.",
       "cta": "Set up profile · {{done}}/{{total}}"
     },
     "banner": {
@@ -387,12 +387,12 @@
   },
   "profile": {
     "gate": {
-      "need_city": "Maitri matches people in the same city. Add your city to keep going."
+      "need_city": "Compamore matches people in the same city. Add your city to keep going."
     },
     "heading_setup": "Set up your profile",
     "heading_edit": "Your profile",
     "subhead": "This is exactly how others see you. Write it in your own words — short, specific, true. The Agents read this, they never invent it.",
-    "welcome_sub": "Welcome to Maitri. Take a minute to introduce yourself — you can always come back and edit. Skip whenever you like.",
+    "welcome_sub": "Welcome to Compamore. Take a minute to introduce yourself — you can always come back and edit. Skip whenever you like.",
     "skip_for_now": "Skip for now",
     "progress": "Step {{done}} of {{total}}",
     "section": {
@@ -535,15 +535,15 @@
     "sign_out": "Sign out",
     "your_profile": "Your profile",
     "account_menu": "Account menu",
-    "title_signin": "Sign in to Maitri.",
-    "title_signup": "Join Maitri — by invite.",
+    "title_signin": "Sign in to Compamore.",
+    "title_signup": "Join Compamore — by invite.",
     "sub_signin": "Continue with the account you signed up with. New here? Join with an invite code below.",
     "sub_signup": "Choose how you'd like to sign in. We'll use it just to identify you.",
     "invite_step_title": "You'll need an invite.",
-    "invite_step_sub": "Maitri is invite-only for now. Enter a code to continue.",
+    "invite_step_sub": "Compamore is invite-only for now. Enter a code to continue.",
     "provider_step_title_signup": "Choose how to sign up.",
     "invite_label": "Invite code",
-    "invite_placeholder": "e.g. MAITRI2026",
+    "invite_placeholder": "e.g. COMPAMORE2026",
     "invite_hint": "Ask a friend who's already inside for their code.",
     "invite_verify": "Continue",
     "invite_change": "Change",
@@ -552,7 +552,7 @@
     "continue_wechat": "Continue with WeChat",
     "coming_soon": "Soon",
     "wechat_coming_soon": "WeChat sign-in is coming soon.",
-    "switch_to_signup_lead": "New to Maitri?",
+    "switch_to_signup_lead": "New to Compamore?",
     "switch_to_signup_cta": "Join with an invite",
     "switch_to_signin_lead": "Already have an account?",
     "switch_to_signin_cta": "Sign in",
@@ -632,7 +632,7 @@
     "block": "Block",
     "unblock": "Unblock",
     "title": "Report this person",
-    "body": "This helps us keep Maitri safe. Reports are stored locally in this demo.",
+    "body": "This helps us keep Compamore safe. Reports are stored locally in this demo.",
     "reason_spam": "Spam or scam",
     "reason_harassment": "Harassment or abuse",
     "reason_inappropriate": "Inappropriate content",
@@ -646,26 +646,26 @@
   "privacy": {
     "title": "Privacy Policy",
     "who_we_are": "Who we are",
-    "who_body": "Maitri is a kind, intentional matchmaking experience. This policy explains what data we collect and how we use it.",
+    "who_body": "Compamore is a kind, intentional matchmaking experience. This policy explains what data we collect and how we use it.",
     "what_collect": "What we collect",
     "collect_identity": "Basic account information (name, email, authentication provider).",
     "collect_profile": "Profile details you choose to share, such as city, age, moments, and favorites.",
     "collect_content": "Messages and content you create within the app.",
     "collect_tech": "Device and usage data needed to keep the app running.",
     "how_use": "How we use it",
-    "use_body": "We use your data only to operate and improve Maitri: matching you with people, showing your profile to others, and keeping conversations safe. We do not sell your data.",
+    "use_body": "We use your data only to operate and improve Compamore: matching you with people, showing your profile to others, and keeping conversations safe. We do not sell your data.",
     "delete": "Deleting your account",
     "delete_body": "You can delete your account at any time from the Me page. Deletion removes your data from this device and, once backed by a server, triggers a permanent deletion on our servers.",
     "contact": "Contact us",
-    "contact_body": "For privacy questions, reach out to privacy@maitri.app.",
+    "contact_body": "For privacy questions, reach out to privacy@compamore.com.",
     "last_updated": "Last updated: 2026."
   },
   "terms": {
     "title": "Terms of Service",
     "acceptance": "Acceptance",
-    "acceptance_body": "By using Maitri, you agree to these terms and our Privacy Policy.",
+    "acceptance_body": "By using Compamore, you agree to these terms and our Privacy Policy.",
     "eligibility": "Eligibility",
-    "eligibility_body": "You must be at least 18 years old to use Maitri. Accounts are invite-only during the early release.",
+    "eligibility_body": "You must be at least 18 years old to use Compamore. Accounts are invite-only during the early release.",
     "conduct": "Conduct",
     "conduct_body": "Be kind and honest. Harassment, hate speech, spam, or impersonation are not allowed. We may suspend accounts that violate these rules.",
     "content": "Your content",
@@ -673,7 +673,7 @@
     "termination": "Termination",
     "termination_body": "You may delete your account at any time. We may also suspend or terminate accounts that violate these terms.",
     "contact": "Contact us",
-    "contact_body": "For legal questions, contact legal@maitri.app.",
+    "contact_body": "For legal questions, contact legal@compamore.com.",
     "last_updated": "Last updated: 2026."
   }
 }

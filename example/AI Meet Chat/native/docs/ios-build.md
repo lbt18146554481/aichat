@@ -1,6 +1,6 @@
-# Maitri iOS Build Guide
+# Compamore iOS Build Guide
 
-This document explains how to build, sign, and submit the Maitri iOS app from the `native/ios` directory.
+This document explains how to build, sign, and submit the Compamore iOS app from the `native/ios` directory.
 
 ## Important Constraints
 
@@ -43,13 +43,13 @@ In Xcode:
 If you prefer to manage the iOS project in its own repository:
 
 ```bash
-cp -R native /path/to/new-maitri-ios-repo/
+cp -R native /path/to/new-compamore-ios-repo/
 ```
 
 Inside the new repository:
 
 ```bash
-cd /path/to/new-maitri-ios-repo/native
+cd /path/to/new-compamore-ios-repo/native
 # Install only the Capacitor CLI if you don't have the full web dependencies
 bun add -D @capacitor/cli
 bunx cap sync ios
@@ -67,7 +67,7 @@ Both platforms derive their release identity from one generator, so a shipped
 | --- | --- | --- | --- |
 | Marketing version | `package.json` `version` | `<meta name="x-app-version">` | `MARKETING_VERSION` |
 | Build number | git commit count (`BUILD_NUMBER` env overrides) | `<meta name="x-app-build">` | `CURRENT_PROJECT_VERSION` |
-| Commit + release id | short git sha | `<meta name="x-app-release">` | `MAITRI_RELEASE_ID` |
+| Commit + release id | short git sha | `<meta name="x-app-release">` | `COMPAMORE_RELEASE_ID` |
 
 ```bash
 bun run version:sync    # regenerate both artifacts
@@ -89,7 +89,7 @@ duplicate build number).
 
 ## URL Scheme for OAuth
 
-The bundle identifier is `app.lovable.maitri`. The custom URL scheme is `maitri://`. If you later wire real OAuth, the provider redirect should be `maitri://auth/callback` and the web route `/auth/callback` should handle the token.
+The bundle identifier is `app.lovable.compamore`. The custom URL scheme is `compamore://`. If you later wire real OAuth, the provider redirect should be `compamore://auth/callback` and the web route `/auth/callback` should handle the token.
 
 You can verify the scheme is registered in `native/ios/App/App/Info.plist` under `CFBundleURLTypes`.
 
@@ -101,7 +101,7 @@ You can verify the scheme is registered in `native/ios/App/App/Info.plist` under
 - **Demo Account**: Provide an Apple test account if you use Sign in with Apple.
 - **Invite Code**: Since v1 registration requires an invite code, include a working demo invite code in the review notes so the reviewer can complete signup.
 - **Sign in with Apple**: If you offer Google/Apple/WeChat, Apple is mandatory. The web auth screen already includes Apple, which satisfies this rule.
-- **4.2 Minimum Functionality**: The app must be more than a repackaged web page. Maitri is a full matchmaking/connection app; the native shell adds status bar, safe-area, splash screen, and native back gesture, which Apple generally accepts.
+- **4.2 Minimum Functionality**: The app must be more than a repackaged web page. Compamore is a full matchmaking/connection app; the native shell adds status bar, safe-area, splash screen, and native back gesture, which Apple generally accepts.
 
 ## Common Issues
 

@@ -6,10 +6,10 @@ export const Route = createFileRoute("/terms")({
   component: TermsPage,
   head: () => ({
     meta: [
-      { title: "Terms of Service — Maitri" },
-      { name: "description", content: "The terms and conditions for using Maitri." },
-      { property: "og:title", content: "Terms of Service — Maitri" },
-      { property: "og:description", content: "The terms and conditions for using Maitri." },
+      { title: "Terms of Service — Compamore" },
+      { name: "description", content: "The terms and conditions for using Compamore." },
+      { property: "og:title", content: "Terms of Service — Compamore" },
+      { property: "og:description", content: "The terms and conditions for using Compamore." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -28,7 +28,7 @@ function TermsPage() {
             className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="font-mono uppercase tracking-wide">Maitri</span>
+            <span className="font-mono uppercase tracking-wide">Compamore</span>
           </Link>
         </div>
       </header>

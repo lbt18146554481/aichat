@@ -1,4 +1,4 @@
-# Maitri Admin Console — 需求与接口契约
+# Compamore Admin Console — 需求与接口契约
 
 > 本文件是**独立后台管理项目**的落地依据。当前 Agent 产品（Web + iOS）不因本文件产生任何代码、交互或视觉改动。
 > 后台首版只做骨架：数据来自后台项目内部的 mock 适配器，不启用 Cloud、不建业务库、不读当前产品的浏览器本地存储。
@@ -9,7 +9,7 @@
 
 | 项 | 约定 |
 | --- | --- |
-| 代码仓 | 全新独立 Lovable 项目（`maitri-admin`），独立部署与域名（如 `admin.*`） |
+| 代码仓 | 全新独立 Lovable 项目（`compamore-admin`），独立部署与域名（如 `admin.*`） |
 | 与主产品关系 | 首版零耦合；下一版通过共享后端读同一份数据 |
 | 技术栈 | TanStack Start + Tailwind v4 + shadcn（与主产品一致，便于维护，但代码完全独立） |
 | 首版数据源 | `src/data/adapters/mock/`（内存 + 固定种子） |

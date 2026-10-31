@@ -1,4 +1,4 @@
-"""Minimal end-to-end smoke test for Maitri (Playwright, Chromium).
+"""Minimal end-to-end smoke test for Compamore (Playwright, Chromium).
 
 Verifies the core chain works in a real browser:
   1. home page loads and hydrates
@@ -101,7 +101,7 @@ async def check_home_hydrates(browser):
     composer = await page.locator("textarea").count()
     record(
         "home: loads and hydrates",
-        composer > 0 and "Maitri" in body,
+        composer > 0 and "Compamore" in body,
         f"textareas={composer}",
     )
     record("home: no console/page errors", not errors, "; ".join(errors[:2]))

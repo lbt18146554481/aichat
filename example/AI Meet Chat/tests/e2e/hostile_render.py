@@ -1,4 +1,4 @@
-"""Render-side hostile-payload coverage for Maitri (Playwright, Chromium).
+"""Render-side hostile-payload coverage for Compamore (Playwright, Chromium).
 
 The unit contract tests (tests/unit/ports-contract.test.ts) prove the stores
 round-trip hostile input byte-for-byte. This file proves the other half:

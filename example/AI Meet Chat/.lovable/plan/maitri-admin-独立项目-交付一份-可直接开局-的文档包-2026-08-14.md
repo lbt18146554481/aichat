@@ -1,4 +1,4 @@
-# maitri-admin 独立项目：交付一份「可直接开局」的文档包
+# compamore-admin 独立项目：交付一份「可直接开局」的文档包
 
 前提确认：后台是**完全独立的新 Lovable 项目**，由你在 Lovable 首页手动创建。我在本项目里只做一件事 —— 把新项目开局所需的文档准备到「粘贴即可开工」的程度。当前 Agent 产品的 `src/`、`native/`、样式与文案**零改动**。
 
@@ -52,7 +52,7 @@
 
 ## 交付后你的操作
 
-1. Lovable 首页 → New Project → 命名 `maitri-admin`
+1. Lovable 首页 → New Project → 命名 `compamore-admin`
 2. 粘贴 `docs/admin-console/START-HERE.md` 全文作为第一条消息
 3. 需要字段级细节时再补发 `docs/admin-console/spec.md`
 4. 按「后续消息序列」逐条推进
